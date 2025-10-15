@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import logo from "@/assets/emerald-logo.png";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -53,12 +54,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <div className="flex h-16 items-center justify-between px-4 border-b">
           {sidebarOpen ? (
             <>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <Package className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <span className="font-semibold text-lg">SCM</span>
-              </div>
+              <img src={logo} alt="Emerald Industrial" className="h-10 object-contain" />
               <Button
                 variant="ghost"
                 size="icon"
