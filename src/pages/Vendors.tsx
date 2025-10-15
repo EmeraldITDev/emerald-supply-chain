@@ -321,8 +321,22 @@ const Vendors = () => {
                 </div>
               </div>
               <div className="flex gap-2 pt-4">
-                <Button className="flex-1">View Orders</Button>
-                <Button variant="outline" className="flex-1">Contact Vendor</Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    setVendorDetailsOpen(false);
+                    navigate("/procurement", { state: { vendor: selectedVendor?.name } });
+                  }}
+                >
+                  View Orders
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setContactDialogOpen(true)}
+                >
+                  Contact Vendor
+                </Button>
               </div>
             </div>
           )}
