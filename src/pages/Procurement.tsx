@@ -1,24 +1,14 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, FileText, Package } from "lucide-react";
+import { Plus, FileText, Package, ShoppingCart } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate } from "react-router-dom";
+import { useApp } from "@/contexts/AppContext";
 
 const Procurement = () => {
   const navigate = useNavigate();
-  
-  const mrfRequests = [
-    { id: "MRF-2025-001", title: "Office Supplies", status: "Pending", date: "2025-10-14", requester: "John Doe" },
-    { id: "MRF-2025-002", title: "Raw Materials", status: "Approved", date: "2025-10-13", requester: "Jane Smith" },
-    { id: "MRF-2025-003", title: "Equipment", status: "In Review", date: "2025-10-12", requester: "Mike Johnson" },
-  ];
-
-  const srfRequests = [
-    { id: "SRF-2025-001", title: "Maintenance Service", status: "Pending", date: "2025-10-14", requester: "Sarah Wilson" },
-    { id: "SRF-2025-002", title: "IT Support", status: "Completed", date: "2025-10-10", requester: "Tom Brown" },
-  ];
+  const { mrfRequests, srfRequests, purchaseOrders } = useApp();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -136,12 +126,35 @@ const Procurement = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Purchase Orders</CardTitle>
-                <CardDescription>Coming soon - PO management will be available after request approvals</CardDescription>
+                <CardDescription>List of all purchase orders</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground text-center py-8">
-                  Purchase order generation will be implemented in the next phase
-                </p>
+                <div className="space-y-3">
+                  {purchaseOrders.map((po) => (
+                    <div
+                      key={po.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <ShoppingCart className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{po.items}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {po.id} • {po.vendor} • {po.date}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Delivery: {po.deliveryDate} • {po.amount}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-xs px-3 py-1 rounded-full ${getStatusColor(po.status)}`}>
+                        {po.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

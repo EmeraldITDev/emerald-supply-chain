@@ -17,22 +17,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useApp } from "@/contexts/AppContext";
+import type { Trip, Vehicle } from "@/contexts/AppContext";
 
 const Logistics = () => {
   const { toast } = useToast();
+  const { trips, vehicles } = useApp();
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
-  
-  const trips = [
-    { id: "T001", destination: "Lagos", driver: "John Doe", vehicle: "TRK-001", status: "In Transit", eta: "2 hours" },
-    { id: "T002", destination: "Abuja", driver: "Jane Smith", vehicle: "TRK-002", status: "Scheduled", eta: "Tomorrow" },
-    { id: "T003", destination: "Port Harcourt", driver: "Mike Johnson", vehicle: "TRK-003", status: "Completed", eta: "-" },
-  ];
-
-  const vehicles = [
-    { id: "TRK-001", type: "Heavy Truck", status: "Active", maintenance: "Due in 2 weeks", driver: "John Doe" },
-    { id: "TRK-002", type: "Van", status: "Active", maintenance: "Up to date", driver: "Jane Smith" },
-    { id: "TRK-003", type: "Heavy Truck", status: "Maintenance", maintenance: "In progress", driver: "-" },
-  ];
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [tripDetailsOpen, setTripDetailsOpen] = useState(false);
+  const [vehicleDetailsOpen, setVehicleDetailsOpen] = useState(false);
 
   const drivers = [
     { name: "John Doe", license: "ABC123456", trips: 45, rating: 4.8, status: "On Trip" },
@@ -56,6 +51,16 @@ const Logistics = () => {
       default:
         return "bg-muted text-muted-foreground";
     }
+  };
+
+  const handleViewTripDetails = (trip: Trip) => {
+    setSelectedTrip(trip);
+    setTripDetailsOpen(true);
+  };
+
+  const handleViewVehicleDetails = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle);
+    setVehicleDetailsOpen(true);
   };
 
   return (
@@ -90,8 +95,9 @@ const Logistics = () => {
                       <SelectValue placeholder="Select vehicle" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="TRK-001">TRK-001</SelectItem>
-                      <SelectItem value="TRK-002">TRK-002</SelectItem>
+                      {vehicles.map(v => (
+                        <SelectItem key={v.id} value={v.id}>{v.id} - {v.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -102,8 +108,9 @@ const Logistics = () => {
                       <SelectValue placeholder="Select driver" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="john">John Doe</SelectItem>
-                      <SelectItem value="jane">Jane Smith</SelectItem>
+                      {drivers.filter(d => d.status === "Available").map(d => (
+                        <SelectItem key={d.license} value={d.name}>{d.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -125,8 +132,8 @@ const Logistics = () => {
               <Truck className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
-              <p className="text-xs text-muted-foreground">2 completing today</p>
+              <div className="text-2xl font-bold">{trips.filter(t => t.status === "In Transit").length}</div>
+              <p className="text-xs text-muted-foreground">{trips.length} total trips</p>
             </CardContent>
           </Card>
 
@@ -136,7 +143,7 @@ const Logistics = () => {
               <Truck className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">15/18</div>
+              <div className="text-2xl font-bold">{vehicles.filter(v => v.status === "Active").length}/{vehicles.length}</div>
               <p className="text-xs text-muted-foreground">Operational vehicles</p>
             </CardContent>
           </Card>
@@ -147,8 +154,8 @@ const Logistics = () => {
               <Users className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">22</div>
-              <p className="text-xs text-muted-foreground">18 available</p>
+              <div className="text-2xl font-bold">{drivers.length}</div>
+              <p className="text-xs text-muted-foreground">{drivers.filter(d => d.status === "Available").length} available</p>
             </CardContent>
           </Card>
 
@@ -189,7 +196,7 @@ const Logistics = () => {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
-                            {trip.destination}
+                            {trip.route}
                           </span>
                           <span className="flex items-center gap-1">
                             <Users className="h-3 w-3" />
@@ -202,12 +209,12 @@ const Logistics = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium">ETA: {trip.eta}</p>
+                        <p className="text-sm font-medium">Departs: {trip.departure}</p>
                         <Button 
                           variant="outline" 
                           size="sm" 
                           className="mt-2"
-                          onClick={() => toast({ title: "Trip Details", description: `Viewing details for ${trip.id}` })}
+                          onClick={() => handleViewTripDetails(trip)}
                         >
                           View Details
                         </Button>
@@ -231,19 +238,19 @@ const Logistics = () => {
                     <div key={vehicle.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold">{vehicle.id}</span>
+                          <span className="font-semibold">{vehicle.name} ({vehicle.id})</span>
                           <Badge className={getStatusColor(vehicle.status)}>{vehicle.status}</Badge>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>{vehicle.type}</span>
-                          <span>Maintenance: {vehicle.maintenance}</span>
+                          <span>Plate: {vehicle.plate}</span>
                           <span>Driver: {vehicle.driver}</span>
                         </div>
                       </div>
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => toast({ title: "Vehicle Management", description: `Managing vehicle ${vehicle.id}` })}
+                        onClick={() => handleViewVehicleDetails(vehicle)}
                       >
                         Manage
                       </Button>
@@ -278,7 +285,10 @@ const Logistics = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => toast({ title: "Driver Profile", description: `Viewing profile for ${driver.name}` })}
+                        onClick={() => toast({ 
+                          title: "Driver Profile", 
+                          description: `${driver.name} - ${driver.trips} completed trips with ${driver.rating}/5.0 rating` 
+                        })}
                       >
                         View Profile
                       </Button>
@@ -290,6 +300,94 @@ const Logistics = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Trip Details Dialog */}
+      <Dialog open={tripDetailsOpen} onOpenChange={setTripDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Trip Details - {selectedTrip?.id}</DialogTitle>
+            <DialogDescription>Complete trip information and tracking</DialogDescription>
+          </DialogHeader>
+          {selectedTrip && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Route</Label>
+                  <p className="font-medium">{selectedTrip.route}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge className={getStatusColor(selectedTrip.status)}>{selectedTrip.status}</Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Vehicle</Label>
+                  <p className="font-medium">{selectedTrip.vehicle}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Driver</Label>
+                  <p className="font-medium">{selectedTrip.driver}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Departure</Label>
+                  <p className="font-medium">{selectedTrip.departure}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Arrival (ETA)</Label>
+                  <p className="font-medium">{selectedTrip.arrival}</p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Cargo Details</Label>
+                  <p className="font-medium">{selectedTrip.cargo}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Vehicle Details Dialog */}
+      <Dialog open={vehicleDetailsOpen} onOpenChange={setVehicleDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Vehicle Management - {selectedVehicle?.name}</DialogTitle>
+            <DialogDescription>Vehicle details and maintenance records</DialogDescription>
+          </DialogHeader>
+          {selectedVehicle && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Vehicle ID</Label>
+                  <p className="font-medium">{selectedVehicle.id}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge className={getStatusColor(selectedVehicle.status)}>{selectedVehicle.status}</Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Type</Label>
+                  <p className="font-medium">{selectedVehicle.type}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Plate Number</Label>
+                  <p className="font-medium">{selectedVehicle.plate}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Assigned Driver</Label>
+                  <p className="font-medium">{selectedVehicle.driver}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Last Maintenance</Label>
+                  <p className="font-medium">{selectedVehicle.lastMaintenance}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button className="flex-1">Schedule Maintenance</Button>
+                <Button variant="outline" className="flex-1">Update Status</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

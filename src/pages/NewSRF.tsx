@@ -9,10 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useApp } from "@/contexts/AppContext";
 
 const NewSRF = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { addSRF } = useApp();
   const [formData, setFormData] = useState({
     title: "",
     serviceType: "",
@@ -25,6 +27,8 @@ const NewSRF = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    addSRF(formData);
     
     toast({
       title: "SRF Submitted Successfully",

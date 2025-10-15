@@ -9,10 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useApp } from "@/contexts/AppContext";
 
 const NewMRF = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { addMRF } = useApp();
   const [formData, setFormData] = useState({
     title: "",
     category: "",
@@ -25,6 +27,8 @@ const NewMRF = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    addMRF(formData);
     
     toast({
       title: "MRF Submitted Successfully",

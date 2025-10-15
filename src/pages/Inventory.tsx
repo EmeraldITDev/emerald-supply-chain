@@ -19,11 +19,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+interface InventoryItem {
+  code: string;
+  name: string;
+  category: string;
+  stock: number;
+  reorderPoint: number;
+  unit: string;
+  value: number;
+  status: string;
+}
+
 const Inventory = () => {
   const { toast } = useToast();
   const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [itemDetailsOpen, setItemDetailsOpen] = useState(false);
   
-  const items = [
+  const items: InventoryItem[] = [
     { code: "MAT-001", name: "Steel Rods", category: "Raw Material", stock: 850, reorderPoint: 500, unit: "kg", value: 425000, status: "Good" },
     { code: "MAT-002", name: "Cement Bags", category: "Construction", stock: 120, reorderPoint: 200, unit: "bags", value: 48000, status: "Low Stock" },
     { code: "MAT-003", name: "Electrical Cable", category: "Equipment", stock: 45, reorderPoint: 100, unit: "meters", value: 67500, status: "Critical" },
@@ -56,6 +69,11 @@ const Inventory = () => {
 
   const getStockPercentage = (current: number, reorder: number) => {
     return Math.min((current / (reorder * 2)) * 100, 100);
+  };
+
+  const handleViewDetails = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setItemDetailsOpen(true);
   };
 
   return (
@@ -124,7 +142,7 @@ const Inventory = () => {
               <Package className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">248</div>
+              <div className="text-2xl font-bold">{items.length}</div>
               <p className="text-xs text-muted-foreground">Across 12 categories</p>
             </CardContent>
           </Card>
@@ -135,7 +153,7 @@ const Inventory = () => {
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₦12.5M</div>
+              <div className="text-2xl font-bold">₦{(items.reduce((sum, item) => sum + item.value, 0) / 1000000).toFixed(1)}M</div>
               <p className="text-xs text-muted-foreground">Total stock value</p>
             </CardContent>
           </Card>
@@ -146,73 +164,19 @@ const Inventory = () => {
               <AlertTriangle className="h-4 w-4 text-warning" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">8</div>
+              <div className="text-2xl font-bold">{lowStockAlerts.length}</div>
               <p className="text-xs text-muted-foreground">Require reordering</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Transactions</CardTitle>
+              <CardTitle className="text-sm font-medium">Transactions Today</CardTitle>
               <ArrowUpDown className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">156</div>
-              <p className="text-xs text-muted-foreground">This month</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Low Stock Alerts</CardTitle>
-              <CardDescription>Items requiring immediate attention</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {lowStockAlerts.map((alert) => (
-                  <div key={alert.item} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{alert.item}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Current: {alert.current} | Reorder Point: {alert.reorder}
-                        </p>
-                      </div>
-                      <Badge className={alert.urgency === "High" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}>
-                        {alert.urgency}
-                      </Badge>
-                    </div>
-                    <Progress value={(alert.current / alert.reorder) * 100} className="h-2" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Transactions</CardTitle>
-              <CardDescription>Latest stock movements</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentTransactions.map((txn) => (
-                  <div key={txn.id} className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">{txn.item}</span>
-                      <Badge variant={txn.type === "Receipt" ? "default" : "outline"}>
-                        {txn.type}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {txn.quantity} units • {txn.department}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{txn.date}</p>
-                  </div>
-                ))}
-              </div>
+              <div className="text-2xl font-bold">{recentTransactions.length}</div>
+              <p className="text-xs text-muted-foreground">Issues and receipts</p>
             </CardContent>
           </Card>
         </div>
@@ -220,42 +184,107 @@ const Inventory = () => {
         <Tabs defaultValue="all" className="space-y-4">
           <TabsList>
             <TabsTrigger value="all">All Items</TabsTrigger>
-            <TabsTrigger value="raw">Raw Materials</TabsTrigger>
-            <TabsTrigger value="equipment">Equipment</TabsTrigger>
-            <TabsTrigger value="safety">Safety</TabsTrigger>
+            <TabsTrigger value="transactions">Transactions</TabsTrigger>
+            <TabsTrigger value="alerts">Low Stock Alerts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Inventory Items</CardTitle>
-                <CardDescription>Complete list of all stock items</CardDescription>
+                <CardDescription>Complete list of items in stock</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {items.map((item) => (
                     <div key={item.code} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="space-y-1 flex-1">
+                      <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold">{item.code}</span>
-                          <span className="text-sm">{item.name}</span>
+                          <span className="font-semibold">{item.name}</span>
                           <Badge className={getStatusColor(item.status)}>{item.status}</Badge>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>Category: {item.category}</span>
-                          <span>Stock: {item.stock} {item.unit}</span>
-                          <span>Value: ₦{item.value.toLocaleString()}</span>
+                          <span>{item.code}</span>
+                          <span>{item.category}</span>
+                          <span>₦{item.value.toLocaleString()}</span>
                         </div>
-                        <div className="mt-2">
-                          <Progress value={getStockPercentage(item.stock, item.reorderPoint)} className="h-1.5" />
+                        <div className="flex items-center gap-2">
+                          <Progress 
+                            value={getStockPercentage(item.stock, item.reorderPoint)} 
+                            className="h-2 flex-1 max-w-xs"
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {item.stock} {item.unit}
+                          </span>
                         </div>
                       </div>
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => toast({ title: "Item Management", description: `Managing ${item.name}` })}
+                        onClick={() => handleViewDetails(item)}
                       >
-                        Manage
+                        View Details
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="transactions" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Transactions</CardTitle>
+                <CardDescription>Issues and receipts history</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentTransactions.map((transaction) => (
+                    <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{transaction.id}</span>
+                          <Badge variant={transaction.type === "Receipt" ? "default" : "secondary"}>
+                            {transaction.type}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>{transaction.item}</span>
+                          <span>{transaction.quantity} units</span>
+                          <span>{transaction.department}</span>
+                          <span>{transaction.date}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="alerts" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Low Stock Alerts</CardTitle>
+                <CardDescription>Items requiring reordering attention</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {lowStockAlerts.map((alert, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-4 border rounded-lg border-warning">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-warning" />
+                          <span className="font-semibold">{alert.item}</span>
+                          <Badge className="bg-warning/10 text-warning">{alert.urgency} Priority</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Current: {alert.current} | Reorder Point: {alert.reorder}
+                        </p>
+                      </div>
+                      <Button variant="outline" size="sm">
+                        Create PO
                       </Button>
                     </div>
                   ))}
@@ -265,6 +294,59 @@ const Inventory = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Item Details Dialog */}
+      <Dialog open={itemDetailsOpen} onOpenChange={setItemDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Item Details - {selectedItem?.code}</DialogTitle>
+            <DialogDescription>Complete inventory item information</DialogDescription>
+          </DialogHeader>
+          {selectedItem && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Item Name</Label>
+                  <p className="font-medium">{selectedItem.name}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Item Code</Label>
+                  <p className="font-medium">{selectedItem.code}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Category</Label>
+                  <p className="font-medium">{selectedItem.category}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge className={getStatusColor(selectedItem.status)}>{selectedItem.status}</Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Current Stock</Label>
+                  <p className="font-medium">{selectedItem.stock} {selectedItem.unit}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Reorder Point</Label>
+                  <p className="font-medium">{selectedItem.reorderPoint} {selectedItem.unit}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Stock Value</Label>
+                  <p className="font-medium">₦{selectedItem.value.toLocaleString()}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Unit of Measure</Label>
+                  <p className="font-medium">{selectedItem.unit}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button className="flex-1">Issue Stock</Button>
+                <Button variant="outline" className="flex-1">Adjust Stock</Button>
+                <Button variant="outline" className="flex-1">Create PO</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

@@ -6,6 +6,16 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Users, TrendingUp, FileCheck, Plus, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+
+interface Vendor {
+  id: string;
+  name: string;
+  category: string;
+  rating: number;
+  orders: number;
+  status: string;
+  kyc: string;
+}
 import {
   Dialog,
   DialogContent,
@@ -21,8 +31,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const Vendors = () => {
   const { toast } = useToast();
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [vendorDetailsOpen, setVendorDetailsOpen] = useState(false);
   
-  const vendors = [
+  const vendors: Vendor[] = [
     { id: "V001", name: "Steel Works Ltd", category: "Raw Materials", rating: 4.8, orders: 45, status: "Active", kyc: "Verified" },
     { id: "V002", name: "BuildMart Supplies", category: "Construction", rating: 4.5, orders: 32, status: "Active", kyc: "Verified" },
     { id: "V003", name: "SafetyFirst Co", category: "Safety Equipment", rating: 4.9, orders: 28, status: "Active", kyc: "Verified" },
@@ -248,7 +260,10 @@ const Vendors = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => toast({ title: "Vendor Profile", description: `Viewing profile for ${vendor.name}` })}
+                        onClick={() => {
+                          setSelectedVendor(vendor);
+                          setVendorDetailsOpen(true);
+                        }}
                       >
                         View Profile
                       </Button>
@@ -260,6 +275,53 @@ const Vendors = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Vendor Details Dialog */}
+      <Dialog open={vendorDetailsOpen} onOpenChange={setVendorDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Vendor Profile - {selectedVendor?.name}</DialogTitle>
+            <DialogDescription>Complete vendor information and performance</DialogDescription>
+          </DialogHeader>
+          {selectedVendor && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Vendor ID</Label>
+                  <p className="font-medium">{selectedVendor.id}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge className={getStatusColor(selectedVendor.status)}>{selectedVendor.status}</Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Category</Label>
+                  <p className="font-medium">{selectedVendor.category}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">KYC Status</Label>
+                  <Badge className={getStatusColor(selectedVendor.kyc)}>{selectedVendor.kyc}</Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Rating</Label>
+                  <p className="font-medium flex items-center gap-1">
+                    <Star className="h-4 w-4 fill-primary text-primary" />
+                    {selectedVendor.rating}/5.0
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Total Orders</Label>
+                  <p className="font-medium">{selectedVendor.orders}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button className="flex-1">View Orders</Button>
+                <Button variant="outline" className="flex-1">Contact Vendor</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

@@ -17,10 +17,23 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+
+interface Receipt {
+  id: string;
+  supplier: string;
+  items: number;
+  date: string;
+  status: string;
+  inspector: string;
+  poNumber?: string;
+}
 
 const Warehouse = () => {
   const { toast } = useToast();
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
+  const [receiptDetailsOpen, setReceiptDetailsOpen] = useState(false);
   
   const locations = [
     { id: "A1", zone: "Zone A", capacity: 1000, occupied: 750, items: 45, type: "Heavy Materials" },
@@ -29,9 +42,9 @@ const Warehouse = () => {
     { id: "C1", zone: "Zone C", capacity: 500, occupied: 150, items: 12, type: "Safety Equipment" },
   ];
 
-  const receipts = [
-    { id: "GR-001", supplier: "Steel Works Ltd", items: 5, date: "2024-01-15", status: "Completed", inspector: "John Doe" },
-    { id: "GR-002", supplier: "BuildMart", items: 8, date: "2024-01-15", status: "In Progress", inspector: "Jane Smith" },
+  const receipts: Receipt[] = [
+    { id: "GR-001", supplier: "Steel Works Ltd", items: 5, date: "2024-01-15", status: "Completed", inspector: "John Doe", poNumber: "PO-2025-001" },
+    { id: "GR-002", supplier: "BuildMart", items: 8, date: "2024-01-15", status: "In Progress", inspector: "Jane Smith", poNumber: "PO-2025-002" },
     { id: "GR-003", supplier: "SafetyFirst Co", items: 3, date: "2024-01-14", status: "Pending", inspector: "-" },
   ];
 
@@ -67,6 +80,11 @@ const Warehouse = () => {
     if (percentage > 90) return "text-destructive";
     if (percentage > 75) return "text-warning";
     return "text-success";
+  };
+
+  const handleViewReceipt = (receipt: Receipt) => {
+    setSelectedReceipt(receipt);
+    setReceiptDetailsOpen(true);
   };
 
   return (
@@ -136,7 +154,7 @@ const Warehouse = () => {
               <MapPin className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">24</div>
+              <div className="text-2xl font-bold">{locations.length}</div>
               <p className="text-xs text-muted-foreground">Across 4 zones</p>
             </CardContent>
           </Card>
@@ -147,30 +165,34 @@ const Warehouse = () => {
               <WarehouseIcon className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">68%</div>
-              <p className="text-xs text-muted-foreground">3,400 / 5,000 sqm</p>
+              <div className="text-2xl font-bold">
+                {Math.round((locations.reduce((sum, loc) => sum + loc.occupied, 0) / locations.reduce((sum, loc) => sum + loc.capacity, 0)) * 100)}%
+              </div>
+              <p className="text-xs text-muted-foreground">Total capacity</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Receipts</CardTitle>
+              <CardTitle className="text-sm font-medium">Pending Receipts</CardTitle>
               <Package className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">8</div>
-              <p className="text-xs text-muted-foreground">5 pending inspection</p>
+              <div className="text-2xl font-bold">{receipts.filter(r => r.status === "Pending").length}</div>
+              <p className="text-xs text-muted-foreground">Awaiting processing</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">EHS Status</CardTitle>
-              <AlertCircle className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm font-medium">EHS Compliance</CardTitle>
+              <CheckCircle className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1</div>
-              <p className="text-xs text-muted-foreground">Action required</p>
+              <div className="text-2xl font-bold">
+                {Math.round((ehsRecords.filter(r => r.status === "Completed").length / ehsRecords.length) * 100)}%
+              </div>
+              <p className="text-xs text-muted-foreground">This month</p>
             </CardContent>
           </Card>
         </div>
@@ -179,49 +201,39 @@ const Warehouse = () => {
           <TabsList>
             <TabsTrigger value="locations">Storage Locations</TabsTrigger>
             <TabsTrigger value="receipts">Goods Receipt</TabsTrigger>
-            <TabsTrigger value="dispatch">Dispatch</TabsTrigger>
+            <TabsTrigger value="dispatch">Goods Dispatch</TabsTrigger>
             <TabsTrigger value="ehs">EHS Compliance</TabsTrigger>
           </TabsList>
 
           <TabsContent value="locations" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Storage Location Management</CardTitle>
-                <CardDescription>Monitor warehouse space utilization and organization</CardDescription>
+                <CardTitle>Storage Locations</CardTitle>
+                <CardDescription>Warehouse space and capacity management</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-4">
                   {locations.map((location) => {
-                    const occupancyPercentage = (location.occupied / location.capacity) * 100;
+                    const occupancy = (location.occupied / location.capacity) * 100;
                     return (
-                      <div key={location.id} className="p-4 border rounded-lg space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-semibold text-lg">{location.id}</h3>
-                            <p className="text-sm text-muted-foreground">{location.zone}</p>
+                      <div key={location.id} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-primary" />
+                            <span className="font-semibold">{location.id} - {location.zone}</span>
                           </div>
-                          <Badge>{location.type}</Badge>
+                          <span className={`text-sm font-medium ${getOccupancyColor(occupancy)}`}>
+                            {occupancy.toFixed(0)}% occupied
+                          </span>
                         </div>
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Capacity</span>
-                            <span className={getOccupancyColor(occupancyPercentage)}>
-                              {location.occupied} / {location.capacity} sqm ({occupancyPercentage.toFixed(0)}%)
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Items Stored</span>
-                            <span>{location.items}</span>
+                        <div className="space-y-2">
+                          <Progress value={occupancy} className="h-2" />
+                          <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <span>{location.type}</span>
+                            <span>{location.items} items</span>
+                            <span>{location.occupied}/{location.capacity} sq.m</span>
                           </div>
                         </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="w-full"
-                          onClick={() => toast({ title: "Location Details", description: `Viewing details for ${location.id}` })}
-                        >
-                          View Details
-                        </Button>
                       </div>
                     );
                   })}
@@ -233,11 +245,11 @@ const Warehouse = () => {
           <TabsContent value="receipts" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Goods Receipt Records</CardTitle>
-                <CardDescription>Track incoming materials and inspection status</CardDescription>
+                <CardTitle>Goods Receipts</CardTitle>
+                <CardDescription>Incoming material receipts and inspection</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {receipts.map((receipt) => (
                     <div key={receipt.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="space-y-1">
@@ -246,18 +258,18 @@ const Warehouse = () => {
                           <Badge className={getStatusColor(receipt.status)}>{receipt.status}</Badge>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>Supplier: {receipt.supplier}</span>
-                          <span>Items: {receipt.items}</span>
+                          <span>{receipt.supplier}</span>
+                          <span>{receipt.items} items</span>
                           <span>Inspector: {receipt.inspector}</span>
+                          <span>{receipt.date}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">{receipt.date}</p>
                       </div>
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => toast({ title: "Inspection Started", description: `Inspecting ${receipt.id}` })}
+                        onClick={() => handleViewReceipt(receipt)}
                       >
-                        Inspect
+                        View Details
                       </Button>
                     </div>
                   ))}
@@ -269,11 +281,11 @@ const Warehouse = () => {
           <TabsContent value="dispatch" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Dispatch Operations</CardTitle>
-                <CardDescription>Manage outgoing materials and deliveries</CardDescription>
+                <CardTitle>Goods Dispatch</CardTitle>
+                <CardDescription>Outgoing material movements and tracking</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {dispatches.map((dispatch) => (
                     <div key={dispatch.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="space-y-1">
@@ -283,16 +295,12 @@ const Warehouse = () => {
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>To: {dispatch.destination}</span>
-                          <span>Items: {dispatch.items}</span>
+                          <span>{dispatch.items} items</span>
                           <span>Driver: {dispatch.driver}</span>
+                          <span>{dispatch.date}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">{dispatch.date}</p>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => toast({ title: "Tracking Dispatch", description: `Tracking ${dispatch.id}` })}
-                      >
+                      <Button variant="outline" size="sm">
                         Track
                       </Button>
                     </div>
@@ -305,28 +313,29 @@ const Warehouse = () => {
           <TabsContent value="ehs" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>EHS Compliance Records</CardTitle>
-                <CardDescription>Environment, Health, and Safety monitoring</CardDescription>
+                <CardTitle>EHS Compliance</CardTitle>
+                <CardDescription>Environment, Health & Safety records</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {ehsRecords.map((record, idx) => (
                     <div key={idx} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
+                          {record.status === "Completed" ? (
+                            <CheckCircle className="h-4 w-4 text-success" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-destructive" />
+                          )}
                           <span className="font-semibold">{record.type}</span>
                           <Badge className={getStatusColor(record.status)}>{record.status}</Badge>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>Last Done: {record.date}</span>
+                          <span>Last: {record.date}</span>
                           <span>Next Due: {record.nextDue}</span>
                         </div>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => toast({ title: "EHS Record Updated", description: `Updated ${record.type}` })}
-                      >
+                      <Button variant="outline" size="sm">
                         Update
                       </Button>
                     </div>
@@ -337,6 +346,54 @@ const Warehouse = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Receipt Details Dialog */}
+      <Dialog open={receiptDetailsOpen} onOpenChange={setReceiptDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Receipt Details - {selectedReceipt?.id}</DialogTitle>
+            <DialogDescription>Complete goods receipt information</DialogDescription>
+          </DialogHeader>
+          {selectedReceipt && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Receipt ID</Label>
+                  <p className="font-medium">{selectedReceipt.id}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge className={getStatusColor(selectedReceipt.status)}>{selectedReceipt.status}</Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Supplier</Label>
+                  <p className="font-medium">{selectedReceipt.supplier}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">PO Number</Label>
+                  <p className="font-medium">{selectedReceipt.poNumber || "N/A"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Date</Label>
+                  <p className="font-medium">{selectedReceipt.date}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Items Count</Label>
+                  <p className="font-medium">{selectedReceipt.items} items</p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Inspector</Label>
+                  <p className="font-medium">{selectedReceipt.inspector}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button className="flex-1">Complete Inspection</Button>
+                <Button variant="outline" className="flex-1">Print Receipt</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
