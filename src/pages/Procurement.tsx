@@ -3,12 +3,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, FileText, Package, ShoppingCart } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
+import { useEffect, useState } from "react";
 
 const Procurement = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { mrfRequests, srfRequests, purchaseOrders } = useApp();
+
+  const vendorFromState = (location.state as any)?.vendor as string | undefined;
+  const vendorFromQuery = searchParams.get("vendor") || undefined;
+  const vendorFilter = vendorFromState || vendorFromQuery || undefined;
+
+  const [tab, setTab] = useState<string>(vendorFilter ? "po" : "mrf");
+
+  useEffect(() => {
+    if (vendorFromState && !vendorFromQuery) {
+      setSearchParams({ vendor: vendorFromState } as any, { replace: true } as any);
+    }
+  }, [vendorFromState]);
+
+  useEffect(() => {
+    if (vendorFilter) setTab("po");
+  }, [vendorFilter]);
+
+  const filteredPOs = purchaseOrders.filter((po) => !vendorFilter || po.vendor === vendorFilter);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -33,7 +54,7 @@ const Procurement = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="mrf" className="space-y-4">
+        <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="mrf">Material Requests (MRF)</TabsTrigger>
             <TabsTrigger value="srf">Service Requests (SRF)</TabsTrigger>
@@ -130,7 +151,7 @@ const Procurement = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {purchaseOrders.map((po) => (
+                  {filteredPOs.map((po) => (
                     <div
                       key={po.id}
                       className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer"

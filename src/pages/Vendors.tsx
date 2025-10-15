@@ -6,6 +6,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Users, TrendingUp, FileCheck, Plus, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface Vendor {
   id: string;
@@ -30,10 +31,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const Vendors = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [vendorDetailsOpen, setVendorDetailsOpen] = useState(false);
-  
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [contactTo, setContactTo] = useState("");
+  const [contactSubject, setContactSubject] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+
   const vendors: Vendor[] = [
     { id: "V001", name: "Steel Works Ltd", category: "Raw Materials", rating: 4.8, orders: 45, status: "Active", kyc: "Verified" },
     { id: "V002", name: "BuildMart Supplies", category: "Construction", rating: 4.5, orders: 32, status: "Active", kyc: "Verified" },
@@ -320,6 +326,53 @@ const Vendors = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Contact Vendor Dialog */}
+      <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Contact {selectedVendor?.name || "Vendor"}</DialogTitle>
+            <DialogDescription>Compose a message and send via your email client</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>To</Label>
+              <Input value={contactTo} onChange={(e) => setContactTo(e.target.value)} placeholder="vendor@company.com" />
+            </div>
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <Input value={contactSubject} onChange={(e) => setContactSubject(e.target.value)} placeholder={`Inquiry for ${selectedVendor?.name || "Vendor"}`} />
+            </div>
+            <div className="space-y-2">
+              <Label>Message</Label>
+              <textarea
+                className="w-full rounded-md border bg-background p-2 text-sm"
+                rows={5}
+                value={contactMessage}
+                onChange={(e) => setContactMessage(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  const params = new URLSearchParams({
+                    subject: contactSubject || `Inquiry for ${selectedVendor?.name || "Vendor"}`,
+                    body: contactMessage || "",
+                  });
+                  const mailto = `mailto:${encodeURIComponent(contactTo || "")}?${params.toString()}`;
+                  window.location.href = mailto;
+                  setContactDialogOpen(false);
+                }}
+              >
+                Open Email Client
+              </Button>
+              <Button variant="outline" className="flex-1" onClick={() => setContactDialogOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </DashboardLayout>
