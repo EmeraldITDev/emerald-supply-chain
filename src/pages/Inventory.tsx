@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -5,8 +6,23 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Package, AlertTriangle, TrendingUp, Plus, ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Inventory = () => {
+  const { toast } = useToast();
+  const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
+  
   const items = [
     { code: "MAT-001", name: "Steel Rods", category: "Raw Material", stock: 850, reorderPoint: 500, unit: "kg", value: 425000, status: "Good" },
     { code: "MAT-002", name: "Cement Bags", category: "Construction", stock: 120, reorderPoint: 200, unit: "bags", value: 48000, status: "Low Stock" },
@@ -50,10 +66,55 @@ const Inventory = () => {
             <h1 className="text-3xl font-bold tracking-tight">Inventory Management</h1>
             <p className="text-muted-foreground mt-2">Track stock levels, issuance, and reordering</p>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Item
-          </Button>
+          <Dialog open={addItemDialogOpen} onOpenChange={setAddItemDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Item
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Item</DialogTitle>
+                <DialogDescription>Add a new item to inventory</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Item Name</Label>
+                  <Input placeholder="Enter item name" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="raw">Raw Material</SelectItem>
+                      <SelectItem value="equipment">Equipment</SelectItem>
+                      <SelectItem value="safety">Safety</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Stock Quantity</Label>
+                    <Input type="number" placeholder="0" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Unit</Label>
+                    <Input placeholder="kg, pcs, etc" />
+                  </div>
+                </div>
+                <Button className="w-full" onClick={() => {
+                  toast({ title: "Item Added", description: "New inventory item has been created" });
+                  setAddItemDialogOpen(false);
+                }}>
+                  Add Item
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
@@ -189,7 +250,13 @@ const Inventory = () => {
                           <Progress value={getStockPercentage(item.stock, item.reorderPoint)} className="h-1.5" />
                         </div>
                       </div>
-                      <Button variant="outline" size="sm">Manage</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => toast({ title: "Item Management", description: `Managing ${item.name}` })}
+                      >
+                        Manage
+                      </Button>
                     </div>
                   ))}
                 </div>

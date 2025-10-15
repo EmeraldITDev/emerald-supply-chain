@@ -1,11 +1,27 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Users, TrendingUp, FileCheck, Plus, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Vendors = () => {
+  const { toast } = useToast();
+  const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
+  
   const vendors = [
     { id: "V001", name: "Steel Works Ltd", category: "Raw Materials", rating: 4.8, orders: 45, status: "Active", kyc: "Verified" },
     { id: "V002", name: "BuildMart Supplies", category: "Construction", rating: 4.5, orders: 32, status: "Active", kyc: "Verified" },
@@ -47,10 +63,49 @@ const Vendors = () => {
             <h1 className="text-3xl font-bold tracking-tight">Vendor Management</h1>
             <p className="text-muted-foreground mt-2">Manage vendor relationships, KYC, and performance</p>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Vendor
-          </Button>
+          <Dialog open={addVendorDialogOpen} onOpenChange={setAddVendorDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Vendor
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Vendor</DialogTitle>
+                <DialogDescription>Register a new vendor in the system</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Company Name</Label>
+                  <Input placeholder="Enter company name" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="raw">Raw Materials</SelectItem>
+                      <SelectItem value="equipment">Equipment</SelectItem>
+                      <SelectItem value="safety">Safety Equipment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Contact Email</Label>
+                  <Input type="email" placeholder="vendor@company.com" />
+                </div>
+                <Button className="w-full" onClick={() => {
+                  toast({ title: "Vendor Added", description: "New vendor has been registered" });
+                  setAddVendorDialogOpen(false);
+                }}>
+                  Add Vendor
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
@@ -117,7 +172,13 @@ const Vendors = () => {
                         <span>Submitted: {vendor.submitted}</span>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">Review</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => toast({ title: "KYC Review", description: `Reviewing documents for ${vendor.name}` })}
+                    >
+                      Review
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -184,7 +245,13 @@ const Vendors = () => {
                           </span>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm">View Profile</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => toast({ title: "Vendor Profile", description: `Viewing profile for ${vendor.name}` })}
+                      >
+                        View Profile
+                      </Button>
                     </div>
                   ))}
                 </div>

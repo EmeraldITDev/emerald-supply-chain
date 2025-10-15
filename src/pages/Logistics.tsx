@@ -1,11 +1,27 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Truck, Users, Calendar, MapPin, Plus, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Logistics = () => {
+  const { toast } = useToast();
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  
   const trips = [
     { id: "T001", destination: "Lagos", driver: "John Doe", vehicle: "TRK-001", status: "In Transit", eta: "2 hours" },
     { id: "T002", destination: "Abuja", driver: "Jane Smith", vehicle: "TRK-002", status: "Scheduled", eta: "Tomorrow" },
@@ -50,10 +66,56 @@ const Logistics = () => {
             <h1 className="text-3xl font-bold tracking-tight">Logistics Management</h1>
             <p className="text-muted-foreground mt-2">Manage trips, vehicles, and driver operations</p>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Schedule Trip
-          </Button>
+          <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Schedule Trip
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Schedule New Trip</DialogTitle>
+                <DialogDescription>Create a new logistics trip assignment</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Destination</Label>
+                  <Input placeholder="Enter destination" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Vehicle</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select vehicle" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="TRK-001">TRK-001</SelectItem>
+                      <SelectItem value="TRK-002">TRK-002</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Driver</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select driver" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="john">John Doe</SelectItem>
+                      <SelectItem value="jane">Jane Smith</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button className="w-full" onClick={() => {
+                  toast({ title: "Trip Scheduled", description: "New trip has been added to the schedule" });
+                  setScheduleDialogOpen(false);
+                }}>
+                  Schedule Trip
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
@@ -141,7 +203,14 @@ const Logistics = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">ETA: {trip.eta}</p>
-                        <Button variant="outline" size="sm" className="mt-2">View Details</Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-2"
+                          onClick={() => toast({ title: "Trip Details", description: `Viewing details for ${trip.id}` })}
+                        >
+                          View Details
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -171,7 +240,13 @@ const Logistics = () => {
                           <span>Driver: {vehicle.driver}</span>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm">Manage</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => toast({ title: "Vehicle Management", description: `Managing vehicle ${vehicle.id}` })}
+                      >
+                        Manage
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -200,7 +275,13 @@ const Logistics = () => {
                           <span>Rating: {driver.rating}/5.0</span>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm">View Profile</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => toast({ title: "Driver Profile", description: `Viewing profile for ${driver.name}` })}
+                      >
+                        View Profile
+                      </Button>
                     </div>
                   ))}
                 </div>

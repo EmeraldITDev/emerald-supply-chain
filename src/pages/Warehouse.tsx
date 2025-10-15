@@ -1,11 +1,27 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Warehouse as WarehouseIcon, Package, AlertCircle, CheckCircle, Plus, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Warehouse = () => {
+  const { toast } = useToast();
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  
   const locations = [
     { id: "A1", zone: "Zone A", capacity: 1000, occupied: 750, items: 45, type: "Heavy Materials" },
     { id: "A2", zone: "Zone A", capacity: 800, occupied: 320, items: 28, type: "Equipment" },
@@ -61,10 +77,56 @@ const Warehouse = () => {
             <h1 className="text-3xl font-bold tracking-tight">Warehouse Management</h1>
             <p className="text-muted-foreground mt-2">Manage storage, receipts, dispatch, and EHS compliance</p>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Receipt
-          </Button>
+          <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                New Receipt
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>New Goods Receipt</DialogTitle>
+                <DialogDescription>Record incoming materials</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Supplier</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select supplier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="steel">Steel Works Ltd</SelectItem>
+                      <SelectItem value="build">BuildMart</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>PO Number</Label>
+                  <Input placeholder="Enter PO number" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Inspector</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Assign inspector" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="john">John Doe</SelectItem>
+                      <SelectItem value="jane">Jane Smith</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button className="w-full" onClick={() => {
+                  toast({ title: "Receipt Created", description: "Goods receipt has been recorded" });
+                  setReceiptDialogOpen(false);
+                }}>
+                  Create Receipt
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
@@ -152,7 +214,14 @@ const Warehouse = () => {
                             <span>{location.items}</span>
                           </div>
                         </div>
-                        <Button variant="outline" size="sm" className="w-full">View Details</Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => toast({ title: "Location Details", description: `Viewing details for ${location.id}` })}
+                        >
+                          View Details
+                        </Button>
                       </div>
                     );
                   })}
@@ -183,7 +252,13 @@ const Warehouse = () => {
                         </div>
                         <p className="text-xs text-muted-foreground">{receipt.date}</p>
                       </div>
-                      <Button variant="outline" size="sm">Inspect</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => toast({ title: "Inspection Started", description: `Inspecting ${receipt.id}` })}
+                      >
+                        Inspect
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -213,7 +288,13 @@ const Warehouse = () => {
                         </div>
                         <p className="text-xs text-muted-foreground">{dispatch.date}</p>
                       </div>
-                      <Button variant="outline" size="sm">Track</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => toast({ title: "Tracking Dispatch", description: `Tracking ${dispatch.id}` })}
+                      >
+                        Track
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -241,7 +322,13 @@ const Warehouse = () => {
                           <span>Next Due: {record.nextDue}</span>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm">Update</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => toast({ title: "EHS Record Updated", description: `Updated ${record.type}` })}
+                      >
+                        Update
+                      </Button>
                     </div>
                   ))}
                 </div>

@@ -1,8 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, ShoppingCart, Truck, Warehouse, TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  
   const stats = [
     {
       title: "Pending Requests",
@@ -107,25 +110,25 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-3">
-                <Card className="cursor-pointer hover:bg-accent transition-colors">
+                <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/procurement/mrf/new")}>
                   <CardContent className="p-4 flex flex-col items-center text-center">
                     <Package className="h-8 w-8 text-primary mb-2" />
                     <p className="font-medium text-sm">New MRF</p>
                   </CardContent>
                 </Card>
-                <Card className="cursor-pointer hover:bg-accent transition-colors">
+                <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/procurement/srf/new")}>
                   <CardContent className="p-4 flex flex-col items-center text-center">
                     <ShoppingCart className="h-8 w-8 text-primary mb-2" />
                     <p className="font-medium text-sm">New SRF</p>
                   </CardContent>
                 </Card>
-                <Card className="cursor-pointer hover:bg-accent transition-colors">
+                <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/logistics")}>
                   <CardContent className="p-4 flex flex-col items-center text-center">
                     <Truck className="h-8 w-8 text-primary mb-2" />
                     <p className="font-medium text-sm">Logistics</p>
                   </CardContent>
                 </Card>
-                <Card className="cursor-pointer hover:bg-accent transition-colors">
+                <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/inventory")}>
                   <CardContent className="p-4 flex flex-col items-center text-center">
                     <Warehouse className="h-8 w-8 text-primary mb-2" />
                     <p className="font-medium text-sm">Inventory</p>

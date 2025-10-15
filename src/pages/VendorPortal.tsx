@@ -8,8 +8,10 @@ import { FileText, Upload, Package, LogOut, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import logo from "@/assets/emerald-logo.png";
+import { useToast } from "@/hooks/use-toast";
 
 const VendorPortal = () => {
+  const { toast } = useToast();
   const [isLoggedIn, setIsLoggedIn] = useState(true); // Set to false for login view
 
   const purchaseOrders = [
@@ -170,9 +172,20 @@ const VendorPortal = () => {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm">View Details</Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => toast({ title: "PO Details", description: `Viewing details for ${po.id}` })}
+                        >
+                          View Details
+                        </Button>
                         {po.status === "Pending Confirmation" && (
-                          <Button size="sm">Confirm</Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => toast({ title: "PO Confirmed", description: `${po.id} has been confirmed` })}
+                          >
+                            Confirm
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -215,7 +228,12 @@ const VendorPortal = () => {
                     </Button>
                   </div>
                 </div>
-                <Button className="w-full">Submit Response</Button>
+                <Button 
+                  className="w-full"
+                  onClick={() => toast({ title: "Response Submitted", description: "Your PO response has been submitted successfully" })}
+                >
+                  Submit Response
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -238,10 +256,20 @@ const VendorPortal = () => {
                         </div>
                         <p className="text-sm text-muted-foreground">Uploaded: {doc.uploaded}</p>
                       </div>
-                      <Button variant="outline" size="sm">Update</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => toast({ title: "Document Update", description: `Updating ${doc.name}` })}
+                      >
+                        Update
+                      </Button>
                     </div>
                   ))}
-                  <Button variant="outline" className="w-full gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full gap-2"
+                    onClick={() => toast({ title: "Upload Document", description: "Opening document upload..." })}
+                  >
                     <Upload className="h-4 w-4" />
                     Upload New Document
                   </Button>
@@ -262,7 +290,10 @@ const VendorPortal = () => {
                   <p className="text-muted-foreground mb-4">
                     Upload invoices for completed deliveries
                   </p>
-                  <Button className="gap-2">
+                  <Button 
+                    className="gap-2"
+                    onClick={() => toast({ title: "Upload Invoice", description: "Opening invoice upload..." })}
+                  >
                     <Upload className="h-4 w-4" />
                     Upload Invoice
                   </Button>

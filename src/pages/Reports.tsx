@@ -1,11 +1,26 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { FileText, Download, TrendingUp, Calendar, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Reports = () => {
+  const { toast } = useToast();
+  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
+  
   const recentReports = [
     { name: "Monthly Procurement Summary", type: "Procurement", date: "2024-01-01", status: "Ready", size: "2.4 MB" },
     { name: "Inventory Valuation Report", type: "Inventory", date: "2024-01-15", status: "Ready", size: "1.8 MB" },
@@ -58,10 +73,55 @@ const Reports = () => {
             <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
             <p className="text-muted-foreground mt-2">Generate insights and track key performance indicators</p>
           </div>
-          <Button className="gap-2">
-            <FileText className="h-4 w-4" />
-            Generate Report
-          </Button>
+          <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <FileText className="h-4 w-4" />
+                Generate Report
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Generate Report</DialogTitle>
+                <DialogDescription>Create a new custom report</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Report Type</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select report type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="procurement">Procurement Analytics</SelectItem>
+                      <SelectItem value="logistics">Logistics Reports</SelectItem>
+                      <SelectItem value="inventory">Inventory Analytics</SelectItem>
+                      <SelectItem value="warehouse">Warehouse Reports</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Date Range</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select period" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="week">Last Week</SelectItem>
+                      <SelectItem value="month">Last Month</SelectItem>
+                      <SelectItem value="quarter">Last Quarter</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button className="w-full" onClick={() => {
+                  toast({ title: "Report Generating", description: "Your report is being generated" });
+                  setGenerateDialogOpen(false);
+                }}>
+                  Generate Report
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
@@ -103,7 +163,13 @@ const Reports = () => {
                         <span>Size: {report.size}</span>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="gap-2" disabled={report.status !== "Ready"}>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2" 
+                      disabled={report.status !== "Ready"}
+                      onClick={() => toast({ title: "Downloading", description: `Downloading ${report.name}` })}
+                    >
                       <Download className="h-3 w-3" />
                       Download
                     </Button>
@@ -133,7 +199,13 @@ const Reports = () => {
                         <span>Recipients: {report.recipients}</span>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">Configure</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => toast({ title: "Configure Report", description: `Configuring ${report.name}` })}
+                    >
+                      Configure
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -160,7 +232,13 @@ const Reports = () => {
                     <CardDescription>{category.description}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Button variant="outline" className="w-full">Generate Report</Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => toast({ title: "Generating Report", description: `Generating ${category.name}` })}
+                    >
+                      Generate Report
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
@@ -179,7 +257,9 @@ const Reports = () => {
                   <p className="text-muted-foreground mb-4">
                     Build custom reports tailored to your specific needs
                   </p>
-                  <Button>Create Custom Report</Button>
+                  <Button onClick={() => toast({ title: "Custom Report Builder", description: "Opening report builder..." })}>
+                    Create Custom Report
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -193,15 +273,27 @@ const Reports = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-3">
-                  <Button variant="outline" className="h-24 flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-24 flex-col gap-2"
+                    onClick={() => toast({ title: "Exporting", description: "Exporting data to Excel" })}
+                  >
                     <FileText className="h-6 w-6" />
                     Export to Excel
                   </Button>
-                  <Button variant="outline" className="h-24 flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-24 flex-col gap-2"
+                    onClick={() => toast({ title: "Exporting", description: "Exporting data to PDF" })}
+                  >
                     <FileText className="h-6 w-6" />
                     Export to PDF
                   </Button>
-                  <Button variant="outline" className="h-24 flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-24 flex-col gap-2"
+                    onClick={() => toast({ title: "Exporting", description: "Exporting data to CSV" })}
+                  >
                     <FileText className="h-6 w-6" />
                     Export to CSV
                   </Button>
