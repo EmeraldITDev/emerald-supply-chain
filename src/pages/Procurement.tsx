@@ -47,18 +47,18 @@ const Procurement = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Procurement</h1>
-            <p className="text-muted-foreground mt-2">Manage material and service requests</p>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Procurement</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Manage material and service requests</p>
           </div>
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="mrf">Material Requests (MRF)</TabsTrigger>
-            <TabsTrigger value="srf">Service Requests (SRF)</TabsTrigger>
-            <TabsTrigger value="po">Purchase Orders</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 h-auto">
+            <TabsTrigger value="mrf" className="text-xs sm:text-sm">Material Requests</TabsTrigger>
+            <TabsTrigger value="srf" className="text-xs sm:text-sm">Service Requests</TabsTrigger>
+            <TabsTrigger value="po" className="text-xs sm:text-sm">Purchase Orders</TabsTrigger>
           </TabsList>
 
           <TabsContent value="mrf" className="space-y-4">
@@ -79,20 +79,20 @@ const Procurement = () => {
                   {mrfRequests.map((request) => (
                     <div
                       key={request.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                           <Package className="h-5 w-5 text-primary" />
                         </div>
-                        <div>
-                          <p className="font-medium">{request.title}</p>
-                          <p className="text-sm text-muted-foreground">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate">{request.title}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
                             {request.id} • {request.requester} • {request.date}
                           </p>
                         </div>
                       </div>
-                      <span className={`text-xs px-3 py-1 rounded-full ${getStatusColor(request.status)}`}>
+                      <span className={`text-xs px-3 py-1 rounded-full self-start sm:self-center whitespace-nowrap ${getStatusColor(request.status)}`}>
                         {request.status}
                       </span>
                     </div>

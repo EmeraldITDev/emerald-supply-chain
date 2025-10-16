@@ -51,9 +51,11 @@ const Dashboard = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground mt-2">Overview of your supply chain operations</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Overview of your supply chain operations</p>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -81,13 +83,13 @@ const Dashboard = () => {
             <CardContent>
               <div className="space-y-4">
                 {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-center justify-between border-b pb-3 last:border-0">
-                    <div>
-                      <p className="font-medium">{activity.title}</p>
-                      <p className="text-sm text-muted-foreground">{activity.type} • {activity.date}</p>
+                  <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{activity.title}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{activity.type} • {activity.date}</p>
                     </div>
                     <span
-                      className={`text-xs px-2 py-1 rounded-full ${
+                      className={`text-xs px-2 py-1 rounded-full self-start sm:self-center whitespace-nowrap ${
                         activity.status === "Completed"
                           ? "bg-accent text-accent-foreground"
                           : activity.status === "Approved"

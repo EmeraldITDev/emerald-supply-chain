@@ -76,10 +76,10 @@ const Vendors = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Vendor Management</h1>
-            <p className="text-muted-foreground mt-2">Manage vendor relationships, KYC, and performance</p>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Vendor Management</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Manage vendor relationships, KYC, and performance</p>
           </div>
           <Dialog open={addVendorDialogOpen} onOpenChange={setAddVendorDialogOpen}>
             <DialogTrigger asChild>
@@ -181,19 +181,20 @@ const Vendors = () => {
             <CardContent>
               <div className="space-y-4">
                 {pendingKYC.map((vendor) => (
-                  <div key={vendor.name} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-1">
-                      <p className="font-semibold">{vendor.name}</p>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>Category: {vendor.category}</span>
-                        <span>Documents: {vendor.documents}</span>
-                        <span>Submitted: {vendor.submitted}</span>
+                  <div key={vendor.name} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <p className="font-semibold truncate">{vendor.name}</p>
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+                        <span className="whitespace-nowrap">Category: {vendor.category}</span>
+                        <span className="whitespace-nowrap">Documents: {vendor.documents}</span>
+                        <span className="whitespace-nowrap">Submitted: {vendor.submitted}</span>
                       </div>
                     </div>
                     <Button 
                       variant="outline" 
                       size="sm"
                       onClick={() => toast({ title: "KYC Review", description: `Reviewing documents for ${vendor.name}` })}
+                      className="self-start sm:self-center"
                     >
                       Review
                     </Button>
@@ -231,10 +232,10 @@ const Vendors = () => {
         </div>
 
         <Tabs defaultValue="all" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="all">All Vendors</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 h-auto">
+            <TabsTrigger value="all" className="text-xs sm:text-sm">All Vendors</TabsTrigger>
+            <TabsTrigger value="active" className="text-xs sm:text-sm">Active</TabsTrigger>
+            <TabsTrigger value="pending" className="text-xs sm:text-sm">Pending</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
@@ -246,18 +247,18 @@ const Vendors = () => {
               <CardContent>
                 <div className="space-y-4">
                   {vendors.map((vendor) => (
-                    <div key={vendor.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">{vendor.id}</span>
-                          <span className="text-sm">{vendor.name}</span>
+                    <div key={vendor.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg">
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold whitespace-nowrap">{vendor.id}</span>
+                          <span className="text-sm truncate">{vendor.name}</span>
                           <Badge className={getStatusColor(vendor.status)}>{vendor.status}</Badge>
                           <Badge className={getStatusColor(vendor.kyc)}>{vendor.kyc}</Badge>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>Category: {vendor.category}</span>
-                          <span>Orders: {vendor.orders}</span>
-                          <span className="flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+                          <span className="whitespace-nowrap">Category: {vendor.category}</span>
+                          <span className="whitespace-nowrap">Orders: {vendor.orders}</span>
+                          <span className="flex items-center gap-1 whitespace-nowrap">
                             <Star className="h-3 w-3 fill-primary text-primary" />
                             {vendor.rating}
                           </span>
@@ -270,6 +271,7 @@ const Vendors = () => {
                           setSelectedVendor(vendor);
                           setVendorDetailsOpen(true);
                         }}
+                        className="self-start sm:self-center"
                       >
                         View Profile
                       </Button>
