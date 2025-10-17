@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
 // Types
+export interface ApprovalAction {
+  stage: string;
+  approver: string;
+  action: "approved" | "rejected";
+  remarks: string;
+  timestamp: string;
+}
+
 export interface MRFRequest {
   id: string;
   title: string;
@@ -13,6 +21,12 @@ export interface MRFRequest {
   status: string;
   date: string;
   requester: string;
+  // Approval workflow fields
+  currentStage?: "submitted" | "procurement" | "finance" | "chairman" | "approved" | "rejected";
+  procurementManagerApprovalTime?: string;
+  approvalHistory?: ApprovalAction[];
+  rejectionReason?: string;
+  isResubmission?: boolean;
 }
 
 export interface SRFRequest {
@@ -88,6 +102,9 @@ interface AppContextType {
   vehicles: Vehicle[];
   vendors: Vendor[];
   addMRF: (mrf: Omit<MRFRequest, "id" | "status" | "date" | "requester">) => void;
+  updateMRF: (id: string, updates: Partial<MRFRequest>) => void;
+  approveMRF: (id: string, stage: string, approver: string, remarks: string) => void;
+  rejectMRF: (id: string, stage: string, approver: string, remarks: string) => void;
   addSRF: (srf: Omit<SRFRequest, "id" | "status" | "date" | "requester">) => void;
   addPO: (po: Omit<PurchaseOrder, "id">) => void;
   updateTrip: (id: string, updates: Partial<Trip>) => void;
@@ -111,9 +128,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       estimatedCost: "25000",
       urgency: "medium",
       justification: "Regular office operations",
-      status: "Pending",
+      status: "Submitted",
       date: "2025-10-14",
       requester: "John Doe",
+      currentStage: "procurement",
+      procurementManagerApprovalTime: "2025-10-14T08:00:00Z",
+      approvalHistory: [],
     },
     {
       id: "MRF-2025-002",
@@ -124,9 +144,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       estimatedCost: "500000",
       urgency: "high",
       justification: "Production schedule requirements",
-      status: "Approved",
+      status: "Finance Approved",
       date: "2025-10-13",
       requester: "Jane Smith",
+      currentStage: "chairman",
+      procurementManagerApprovalTime: "2025-10-13T09:00:00Z",
+      approvalHistory: [
+        {
+          stage: "procurement",
+          approver: "Procurement Manager",
+          action: "approved",
+          remarks: "Approved for production needs",
+          timestamp: "2025-10-13T10:00:00Z",
+        },
+        {
+          stage: "finance",
+          approver: "Finance Manager",
+          action: "approved",
+          remarks: "Budget allocated",
+          timestamp: "2025-10-14T11:00:00Z",
+        },
+      ],
     },
   ]);
 
@@ -271,11 +309,86 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const newMRF: MRFRequest = {
       ...mrf,
       id: `MRF-2025-${String(mrfRequests.length + 1).padStart(3, "0")}`,
-      status: "Pending",
+      status: "Submitted",
       date: new Date().toISOString().split("T")[0],
       requester: "Current User",
+      currentStage: "procurement",
+      procurementManagerApprovalTime: new Date().toISOString(),
+      approvalHistory: [],
     };
     setMrfRequests([newMRF, ...mrfRequests]);
+  };
+
+  const updateMRF = (id: string, updates: Partial<MRFRequest>) => {
+    setMrfRequests(mrfRequests.map((mrf) => (mrf.id === id ? { ...mrf, ...updates } : mrf)));
+  };
+
+  const approveMRF = (id: string, stage: string, approver: string, remarks: string) => {
+    setMrfRequests(
+      mrfRequests.map((mrf) => {
+        if (mrf.id !== id) return mrf;
+
+        const approvalAction: ApprovalAction = {
+          stage,
+          approver,
+          action: "approved",
+          remarks,
+          timestamp: new Date().toISOString(),
+        };
+
+        const history = [...(mrf.approvalHistory || []), approvalAction];
+        
+        let nextStage: MRFRequest["currentStage"];
+        let status: string;
+
+        if (stage === "procurement") {
+          nextStage = "finance";
+          status = "Procurement Approved";
+        } else if (stage === "finance") {
+          nextStage = "chairman";
+          status = "Finance Approved";
+        } else if (stage === "chairman") {
+          nextStage = "approved";
+          status = "Approved";
+        } else {
+          nextStage = mrf.currentStage;
+          status = mrf.status;
+        }
+
+        return {
+          ...mrf,
+          currentStage: nextStage,
+          status,
+          approvalHistory: history,
+        };
+      })
+    );
+  };
+
+  const rejectMRF = (id: string, stage: string, approver: string, remarks: string) => {
+    setMrfRequests(
+      mrfRequests.map((mrf) => {
+        if (mrf.id !== id) return mrf;
+
+        const rejectionAction: ApprovalAction = {
+          stage,
+          approver,
+          action: "rejected",
+          remarks,
+          timestamp: new Date().toISOString(),
+        };
+
+        const history = [...(mrf.approvalHistory || []), rejectionAction];
+
+        return {
+          ...mrf,
+          currentStage: "rejected",
+          status: "Rejected",
+          rejectionReason: remarks,
+          approvalHistory: history,
+        };
+      })
+    );
   };
 
   const addSRF = (srf: Omit<SRFRequest, "id" | "status" | "date" | "requester">) => {
@@ -361,6 +474,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         vehicles,
         vendors,
         addMRF,
+        updateMRF,
+        approveMRF,
+        rejectMRF,
         addSRF,
         addPO,
         updateTrip,

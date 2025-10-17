@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,14 +7,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useApp } from "@/contexts/AppContext";
+import { useApp, type MRFRequest } from "@/contexts/AppContext";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const NewMRF = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
-  const { addMRF } = useApp();
+  const { addMRF, updateMRF } = useApp();
+  
+  const rejectedMRF = location.state?.rejectedMRF as MRFRequest | undefined;
+  const isResubmission = !!rejectedMRF;
+  
   const [formData, setFormData] = useState({
     title: "",
     category: "",
@@ -25,15 +31,47 @@ const NewMRF = () => {
     justification: "",
   });
 
+  useEffect(() => {
+    if (rejectedMRF) {
+      setFormData({
+        title: rejectedMRF.title,
+        category: rejectedMRF.category,
+        description: rejectedMRF.description,
+        quantity: rejectedMRF.quantity,
+        estimatedCost: rejectedMRF.estimatedCost,
+        urgency: rejectedMRF.urgency,
+        justification: rejectedMRF.justification,
+      });
+    }
+  }, [rejectedMRF]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    addMRF(formData);
-    
-    toast({
-      title: "MRF Submitted Successfully",
-      description: "Your material request form has been submitted for approval",
-    });
+    if (isResubmission && rejectedMRF) {
+      // Resubmission: update existing MRF with new approval flow
+      updateMRF(rejectedMRF.id, {
+        ...formData,
+        status: "Submitted",
+        currentStage: "procurement",
+        procurementManagerApprovalTime: new Date().toISOString(),
+        isResubmission: true,
+        date: new Date().toISOString().split("T")[0],
+      });
+      
+      toast({
+        title: "MRF Resubmitted Successfully",
+        description: "Your updated material request has been resubmitted for approval",
+      });
+    } else {
+      // New submission
+      addMRF(formData);
+      
+      toast({
+        title: "MRF Submitted Successfully",
+        description: "Your material request form has been submitted for approval",
+      });
+    }
     
     navigate("/procurement");
   };
@@ -54,9 +92,24 @@ const NewMRF = () => {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Procurement
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight">New Material Request Form</h1>
-          <p className="text-muted-foreground mt-2">Submit a new material requisition request</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {isResubmission ? "Resubmit Material Request Form" : "New Material Request Form"}
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            {isResubmission 
+              ? "Update your material request based on the rejection feedback"
+              : "Submit a new material requisition request"
+            }
+          </p>
         </div>
+
+        {isResubmission && rejectedMRF?.rejectionReason && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Rejection Reason</AlertTitle>
+            <AlertDescription>{rejectedMRF.rejectionReason}</AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleSubmit}>
           <Card>
@@ -168,7 +221,7 @@ const NewMRF = () => {
 
               <div className="flex gap-3 pt-4">
                 <Button type="submit" className="flex-1">
-                  Submit Request
+                  {isResubmission ? "Resubmit Request" : "Submit Request"}
                 </Button>
                 <Button
                   type="button"

@@ -1,17 +1,32 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, FileText, Package, ShoppingCart } from "lucide-react";
+import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
 import { useEffect, useState } from "react";
+import { MRFApprovalDialog } from "@/components/MRFApprovalDialog";
+import type { MRFRequest } from "@/contexts/AppContext";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Procurement = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { mrfRequests, srfRequests, purchaseOrders } = useApp();
+  const { mrfRequests, srfRequests, purchaseOrders, approveMRF, rejectMRF } = useApp();
+  const { toast } = useToast();
+  
+  const [selectedMRF, setSelectedMRF] = useState<MRFRequest | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<"procurement" | "finance" | "chairman">("procurement");
 
   const vendorFromState = (location.state as any)?.vendor as string | undefined;
   const vendorFromQuery = searchParams.get("vendor") || undefined;
@@ -34,14 +49,69 @@ const Procurement = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Approved":
-        return "bg-primary/10 text-primary";
+        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200";
       case "Completed":
         return "bg-accent text-accent-foreground";
       case "Pending":
+      case "Submitted":
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+      case "Procurement Approved":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      case "Finance Approved":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+      case "Rejected":
+        return "bg-destructive/10 text-destructive";
       default:
         return "bg-secondary text-secondary-foreground";
     }
+  };
+
+  const getApprovalTimerColor = (mrf: MRFRequest) => {
+    if (!mrf.procurementManagerApprovalTime || mrf.currentStage === "approved" || mrf.currentStage === "rejected") {
+      return null;
+    }
+    
+    const startTime = new Date(mrf.procurementManagerApprovalTime);
+    const now = new Date();
+    const hoursElapsed = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursElapsed <= 48) return "text-emerald-600 dark:text-emerald-400";
+    if (hoursElapsed <= 72) return "text-amber-600 dark:text-amber-400";
+    return "text-destructive";
+  };
+
+  const handleMRFClick = (mrf: MRFRequest) => {
+    setSelectedMRF(mrf);
+    setDialogOpen(true);
+  };
+
+  const handleApprove = (remarks: string) => {
+    if (!selectedMRF) return;
+    
+    approveMRF(selectedMRF.id, currentUserRole, `${currentUserRole} Manager`, remarks);
+    
+    toast({
+      title: "MRF Approved",
+      description: `${selectedMRF.id} has been approved and moved to the next stage.`,
+    });
+
+    // Simulate email notification
+    console.log(`📧 Email sent to next approver for ${selectedMRF.id}`);
+  };
+
+  const handleReject = (remarks: string) => {
+    if (!selectedMRF) return;
+    
+    rejectMRF(selectedMRF.id, currentUserRole, `${currentUserRole} Manager`, remarks);
+    
+    toast({
+      title: "MRF Rejected",
+      description: `${selectedMRF.id} has been rejected. The requester can edit and resubmit.`,
+      variant: "destructive",
+    });
+
+    // Simulate email notification
+    console.log(`📧 Rejection email sent to requester for ${selectedMRF.id}`);
   };
 
   return (
@@ -51,6 +121,19 @@ const Procurement = () => {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Procurement</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Manage material and service requests</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted-foreground">View as:</label>
+            <Select value={currentUserRole} onValueChange={(value: any) => setCurrentUserRole(value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="procurement">Procurement Manager</SelectItem>
+                <SelectItem value="finance">Finance Manager</SelectItem>
+                <SelectItem value="chairman">Chairman</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -76,27 +159,69 @@ const Procurement = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {mrfRequests.map((request) => (
-                    <div
-                      key={request.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Package className="h-5 w-5 text-primary" />
+                  {mrfRequests.map((request) => {
+                    const timerColor = getApprovalTimerColor(request);
+                    return (
+                      <div
+                        key={request.id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg hover:bg-accent transition-colors"
+                      >
+                        <div 
+                          onClick={() => handleMRFClick(request)}
+                          className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1 cursor-pointer"
+                        >
+                          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Package className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium truncate">{request.title}</p>
+                              {request.isResubmission && (
+                                <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 px-2 py-0.5 rounded">
+                                  Resubmission
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                              {request.id} • {request.requester} • {request.date}
+                            </p>
+                            {request.currentStage && (
+                              <p className="text-xs text-muted-foreground capitalize mt-1">
+                                Stage: {request.currentStage}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium truncate">{request.title}</p>
-                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                            {request.id} • {request.requester} • {request.date}
-                          </p>
+                        <div className="flex items-center gap-2 self-start sm:self-center">
+                          {timerColor && (
+                            <Clock className={`h-4 w-4 ${timerColor}`} />
+                          )}
+                          {request.currentStage === "approved" && (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          )}
+                          {request.currentStage === "rejected" && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate("/procurement/mrf/new", { state: { rejectedMRF: request } });
+                                }}
+                                className="text-xs"
+                              >
+                                Edit & Resubmit
+                              </Button>
+                              <XCircle className="h-4 w-4 text-destructive" />
+                            </>
+                          )}
+                          <span className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${getStatusColor(request.status)}`}>
+                            {request.status}
+                          </span>
                         </div>
                       </div>
-                      <span className={`text-xs px-3 py-1 rounded-full self-start sm:self-center whitespace-nowrap ${getStatusColor(request.status)}`}>
-                        {request.status}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -181,6 +306,15 @@ const Procurement = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <MRFApprovalDialog
+        mrf={selectedMRF}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        currentUserRole={currentUserRole}
+      />
     </DashboardLayout>
   );
 };
