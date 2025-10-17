@@ -1,22 +1,13 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, TrendingUp, FileCheck, Plus, Star } from "lucide-react";
+import { Users, TrendingUp, FileCheck, Plus, Star, Upload, Download, Trash2, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-
-interface Vendor {
-  id: string;
-  name: string;
-  category: string;
-  rating: number;
-  orders: number;
-  status: string;
-  kyc: string;
-}
+import { useApp } from "@/contexts/AppContext";
 import {
   Dialog,
   DialogContent,
@@ -32,20 +23,83 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const Vendors = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { vendors, addVendorDocument, deleteVendorDocument } = useApp();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
-  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [selectedVendor, setSelectedVendor] = useState<typeof vendors[0] | null>(null);
   const [vendorDetailsOpen, setVendorDetailsOpen] = useState(false);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [contactTo, setContactTo] = useState("");
   const [contactSubject, setContactSubject] = useState("");
   const [contactMessage, setContactMessage] = useState("");
 
-  const vendors: Vendor[] = [
-    { id: "V001", name: "Steel Works Ltd", category: "Raw Materials", rating: 4.8, orders: 45, status: "Active", kyc: "Verified" },
-    { id: "V002", name: "BuildMart Supplies", category: "Construction", rating: 4.5, orders: 32, status: "Active", kyc: "Verified" },
-    { id: "V003", name: "SafetyFirst Co", category: "Safety Equipment", rating: 4.9, orders: 28, status: "Active", kyc: "Verified" },
-    { id: "V004", name: "TechEquip Ltd", category: "Equipment", rating: 4.3, orders: 18, status: "Pending", kyc: "Under Review" },
-  ];
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !selectedVendor) return;
+
+    const file = files[0];
+    
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Read file as base64
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const fileData = e.target?.result as string;
+      
+      addVendorDocument(selectedVendor.id, {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        fileData,
+      });
+
+      toast({
+        title: "Document uploaded",
+        description: `${file.name} has been uploaded successfully`,
+      });
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDownloadDocument = (document: any) => {
+    const link = window.document.createElement("a");
+    link.href = document.fileData;
+    link.download = document.name;
+    link.click();
+  };
+
+  const handleDeleteDocument = (documentId: string) => {
+    if (!selectedVendor) return;
+    
+    deleteVendorDocument(selectedVendor.id, documentId);
+    toast({
+      title: "Document deleted",
+      description: "Document has been removed successfully",
+    });
+  };
+
+  // Keep selectedVendor in sync with vendors array
+  useEffect(() => {
+    if (selectedVendor) {
+      const updatedVendor = vendors.find(v => v.id === selectedVendor.id);
+      if (updatedVendor) {
+        setSelectedVendor(updatedVendor);
+      }
+    }
+  }, [vendors]);
 
   const pendingKYC = [
     { name: "NewVendor Industries", category: "Raw Materials", submitted: "2024-01-14", documents: 8 },
@@ -322,6 +376,72 @@ const Vendors = () => {
                   <p className="font-medium">{selectedVendor.orders}</p>
                 </div>
               </div>
+
+              {/* Documents Section */}
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-base font-semibold">Documents</Label>
+                  <Button
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Upload
+                  </Button>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={handleFileUpload}
+                />
+                
+                {selectedVendor.documents.length === 0 ? (
+                  <div className="text-center py-6 text-sm text-muted-foreground border rounded-md border-dashed">
+                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No documents uploaded yet</p>
+                    <p className="text-xs mt-1">Upload CAC, certificates, or other documents</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedVendor.documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center justify-between p-3 border rounded-md bg-muted/30"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{doc.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {(doc.size / 1024).toFixed(1)} KB • {new Date(doc.uploadDate).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDownloadDocument(doc)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteDocument(doc.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-2 pt-4">
                 <Button
                   className="flex-1"

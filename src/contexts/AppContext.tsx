@@ -60,17 +60,42 @@ export interface Vehicle {
   lastMaintenance: string;
 }
 
+export interface VendorDocument {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  uploadDate: string;
+  fileData: string; // base64 encoded file data
+}
+
+export interface Vendor {
+  id: string;
+  name: string;
+  category: string;
+  rating: number;
+  orders: number;
+  status: string;
+  kyc: string;
+  documents: VendorDocument[];
+}
+
 interface AppContextType {
   mrfRequests: MRFRequest[];
   srfRequests: SRFRequest[];
   purchaseOrders: PurchaseOrder[];
   trips: Trip[];
   vehicles: Vehicle[];
+  vendors: Vendor[];
   addMRF: (mrf: Omit<MRFRequest, "id" | "status" | "date" | "requester">) => void;
   addSRF: (srf: Omit<SRFRequest, "id" | "status" | "date" | "requester">) => void;
   addPO: (po: Omit<PurchaseOrder, "id">) => void;
   updateTrip: (id: string, updates: Partial<Trip>) => void;
   updateVehicle: (id: string, updates: Partial<Vehicle>) => void;
+  addVendor: (vendor: Omit<Vendor, "id" | "documents">) => void;
+  updateVendor: (id: string, updates: Partial<Vendor>) => void;
+  addVendorDocument: (vendorId: string, document: Omit<VendorDocument, "id" | "uploadDate">) => void;
+  deleteVendorDocument: (vendorId: string, documentId: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -199,6 +224,49 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     },
   ]);
 
+  const [vendors, setVendors] = useState<Vendor[]>([
+    {
+      id: "V001",
+      name: "Steel Works Ltd",
+      category: "Raw Materials",
+      rating: 4.8,
+      orders: 45,
+      status: "Active",
+      kyc: "Verified",
+      documents: [],
+    },
+    {
+      id: "V002",
+      name: "BuildMart Supplies",
+      category: "Construction",
+      rating: 4.5,
+      orders: 32,
+      status: "Active",
+      kyc: "Verified",
+      documents: [],
+    },
+    {
+      id: "V003",
+      name: "SafetyFirst Co",
+      category: "Safety Equipment",
+      rating: 4.9,
+      orders: 28,
+      status: "Active",
+      kyc: "Verified",
+      documents: [],
+    },
+    {
+      id: "V004",
+      name: "TechEquip Ltd",
+      category: "Equipment",
+      rating: 4.3,
+      orders: 18,
+      status: "Pending",
+      kyc: "Under Review",
+      documents: [],
+    },
+  ]);
+
   const addMRF = (mrf: Omit<MRFRequest, "id" | "status" | "date" | "requester">) => {
     const newMRF: MRFRequest = {
       ...mrf,
@@ -237,6 +305,52 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setVehicles(vehicles.map((vehicle) => (vehicle.id === id ? { ...vehicle, ...updates } : vehicle)));
   };
 
+  const addVendor = (vendor: Omit<Vendor, "id" | "documents">) => {
+    const newVendor: Vendor = {
+      ...vendor,
+      id: `V${String(vendors.length + 1).padStart(3, "0")}`,
+      documents: [],
+    };
+    setVendors([...vendors, newVendor]);
+  };
+
+  const updateVendor = (id: string, updates: Partial<Vendor>) => {
+    setVendors(vendors.map((vendor) => (vendor.id === id ? { ...vendor, ...updates } : vendor)));
+  };
+
+  const addVendorDocument = (vendorId: string, document: Omit<VendorDocument, "id" | "uploadDate">) => {
+    setVendors(
+      vendors.map((vendor) =>
+        vendor.id === vendorId
+          ? {
+              ...vendor,
+              documents: [
+                ...vendor.documents,
+                {
+                  ...document,
+                  id: `DOC-${Date.now()}`,
+                  uploadDate: new Date().toISOString(),
+                },
+              ],
+            }
+          : vendor
+      )
+    );
+  };
+
+  const deleteVendorDocument = (vendorId: string, documentId: string) => {
+    setVendors(
+      vendors.map((vendor) =>
+        vendor.id === vendorId
+          ? {
+              ...vendor,
+              documents: vendor.documents.filter((doc) => doc.id !== documentId),
+            }
+          : vendor
+      )
+    );
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -245,11 +359,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         purchaseOrders,
         trips,
         vehicles,
+        vendors,
         addMRF,
         addSRF,
         addPO,
         updateTrip,
         updateVehicle,
+        addVendor,
+        updateVendor,
+        addVendorDocument,
+        deleteVendorDocument,
       }}
     >
       {children}
