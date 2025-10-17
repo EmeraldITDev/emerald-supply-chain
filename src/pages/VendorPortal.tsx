@@ -12,7 +12,46 @@ import { useToast } from "@/hooks/use-toast";
 
 const VendorPortal = () => {
   const { toast } = useToast();
-  const [isLoggedIn, setIsLoggedIn] = useState(true); // Set to false for login view
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [category, setCategory] = useState("");
+
+  // Demo credentials: vendor@demo.com / demo123
+  const handleLogin = () => {
+    if (email === "vendor@demo.com" && password === "demo123") {
+      setIsLoggedIn(true);
+      toast({ title: "Login Successful", description: "Welcome to Vendor Portal" });
+    } else {
+      toast({ 
+        title: "Login Failed", 
+        description: "Invalid credentials. Use: vendor@demo.com / demo123",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRegister = () => {
+    if (!companyName || !email || !password || !category) {
+      toast({ 
+        title: "Registration Failed", 
+        description: "Please fill in all fields",
+        variant: "destructive"
+      });
+      return;
+    }
+    toast({ 
+      title: "Registration Submitted", 
+      description: "Your application is pending approval. You'll be notified via email."
+    });
+    setShowRegistration(false);
+    setEmail("");
+    setPassword("");
+    setCompanyName("");
+    setCategory("");
+  };
 
   const purchaseOrders = [
     { id: "PO-2024-001", date: "2024-01-15", items: 5, total: "₦850,000", status: "Pending Confirmation", dueDate: "2024-01-20" },
@@ -44,6 +83,81 @@ const VendorPortal = () => {
   };
 
   if (!isLoggedIn) {
+    if (showRegistration) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="space-y-4">
+              <div className="flex justify-center">
+                <img src={logo} alt="Emerald Industrial" className="h-16 object-contain" />
+              </div>
+              <div className="space-y-2 text-center">
+                <CardTitle className="text-2xl">Register as Vendor</CardTitle>
+                <CardDescription>Apply to become an approved vendor</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="company">Company Name</Label>
+                <Input 
+                  id="company" 
+                  placeholder="Your Company Ltd"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Business Category</Label>
+                <Input 
+                  id="category" 
+                  placeholder="e.g., Raw Materials, Equipment"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reg-email">Email</Label>
+                <Input 
+                  id="reg-email" 
+                  type="email" 
+                  placeholder="vendor@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reg-password">Password</Label>
+                <Input 
+                  id="reg-password" 
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <div className="bg-muted p-3 rounded-md text-sm">
+                <p className="text-muted-foreground">
+                  Your application will be reviewed by our team. Once approved, you'll receive 
+                  login credentials via email.
+                </p>
+              </div>
+              <Button className="w-full" onClick={handleRegister}>
+                Submit Application
+              </Button>
+              <div className="text-center text-sm text-muted-foreground">
+                Already have an account?{" "}
+                <button 
+                  onClick={() => setShowRegistration(false)} 
+                  className="text-primary hover:underline"
+                >
+                  Sign In
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -57,22 +171,44 @@ const VendorPortal = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="bg-info/10 border border-info/20 p-3 rounded-md">
+              <p className="text-sm font-medium text-info">Demo Credentials</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Email: vendor@demo.com<br/>
+                Password: demo123
+              </p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="vendor@company.com" />
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="vendor@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" />
+              <Input 
+                id="password" 
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              />
             </div>
-            <Button className="w-full" onClick={() => setIsLoggedIn(true)}>
+            <Button className="w-full" onClick={handleLogin}>
               Sign In
             </Button>
             <div className="text-center text-sm text-muted-foreground">
               Don't have an account?{" "}
-              <a href="#" className="text-primary hover:underline">
+              <button 
+                onClick={() => setShowRegistration(true)} 
+                className="text-primary hover:underline"
+              >
                 Register as Vendor
-              </a>
+              </button>
             </div>
           </CardContent>
         </Card>
@@ -242,37 +378,53 @@ const VendorPortal = () => {
             <Card>
               <CardHeader>
                 <CardTitle>KYC Documentation</CardTitle>
-                <CardDescription>Your verification documents and status</CardDescription>
+                <CardDescription>Upload and manage your verification documents (CAC, Tax, Bank Details, etc.)</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {documents.map((doc) => (
-                    <div key={doc.name} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{doc.name}</span>
-                          <Badge className={getStatusColor(doc.status)}>{doc.status}</Badge>
+                  <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm font-medium mb-1">Upload KYC Documents</p>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      CAC Certificate, Tax Clearance, Bank Details, ISO Certificates
+                    </p>
+                    <Input 
+                      type="file" 
+                      className="max-w-xs mx-auto"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          toast({ 
+                            title: "Document Uploaded", 
+                            description: `${file.name} uploaded successfully. Pending review.` 
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    {documents.map((doc) => (
+                      <div key={doc.name} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{doc.name}</span>
+                            <Badge className={getStatusColor(doc.status)}>{doc.status}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">Uploaded: {doc.uploaded}</p>
                         </div>
-                        <p className="text-sm text-muted-foreground">Uploaded: {doc.uploaded}</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => toast({ title: "Document Update", description: `Updating ${doc.name}` })}
+                        >
+                          Replace
+                        </Button>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => toast({ title: "Document Update", description: `Updating ${doc.name}` })}
-                      >
-                        Update
-                      </Button>
-                    </div>
-                  ))}
-                  <Button 
-                    variant="outline" 
-                    className="w-full gap-2"
-                    onClick={() => toast({ title: "Upload Document", description: "Opening document upload..." })}
-                  >
-                    <Upload className="h-4 w-4" />
-                    Upload New Document
-                  </Button>
+                    ))}
+                  </div>
                 </div>
               </CardContent>
             </Card>

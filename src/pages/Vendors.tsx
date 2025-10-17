@@ -380,14 +380,14 @@ const Vendors = () => {
               {/* Documents Section */}
               <div className="pt-4 border-t">
                 <div className="flex items-center justify-between mb-3">
-                  <Label className="text-base font-semibold">Documents</Label>
+                  <Label className="text-base font-semibold">Documents & KYC</Label>
                   <Button
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
                     className="gap-2"
                   >
                     <Upload className="h-4 w-4" />
-                    Upload
+                    Upload Document
                   </Button>
                 </div>
                 <input
@@ -397,6 +397,9 @@ const Vendors = () => {
                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                   onChange={handleFileUpload}
                 />
+                <p className="text-xs text-muted-foreground mb-3">
+                  Upload CAC certificates, tax documents, bank details, or other vendor documents (Max 5MB)
+                </p>
                 
                 {selectedVendor.documents.length === 0 ? (
                   <div className="text-center py-6 text-sm text-muted-foreground border rounded-md border-dashed">
