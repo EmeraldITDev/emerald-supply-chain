@@ -27,6 +27,8 @@ export interface MRFRequest {
   approvalHistory?: ApprovalAction[];
   rejectionReason?: string;
   isResubmission?: boolean;
+  // Document support
+  documents?: string[]; // Array of base64 encoded documents
 }
 
 export interface SRFRequest {
@@ -41,6 +43,8 @@ export interface SRFRequest {
   status: string;
   date: string;
   requester: string;
+  // Document support
+  documents?: string[]; // Array of base64 encoded documents
 }
 
 export interface PurchaseOrder {
@@ -306,12 +310,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   ]);
 
   const addMRF = (mrf: Omit<MRFRequest, "id" | "status" | "date" | "requester">) => {
+    const userEmail = localStorage.getItem("userEmail") || "Current User";
+    const userName = localStorage.getItem("userName") || "Current User";
+    
     const newMRF: MRFRequest = {
       ...mrf,
       id: `MRF-2025-${String(mrfRequests.length + 1).padStart(3, "0")}`,
       status: "Submitted",
       date: new Date().toISOString().split("T")[0],
-      requester: "Current User",
+      requester: userName,
       currentStage: "procurement",
       procurementManagerApprovalTime: new Date().toISOString(),
       approvalHistory: [],
@@ -392,12 +399,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addSRF = (srf: Omit<SRFRequest, "id" | "status" | "date" | "requester">) => {
+    const userEmail = localStorage.getItem("userEmail") || "Current User";
+    const userName = localStorage.getItem("userName") || "Current User";
+    
     const newSRF: SRFRequest = {
       ...srf,
       id: `SRF-2025-${String(srfRequests.length + 1).padStart(3, "0")}`,
       status: "Pending",
       date: new Date().toISOString().split("T")[0],
-      requester: "Current User",
+      requester: userName,
     };
     setSrfRequests([newSRF, ...srfRequests]);
   };

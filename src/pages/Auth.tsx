@@ -6,21 +6,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Package } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login } = useAuth();
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Simple validation
-    if (email && password) {
-      localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("userEmail", email);
-      
+    const success = await login(email, password);
+    
+    if (success) {
       toast({
         title: "Welcome!",
         description: "Successfully signed in to SCM system",
@@ -83,9 +83,14 @@ const Auth = () => {
           </CardContent>
         </Card>
 
-        <p className="text-center text-sm text-muted-foreground mt-4">
-          Demo: Use any email and password to sign in
-        </p>
+        <div className="mt-6 space-y-2 text-sm text-muted-foreground">
+          <p className="font-semibold text-foreground">Demo Credentials:</p>
+          <div className="space-y-1">
+            <p><strong>Employee:</strong> staff@emeraldcfze.com / any password</p>
+            <p><strong>Procurement:</strong> procurement@emeraldcfze.com / any password</p>
+            <p><strong>Finance:</strong> finance@emeraldcfze.com / any password</p>
+          </div>
+        </div>
       </div>
     </div>
   );

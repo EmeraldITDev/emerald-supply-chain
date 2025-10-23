@@ -5,28 +5,26 @@ import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle } f
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { MRFApprovalDialog } from "@/components/MRFApprovalDialog";
 import type { MRFRequest } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 const Procurement = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { mrfRequests, srfRequests, purchaseOrders, approveMRF, rejectMRF } = useApp();
+  const { user } = useAuth();
   const { toast } = useToast();
   
   const [selectedMRF, setSelectedMRF] = useState<MRFRequest | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [currentUserRole, setCurrentUserRole] = useState<"procurement" | "finance" | "chairman">("procurement");
+
+  // Get current user role for approval
+  const canApprove = user?.role === "procurement";
+  const currentUserRole = "procurement"; // Procurement page only for procurement managers
 
   const vendorFromState = (location.state as any)?.vendor as string | undefined;
   const vendorFromQuery = searchParams.get("vendor") || undefined;
@@ -86,9 +84,9 @@ const Procurement = () => {
   };
 
   const handleApprove = (remarks: string) => {
-    if (!selectedMRF) return;
+    if (!selectedMRF || !canApprove) return;
     
-    approveMRF(selectedMRF.id, currentUserRole, `${currentUserRole} Manager`, remarks);
+    approveMRF(selectedMRF.id, currentUserRole, user?.name || "Procurement Manager", remarks);
     
     toast({
       title: "MRF Approved",
@@ -100,9 +98,9 @@ const Procurement = () => {
   };
 
   const handleReject = (remarks: string) => {
-    if (!selectedMRF) return;
+    if (!selectedMRF || !canApprove) return;
     
-    rejectMRF(selectedMRF.id, currentUserRole, `${currentUserRole} Manager`, remarks);
+    rejectMRF(selectedMRF.id, currentUserRole, user?.name || "Procurement Manager", remarks);
     
     toast({
       title: "MRF Rejected",
@@ -121,19 +119,6 @@ const Procurement = () => {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Procurement</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Manage material and service requests</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">View as:</label>
-            <Select value={currentUserRole} onValueChange={(value: any) => setCurrentUserRole(value)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="procurement">Procurement Manager</SelectItem>
-                <SelectItem value="finance">Finance Manager</SelectItem>
-                <SelectItem value="chairman">Chairman</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </div>
 

@@ -2,9 +2,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Package, ShoppingCart, Truck, Warehouse, TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import EmployeeDashboard from "./EmployeeDashboard";
+import FinanceDashboard from "./FinanceDashboard";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Route to role-specific dashboard
+  if (user?.role === "employee") {
+    return (
+      <DashboardLayout>
+        <EmployeeDashboard />
+      </DashboardLayout>
+    );
+  }
+
+  if (user?.role === "finance") {
+    return (
+      <DashboardLayout>
+        <FinanceDashboard />
+      </DashboardLayout>
+    );
+  }
+
+  // Procurement dashboard (default)
   
   const stats = [
     {
@@ -53,7 +76,7 @@ const Dashboard = () => {
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Procurement Dashboard</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Overview of your supply chain operations</p>
           </div>
         </div>

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/emerald-logo.png";
 
 interface DashboardLayoutProps {
@@ -26,20 +27,37 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
 
-  const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Procurement", href: "/procurement", icon: ShoppingCart },
-    { name: "Logistics", href: "/logistics", icon: Truck },
-    { name: "Inventory", href: "/inventory", icon: Package },
-    { name: "Warehouse", href: "/warehouse", icon: Warehouse },
-    { name: "Vendors", href: "/vendors", icon: Users },
-    { name: "Reports", href: "/reports", icon: FileText },
-  ];
+  // Role-based navigation
+  const getNavigation = () => {
+    if (user?.role === "employee") {
+      return [
+        { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      ];
+    } else if (user?.role === "procurement") {
+      return [
+        { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+        { name: "Procurement", href: "/procurement", icon: ShoppingCart },
+        { name: "Vendors", href: "/vendors", icon: Users },
+        { name: "Logistics", href: "/logistics", icon: Truck },
+        { name: "Inventory", href: "/inventory", icon: Package },
+        { name: "Warehouse", href: "/warehouse", icon: Warehouse },
+        { name: "Reports", href: "/reports", icon: FileText },
+      ];
+    } else if (user?.role === "finance") {
+      return [
+        { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+        { name: "Reports", href: "/reports", icon: FileText },
+      ];
+    }
+    return [];
+  };
+
+  const navigation = getNavigation();
 
   const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("userEmail");
+    logout();
     navigate("/auth");
   };
 
@@ -153,9 +171,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <h2 className="text-base md:text-lg font-semibold truncate">Supply Chain Management</h2>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
-            <span className="text-xs md:text-sm text-muted-foreground truncate max-w-[120px] md:max-w-none">
-              {localStorage.getItem("userEmail")}
-            </span>
+            <div className="text-right">
+              <p className="text-xs md:text-sm font-medium truncate max-w-[120px] md:max-w-none">
+                {user?.name}
+              </p>
+              <p className="text-xs text-muted-foreground truncate max-w-[120px] md:max-w-none">
+                {user?.role && user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+              </p>
+            </div>
           </div>
         </header>
 
