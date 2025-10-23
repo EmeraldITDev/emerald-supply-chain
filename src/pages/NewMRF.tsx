@@ -73,7 +73,7 @@ const NewMRF = () => {
       });
     }
     
-    navigate("/procurement");
+    navigate("/dashboard");
   };
 
   const handleChange = (field: string, value: string) => {
@@ -86,11 +86,11 @@ const NewMRF = () => {
         <div>
           <Button
             variant="ghost"
-            onClick={() => navigate("/procurement")}
+            onClick={() => navigate("/dashboard")}
             className="mb-4"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Procurement
+            Back to Dashboard
           </Button>
           <h1 className="text-3xl font-bold tracking-tight">
             {isResubmission ? "Resubmit Material Request Form" : "New Material Request Form"}
@@ -226,7 +226,7 @@ const NewMRF = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate("/procurement")}
+                  onClick={() => navigate("/dashboard")}
                 >
                   Cancel
                 </Button>

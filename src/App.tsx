@@ -27,6 +27,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return isAuthenticated ? <>{children}</> : <Navigate to="/auth" replace />;
 };
 
+const ProcurementRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/auth" replace />;
+  if (user?.role !== "procurement") return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+};
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -38,7 +45,7 @@ const App = () => {
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/procurement" element={<ProtectedRoute><Procurement /></ProtectedRoute>} />
+          <Route path="/procurement" element={<ProcurementRoute><Procurement /></ProcurementRoute>} />
           <Route path="/new-mrf" element={<ProtectedRoute><NewMRF /></ProtectedRoute>} />
           <Route path="/new-srf" element={<ProtectedRoute><NewSRF /></ProtectedRoute>} />
           <Route path="/procurement/mrf/new" element={<ProtectedRoute><NewMRF /></ProtectedRoute>} />
