@@ -87,6 +87,47 @@ export interface VendorDocument {
   fileData: string; // base64 encoded file data
 }
 
+export interface RFQ {
+  id: string;
+  mrfId: string;
+  mrfTitle: string;
+  description: string;
+  quantity: string;
+  estimatedCost: string;
+  deadline: string;
+  status: "Open" | "Closed" | "Awarded";
+  createdDate: string;
+  vendorIds: string[]; // Vendors invited to quote
+}
+
+export interface Quotation {
+  id: string;
+  rfqId: string;
+  vendorId: string;
+  vendorName: string;
+  price: string;
+  deliveryDate: string;
+  notes: string;
+  status: "Pending" | "Approved" | "Rejected";
+  submittedDate: string;
+  documentUrl?: string;
+}
+
+export interface VendorRegistration {
+  id: string;
+  companyName: string;
+  category: string;
+  email: string;
+  phone: string;
+  address: string;
+  taxId: string;
+  contactPerson: string;
+  status: "Pending" | "Approved" | "Rejected";
+  submittedDate: string;
+  reviewedDate?: string;
+  reviewNotes?: string;
+}
+
 export interface Vendor {
   id: string;
   name: string;
@@ -95,6 +136,11 @@ export interface Vendor {
   orders: number;
   status: string;
   kyc: string;
+  email: string;
+  phone: string;
+  address: string;
+  taxId: string;
+  contactPerson: string;
   documents: VendorDocument[];
 }
 
@@ -105,6 +151,9 @@ interface AppContextType {
   trips: Trip[];
   vehicles: Vehicle[];
   vendors: Vendor[];
+  rfqs: RFQ[];
+  quotations: Quotation[];
+  vendorRegistrations: VendorRegistration[];
   addMRF: (mrf: Omit<MRFRequest, "id" | "status" | "date" | "requester">) => void;
   updateMRF: (id: string, updates: Partial<MRFRequest>) => void;
   approveMRF: (id: string, stage: string, approver: string, remarks: string) => void;
@@ -117,6 +166,12 @@ interface AppContextType {
   updateVendor: (id: string, updates: Partial<Vendor>) => void;
   addVendorDocument: (vendorId: string, document: Omit<VendorDocument, "id" | "uploadDate">) => void;
   deleteVendorDocument: (vendorId: string, documentId: string) => void;
+  addRFQ: (rfq: Omit<RFQ, "id" | "createdDate">) => void;
+  updateRFQ: (id: string, updates: Partial<RFQ>) => void;
+  addQuotation: (quotation: Omit<Quotation, "id" | "submittedDate">) => void;
+  updateQuotation: (id: string, updates: Partial<Quotation>) => void;
+  addVendorRegistration: (registration: Omit<VendorRegistration, "id" | "submittedDate" | "status">) => void;
+  updateVendorRegistration: (id: string, updates: Partial<VendorRegistration>) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -300,6 +355,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       orders: 45,
       status: "Active",
       kyc: "Verified",
+      email: "vendor@demo.com",
+      phone: "+234-801-234-5678",
+      address: "123 Industrial Road, Lagos",
+      taxId: "TIN-123456789",
+      contactPerson: "John Okafor",
       documents: [],
     },
     {
@@ -310,6 +370,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       orders: 32,
       status: "Active",
       kyc: "Verified",
+      email: "buildmart@example.com",
+      phone: "+234-802-345-6789",
+      address: "45 Builder Street, Abuja",
+      taxId: "TIN-234567890",
+      contactPerson: "Mary Adeola",
       documents: [],
     },
     {
@@ -320,6 +385,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       orders: 28,
       status: "Active",
       kyc: "Verified",
+      email: "safety@example.com",
+      phone: "+234-803-456-7890",
+      address: "78 Safety Avenue, Port Harcourt",
+      taxId: "TIN-345678901",
+      contactPerson: "Peter Chukwu",
       documents: [],
     },
     {
@@ -330,7 +400,68 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       orders: 18,
       status: "Pending",
       kyc: "Under Review",
+      email: "tech@example.com",
+      phone: "+234-804-567-8901",
+      address: "90 Tech Plaza, Ibadan",
+      taxId: "TIN-456789012",
+      contactPerson: "Ahmed Bello",
       documents: [],
+    },
+  ]);
+
+  const [rfqs, setRfqs] = useState<RFQ[]>([
+    {
+      id: "RFQ-2025-001",
+      mrfId: "MRF-2025-001",
+      mrfTitle: "Office Supplies",
+      description: "Stationery and office materials",
+      quantity: "50",
+      estimatedCost: "25000",
+      deadline: "2025-10-20",
+      status: "Open",
+      createdDate: "2025-10-14",
+      vendorIds: ["V001", "V002"],
+    },
+    {
+      id: "RFQ-2025-002",
+      mrfId: "MRF-2025-002",
+      mrfTitle: "Raw Materials",
+      description: "Production materials for Q4",
+      quantity: "200",
+      estimatedCost: "500000",
+      deadline: "2025-10-25",
+      status: "Open",
+      createdDate: "2025-10-13",
+      vendorIds: ["V001"],
+    },
+  ]);
+
+  const [quotations, setQuotations] = useState<Quotation[]>([
+    {
+      id: "QUO-2025-001",
+      rfqId: "RFQ-2025-001",
+      vendorId: "V001",
+      vendorName: "Steel Works Ltd",
+      price: "23500",
+      deliveryDate: "2025-10-18",
+      notes: "Can deliver within 4 days",
+      status: "Pending",
+      submittedDate: "2025-10-15",
+    },
+  ]);
+
+  const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([
+    {
+      id: "VR-001",
+      companyName: "New Vendor Co",
+      category: "Office Supplies",
+      email: "newvendor@example.com",
+      phone: "+234-805-678-9012",
+      address: "123 New Street, Lagos",
+      taxId: "TIN-567890123",
+      contactPerson: "Grace Nwosu",
+      status: "Pending",
+      submittedDate: "2025-10-14",
     },
   ]);
 
@@ -462,6 +593,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setVendors([...vendors, newVendor]);
   };
 
+  const addRFQ = (rfq: Omit<RFQ, "id" | "createdDate">) => {
+    const newRFQ: RFQ = {
+      ...rfq,
+      id: `RFQ-2025-${String(rfqs.length + 1).padStart(3, "0")}`,
+      createdDate: new Date().toISOString().split("T")[0],
+    };
+    setRfqs([newRFQ, ...rfqs]);
+  };
+
+  const updateRFQ = (id: string, updates: Partial<RFQ>) => {
+    setRfqs(rfqs.map((rfq) => (rfq.id === id ? { ...rfq, ...updates } : rfq)));
+  };
+
+  const addQuotation = (quotation: Omit<Quotation, "id" | "submittedDate">) => {
+    const newQuotation: Quotation = {
+      ...quotation,
+      id: `QUO-2025-${String(quotations.length + 1).padStart(3, "0")}`,
+      submittedDate: new Date().toISOString().split("T")[0],
+    };
+    setQuotations([newQuotation, ...quotations]);
+  };
+
+  const updateQuotation = (id: string, updates: Partial<Quotation>) => {
+    setQuotations(quotations.map((quo) => (quo.id === id ? { ...quo, ...updates } : quo)));
+  };
+
+  const addVendorRegistration = (registration: Omit<VendorRegistration, "id" | "submittedDate" | "status">) => {
+    const newRegistration: VendorRegistration = {
+      ...registration,
+      id: `VR-${String(vendorRegistrations.length + 1).padStart(3, "0")}`,
+      status: "Pending",
+      submittedDate: new Date().toISOString().split("T")[0],
+    };
+    setVendorRegistrations([newRegistration, ...vendorRegistrations]);
+  };
+
+  const updateVendorRegistration = (id: string, updates: Partial<VendorRegistration>) => {
+    setVendorRegistrations(vendorRegistrations.map((reg) => (reg.id === id ? { ...reg, ...updates } : reg)));
+  };
+
   const updateVendor = (id: string, updates: Partial<Vendor>) => {
     setVendors(vendors.map((vendor) => (vendor.id === id ? { ...vendor, ...updates } : vendor)));
   };
@@ -508,6 +679,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         trips,
         vehicles,
         vendors,
+        rfqs,
+        quotations,
+        vendorRegistrations,
         addMRF,
         updateMRF,
         approveMRF,
@@ -520,6 +694,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateVendor,
         addVendorDocument,
         deleteVendorDocument,
+        addRFQ,
+        updateRFQ,
+        addQuotation,
+        updateQuotation,
+        addVendorRegistration,
+        updateVendorRegistration,
       }}
     >
       {children}
