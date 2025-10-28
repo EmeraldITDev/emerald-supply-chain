@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const VendorPortal = () => {
   const { toast } = useToast();
@@ -23,6 +24,7 @@ const VendorPortal = () => {
   const [currentVendorId] = useState("V001");
   const [activeTab, setActiveTab] = useState("rfqs");
   const [selectedRfqForDetails, setSelectedRfqForDetails] = useState<string | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<Array<{name: string, status: string, uploaded: string, file?: File}>>([
     { name: "CAC Certificate", status: "Approved", uploaded: "2024-01-01" },
     { name: "Tax Clearance", status: "Approved", uploaded: "2024-01-01" },
@@ -541,14 +543,65 @@ const VendorPortal = () => {
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              {newRfqCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center animate-pulse">
-                  {newRfqCount}
-                </span>
-              )}
-            </Button>
+            <Popover open={showNotifications} onOpenChange={setShowNotifications}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative transition-transform hover:scale-110">
+                  <Bell className="h-5 w-5" />
+                  {newRfqCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center animate-pulse">
+                      {newRfqCount}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="end">
+                <div className="p-4 border-b">
+                  <h3 className="font-semibold">Notifications</h3>
+                  <p className="text-sm text-muted-foreground">You have {newRfqCount} new RFQ{newRfqCount !== 1 ? 's' : ''}</p>
+                </div>
+                <div className="max-h-[300px] overflow-y-auto">
+                  {vendorRfqs.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No new notifications
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {vendorRfqs.map((rfq) => (
+                        <div key={rfq.id} className="p-4 hover:bg-accent cursor-pointer transition-colors" onClick={() => {
+                          setSelectedRfqForDetails(rfq.id);
+                          setShowNotifications(false);
+                        }}>
+                          <div className="flex items-start gap-3">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <FileText className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{rfq.mrfTitle}</p>
+                              <p className="text-xs text-muted-foreground">Deadline: {rfq.deadline}</p>
+                              <p className="text-xs text-muted-foreground mt-1">Budget: ₦{parseInt(rfq.estimatedCost).toLocaleString()}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {newRfqCount > 0 && (
+                  <div className="p-3 border-t">
+                    <Button 
+                      size="sm" 
+                      className="w-full" 
+                      onClick={() => {
+                        setActiveTab("rfqs");
+                        setShowNotifications(false);
+                      }}
+                    >
+                      View All RFQs
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
             <Button variant="outline" onClick={() => setIsLoggedIn(false)} className="gap-2 transition-transform hover:scale-105">
               <LogOut className="h-4 w-4" />
               Logout
