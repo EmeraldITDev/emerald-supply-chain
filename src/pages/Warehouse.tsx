@@ -35,6 +35,11 @@ const Warehouse = () => {
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [receiptDetailsOpen, setReceiptDetailsOpen] = useState(false);
   
+  // New receipt form
+  const [newSupplier, setNewSupplier] = useState("");
+  const [newPO, setNewPO] = useState("");
+  const [newInspector, setNewInspector] = useState("");
+  
   const locations = [
     { id: "A1", zone: "Zone A", capacity: 1000, occupied: 750, items: 45, type: "Heavy Materials" },
     { id: "A2", zone: "Zone A", capacity: 800, occupied: 320, items: 28, type: "Equipment" },
@@ -42,11 +47,11 @@ const Warehouse = () => {
     { id: "C1", zone: "Zone C", capacity: 500, occupied: 150, items: 12, type: "Safety Equipment" },
   ];
 
-  const receipts: Receipt[] = [
+  const [receipts, setReceipts] = useState<Receipt[]>([
     { id: "GR-001", supplier: "Steel Works Ltd", items: 5, date: "2024-01-15", status: "Completed", inspector: "John Doe", poNumber: "PO-2025-001" },
     { id: "GR-002", supplier: "BuildMart", items: 8, date: "2024-01-15", status: "In Progress", inspector: "Jane Smith", poNumber: "PO-2025-002" },
     { id: "GR-003", supplier: "SafetyFirst Co", items: 3, date: "2024-01-14", status: "Pending", inspector: "-" },
-  ];
+  ]);
 
   const dispatches = [
     { id: "GD-001", destination: "Site A", items: 12, date: "2024-01-15", status: "Dispatched", driver: "Mike Johnson" },
@@ -110,34 +115,60 @@ const Warehouse = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Supplier</Label>
-                  <Select>
+                  <Select value={newSupplier} onValueChange={setNewSupplier}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select supplier" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="steel">Steel Works Ltd</SelectItem>
-                      <SelectItem value="build">BuildMart</SelectItem>
+                      <SelectItem value="Steel Works Ltd">Steel Works Ltd</SelectItem>
+                      <SelectItem value="BuildMart">BuildMart</SelectItem>
+                      <SelectItem value="SafetyFirst Co">SafetyFirst Co</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>PO Number</Label>
-                  <Input placeholder="Enter PO number" />
+                  <Input 
+                    placeholder="Enter PO number"
+                    value={newPO}
+                    onChange={(e) => setNewPO(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Inspector</Label>
-                  <Select>
+                  <Select value={newInspector} onValueChange={setNewInspector}>
                     <SelectTrigger>
                       <SelectValue placeholder="Assign inspector" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="john">John Doe</SelectItem>
-                      <SelectItem value="jane">Jane Smith</SelectItem>
+                      <SelectItem value="John Doe">John Doe</SelectItem>
+                      <SelectItem value="Jane Smith">Jane Smith</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <Button className="w-full" onClick={() => {
-                  toast({ title: "Receipt Created", description: "Goods receipt has been recorded" });
+                <Button className="w-full transition-transform hover:scale-105" onClick={() => {
+                  if (!newSupplier || !newInspector) {
+                    toast({ title: "Validation Error", description: "Please fill required fields", variant: "destructive" });
+                    return;
+                  }
+                  
+                  const newReceipt: Receipt = {
+                    id: `GR-${String(receipts.length + 1).padStart(3, '0')}`,
+                    supplier: newSupplier,
+                    items: 0,
+                    date: new Date().toISOString().split('T')[0],
+                    status: "Pending",
+                    inspector: newInspector,
+                    poNumber: newPO || undefined
+                  };
+                  
+                  setReceipts([newReceipt, ...receipts]);
+                  toast({ title: "Receipt Created", description: `${newReceipt.id} has been created` });
+                  
+                  // Reset form
+                  setNewSupplier("");
+                  setNewPO("");
+                  setNewInspector("");
                   setReceiptDialogOpen(false);
                 }}>
                   Create Receipt
@@ -387,8 +418,33 @@ const Warehouse = () => {
                 </div>
               </div>
               <div className="flex gap-2 pt-4">
-                <Button className="flex-1">Complete Inspection</Button>
-                <Button variant="outline" className="flex-1">Print Receipt</Button>
+                <Button 
+                  className="flex-1"
+                  onClick={() => {
+                    if (selectedReceipt && selectedReceipt.status !== "Completed") {
+                      const updatedReceipts = receipts.map(r => 
+                        r.id === selectedReceipt.id 
+                          ? { ...r, status: "Completed" }
+                          : r
+                      );
+                      setReceipts(updatedReceipts);
+                      toast({ title: "Inspection Complete", description: `${selectedReceipt.id} marked as completed` });
+                      setReceiptDetailsOpen(false);
+                    }
+                  }}
+                  disabled={selectedReceipt?.status === "Completed"}
+                >
+                  {selectedReceipt?.status === "Completed" ? "Already Completed" : "Complete Inspection"}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex-1 transition-transform hover:scale-105"
+                  onClick={() => {
+                    window.print();
+                  }}
+                >
+                  Print Receipt
+                </Button>
               </div>
             </div>
           )}

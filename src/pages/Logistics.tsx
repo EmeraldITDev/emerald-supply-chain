@@ -26,8 +26,15 @@ const Logistics = () => {
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [selectedDriver, setSelectedDriver] = useState<typeof drivers[0] | null>(null);
   const [tripDetailsOpen, setTripDetailsOpen] = useState(false);
   const [vehicleDetailsOpen, setVehicleDetailsOpen] = useState(false);
+  const [driverDetailsOpen, setDriverDetailsOpen] = useState(false);
+
+  // New trip form
+  const [newDestination, setNewDestination] = useState("");
+  const [newVehicle, setNewVehicle] = useState("");
+  const [newDriver, setNewDriver] = useState("");
 
   const drivers = [
     { name: "John Doe", license: "ABC123456", trips: 45, rating: 4.8, status: "On Trip" },
@@ -86,16 +93,20 @@ const Logistics = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Destination</Label>
-                  <Input placeholder="Enter destination" />
+                  <Input 
+                    placeholder="Enter destination"
+                    value={newDestination}
+                    onChange={(e) => setNewDestination(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Vehicle</Label>
-                  <Select>
+                  <Select value={newVehicle} onValueChange={setNewVehicle}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select vehicle" />
                     </SelectTrigger>
                     <SelectContent>
-                      {vehicles.map(v => (
+                      {vehicles.filter(v => v.status === "Active").map(v => (
                         <SelectItem key={v.id} value={v.id}>{v.id} - {v.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -103,7 +114,7 @@ const Logistics = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Driver</Label>
-                  <Select>
+                  <Select value={newDriver} onValueChange={setNewDriver}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select driver" />
                     </SelectTrigger>
@@ -114,8 +125,21 @@ const Logistics = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button className="w-full" onClick={() => {
-                  toast({ title: "Trip Scheduled", description: "New trip has been added to the schedule" });
+                <Button className="w-full transition-transform hover:scale-105" onClick={() => {
+                  if (!newDestination || !newVehicle || !newDriver) {
+                    toast({ title: "Validation Error", description: "Please fill all fields", variant: "destructive" });
+                    return;
+                  }
+                  
+                  toast({ 
+                    title: "Trip Scheduled Successfully", 
+                    description: `Trip to ${newDestination} assigned to ${newDriver}` 
+                  });
+                  
+                  // Reset form
+                  setNewDestination("");
+                  setNewVehicle("");
+                  setNewDriver("");
                   setScheduleDialogOpen(false);
                 }}>
                   Schedule Trip
@@ -286,11 +310,11 @@ const Logistics = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => toast({ 
-                          title: "Driver Profile", 
-                          description: `${driver.name} - ${driver.trips} completed trips with ${driver.rating}/5.0 rating` 
-                        })}
-                        className="self-start sm:self-center"
+                        onClick={() => {
+                          setSelectedDriver(driver);
+                          setDriverDetailsOpen(true);
+                        }}
+                        className="self-start sm:self-center transition-transform hover:scale-105"
                       >
                         View Profile
                       </Button>
@@ -385,6 +409,48 @@ const Logistics = () => {
               <div className="flex gap-2 pt-4">
                 <Button className="flex-1">Schedule Maintenance</Button>
                 <Button variant="outline" className="flex-1">Update Status</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Driver Details Dialog */}
+      <Dialog open={driverDetailsOpen} onOpenChange={setDriverDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Driver Profile - {selectedDriver?.name}</DialogTitle>
+            <DialogDescription>Driver information and performance</DialogDescription>
+          </DialogHeader>
+          {selectedDriver && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Full Name</Label>
+                  <p className="font-medium">{selectedDriver.name}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge className={getStatusColor(selectedDriver.status)}>{selectedDriver.status}</Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">License Number</Label>
+                  <p className="font-medium">{selectedDriver.license}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Rating</Label>
+                  <p className="font-medium flex items-center gap-1">
+                    ⭐ {selectedDriver.rating}/5.0
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Completed Trips</Label>
+                  <p className="font-medium">{selectedDriver.trips}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Availability</Label>
+                  <p className="font-medium">{selectedDriver.status === "Available" ? "Ready for assignment" : "Currently on trip"}</p>
+                </div>
               </div>
             </div>
           )}

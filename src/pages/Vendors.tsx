@@ -29,9 +29,16 @@ const Vendors = () => {
   const [selectedVendor, setSelectedVendor] = useState<typeof vendors[0] | null>(null);
   const [vendorDetailsOpen, setVendorDetailsOpen] = useState(false);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [kycReviewOpen, setKycReviewOpen] = useState(false);
+  const [reviewingVendor, setReviewingVendor] = useState<any>(null);
   const [contactTo, setContactTo] = useState("");
   const [contactSubject, setContactSubject] = useState("");
   const [contactMessage, setContactMessage] = useState("");
+  
+  // New vendor form
+  const [newVendorName, setNewVendorName] = useState("");
+  const [newVendorCategory, setNewVendorCategory] = useState("");
+  const [newVendorEmail, setNewVendorEmail] = useState("");
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -150,27 +157,50 @@ const Vendors = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Company Name</Label>
-                  <Input placeholder="Enter company name" />
+                  <Input 
+                    placeholder="Enter company name"
+                    value={newVendorName}
+                    onChange={(e) => setNewVendorName(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Category</Label>
-                  <Select>
+                  <Select value={newVendorCategory} onValueChange={setNewVendorCategory}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="raw">Raw Materials</SelectItem>
-                      <SelectItem value="equipment">Equipment</SelectItem>
-                      <SelectItem value="safety">Safety Equipment</SelectItem>
+                      <SelectItem value="Raw Materials">Raw Materials</SelectItem>
+                      <SelectItem value="Equipment">Equipment</SelectItem>
+                      <SelectItem value="Safety Equipment">Safety Equipment</SelectItem>
+                      <SelectItem value="Office Supplies">Office Supplies</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Contact Email</Label>
-                  <Input type="email" placeholder="vendor@company.com" />
+                  <Input 
+                    type="email" 
+                    placeholder="vendor@company.com"
+                    value={newVendorEmail}
+                    onChange={(e) => setNewVendorEmail(e.target.value)}
+                  />
                 </div>
-                <Button className="w-full" onClick={() => {
-                  toast({ title: "Vendor Added", description: "New vendor has been registered" });
+                <Button className="w-full transition-transform hover:scale-105" onClick={() => {
+                  if (!newVendorName || !newVendorCategory || !newVendorEmail) {
+                    toast({ title: "Validation Error", description: "Please fill all fields", variant: "destructive" });
+                    return;
+                  }
+                  
+                  toast({ 
+                    title: "Vendor Registration Initiated", 
+                    description: `${newVendorName} added to vendor directory (Pending KYC)` 
+                  });
+                  
+                  // Reset form
+                  setNewVendorName("");
+                  setNewVendorCategory("");
+                  setNewVendorEmail("");
                   setAddVendorDialogOpen(false);
                 }}>
                   Add Vendor
@@ -247,8 +277,11 @@ const Vendors = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => toast({ title: "KYC Review", description: `Reviewing documents for ${vendor.name}` })}
-                      className="self-start sm:self-center"
+                      onClick={() => {
+                        setReviewingVendor(vendor);
+                        setKycReviewOpen(true);
+                      }}
+                      className="self-start sm:self-center transition-transform hover:scale-105"
                     >
                       Review
                     </Button>
@@ -512,6 +545,87 @@ const Vendors = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* KYC Review Dialog */}
+      <Dialog open={kycReviewOpen} onOpenChange={setKycReviewOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>KYC Review - {reviewingVendor?.name}</DialogTitle>
+            <DialogDescription>Review vendor documentation and approve/reject KYC</DialogDescription>
+          </DialogHeader>
+          {reviewingVendor && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <Label className="text-muted-foreground">Company</Label>
+                  <p className="font-medium">{reviewingVendor.name}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Category</Label>
+                  <p className="font-medium">{reviewingVendor.category}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Submitted Date</Label>
+                  <p className="font-medium">{reviewingVendor.submitted}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Documents</Label>
+                  <p className="font-medium">{reviewingVendor.documents} files</p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Documents for Review</Label>
+                <div className="border rounded-lg p-4 space-y-2 max-h-60 overflow-y-auto">
+                  {['CAC Certificate', 'Tax Clearance', 'Bank Details', 'ISO Certification', 'Insurance Certificate'].map((doc, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-primary" />
+                        <span className="text-sm">{doc}.pdf</span>
+                      </div>
+                      <Button size="sm" variant="ghost">View</Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex gap-2 pt-4">
+                <Button 
+                  className="flex-1 transition-transform hover:scale-105"
+                  onClick={() => {
+                    toast({ 
+                      title: "KYC Approved", 
+                      description: `${reviewingVendor.name} has been verified and approved` 
+                    });
+                    setKycReviewOpen(false);
+                    setReviewingVendor(null);
+                  }}
+                >
+                  Approve Vendor
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  className="flex-1 transition-transform hover:scale-105"
+                  onClick={() => {
+                    const reason = prompt("Enter rejection reason:");
+                    if (reason) {
+                      toast({ 
+                        title: "KYC Rejected", 
+                        description: `${reviewingVendor.name} application rejected`,
+                        variant: "destructive"
+                      });
+                      setKycReviewOpen(false);
+                      setReviewingVendor(null);
+                    }
+                  }}
+                >
+                  Reject
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>

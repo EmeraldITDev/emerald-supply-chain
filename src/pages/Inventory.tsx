@@ -35,13 +35,48 @@ const Inventory = () => {
   const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [itemDetailsOpen, setItemDetailsOpen] = useState(false);
+  const [createPODialogOpen, setCreatePODialogOpen] = useState(false);
   
-  const items: InventoryItem[] = [
+  // Form states
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemCategory, setNewItemCategory] = useState("");
+  const [newItemStock, setNewItemStock] = useState("");
+  const [newItemUnit, setNewItemUnit] = useState("");
+  
+  const [items, setItems] = useState<InventoryItem[]>([
     { code: "MAT-001", name: "Steel Rods", category: "Raw Material", stock: 850, reorderPoint: 500, unit: "kg", value: 425000, status: "Good" },
     { code: "MAT-002", name: "Cement Bags", category: "Construction", stock: 120, reorderPoint: 200, unit: "bags", value: 48000, status: "Low Stock" },
     { code: "MAT-003", name: "Electrical Cable", category: "Equipment", stock: 45, reorderPoint: 100, unit: "meters", value: 67500, status: "Critical" },
     { code: "MAT-004", name: "Safety Helmets", category: "Safety", stock: 300, reorderPoint: 100, unit: "pcs", value: 150000, status: "Good" },
-  ];
+  ]);
+  
+  const handleAddItem = () => {
+    if (!newItemName || !newItemCategory || !newItemStock || !newItemUnit) {
+      toast({ title: "Validation Error", description: "Please fill all fields", variant: "destructive" });
+      return;
+    }
+    
+    const newItem: InventoryItem = {
+      code: `MAT-${String(items.length + 1).padStart(3, '0')}`,
+      name: newItemName,
+      category: newItemCategory,
+      stock: parseInt(newItemStock),
+      reorderPoint: Math.floor(parseInt(newItemStock) * 0.5),
+      unit: newItemUnit,
+      value: parseInt(newItemStock) * 100,
+      status: "Good"
+    };
+    
+    setItems([...items, newItem]);
+    toast({ title: "Item Added", description: `${newItemName} has been added to inventory` });
+    
+    // Reset form
+    setNewItemName("");
+    setNewItemCategory("");
+    setNewItemStock("");
+    setNewItemUnit("");
+    setAddItemDialogOpen(false);
+  };
 
   const recentTransactions = [
     { id: "TR-001", type: "Issue", item: "Steel Rods", quantity: 50, department: "Production", date: "2024-01-15" },
@@ -99,35 +134,46 @@ const Inventory = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Item Name</Label>
-                  <Input placeholder="Enter item name" />
+                  <Input 
+                    placeholder="Enter item name"
+                    value={newItemName}
+                    onChange={(e) => setNewItemName(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Category</Label>
-                  <Select>
+                  <Select value={newItemCategory} onValueChange={setNewItemCategory}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="raw">Raw Material</SelectItem>
-                      <SelectItem value="equipment">Equipment</SelectItem>
-                      <SelectItem value="safety">Safety</SelectItem>
+                      <SelectItem value="Raw Material">Raw Material</SelectItem>
+                      <SelectItem value="Equipment">Equipment</SelectItem>
+                      <SelectItem value="Safety">Safety</SelectItem>
+                      <SelectItem value="Construction">Construction</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Stock Quantity</Label>
-                    <Input type="number" placeholder="0" />
+                    <Input 
+                      type="number" 
+                      placeholder="0"
+                      value={newItemStock}
+                      onChange={(e) => setNewItemStock(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Unit</Label>
-                    <Input placeholder="kg, pcs, etc" />
+                    <Input 
+                      placeholder="kg, pcs, etc"
+                      value={newItemUnit}
+                      onChange={(e) => setNewItemUnit(e.target.value)}
+                    />
                   </div>
                 </div>
-                <Button className="w-full" onClick={() => {
-                  toast({ title: "Item Added", description: "New inventory item has been created" });
-                  setAddItemDialogOpen(false);
-                }}>
+                <Button className="w-full transition-transform hover:scale-105" onClick={handleAddItem}>
                   Add Item
                 </Button>
               </div>
@@ -283,7 +329,13 @@ const Inventory = () => {
                           Current: {alert.current} | Reorder Point: {alert.reorder}
                         </p>
                       </div>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setCreatePODialogOpen(true);
+                        }}
+                      >
                         Create PO
                       </Button>
                     </div>
@@ -339,12 +391,101 @@ const Inventory = () => {
                 </div>
               </div>
               <div className="flex gap-2 pt-4">
-                <Button className="flex-1">Issue Stock</Button>
-                <Button variant="outline" className="flex-1">Adjust Stock</Button>
-                <Button variant="outline" className="flex-1">Create PO</Button>
+                <Button 
+                  className="flex-1"
+                  onClick={() => {
+                    if (selectedItem) {
+                      const updatedItems = items.map(item => 
+                        item.code === selectedItem.code 
+                          ? { ...item, stock: Math.max(0, item.stock - 10) }
+                          : item
+                      );
+                      setItems(updatedItems);
+                      toast({ title: "Stock Issued", description: `10 ${selectedItem.unit} issued from ${selectedItem.name}` });
+                      setItemDetailsOpen(false);
+                    }
+                  }}
+                >
+                  Issue Stock
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => {
+                    if (selectedItem) {
+                      const adjustment = prompt(`Enter stock adjustment for ${selectedItem.name} (positive to add, negative to remove):`);
+                      if (adjustment) {
+                        const value = parseInt(adjustment);
+                        const updatedItems = items.map(item => 
+                          item.code === selectedItem.code 
+                            ? { ...item, stock: Math.max(0, item.stock + value) }
+                            : item
+                        );
+                        setItems(updatedItems);
+                        toast({ title: "Stock Adjusted", description: `Stock updated by ${adjustment} ${selectedItem.unit}` });
+                        setItemDetailsOpen(false);
+                      }
+                    }
+                  }}
+                >
+                  Adjust Stock
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => {
+                    setItemDetailsOpen(false);
+                    setCreatePODialogOpen(true);
+                  }}
+                >
+                  Create PO
+                </Button>
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create PO Dialog */}
+      <Dialog open={createPODialogOpen} onOpenChange={setCreatePODialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Purchase Order</DialogTitle>
+            <DialogDescription>Generate PO for low stock items</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select Item</Label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose item" />
+                </SelectTrigger>
+                <SelectContent>
+                  {items.filter(i => i.status !== "Good").map(item => (
+                    <SelectItem key={item.code} value={item.code}>
+                      {item.name} (Current: {item.stock} {item.unit})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quantity to Order</Label>
+              <Input type="number" placeholder="Enter quantity" />
+            </div>
+            <Button 
+              className="w-full transition-transform hover:scale-105" 
+              onClick={() => {
+                toast({ 
+                  title: "PO Created", 
+                  description: "Purchase order generated and sent to procurement" 
+                });
+                setCreatePODialogOpen(false);
+              }}
+            >
+              Generate Purchase Order
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </DashboardLayout>
