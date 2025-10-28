@@ -2,14 +2,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useApp } from "@/contexts/AppContext";
-import { CheckCircle, Download, Clock } from "lucide-react";
-import { useState } from "react";
+import { CheckCircle, Download, Clock, Calendar, DollarSign, TrendingUp } from "lucide-react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { FilterBar } from "@/components/dashboard/FilterBar";
+import { StatCard } from "@/components/dashboard/StatCard";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 const FinanceDashboard = () => {
   const { mrfRequests, purchaseOrders } = useApp();
   const { toast } = useToast();
   const [processedItems, setProcessedItems] = useState<Set<string>>(new Set());
+  
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("pending");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
 
   // Filter for approved MRFs only (those that reached finance stage)
   const approvedMRFs = mrfRequests.filter(mrf => 
@@ -19,6 +36,50 @@ const FinanceDashboard = () => {
   const pendingPayment = approvedMRFs.filter(mrf => !processedItems.has(mrf.id));
   const processed = approvedMRFs.filter(mrf => processedItems.has(mrf.id));
 
+  // Calculate totals
+  const totalPending = pendingPayment.reduce((sum, mrf) => sum + parseInt(mrf.estimatedCost), 0);
+  const totalProcessed = processed.reduce((sum, mrf) => sum + parseInt(mrf.estimatedCost), 0);
+
+  // Filtered data
+  const filteredRequests = useMemo(() => {
+    let filtered = statusFilter === "pending" ? pendingPayment : processed;
+
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter(mrf =>
+        mrf.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        mrf.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        mrf.requester.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Date filter
+    if (dateFilter !== "all") {
+      const now = new Date();
+      filtered = filtered.filter(mrf => {
+        const mrfDate = new Date(mrf.date);
+        const daysDiff = (now.getTime() - mrfDate.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (dateFilter === "today") return daysDiff < 1;
+        if (dateFilter === "week") return daysDiff < 7;
+        if (dateFilter === "month") return daysDiff < 30;
+        return true;
+      });
+    }
+
+    // Amount filter
+    if (minAmount || maxAmount) {
+      filtered = filtered.filter(mrf => {
+        const amount = parseInt(mrf.estimatedCost);
+        const min = minAmount ? parseInt(minAmount) : 0;
+        const max = maxAmount ? parseInt(maxAmount) : Infinity;
+        return amount >= min && amount <= max;
+      });
+    }
+
+    return filtered;
+  }, [pendingPayment, processed, statusFilter, searchQuery, dateFilter, minAmount, maxAmount]);
+
   const handleMarkProcessed = (id: string) => {
     setProcessedItems(prev => new Set([...prev, id]));
     toast({
@@ -27,114 +88,196 @@ const FinanceDashboard = () => {
     });
   };
 
+  const statusOptions = [
+    { label: "Pending Payment", value: "pending" },
+    { label: "Processed", value: "processed" },
+  ];
+
+  const activeFiltersCount = 
+    (dateFilter !== "all" ? 1 : 0) + 
+    (minAmount ? 1 : 0) + 
+    (maxAmount ? 1 : 0);
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Finance Dashboard</h1>
-        <p className="text-muted-foreground">Payment Processing & Financial Oversight</p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Finance Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Payment Processing & Financial Oversight</p>
+        </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Awaiting Processing</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingPayment.length}</div>
-            <p className="text-xs text-muted-foreground">Approved requests pending payment</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Processed</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{processed.length}</div>
-            <p className="text-xs text-muted-foreground">Payments completed</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard
+          title="Awaiting Processing"
+          value={pendingPayment.length}
+          description="Approved requests pending payment"
+          icon={Clock}
+          iconColor="text-warning"
+          onClick={() => setStatusFilter("pending")}
+        />
+        <StatCard
+          title="Total Pending Amount"
+          value={`₦${totalPending.toLocaleString()}`}
+          description="Total value to be processed"
+          icon={DollarSign}
+          iconColor="text-info"
+        />
+        <StatCard
+          title="Processed Payments"
+          value={processed.length}
+          description="Payments completed"
+          icon={CheckCircle}
+          iconColor="text-success"
+          onClick={() => setStatusFilter("processed")}
+        />
+        <StatCard
+          title="Total Processed"
+          value={`₦${totalProcessed.toLocaleString()}`}
+          description="Total value processed"
+          icon={TrendingUp}
+          iconColor="text-primary"
+        />
       </div>
 
-      {/* Approved Requests for Processing */}
+      {/* Main Content */}
       <Card>
         <CardHeader>
-          <CardTitle>Approved Requests for Processing</CardTitle>
-          <CardDescription>Review and process approved requests</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {pendingPayment.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No requests pending payment</p>
-              </div>
-            ) : (
-              pendingPayment.map((mrf) => (
-                <div key={mrf.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold">{mrf.title}</h3>
-                      <Badge variant="outline">{mrf.id}</Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <p className="text-muted-foreground">Requester: {mrf.requester}</p>
-                      <p className="text-muted-foreground">Category: {mrf.category}</p>
-                      <p className="font-semibold">Amount: ₦{parseInt(mrf.estimatedCost).toLocaleString()}</p>
-                      <p className="text-muted-foreground">Date: {mrf.date}</p>
-                    </div>
-                    <p className="text-sm mt-2">{mrf.description}</p>
-                  </div>
-                  <div className="flex gap-2 ml-4">
-                    <Button size="sm" variant="outline">
-                      <Download className="h-4 w-4 mr-1" />
-                      Documents
-                    </Button>
-                    <Button 
-                      size="sm"
-                      onClick={() => handleMarkProcessed(mrf.id)}
-                    >
-                      Mark as Processed
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle>Payment Queue</CardTitle>
+              <CardDescription>Review and process approved payment requests</CardDescription>
+            </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Processed Requests */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Processed Payments</CardTitle>
-          <CardDescription>Payment history and records</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {processed.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No processed payments yet</p>
-              </div>
-            ) : (
-              processed.map((mrf) => (
-                <div key={mrf.id} className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold">{mrf.title}</h3>
-                      <Badge variant="outline">{mrf.id}</Badge>
-                      <Badge className="bg-green-100 text-green-800">Processed</Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <p className="text-muted-foreground">Requester: {mrf.requester}</p>
-                      <p className="font-semibold">Amount: ₦{parseInt(mrf.estimatedCost).toLocaleString()}</p>
+            <FilterBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              statusOptions={statusOptions}
+              placeholder="Search by title, ID, or requester..."
+              activeFiltersCount={activeFiltersCount}
+              onClearFilters={() => {
+                setDateFilter("all");
+                setMinAmount("");
+                setMaxAmount("");
+              }}
+              additionalFilters={
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Date Range</label>
+                    <Select value={dateFilter} onValueChange={setDateFilter}>
+                      <SelectTrigger>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          <SelectValue />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Time</SelectItem>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="week">This Week</SelectItem>
+                        <SelectItem value="month">This Month</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Amount Range</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Min ₦"
+                        value={minAmount}
+                        onChange={(e) => setMinAmount(e.target.value)}
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Max ₦"
+                        value={maxAmount}
+                        onChange={(e) => setMaxAmount(e.target.value)}
+                      />
                     </div>
                   </div>
                 </div>
-              ))
-            )}
+              }
+            />
+
+            {/* Results */}
+            <div className="space-y-3 mt-6">
+              {filteredRequests.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Clock className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium">No requests found</p>
+                  <p className="text-sm mt-1">
+                    {statusFilter === "pending" ? "All payments are up to date" : "No processed payments yet"}
+                  </p>
+                </div>
+              ) : (
+                filteredRequests.map((mrf) => {
+                  const isProcessed = processedItems.has(mrf.id);
+                  
+                  return (
+                    <div
+                      key={mrf.id}
+                      className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-5 border rounded-xl transition-smooth ${
+                        isProcessed ? "bg-muted/30" : "bg-card hover:shadow-md"
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-lg">{mrf.title}</h3>
+                          <Badge variant="outline">{mrf.id}</Badge>
+                          {isProcessed && (
+                            <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                              Processed
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                          <div>
+                            <p className="text-muted-foreground text-xs">Requester</p>
+                            <p className="font-medium">{mrf.requester}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground text-xs">Category</p>
+                            <p className="font-medium capitalize">{mrf.category.replace("-", " ")}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground text-xs">Amount</p>
+                            <p className="font-bold text-lg">₦{parseInt(mrf.estimatedCost).toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground text-xs">Date</p>
+                            <p className="font-medium">{new Date(mrf.date).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-2 line-clamp-1">{mrf.description}</p>
+                      </div>
+                      {!isProcessed && (
+                        <div className="flex gap-2 self-start lg:self-center">
+                          <Button size="sm" variant="outline">
+                            <Download className="h-4 w-4 mr-1" />
+                            Documents
+                          </Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => handleMarkProcessed(mrf.id)}
+                            className="gradient-primary hover:opacity-90"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Mark as Processed
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

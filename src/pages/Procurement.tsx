@@ -1,15 +1,25 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { MRFApprovalDialog } from "@/components/MRFApprovalDialog";
 import type { MRFRequest } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
+import { FilterBar } from "@/components/dashboard/FilterBar";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Procurement = () => {
   const navigate = useNavigate();
@@ -21,10 +31,15 @@ const Procurement = () => {
   
   const [selectedMRF, setSelectedMRF] = useState<MRFRequest | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date-desc");
 
-  // Get current user role for approval
   const canApprove = user?.role === "procurement";
-  const currentUserRole = "procurement"; // Procurement page only for procurement managers
+  const currentUserRole = "procurement";
 
   const vendorFromState = (location.state as any)?.vendor as string | undefined;
   const vendorFromQuery = searchParams.get("vendor") || undefined;
@@ -41,6 +56,58 @@ const Procurement = () => {
   useEffect(() => {
     if (vendorFilter) setTab("po");
   }, [vendorFilter]);
+
+  // Stats
+  const pendingMRFs = mrfRequests.filter(mrf => mrf.currentStage === "procurement");
+  const approvedMRFs = mrfRequests.filter(mrf => mrf.currentStage === "approved");
+  const rejectedMRFs = mrfRequests.filter(mrf => mrf.currentStage === "rejected");
+
+  // Filtered data
+  const filteredMRFs = useMemo(() => {
+    let filtered = [...mrfRequests];
+
+    if (searchQuery) {
+      filtered = filtered.filter(mrf =>
+        mrf.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        mrf.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        mrf.requester.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(mrf => {
+        if (statusFilter === "pending") return mrf.currentStage === "procurement";
+        if (statusFilter === "approved") return mrf.currentStage === "approved";
+        if (statusFilter === "rejected") return mrf.currentStage === "rejected";
+        if (statusFilter === "finance") return mrf.currentStage === "finance";
+        if (statusFilter === "chairman") return mrf.currentStage === "chairman";
+        return true;
+      });
+    }
+
+    if (dateFilter !== "all") {
+      const now = new Date();
+      filtered = filtered.filter(mrf => {
+        const mrfDate = new Date(mrf.date);
+        const daysDiff = (now.getTime() - mrfDate.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (dateFilter === "today") return daysDiff < 1;
+        if (dateFilter === "week") return daysDiff < 7;
+        if (dateFilter === "month") return daysDiff < 30;
+        return true;
+      });
+    }
+
+    filtered.sort((a, b) => {
+      if (sortBy === "date-desc") return new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (sortBy === "date-asc") return new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (sortBy === "amount-desc") return parseInt(b.estimatedCost) - parseInt(a.estimatedCost);
+      if (sortBy === "amount-asc") return parseInt(a.estimatedCost) - parseInt(b.estimatedCost);
+      return 0;
+    });
+
+    return filtered;
+  }, [mrfRequests, searchQuery, statusFilter, dateFilter, sortBy]);
 
   const filteredPOs = purchaseOrders.filter((po) => !vendorFilter || po.vendor === vendorFilter);
 
@@ -93,7 +160,6 @@ const Procurement = () => {
       description: `${selectedMRF.id} has been approved and moved to the next stage.`,
     });
 
-    // Simulate email notification
     console.log(`📧 Email sent to next approver for ${selectedMRF.id}`);
   };
 
@@ -108,18 +174,61 @@ const Procurement = () => {
       variant: "destructive",
     });
 
-    // Simulate email notification
     console.log(`📧 Rejection email sent to requester for ${selectedMRF.id}`);
   };
+
+  const statusOptions = [
+    { label: "All Requests", value: "all" },
+    { label: "Pending My Review", value: "pending" },
+    { label: "With Finance", value: "finance" },
+    { label: "With Chairman", value: "chairman" },
+    { label: "Approved", value: "approved" },
+    { label: "Rejected", value: "rejected" },
+  ];
+
+  const activeFiltersCount = (statusFilter !== "all" ? 1 : 0) + (dateFilter !== "all" ? 1 : 0);
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Procurement</h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Manage material and service requests</p>
+            <h1 className="text-3xl font-bold tracking-tight">Procurement Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Manage material and service requests</p>
           </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <StatCard
+            title="Pending Review"
+            value={pendingMRFs.length}
+            description="Awaiting your approval"
+            icon={Clock}
+            iconColor="text-warning"
+            onClick={() => setStatusFilter("pending")}
+          />
+          <StatCard
+            title="Approved"
+            value={approvedMRFs.length}
+            description="Fully approved"
+            icon={CheckCircle2}
+            iconColor="text-success"
+          />
+          <StatCard
+            title="Rejected"
+            value={rejectedMRFs.length}
+            description="Sent back for revision"
+            icon={XCircle}
+            iconColor="text-destructive"
+          />
+          <StatCard
+            title="Total Requests"
+            value={mrfRequests.length}
+            description="All MRFs"
+            icon={FileText}
+            iconColor="text-info"
+          />
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
@@ -130,122 +239,161 @@ const Procurement = () => {
           </TabsList>
 
           <TabsContent value="mrf" className="space-y-4">
-            <div className="flex justify-end">
-              <Button onClick={() => navigate("/procurement/mrf/new")}>
-                <Plus className="mr-2 h-4 w-4" />
-                New MRF
-              </Button>
-            </div>
-            
             <Card>
               <CardHeader>
-                <CardTitle>Material Request Forms</CardTitle>
-                <CardDescription>List of all material requisition requests</CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle>Material Request Forms</CardTitle>
+                    <CardDescription>Review and approve material requisitions</CardDescription>
+                  </div>
+                  <Button onClick={() => navigate("/procurement/mrf/new")} size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    New MRF
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {mrfRequests.map((request) => {
-                    const timerColor = getApprovalTimerColor(request);
-                    return (
-                      <div
-                        key={request.id}
-                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg hover:bg-accent transition-colors"
-                      >
-                        <div 
-                          onClick={() => handleMRFClick(request)}
-                          className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1 cursor-pointer"
-                        >
-                          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Package className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium truncate">{request.title}</p>
-                              {request.isResubmission && (
-                                <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 px-2 py-0.5 rounded">
-                                  Resubmission
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                              {request.id} • {request.requester} • {request.date}
-                            </p>
-                            {request.currentStage && (
-                              <p className="text-xs text-muted-foreground capitalize mt-1">
-                                Stage: {request.currentStage}
-                              </p>
-                            )}
-                          </div>
+                <div className="space-y-4">
+                  <FilterBar
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    statusFilter={statusFilter}
+                    onStatusFilterChange={setStatusFilter}
+                    statusOptions={statusOptions}
+                    placeholder="Search by title, ID, or requester..."
+                    activeFiltersCount={activeFiltersCount}
+                    onClearFilters={() => {
+                      setStatusFilter("all");
+                      setDateFilter("all");
+                    }}
+                    additionalFilters={
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Date Range</label>
+                          <Select value={dateFilter} onValueChange={setDateFilter}>
+                            <SelectTrigger>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                <SelectValue />
+                              </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Time</SelectItem>
+                              <SelectItem value="today">Today</SelectItem>
+                              <SelectItem value="week">This Week</SelectItem>
+                              <SelectItem value="month">This Month</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <div className="flex items-center gap-2 self-start sm:self-center">
-                          {timerColor && (
-                            <Clock className={`h-4 w-4 ${timerColor}`} />
-                          )}
-                          {request.currentStage === "approved" && (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                          )}
-                          {request.currentStage === "rejected" && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate("/procurement/mrf/new", { state: { rejectedMRF: request } });
-                                }}
-                                className="text-xs"
-                              >
-                                Edit & Resubmit
-                              </Button>
-                              <XCircle className="h-4 w-4 text-destructive" />
-                            </>
-                          )}
-                          <span className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${getStatusColor(request.status)}`}>
-                            {request.status}
-                          </span>
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Sort By</label>
+                          <Select value={sortBy} onValueChange={setSortBy}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="date-desc">Newest First</SelectItem>
+                              <SelectItem value="date-asc">Oldest First</SelectItem>
+                              <SelectItem value="amount-desc">Highest Amount</SelectItem>
+                              <SelectItem value="amount-asc">Lowest Amount</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
-                    );
-                  })}
+                    }
+                  />
+
+                  {/* Results */}
+                  <div className="space-y-3 mt-4">
+                    {filteredMRFs.map((request) => {
+                      const timerColor = getApprovalTimerColor(request);
+                      return (
+                        <div
+                          key={request.id}
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
+                          onClick={() => handleMRFClick(request)}
+                        >
+                          <div className="flex items-start gap-4 min-w-0 flex-1">
+                            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                              <Package className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-lg">{request.title}</h3>
+                                {request.isResubmission && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Resubmission
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
+                                <span className="font-medium">{request.id}</span>
+                                <span>•</span>
+                                <span>{request.requester}</span>
+                                <span>•</span>
+                                <span>{new Date(request.date).toLocaleDateString()}</span>
+                                <span>•</span>
+                                <span className="font-semibold text-foreground">₦{parseInt(request.estimatedCost).toLocaleString()}</span>
+                              </div>
+                              {request.currentStage && (
+                                <p className="text-xs text-muted-foreground">
+                                  Stage: <span className="capitalize font-medium">{request.currentStage}</span>
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 self-start sm:self-center">
+                            {timerColor && <Clock className={`h-4 w-4 ${timerColor}`} />}
+                            {request.currentStage === "approved" && <CheckCircle2 className="h-5 w-5 text-success" />}
+                            {request.currentStage === "rejected" && <XCircle className="h-5 w-5 text-destructive" />}
+                            <Badge className={getStatusColor(request.status)}>
+                              {request.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="srf" className="space-y-4">
-            <div className="flex justify-end">
-              <Button onClick={() => navigate("/procurement/srf/new")}>
-                <Plus className="mr-2 h-4 w-4" />
-                New SRF
-              </Button>
-            </div>
-            
             <Card>
               <CardHeader>
-                <CardTitle>Service Request Forms</CardTitle>
-                <CardDescription>List of all service requisition requests</CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle>Service Request Forms</CardTitle>
+                    <CardDescription>List of all service requisition requests</CardDescription>
+                  </div>
+                  <Button onClick={() => navigate("/procurement/srf/new")} size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    New SRF
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {srfRequests.map((request) => (
                     <div
                       key={request.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer"
+                      className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <FileText className="h-5 w-5 text-primary" />
+                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                          <FileText className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{request.title}</p>
+                          <p className="font-semibold text-lg">{request.title}</p>
                           <p className="text-sm text-muted-foreground">
                             {request.id} • {request.requester} • {request.date}
                           </p>
                         </div>
                       </div>
-                      <span className={`text-xs px-3 py-1 rounded-full ${getStatusColor(request.status)}`}>
+                      <Badge className={getStatusColor(request.status)}>
                         {request.status}
-                      </span>
+                      </Badge>
                     </div>
                   ))}
                 </div>
@@ -264,14 +412,14 @@ const Procurement = () => {
                   {filteredPOs.map((po) => (
                     <div
                       key={po.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors cursor-pointer"
+                      className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <ShoppingCart className="h-5 w-5 text-primary" />
+                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                          <ShoppingCart className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{po.items}</p>
+                          <p className="font-semibold text-lg">{po.items}</p>
                           <p className="text-sm text-muted-foreground">
                             {po.id} • {po.vendor} • {po.date}
                           </p>
@@ -280,9 +428,9 @@ const Procurement = () => {
                           </p>
                         </div>
                       </div>
-                      <span className={`text-xs px-3 py-1 rounded-full ${getStatusColor(po.status)}`}>
+                      <Badge className={getStatusColor(po.status)}>
                         {po.status}
-                      </span>
+                      </Badge>
                     </div>
                   ))}
                 </div>

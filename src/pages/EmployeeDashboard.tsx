@@ -2,88 +2,165 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { FileText, Plus, CheckCircle, XCircle, Clock } from "lucide-react";
+import { FileText, Plus, CheckCircle, XCircle, Clock, Calendar, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { FilterBar } from "@/components/dashboard/FilterBar";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const EmployeeDashboard = () => {
   const { mrfRequests, srfRequests } = useApp();
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date-desc");
+
   // Filter to show only current user's requests
   const myMRFs = mrfRequests.filter(mrf => mrf.requester === user?.name || mrf.requester === "Current User");
   const mySRFs = srfRequests.filter(srf => srf.requester === user?.name || srf.requester === "Current User");
 
-  const pendingMRFs = myMRFs.filter(mrf => mrf.status === "Submitted" || mrf.status.includes("Pending"));
-  const approvedMRFs = myMRFs.filter(mrf => mrf.status === "Approved");
+  const pendingMRFs = myMRFs.filter(mrf => mrf.status === "Submitted" || mrf.status.includes("Pending") || (mrf.status.includes("Approved") && mrf.currentStage !== "approved"));
+  const approvedMRFs = myMRFs.filter(mrf => mrf.status === "Approved" && mrf.currentStage === "approved");
   const rejectedMRFs = myMRFs.filter(mrf => mrf.status === "Rejected");
+
+  // Filtering and sorting logic
+  const filteredAndSortedRequests = useMemo(() => {
+    let filtered = [...myMRFs, ...mySRFs];
+
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter(req =>
+        req.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        req.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        req.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(req => {
+        if (statusFilter === "pending") return req.status === "Submitted" || req.status.includes("Pending") || req.status.includes("Approved");
+        if (statusFilter === "approved") return req.status === "Approved" && (req as any).currentStage === "approved";
+        if (statusFilter === "rejected") return req.status === "Rejected";
+        if (statusFilter === "completed") return req.status === "Completed";
+        return true;
+      });
+    }
+
+    // Date filter
+    if (dateFilter !== "all") {
+      const now = new Date();
+      filtered = filtered.filter(req => {
+        const reqDate = new Date(req.date);
+        const daysDiff = (now.getTime() - reqDate.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (dateFilter === "today") return daysDiff < 1;
+        if (dateFilter === "week") return daysDiff < 7;
+        if (dateFilter === "month") return daysDiff < 30;
+        return true;
+      });
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      if (sortBy === "date-desc") return new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (sortBy === "date-asc") return new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (sortBy === "title") return a.title.localeCompare(b.title);
+      return 0;
+    });
+
+    return filtered;
+  }, [myMRFs, mySRFs, searchQuery, statusFilter, dateFilter, sortBy]);
+
+  const statusOptions = [
+    { label: "All Requests", value: "all" },
+    { label: "Pending", value: "pending" },
+    { label: "Approved", value: "approved" },
+    { label: "Rejected", value: "rejected" },
+    { label: "Completed", value: "completed" },
+  ];
+
+  const getStatusBadge = (status: string, currentStage?: string) => {
+    if (status === "Approved" && currentStage === "approved") {
+      return <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Approved</Badge>;
+    }
+    if (status === "Rejected") {
+      return <Badge variant="destructive">Rejected</Badge>;
+    }
+    if (status === "Completed") {
+      return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Completed</Badge>;
+    }
+    return <Badge variant="secondary">{status}</Badge>;
+  };
+
+  const activeFiltersCount = (statusFilter !== "all" ? 1 : 0) + (dateFilter !== "all" ? 1 : 0);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Employee Dashboard</h1>
-        <p className="text-muted-foreground">Welcome, {user?.name}</p>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/new-mrf")}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Create New MRF
-            </CardTitle>
-            <CardDescription>Submit a Material Request Form</CardDescription>
-          </CardHeader>
-        </Card>
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/new-srf")}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Create New SRF
-            </CardTitle>
-            <CardDescription>Submit a Service Request Form</CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Employee Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Welcome back, {user?.name}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate("/new-mrf")} size="lg" className="gradient-primary hover:opacity-90 transition-smooth">
+            <Plus className="mr-2 h-5 w-5" />
+            New MRF
+          </Button>
+          <Button onClick={() => navigate("/new-srf")} variant="outline" size="lg">
+            <Plus className="mr-2 h-5 w-5" />
+            New SRF
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingMRFs.length}</div>
-            <p className="text-xs text-muted-foreground">Awaiting approval</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{approvedMRFs.length}</div>
-            <p className="text-xs text-muted-foreground">Successfully approved</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rejected</CardTitle>
-            <XCircle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{rejectedMRFs.length}</div>
-            <p className="text-xs text-muted-foreground">Needs revision</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard
+          title="Pending Requests"
+          value={pendingMRFs.length}
+          description="Awaiting approval"
+          icon={Clock}
+          iconColor="text-warning"
+          onClick={() => setStatusFilter("pending")}
+        />
+        <StatCard
+          title="Approved"
+          value={approvedMRFs.length}
+          description="Successfully approved"
+          icon={CheckCircle}
+          iconColor="text-success"
+          onClick={() => setStatusFilter("approved")}
+        />
+        <StatCard
+          title="Rejected"
+          value={rejectedMRFs.length}
+          description="Needs revision"
+          icon={XCircle}
+          iconColor="text-destructive"
+          onClick={() => setStatusFilter("rejected")}
+        />
+        <StatCard
+          title="Total Requests"
+          value={myMRFs.length + mySRFs.length}
+          description="All time"
+          icon={TrendingUp}
+          iconColor="text-info"
+        />
       </div>
 
-      {/* My Requests */}
+      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle>My Requests</CardTitle>
@@ -91,62 +168,112 @@ const EmployeeDashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {myMRFs.length === 0 && mySRFs.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No requests submitted yet</p>
-                <p className="text-sm">Create your first MRF or SRF to get started</p>
-              </div>
-            ) : (
-              <>
-                {myMRFs.map((mrf) => (
-                  <div key={mrf.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{mrf.title}</h3>
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          mrf.status === "Approved" ? "bg-green-100 text-green-800" :
-                          mrf.status === "Rejected" ? "bg-red-100 text-red-800" :
-                          "bg-yellow-100 text-yellow-800"
-                        }`}>
-                          {mrf.status}
-                        </span>
+            <FilterBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              statusOptions={statusOptions}
+              placeholder="Search by title, ID, or description..."
+              activeFiltersCount={activeFiltersCount}
+              onClearFilters={() => {
+                setStatusFilter("all");
+                setDateFilter("all");
+              }}
+              additionalFilters={
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Date Range</label>
+                    <Select value={dateFilter} onValueChange={setDateFilter}>
+                      <SelectTrigger>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          <SelectValue />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Time</SelectItem>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="week">This Week</SelectItem>
+                        <SelectItem value="month">This Month</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Sort By</label>
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date-desc">Newest First</SelectItem>
+                        <SelectItem value="date-asc">Oldest First</SelectItem>
+                        <SelectItem value="title">Title (A-Z)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              }
+            />
+
+            {/* Results */}
+            <div className="space-y-3 mt-6">
+              {filteredAndSortedRequests.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <FileText className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium">No requests found</p>
+                  <p className="text-sm mt-1">
+                    {searchQuery || statusFilter !== "all" || dateFilter !== "all"
+                      ? "Try adjusting your filters"
+                      : "Create your first MRF or SRF to get started"}
+                  </p>
+                </div>
+              ) : (
+                filteredAndSortedRequests.map((request) => {
+                  const isMRF = "category" in request;
+                  const mrf = isMRF ? request as any : null;
+                  
+                  return (
+                    <div
+                      key={request.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 border rounded-xl hover:shadow-md transition-smooth bg-card"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-lg">{request.title}</h3>
+                          {getStatusBadge(request.status, mrf?.currentStage)}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
+                          <span className="font-medium">{request.id}</span>
+                          <span>•</span>
+                          <span>{new Date(request.date).toLocaleDateString()}</span>
+                          {isMRF && mrf.estimatedCost && (
+                            <>
+                              <span>•</span>
+                              <span className="font-medium">₦{parseInt(mrf.estimatedCost).toLocaleString()}</span>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{request.description}</p>
+                        {mrf?.rejectionReason && (
+                          <p className="text-sm text-destructive mt-2 p-2 bg-destructive/10 rounded">
+                            <strong>Rejection reason:</strong> {mrf.rejectionReason}
+                          </p>
+                        )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{mrf.id} • {mrf.date}</p>
-                      <p className="text-sm mt-1">{mrf.description}</p>
-                      {mrf.rejectionReason && (
-                        <p className="text-sm text-destructive mt-2">Rejection reason: {mrf.rejectionReason}</p>
+                      {request.status === "Rejected" && (
+                        <Button
+                          onClick={() => navigate("/new-mrf", { state: { rejectedMRF: request } })}
+                          className="self-start sm:self-center"
+                        >
+                          Edit & Resubmit
+                        </Button>
                       )}
                     </div>
-                    {mrf.status === "Rejected" && (
-                      <Button 
-                        size="sm" 
-                        onClick={() => navigate("/new-mrf", { state: { rejectedMRF: mrf } })}
-                      >
-                        Edit & Resubmit
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                {mySRFs.map((srf) => (
-                  <div key={srf.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{srf.title}</h3>
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          srf.status === "Completed" ? "bg-green-100 text-green-800" :
-                          "bg-yellow-100 text-yellow-800"
-                        }`}>
-                          {srf.status}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{srf.id} • {srf.date}</p>
-                      <p className="text-sm mt-1">{srf.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
