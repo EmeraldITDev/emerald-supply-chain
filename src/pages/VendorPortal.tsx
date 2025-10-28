@@ -4,25 +4,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp } from "lucide-react";
+import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import logo from "@/assets/emerald-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const VendorPortal = () => {
   const { toast } = useToast();
   const { rfqs, quotations, addQuotation, updateQuotation, addVendorRegistration } = useApp();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
-  const [currentVendorId] = useState("V001"); // Simulated logged-in vendor
+  const [currentVendorId] = useState("V001");
+  const [activeTab, setActiveTab] = useState("rfqs");
+  const [selectedRfqForDetails, setSelectedRfqForDetails] = useState<string | null>(null);
+  const [uploadedDocs, setUploadedDocs] = useState<Array<{name: string, status: string, uploaded: string, file?: File}>>([
+    { name: "CAC Certificate", status: "Approved", uploaded: "2024-01-01" },
+    { name: "Tax Clearance", status: "Approved", uploaded: "2024-01-01" },
+    { name: "Bank Details", status: "Approved", uploaded: "2024-01-01" },
+    { name: "ISO Certificate", status: "Pending", uploaded: "2025-10-15" },
+  ]);
+  const [uploadedQuoteDocs, setUploadedQuoteDocs] = useState<File[]>([]);
+  const [uploadedRegDocs, setUploadedRegDocs] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const quoteDocInputRef = useRef<HTMLInputElement>(null);
   
   // Login form
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
   // Registration form
   const [companyName, setCompanyName] = useState("");
@@ -37,26 +52,51 @@ const VendorPortal = () => {
   const [quotePrice, setQuotePrice] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [quoteNotes, setQuoteNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Demo credentials: vendor@demo.com / demo123
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
   const handleLogin = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!email) errors.email = "Email is required";
+    else if (!validateEmail(email)) errors.email = "Invalid email format";
+    if (!password) errors.password = "Password is required";
+    
+    setFormErrors(errors);
+    
+    if (Object.keys(errors).length > 0) return;
+    
     if (email === "vendor@demo.com" && password === "demo123") {
       setIsLoggedIn(true);
+      setFormErrors({});
       toast({ title: "Login Successful", description: "Welcome to Vendor Portal" });
     } else {
-      toast({ 
-        title: "Login Failed", 
-        description: "Invalid credentials. Use: vendor@demo.com / demo123",
-        variant: "destructive"
-      });
+      setFormErrors({ general: "Invalid credentials" });
     }
   };
 
   const handleRegister = () => {
-    if (!companyName || !email || !password || !category || !phone || !address || !taxId || !contactPerson) {
+    const errors: Record<string, string> = {};
+    
+    if (!companyName) errors.companyName = "Company name is required";
+    if (!email) errors.email = "Email is required";
+    else if (!validateEmail(email)) errors.email = "Invalid email format";
+    if (!password || password.length < 6) errors.password = "Password must be at least 6 characters";
+    if (!category) errors.category = "Category is required";
+    if (!phone) errors.phone = "Phone is required";
+    if (!address) errors.address = "Address is required";
+    if (!taxId) errors.taxId = "Tax ID is required";
+    if (!contactPerson) errors.contactPerson = "Contact person is required";
+    
+    setFormErrors(errors);
+    
+    if (Object.keys(errors).length > 0) {
       toast({ 
-        title: "Registration Failed", 
-        description: "Please fill in all required fields",
+        title: "Validation Error", 
+        description: "Please fix the errors in the form",
         variant: "destructive"
       });
       return;
@@ -79,6 +119,7 @@ const VendorPortal = () => {
     
     // Reset form
     setShowRegistration(false);
+    setFormErrors({});
     setEmail("");
     setPassword("");
     setCompanyName("");
@@ -87,20 +128,27 @@ const VendorPortal = () => {
     setAddress("");
     setTaxId("");
     setContactPerson("");
+    setUploadedRegDocs([]);
   };
 
-  const handleSubmitQuotation = () => {
-    if (!selectedRfqId || !quotePrice || !deliveryDate) {
-      toast({
-        title: "Submission Failed",
-        description: "Please fill in all required fields",
-        variant: "destructive"
-      });
-      return;
-    }
+  const handleSubmitQuotation = async () => {
+    const errors: Record<string, string> = {};
+    
+    if (!selectedRfqId) errors.rfq = "Please select an RFQ";
+    if (!quotePrice || parseFloat(quotePrice) <= 0) errors.price = "Valid price is required";
+    if (!deliveryDate) errors.deliveryDate = "Delivery date is required";
+    
+    setFormErrors(errors);
+    
+    if (Object.keys(errors).length > 0) return;
 
     const selectedRfq = rfqs.find(r => r.id === selectedRfqId);
     if (!selectedRfq) return;
+
+    setIsSubmitting(true);
+    
+    // Simulate async submission
+    await new Promise(resolve => setTimeout(resolve, 800));
 
     addQuotation({
       rfqId: selectedRfqId,
@@ -113,15 +161,61 @@ const VendorPortal = () => {
     });
 
     toast({
-      title: "Quotation Submitted",
-      description: `Your quote for ${selectedRfq.mrfTitle} has been submitted successfully`
+      title: "Quotation Submitted Successfully",
+      description: `Your quote for ${selectedRfq.mrfTitle} has been submitted`
     });
 
-    // Reset form
+    // Reset form and switch to quotations tab
     setSelectedRfqId("");
     setQuotePrice("");
     setDeliveryDate("");
     setQuoteNotes("");
+    setUploadedQuoteDocs([]);
+    setFormErrors({});
+    setIsSubmitting(false);
+    setActiveTab("quotations");
+  };
+  
+  const handleDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      const newDocs = files.map(file => ({
+        name: file.name,
+        status: "Pending",
+        uploaded: new Date().toISOString().split('T')[0],
+        file
+      }));
+      setUploadedDocs([...uploadedDocs, ...newDocs]);
+      toast({ 
+        title: "Documents Uploaded", 
+        description: `${files.length} document(s) uploaded. Pending review.` 
+      });
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+  
+  const handleQuoteDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setUploadedQuoteDocs([...uploadedQuoteDocs, ...files]);
+      toast({ 
+        title: "Document Attached", 
+        description: `${files[0].name} added to quotation` 
+      });
+    }
+  };
+  
+  const removeDoc = (index: number) => {
+    const newDocs = [...uploadedDocs];
+    newDocs.splice(index, 1);
+    setUploadedDocs(newDocs);
+    toast({ title: "Document Removed" });
+  };
+  
+  const removeQuoteDoc = (index: number) => {
+    const newDocs = [...uploadedQuoteDocs];
+    newDocs.splice(index, 1);
+    setUploadedQuoteDocs(newDocs);
   };
 
   const vendorQuotations = quotations.filter(q => q.vendorId === currentVendorId);
@@ -165,13 +259,21 @@ const VendorPortal = () => {
                     id="company" 
                     placeholder="Your Company Ltd"
                     value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
+                    onChange={(e) => {
+                      setCompanyName(e.target.value);
+                      if (formErrors.companyName) setFormErrors({...formErrors, companyName: ''});
+                    }}
+                    className={formErrors.companyName ? "border-destructive" : ""}
                   />
+                  {formErrors.companyName && <p className="text-sm text-destructive">{formErrors.companyName}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="category">Business Category *</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger>
+                  <Select value={category} onValueChange={(val) => {
+                    setCategory(val);
+                    if (formErrors.category) setFormErrors({...formErrors, category: ''});
+                  }}>
+                    <SelectTrigger className={formErrors.category ? "border-destructive" : ""}>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -182,6 +284,7 @@ const VendorPortal = () => {
                       <SelectItem value="Safety Equipment">Safety Equipment</SelectItem>
                     </SelectContent>
                   </Select>
+                  {formErrors.category && <p className="text-sm text-destructive">{formErrors.category}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="taxId">Tax ID / TIN *</Label>
@@ -189,8 +292,13 @@ const VendorPortal = () => {
                     id="taxId" 
                     placeholder="TIN-123456789"
                     value={taxId}
-                    onChange={(e) => setTaxId(e.target.value)}
+                    onChange={(e) => {
+                      setTaxId(e.target.value);
+                      if (formErrors.taxId) setFormErrors({...formErrors, taxId: ''});
+                    }}
+                    className={formErrors.taxId ? "border-destructive" : ""}
                   />
+                  {formErrors.taxId && <p className="text-sm text-destructive">{formErrors.taxId}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="contactPerson">Contact Person *</Label>
@@ -198,8 +306,13 @@ const VendorPortal = () => {
                     id="contactPerson" 
                     placeholder="Full Name"
                     value={contactPerson}
-                    onChange={(e) => setContactPerson(e.target.value)}
+                    onChange={(e) => {
+                      setContactPerson(e.target.value);
+                      if (formErrors.contactPerson) setFormErrors({...formErrors, contactPerson: ''});
+                    }}
+                    className={formErrors.contactPerson ? "border-destructive" : ""}
                   />
+                  {formErrors.contactPerson && <p className="text-sm text-destructive">{formErrors.contactPerson}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number *</Label>
@@ -207,8 +320,13 @@ const VendorPortal = () => {
                     id="phone" 
                     placeholder="+234-800-000-0000"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (formErrors.phone) setFormErrors({...formErrors, phone: ''});
+                    }}
+                    className={formErrors.phone ? "border-destructive" : ""}
                   />
+                  {formErrors.phone && <p className="text-sm text-destructive">{formErrors.phone}</p>}
                 </div>
                 <div className="space-y-2 col-span-2">
                   <Label htmlFor="address">Business Address *</Label>
@@ -216,8 +334,13 @@ const VendorPortal = () => {
                     id="address" 
                     placeholder="Street, City, State"
                     value={address}
-                    onChange={(e) => setAddress(e.target.value)}
+                    onChange={(e) => {
+                      setAddress(e.target.value);
+                      if (formErrors.address) setFormErrors({...formErrors, address: ''});
+                    }}
+                    className={formErrors.address ? "border-destructive" : ""}
                   />
+                  {formErrors.address && <p className="text-sm text-destructive">{formErrors.address}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reg-email">Email Address *</Label>
@@ -226,33 +349,81 @@ const VendorPortal = () => {
                     type="email" 
                     placeholder="vendor@company.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (formErrors.email) setFormErrors({...formErrors, email: ''});
+                    }}
+                    className={formErrors.email ? "border-destructive" : ""}
                   />
+                  {formErrors.email && <p className="text-sm text-destructive">{formErrors.email}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reg-password">Password *</Label>
                   <Input 
                     id="reg-password" 
                     type="password"
-                    placeholder="Create strong password"
+                    placeholder="Minimum 6 characters"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (formErrors.password) setFormErrors({...formErrors, password: ''});
+                    }}
+                    className={formErrors.password ? "border-destructive" : ""}
                   />
+                  {formErrors.password && <p className="text-sm text-destructive">{formErrors.password}</p>}
                 </div>
               </div>
               
               <div className="space-y-2">
                 <Label>Upload KYC Documents (CAC, Tax Clearance, Bank Details)</Label>
-                <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                <div 
+                  className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 transition-all cursor-pointer hover:bg-accent/50"
+                  onClick={() => document.getElementById('doc-upload')?.click()}
+                >
                   <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground mb-2">
                     Click to upload or drag and drop
                   </p>
-                  <Input type="file" className="hidden" id="doc-upload" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
-                  <Button variant="outline" size="sm" onClick={() => document.getElementById('doc-upload')?.click()}>
+                  <Input 
+                    type="file" 
+                    className="hidden" 
+                    id="doc-upload" 
+                    multiple 
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (files.length > 0) {
+                        setUploadedRegDocs([...uploadedRegDocs, ...files]);
+                      }
+                    }}
+                  />
+                  <Button variant="outline" size="sm" className="pointer-events-none">
                     Select Files
                   </Button>
                 </div>
+                {uploadedRegDocs.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    {uploadedRegDocs.map((doc, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          <span className="text-sm">{doc.name}</span>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => {
+                            const newDocs = [...uploadedRegDocs];
+                            newDocs.splice(idx, 1);
+                            setUploadedRegDocs(newDocs);
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <Alert>
@@ -262,7 +433,7 @@ const VendorPortal = () => {
                 </AlertDescription>
               </Alert>
 
-              <Button className="w-full" size="lg" onClick={handleRegister}>
+              <Button className="w-full transition-transform hover:scale-105" size="lg" onClick={handleRegister}>
                 Submit Application
               </Button>
               
@@ -303,6 +474,11 @@ const VendorPortal = () => {
                 </p>
               </AlertDescription>
             </Alert>
+            {formErrors.general && (
+              <Alert variant="destructive">
+                <AlertDescription>{formErrors.general}</AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input 
@@ -310,8 +486,14 @@ const VendorPortal = () => {
                 type="email" 
                 placeholder="vendor@company.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (formErrors.email || formErrors.general) setFormErrors({...formErrors, email: '', general: ''});
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                className={formErrors.email ? "border-destructive" : ""}
               />
+              {formErrors.email && <p className="text-sm text-destructive">{formErrors.email}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -319,11 +501,16 @@ const VendorPortal = () => {
                 id="password" 
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (formErrors.password || formErrors.general) setFormErrors({...formErrors, password: '', general: ''});
+                }}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                className={formErrors.password ? "border-destructive" : ""}
               />
+              {formErrors.password && <p className="text-sm text-destructive">{formErrors.password}</p>}
             </div>
-            <Button className="w-full" size="lg" onClick={handleLogin}>
+            <Button className="w-full transition-transform hover:scale-105" size="lg" onClick={handleLogin}>
               Sign In
             </Button>
             <div className="text-center text-sm text-muted-foreground">
@@ -353,15 +540,16 @@ const VendorPortal = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
               {newRfqCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center animate-pulse">
                   {newRfqCount}
                 </span>
               )}
             </Button>
-            <Button variant="outline" onClick={() => setIsLoggedIn(false)} className="gap-2">
+            <Button variant="outline" onClick={() => setIsLoggedIn(false)} className="gap-2 transition-transform hover:scale-105">
               <LogOut className="h-4 w-4" />
               Logout
             </Button>
@@ -434,7 +622,7 @@ const VendorPortal = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="rfqs" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="rfqs" className="relative">
               RFQs
@@ -497,12 +685,18 @@ const VendorPortal = () => {
                             size="sm"
                             onClick={() => {
                               setSelectedRfqId(rfq.id);
-                              document.querySelector('[value="submit"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                              setActiveTab("submit");
                             }}
+                            className="transition-transform hover:scale-105"
                           >
                             Submit Quotation
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setSelectedRfqForDetails(rfq.id)}
+                            className="transition-transform hover:scale-105"
+                          >
                             View Details
                           </Button>
                         </div>
@@ -553,8 +747,13 @@ const VendorPortal = () => {
                           type="number" 
                           placeholder="Enter total price"
                           value={quotePrice}
-                          onChange={(e) => setQuotePrice(e.target.value)}
+                          onChange={(e) => {
+                            setQuotePrice(e.target.value);
+                            if (formErrors.price) setFormErrors({...formErrors, price: ''});
+                          }}
+                          className={formErrors.price ? "border-destructive" : ""}
                         />
+                        {formErrors.price && <p className="text-sm text-destructive">{formErrors.price}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="delivery-date">Proposed Delivery Date *</Label>
@@ -562,8 +761,13 @@ const VendorPortal = () => {
                           id="delivery-date" 
                           type="date"
                           value={deliveryDate}
-                          onChange={(e) => setDeliveryDate(e.target.value)}
+                          onChange={(e) => {
+                            setDeliveryDate(e.target.value);
+                            if (formErrors.deliveryDate) setFormErrors({...formErrors, deliveryDate: ''});
+                          }}
+                          className={formErrors.deliveryDate ? "border-destructive" : ""}
                         />
+                        {formErrors.deliveryDate && <p className="text-sm text-destructive">{formErrors.deliveryDate}</p>}
                       </div>
                     </div>
 
@@ -580,18 +784,48 @@ const VendorPortal = () => {
 
                     <div className="space-y-2">
                       <Label htmlFor="quote-doc">Upload Quotation Document (Optional)</Label>
-                      <div className="flex gap-2">
-                        <Input id="quote-doc" type="file" className="flex-1" accept=".pdf,.doc,.docx" />
-                        <Button variant="outline" className="gap-2">
-                          <Upload className="h-4 w-4" />
-                          Upload
-                        </Button>
-                      </div>
+                      <Input 
+                        ref={quoteDocInputRef}
+                        id="quote-doc" 
+                        type="file" 
+                        className="cursor-pointer" 
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleQuoteDocUpload}
+                      />
+                      {uploadedQuoteDocs.length > 0 && (
+                        <div className="space-y-2">
+                          {uploadedQuoteDocs.map((doc, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4" />
+                                <span className="text-sm">{doc.name}</span>
+                              </div>
+                              <Button variant="ghost" size="sm" onClick={() => removeQuoteDoc(idx)}>
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
-                    <Button className="w-full" size="lg" onClick={handleSubmitQuotation}>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Submit Quotation
+                    <Button 
+                      className="w-full transition-transform hover:scale-105" 
+                      size="lg" 
+                      onClick={handleSubmitQuotation}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Clock className="h-4 w-4 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Submit Quotation
+                        </>
+                      )}
                     </Button>
                   </>
                 )}
@@ -666,47 +900,52 @@ const VendorPortal = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                  <div 
+                    className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-all cursor-pointer hover:bg-accent/50"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
                     <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                     <p className="text-sm font-medium mb-1">Upload KYC Documents</p>
                     <p className="text-xs text-muted-foreground mb-3">
                       CAC Certificate, Tax Clearance, Bank Details, ISO Certificates
                     </p>
                     <Input 
+                      ref={fileInputRef}
                       type="file" 
-                      className="max-w-xs mx-auto"
+                      className="hidden"
                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          toast({ 
-                            title: "Document Uploaded", 
-                            description: `${file.name} uploaded successfully. Pending review.` 
-                          });
-                        }
-                      }}
+                      multiple
+                      onChange={handleDocUpload}
                     />
+                    <Button variant="outline" size="sm" className="pointer-events-none">
+                      Select Files
+                    </Button>
                   </div>
 
                   <div className="space-y-3">
-                    {[
-                      { name: "CAC Certificate", status: "Approved", uploaded: "2024-01-01" },
-                      { name: "Tax Clearance", status: "Approved", uploaded: "2024-01-01" },
-                      { name: "Bank Details", status: "Approved", uploaded: "2024-01-01" },
-                      { name: "ISO Certificate", status: "Pending", uploaded: "2025-10-15" },
-                    ].map((doc) => (
-                      <div key={doc.name} className="flex items-center justify-between p-4 border rounded-lg">
+                    {uploadedDocs.map((doc, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-4 border rounded-lg transition-all hover:shadow-md">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4 text-muted-foreground" />
                             <span className="font-medium">{doc.name}</span>
-                            <Badge className={getStatusColor(doc.status)}>{doc.status}</Badge>
+                            <Badge className={getStatusColor(doc.status)}>
+                              {doc.status === "Approved" && <Check className="h-3 w-3 mr-1" />}
+                              {doc.status}
+                            </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">Uploaded: {doc.uploaded}</p>
                         </div>
-                        <Button variant="outline" size="sm">
-                          View
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" className="transition-transform hover:scale-105">
+                            View
+                          </Button>
+                          {doc.status === "Pending" && (
+                            <Button variant="ghost" size="sm" onClick={() => removeDoc(idx)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -716,6 +955,68 @@ const VendorPortal = () => {
           </TabsContent>
         </Tabs>
       </main>
+      
+      {/* RFQ Details Dialog */}
+      <Dialog open={selectedRfqForDetails !== null} onOpenChange={() => setSelectedRfqForDetails(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>RFQ Details</DialogTitle>
+            <DialogDescription>Complete information about this request</DialogDescription>
+          </DialogHeader>
+          {selectedRfqForDetails && (() => {
+            const rfq = rfqs.find(r => r.id === selectedRfqForDetails);
+            if (!rfq) return null;
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">RFQ ID</Label>
+                    <p className="font-medium">{rfq.id}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Status</Label>
+                    <Badge className={getStatusColor(rfq.status)}>{rfq.status}</Badge>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Title</Label>
+                    <p className="font-medium">{rfq.mrfTitle}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Quantity</Label>
+                    <p className="font-medium">{rfq.quantity} units</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Estimated Budget</Label>
+                    <p className="font-medium">₦{parseInt(rfq.estimatedCost).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Deadline</Label>
+                    <p className="font-medium text-warning">{rfq.deadline}</p>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Description</Label>
+                  <p className="text-sm mt-1">{rfq.description}</p>
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedRfqForDetails(null)}>
+              Close
+            </Button>
+            <Button onClick={() => {
+              if (selectedRfqForDetails) {
+                setSelectedRfqId(selectedRfqForDetails);
+                setActiveTab("submit");
+                setSelectedRfqForDetails(null);
+              }
+            }}>
+              Submit Quotation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

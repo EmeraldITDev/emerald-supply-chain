@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import logo from "@/assets/emerald-logo.png";
 
 interface DashboardLayoutProps {
@@ -171,6 +172,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             <h2 className="text-base md:text-lg font-semibold truncate">Supply Chain Management</h2>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
+            <ThemeToggle />
             <div className="text-right">
               <p className="text-xs md:text-sm font-medium truncate max-w-[120px] md:max-w-none">
                 {user?.name}
