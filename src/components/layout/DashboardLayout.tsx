@@ -5,6 +5,7 @@ import { AppSidebar } from "./AppSidebar";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { AIChatbot } from "@/components/AIChatbot";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -47,6 +48,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
         </div>
       </div>
+      
+      {/* AI Chatbot */}
+      <AIChatbot />
     </SidebarProvider>
   );
 };
