@@ -8,6 +8,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState, useMemo } from "react";
 import { MRFApprovalDialog } from "@/components/MRFApprovalDialog";
+import { POGenerationDialog } from "@/components/POGenerationDialog";
 import type { MRFRequest } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { FilterBar } from "@/components/dashboard/FilterBar";
@@ -25,12 +26,14 @@ const Procurement = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { mrfRequests, srfRequests, purchaseOrders, approveMRF, rejectMRF } = useApp();
+  const { mrfRequests, srfRequests, purchaseOrders, approveMRF, rejectMRF, addPO } = useApp();
   const { user } = useAuth();
   const { toast } = useToast();
   
   const [selectedMRF, setSelectedMRF] = useState<MRFRequest | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [poDialogOpen, setPODialogOpen] = useState(false);
+  const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(null);
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -175,6 +178,37 @@ const Procurement = () => {
     });
 
     console.log(`📧 Rejection email sent to requester for ${selectedMRF.id}`);
+  };
+
+  const handleGeneratePO = (mrf: MRFRequest) => {
+    setSelectedMRFForPO(mrf);
+    setPODialogOpen(true);
+  };
+
+  const handlePOGeneration = (poData: {
+    vendor: string;
+    items: string;
+    amount: string;
+    deliveryDate: string;
+    paymentTerms: string;
+    notes: string;
+  }) => {
+    addPO({
+      vendor: poData.vendor,
+      items: poData.items,
+      amount: poData.amount,
+      status: "Pending",
+      date: new Date().toISOString().split("T")[0],
+      deliveryDate: poData.deliveryDate,
+    });
+
+    toast({
+      title: "Purchase Order Created",
+      description: `PO has been generated for MRF ${selectedMRFForPO?.id}`,
+    });
+
+    setPODialogOpen(false);
+    setSelectedMRFForPO(null);
   };
 
   const statusOptions = [
@@ -342,13 +376,29 @@ const Procurement = () => {
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 self-start sm:self-center">
-                            {timerColor && <Clock className={`h-4 w-4 ${timerColor}`} />}
-                            {request.currentStage === "approved" && <CheckCircle2 className="h-5 w-5 text-success" />}
-                            {request.currentStage === "rejected" && <XCircle className="h-5 w-5 text-destructive" />}
-                            <Badge className={getStatusColor(request.status)}>
-                              {request.status}
-                            </Badge>
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-center">
+                            <div className="flex items-center gap-2">
+                              {timerColor && <Clock className={`h-4 w-4 ${timerColor}`} />}
+                              {request.currentStage === "approved" && <CheckCircle2 className="h-5 w-5 text-success" />}
+                              {request.currentStage === "rejected" && <XCircle className="h-5 w-5 text-destructive" />}
+                              <Badge className={getStatusColor(request.status)}>
+                                {request.status}
+                              </Badge>
+                            </div>
+                            {request.currentStage === "approved" && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGeneratePO(request);
+                                }}
+                              >
+                                <ShoppingCart className="h-3 w-3 mr-1" />
+                                Generate PO
+                              </Button>
+                            )}
                           </div>
                         </div>
                       );
@@ -447,6 +497,13 @@ const Procurement = () => {
         onApprove={handleApprove}
         onReject={handleReject}
         currentUserRole={currentUserRole}
+      />
+
+      <POGenerationDialog
+        open={poDialogOpen}
+        onOpenChange={setPODialogOpen}
+        mrf={selectedMRFForPO}
+        onGenerate={handlePOGeneration}
       />
     </DashboardLayout>
   );
