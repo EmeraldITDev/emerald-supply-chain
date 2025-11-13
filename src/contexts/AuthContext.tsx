@@ -6,6 +6,7 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   name: string;
+  department: string;
 }
 
 interface AuthContextType {
@@ -18,15 +19,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Role mapping based on email
-const getRoleFromEmail = (email: string): { role: UserRole; name: string } => {
+const getRoleFromEmail = (email: string): { role: UserRole; name: string; department: string } => {
   if (email.includes("staff@emeraldcfze.com")) {
-    return { role: "employee", name: "Employee User" };
+    return { role: "employee", name: "Employee User", department: "General Staff" };
   } else if (email.includes("procurement@emeraldcfze.com")) {
-    return { role: "procurement", name: "Procurement Manager" };
+    return { role: "procurement", name: "Procurement Manager", department: "Procurement" };
   } else if (email.includes("finance@emeraldcfze.com") || email.includes("temitope")) {
-    return { role: "finance", name: "Temitope Lawal" };
+    return { role: "finance", name: "Temitope Lawal", department: "Finance" };
   }
-  return { role: "employee", name: "Guest User" };
+  return { role: "employee", name: "Guest User", department: "General" };
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -37,9 +38,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const storedEmail = localStorage.getItem("userEmail");
     const storedRole = localStorage.getItem("userRole") as UserRole;
     const storedName = localStorage.getItem("userName");
+    const storedDepartment = localStorage.getItem("userDepartment");
     
-    if (storedEmail && storedRole && storedName) {
-      setUser({ email: storedEmail, role: storedRole, name: storedName });
+    if (storedEmail && storedRole && storedName && storedDepartment) {
+      setUser({ email: storedEmail, role: storedRole, name: storedName, department: storedDepartment });
     }
   }, []);
 
@@ -49,12 +51,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return false;
     }
 
-    const { role, name } = getRoleFromEmail(email);
+    const { role, name, department } = getRoleFromEmail(email);
     
     const authUser: AuthUser = {
       email,
       role,
       name,
+      department,
     };
 
     setUser(authUser);
@@ -62,6 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("userEmail", email);
     localStorage.setItem("userRole", role);
     localStorage.setItem("userName", name);
+    localStorage.setItem("userDepartment", department);
 
     return true;
   };
@@ -72,6 +76,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem("userEmail");
     localStorage.removeItem("userRole");
     localStorage.removeItem("userName");
+    localStorage.removeItem("userDepartment");
   };
 
   return (

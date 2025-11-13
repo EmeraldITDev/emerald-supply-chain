@@ -10,8 +10,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import DepartmentDashboard from "./pages/DepartmentDashboard";
 import Procurement from "./pages/Procurement";
 import NewMRF from "./pages/NewMRF";
+import NewMRN from "./pages/NewMRN";
+import NewAnnualPlan from "./pages/NewAnnualPlan";
 import NewSRF from "./pages/NewSRF";
 import Logistics from "./pages/Logistics";
 import Inventory from "./pages/Inventory";
@@ -53,10 +56,13 @@ const App = () => {
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/department" element={<ProtectedRoute><DepartmentDashboard /></ProtectedRoute>} />
+            <Route path="/department/mrn/new" element={<ProtectedRoute><NewMRN /></ProtectedRoute>} />
+            <Route path="/department/annual-plan/new" element={<ProtectedRoute><NewAnnualPlan /></ProtectedRoute>} />
             <Route path="/procurement" element={<ProcurementRoute><Procurement /></ProcurementRoute>} />
-            <Route path="/new-mrf" element={<ProtectedRoute><NewMRF /></ProtectedRoute>} />
+            <Route path="/new-mrf" element={<ProcurementRoute><NewMRF /></ProcurementRoute>} />
             <Route path="/new-srf" element={<ProtectedRoute><NewSRF /></ProtectedRoute>} />
-            <Route path="/procurement/mrf/new" element={<ProtectedRoute><NewMRF /></ProtectedRoute>} />
+            <Route path="/procurement/mrf/new" element={<ProcurementRoute><NewMRF /></ProcurementRoute>} />
             <Route path="/procurement/srf/new" element={<ProtectedRoute><NewSRF /></ProtectedRoute>} />
             <Route path="/logistics" element={<ProtectedRoute><Logistics /></ProtectedRoute>} />
             <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />

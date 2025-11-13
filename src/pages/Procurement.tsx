@@ -26,7 +26,7 @@ const Procurement = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { mrfRequests, srfRequests, purchaseOrders, approveMRF, rejectMRF, addPO } = useApp();
+  const { mrfRequests, srfRequests, purchaseOrders, approveMRF, rejectMRF, addPO, mrns, updateMRN, convertMRNToMRF } = useApp();
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -64,6 +64,7 @@ const Procurement = () => {
   const pendingMRFs = mrfRequests.filter(mrf => mrf.currentStage === "procurement");
   const approvedMRFs = mrfRequests.filter(mrf => mrf.currentStage === "approved");
   const rejectedMRFs = mrfRequests.filter(mrf => mrf.currentStage === "rejected");
+  const pendingMRNs = mrns.filter(mrn => mrn.status === "Pending" || mrn.status === "Under Review");
 
   // Filtered data
   const filteredMRFs = useMemo(() => {
@@ -211,6 +212,33 @@ const Procurement = () => {
     setSelectedMRFForPO(null);
   };
 
+  const handleConvertMRNToMRF = (mrnId: string) => {
+    const mrn = mrns.find(m => m.id === mrnId);
+    if (!mrn) return;
+
+    convertMRNToMRF(mrnId, user?.name || "Procurement Manager");
+
+    toast({
+      title: "MRN Converted to MRF",
+      description: `${mrn.controlNumber} has been converted to an official MRF`,
+    });
+  };
+
+  const handleRejectMRN = (mrnId: string, reason: string) => {
+    updateMRN(mrnId, {
+      status: "Rejected",
+      reviewedBy: user?.name || "Procurement Manager",
+      reviewDate: new Date().toISOString(),
+      reviewNotes: reason,
+    });
+
+    toast({
+      title: "MRN Rejected",
+      description: "The requester has been notified",
+      variant: "destructive",
+    });
+  };
+
   const statusOptions = [
     { label: "All Requests", value: "all" },
     { label: "Pending My Review", value: "pending" },
@@ -266,11 +294,149 @@ const Procurement = () => {
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 h-auto">
-            <TabsTrigger value="mrf" className="text-xs sm:text-sm">Material Requests</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 h-auto">
+            <TabsTrigger value="mrn" className="text-xs sm:text-sm">
+              Material Requests (MRN)
+              {pendingMRNs.length > 0 && (
+                <Badge variant="destructive" className="ml-2">
+                  {pendingMRNs.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="mrf" className="text-xs sm:text-sm">MRF (Official)</TabsTrigger>
             <TabsTrigger value="srf" className="text-xs sm:text-sm">Service Requests</TabsTrigger>
             <TabsTrigger value="po" className="text-xs sm:text-sm">Purchase Orders</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="mrn" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle>Material Request Notes (MRN)</CardTitle>
+                    <CardDescription>Review department requests and convert to official MRFs</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {mrns.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No material request notes submitted yet</p>
+                    </div>
+                  ) : (
+                    mrns.map((mrn) => (
+                      <Card key={mrn.id} className="overflow-hidden">
+                        <CardContent className="p-6">
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="font-mono text-sm font-semibold">{mrn.controlNumber}</span>
+                                <Badge className={
+                                  mrn.status === "Pending" ? "bg-yellow-500" :
+                                  mrn.status === "Under Review" ? "bg-blue-500" :
+                                  mrn.status === "Converted to MRF" ? "bg-green-500" :
+                                  "bg-red-500"
+                                }>
+                                  {mrn.status}
+                                </Badge>
+                                <Badge variant={mrn.urgency === "High" ? "destructive" : "secondary"}>
+                                  {mrn.urgency}
+                                </Badge>
+                              </div>
+                              <h3 className="text-lg font-semibold">{mrn.title}</h3>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Requested by {mrn.requesterName} • {mrn.department} • {new Date(mrn.submittedDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3 mb-4">
+                            <div>
+                              <strong className="text-sm">Justification:</strong>
+                              <p className="text-sm text-muted-foreground">{mrn.justification}</p>
+                            </div>
+
+                            <div>
+                              <strong className="text-sm">Items Requested ({mrn.items.length}):</strong>
+                              <div className="mt-2 space-y-2">
+                                {mrn.items.map((item, idx) => (
+                                  <div key={idx} className="bg-muted p-3 rounded-md">
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex-1">
+                                        <p className="font-medium">{item.name}</p>
+                                        {item.description && (
+                                          <p className="text-sm text-muted-foreground">{item.description}</p>
+                                        )}
+                                      </div>
+                                      <div className="text-right ml-4">
+                                        <p className="text-sm">Qty: {item.quantity}</p>
+                                        <p className="text-sm font-semibold">₦{parseFloat(item.estimatedUnitCost).toLocaleString()}/unit</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="bg-primary/5 p-3 rounded-md">
+                              <strong className="text-sm">Total Estimated Cost:</strong>
+                              <p className="text-lg font-bold">
+                                ₦{mrn.items.reduce((sum, item) => 
+                                  sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.estimatedUnitCost) || 0), 0
+                                ).toLocaleString()}
+                              </p>
+                            </div>
+
+                            {mrn.reviewNotes && (
+                              <div className="bg-muted p-3 rounded-md">
+                                <strong className="text-sm">Review Notes:</strong>
+                                <p className="text-sm text-muted-foreground mt-1">{mrn.reviewNotes}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Reviewed by {mrn.reviewedBy} on {mrn.reviewDate && new Date(mrn.reviewDate).toLocaleDateString()}
+                                </p>
+                              </div>
+                            )}
+
+                            {mrn.convertedMRFId && (
+                              <div className="bg-green-500/10 p-3 rounded-md">
+                                <p className="text-sm text-green-700 dark:text-green-400">
+                                  ✓ Converted to MRF: <span className="font-mono font-semibold">{mrn.convertedMRFId}</span>
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {mrn.status === "Pending" || mrn.status === "Under Review" ? (
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => handleConvertMRNToMRF(mrn.id)}
+                                className="flex-1"
+                              >
+                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                Convert to MRF
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => {
+                                  const reason = prompt("Enter rejection reason:");
+                                  if (reason) handleRejectMRN(mrn.id, reason);
+                                }}
+                              >
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Reject
+                              </Button>
+                            </div>
+                          ) : null}
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="mrf" className="space-y-4">
             <Card>

@@ -144,6 +144,58 @@ export interface Vendor {
   documents: VendorDocument[];
 }
 
+// MRN (Materials Request Note) - Pre-MRF Request
+export interface MRN {
+  id: string;
+  controlNumber: string;
+  title: string;
+  department: string;
+  category: string;
+  items: MRNItem[];
+  urgency: "Low" | "Medium" | "High";
+  justification: string;
+  requesterId: string;
+  requesterName: string;
+  submittedDate: string;
+  status: "Pending" | "Under Review" | "Converted to MRF" | "Rejected";
+  reviewedBy?: string;
+  reviewDate?: string;
+  reviewNotes?: string;
+  convertedMRFId?: string;
+}
+
+export interface MRNItem {
+  name: string;
+  description: string;
+  quantity: string;
+  estimatedUnitCost: string;
+}
+
+// Annual Procurement Plan
+export interface AnnualProcurementPlan {
+  id: string;
+  year: number;
+  department: string;
+  submittedBy: string;
+  submittedDate: string;
+  status: "Draft" | "Submitted" | "Approved" | "Rejected";
+  totalEstimatedBudget: string;
+  items: AnnualPlanItem[];
+  reviewedBy?: string;
+  reviewDate?: string;
+  reviewNotes?: string;
+}
+
+export interface AnnualPlanItem {
+  category: string;
+  itemDescription: string;
+  estimatedQuantity: string;
+  estimatedCost: string;
+  priority: "High" | "Medium" | "Low";
+  quarter: "Q1" | "Q2" | "Q3" | "Q4";
+  justification: string;
+}
+
 interface AppContextType {
   mrfRequests: MRFRequest[];
   srfRequests: SRFRequest[];
@@ -154,6 +206,8 @@ interface AppContextType {
   rfqs: RFQ[];
   quotations: Quotation[];
   vendorRegistrations: VendorRegistration[];
+  mrns: MRN[];
+  annualPlans: AnnualProcurementPlan[];
   addMRF: (mrf: Omit<MRFRequest, "id" | "status" | "date" | "requester">) => void;
   updateMRF: (id: string, updates: Partial<MRFRequest>) => void;
   approveMRF: (id: string, stage: string, approver: string, remarks: string) => void;
@@ -172,6 +226,11 @@ interface AppContextType {
   updateQuotation: (id: string, updates: Partial<Quotation>) => void;
   addVendorRegistration: (registration: Omit<VendorRegistration, "id" | "submittedDate" | "status">) => void;
   updateVendorRegistration: (id: string, updates: Partial<VendorRegistration>) => void;
+  addMRN: (mrn: Omit<MRN, "id" | "controlNumber" | "requesterId" | "requesterName" | "submittedDate" | "status">) => void;
+  updateMRN: (id: string, updates: Partial<MRN>) => void;
+  convertMRNToMRF: (mrnId: string, reviewerName: string) => void;
+  addAnnualPlan: (plan: Omit<AnnualProcurementPlan, "id" | "submittedBy" | "submittedDate" | "status" | "totalEstimatedBudget">) => void;
+  updateAnnualPlan: (id: string, updates: Partial<AnnualProcurementPlan>) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -670,6 +729,104 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
+  // MRN Management
+  const [mrns, setMrns] = useState<MRN[]>([]);
+  
+  // Counter for MRN control numbers
+  const [mrnCounter, setMrnCounter] = useState(() => {
+    const stored = localStorage.getItem("mrnCounter");
+    return stored ? parseInt(stored) : 1;
+  });
+
+  const addMRN = (mrn: Omit<MRN, "id" | "controlNumber" | "requesterId" | "requesterName" | "submittedDate" | "status">) => {
+    const userId = localStorage.getItem("userEmail") || "unknown";
+    const userName = localStorage.getItem("userName") || "Unknown User";
+    
+    const newMRN: MRN = {
+      ...mrn,
+      id: `MRN-${Date.now()}`,
+      controlNumber: `MRN-${new Date().getFullYear()}-${String(mrnCounter).padStart(4, "0")}`,
+      requesterId: userId,
+      requesterName: userName,
+      submittedDate: new Date().toISOString(),
+      status: "Pending",
+    };
+    
+    setMrns([newMRN, ...mrns]);
+    const newCounter = mrnCounter + 1;
+    setMrnCounter(newCounter);
+    localStorage.setItem("mrnCounter", newCounter.toString());
+  };
+
+  const updateMRN = (id: string, updates: Partial<MRN>) => {
+    setMrns(mrns.map((mrn) => (mrn.id === id ? { ...mrn, ...updates } : mrn)));
+  };
+
+  const convertMRNToMRF = (mrnId: string, reviewerName: string) => {
+    const mrn = mrns.find(m => m.id === mrnId);
+    if (!mrn) return;
+
+    // Calculate total estimated cost
+    const totalCost = mrn.items.reduce((sum, item) => {
+      const quantity = parseFloat(item.quantity) || 0;
+      const unitCost = parseFloat(item.estimatedUnitCost) || 0;
+      return sum + (quantity * unitCost);
+    }, 0);
+
+    // Create MRF from MRN
+    const newMRF: MRFRequest = {
+      id: `MRF-${new Date().getFullYear()}-${String(mrfRequests.length + 1).padStart(3, "0")}`,
+      title: mrn.title,
+      category: mrn.category,
+      description: `Converted from ${mrn.controlNumber}: ${mrn.items.map(i => i.name).join(", ")}`,
+      quantity: mrn.items.length.toString(),
+      estimatedCost: totalCost.toString(),
+      urgency: mrn.urgency.toLowerCase() as "high" | "medium" | "low",
+      justification: mrn.justification,
+      status: "Submitted",
+      date: new Date().toISOString().split("T")[0],
+      requester: mrn.requesterName,
+      currentStage: "procurement",
+      approvalHistory: [],
+    };
+
+    setMrfRequests([newMRF, ...mrfRequests]);
+    
+    // Update MRN status
+    updateMRN(mrnId, {
+      status: "Converted to MRF",
+      reviewedBy: reviewerName,
+      reviewDate: new Date().toISOString(),
+      convertedMRFId: newMRF.id,
+    });
+  };
+
+  // Annual Plan Management
+  const [annualPlans, setAnnualPlans] = useState<AnnualProcurementPlan[]>([]);
+
+  const addAnnualPlan = (plan: Omit<AnnualProcurementPlan, "id" | "submittedBy" | "submittedDate" | "status" | "totalEstimatedBudget">) => {
+    const userName = localStorage.getItem("userName") || "Unknown User";
+    
+    const totalBudget = plan.items.reduce((sum, item) => 
+      sum + (parseFloat(item.estimatedCost) || 0), 0
+    );
+
+    const newPlan: AnnualProcurementPlan = {
+      ...plan,
+      id: `APP-${Date.now()}`,
+      submittedBy: userName,
+      submittedDate: new Date().toISOString(),
+      status: "Submitted",
+      totalEstimatedBudget: totalBudget.toString(),
+    };
+    
+    setAnnualPlans([newPlan, ...annualPlans]);
+  };
+
+  const updateAnnualPlan = (id: string, updates: Partial<AnnualProcurementPlan>) => {
+    setAnnualPlans(annualPlans.map((plan) => (plan.id === id ? { ...plan, ...updates } : plan)));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -682,6 +839,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         rfqs,
         quotations,
         vendorRegistrations,
+        mrns,
+        annualPlans,
         addMRF,
         updateMRF,
         approveMRF,
@@ -700,6 +859,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateQuotation,
         addVendorRegistration,
         updateVendorRegistration,
+        addMRN,
+        updateMRN,
+        convertMRNToMRF,
+        addAnnualPlan,
+        updateAnnualPlan,
       }}
     >
       {children}

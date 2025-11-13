@@ -181,6 +181,73 @@ export interface PaginatedResponse<T> {
   pageSize: number;
 }
 
+// MRN (Materials Request Note) Types - Pre-MRF Requests
+export interface MRN {
+  id: string;
+  controlNumber: string;
+  title: string;
+  department: string;
+  category: string;
+  items: MRNItem[];
+  urgency: 'Low' | 'Medium' | 'High';
+  justification: string;
+  requesterId: string;
+  requesterName: string;
+  submittedDate: string;
+  status: 'Pending' | 'Under Review' | 'Converted to MRF' | 'Rejected';
+  reviewedBy?: string;
+  reviewDate?: string;
+  reviewNotes?: string;
+  convertedMRFId?: string;
+}
+
+export interface MRNItem {
+  name: string;
+  description: string;
+  quantity: string;
+  estimatedUnitCost: string;
+}
+
+export interface CreateMRNData {
+  title: string;
+  department: string;
+  category: string;
+  items: MRNItem[];
+  urgency: 'Low' | 'Medium' | 'High';
+  justification: string;
+}
+
+// Annual Procurement Planning Types
+export interface AnnualProcurementPlan {
+  id: string;
+  year: number;
+  department: string;
+  submittedBy: string;
+  submittedDate: string;
+  status: 'Draft' | 'Submitted' | 'Approved' | 'Rejected';
+  totalEstimatedBudget: string;
+  items: AnnualPlanItem[];
+  reviewedBy?: string;
+  reviewDate?: string;
+  reviewNotes?: string;
+}
+
+export interface AnnualPlanItem {
+  category: string;
+  itemDescription: string;
+  estimatedQuantity: string;
+  estimatedCost: string;
+  priority: 'High' | 'Medium' | 'Low';
+  quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+  justification: string;
+}
+
+export interface CreateAnnualPlanData {
+  year: number;
+  department: string;
+  items: AnnualPlanItem[];
+}
+
 // Filter & Sort Types
 export interface FilterOptions {
   status?: string;
