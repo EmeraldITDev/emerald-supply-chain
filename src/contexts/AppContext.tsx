@@ -613,6 +613,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         } else if (stage === "chairman") {
           nextStage = "approved";
           status = "Approved";
+        } else if (stage === "executive") {
+          // Executive stage: preserve the status/stage set by updateMRF
+          // (either "Approved by Executive" for normal items or "Pending Chairman Approval" for high-value)
+          nextStage = mrf.currentStage;
+          status = mrf.status;
         } else {
           nextStage = mrf.currentStage;
           status = mrf.status;
