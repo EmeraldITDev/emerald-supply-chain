@@ -54,6 +54,12 @@ export function AppSidebar() {
           items: [
             { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
           ]
+        },
+        {
+          label: "Requests",
+          items: [
+            { title: "My Requests", url: "/dashboard", icon: FileText },
+          ]
         }
       ];
     } else if (user?.role === "procurement") {

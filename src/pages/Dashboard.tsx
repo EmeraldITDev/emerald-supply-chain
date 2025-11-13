@@ -3,7 +3,7 @@ import { Package, ShoppingCart, Truck, Warehouse, TrendingUp, AlertCircle, Check
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import EmployeeDashboard from "./EmployeeDashboard";
+import DepartmentDashboard from "./DepartmentDashboard";
 import FinanceDashboard from "./FinanceDashboard";
 
 const Dashboard = () => {
@@ -12,11 +12,7 @@ const Dashboard = () => {
 
   // Route to role-specific dashboard
   if (user?.role === "employee") {
-    return (
-      <DashboardLayout>
-        <EmployeeDashboard />
-      </DashboardLayout>
-    );
+    return <DepartmentDashboard />;
   }
 
   if (user?.role === "finance") {
