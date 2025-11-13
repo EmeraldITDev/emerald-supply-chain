@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 const FinanceDashboard = () => {
-  const { mrfRequests, purchaseOrders } = useApp();
+  const { mrfRequests, purchaseOrders, updateMRF } = useApp();
   const { toast } = useToast();
   const [processedItems, setProcessedItems] = useState<Set<string>>(new Set());
   
@@ -28,9 +28,9 @@ const FinanceDashboard = () => {
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
 
-  // Filter for approved MRFs only (those that reached finance stage)
+  // Filter for MRFs that have signed POs and are ready for payment
   const approvedMRFs = mrfRequests.filter(mrf => 
-    mrf.currentStage === "chairman" || mrf.currentStage === "approved"
+    mrf.signedPOUrl && mrf.currentStage === "finance"
   );
 
   const pendingPayment = approvedMRFs.filter(mrf => !processedItems.has(mrf.id));
@@ -81,10 +81,20 @@ const FinanceDashboard = () => {
   }, [pendingPayment, processed, statusFilter, searchQuery, dateFilter, minAmount, maxAmount]);
 
   const handleMarkProcessed = (id: string) => {
+    const mrf = mrfRequests.find(m => m.id === id);
+    if (!mrf) return;
+    
+    // Update MRF to processing payment status and forward to chairman
+    updateMRF(id, {
+      status: "Processing Payment",
+      currentStage: "chairman"
+    });
+    
     setProcessedItems(prev => new Set([...prev, id]));
+    
     toast({
-      title: "Payment Processed",
-      description: "Request has been marked as processed",
+      title: "Payment Forwarded",
+      description: `${mrf.title} has been forwarded to Chairman for payment approval`,
     });
   };
 

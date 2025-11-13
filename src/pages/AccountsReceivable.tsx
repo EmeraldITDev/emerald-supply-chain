@@ -234,7 +234,7 @@ export default function AccountsReceivable() {
   };
 
   const handleRecordPayment = (invoice: Invoice) => {
-    const paymentAmount = prompt(`Enter payment amount for ${invoice.invoiceNumber} (Balance: $${invoice.balance.toLocaleString()}):`);
+    const paymentAmount = prompt(`Enter payment amount for ${invoice.invoiceNumber} (Balance: ₦${invoice.balance.toLocaleString()}):`);
     
     if (paymentAmount) {
       const amount = Number(paymentAmount);
@@ -377,7 +377,7 @@ export default function AccountsReceivable() {
                     <Input id="project" name="project" required placeholder="e.g., Project Alpha" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="amount">Amount ($) *</Label>
+                    <Label htmlFor="amount">Amount (₦) *</Label>
                     <Input id="amount" name="amount" type="number" step="0.01" required placeholder="0.00" />
                   </div>
                 </div>
@@ -481,7 +481,7 @@ export default function AccountsReceivable() {
                   {metrics.overdueCount} invoice{metrics.overdueCount !== 1 ? 's' : ''} overdue
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Total overdue amount: ${metrics.overdueAmount.toLocaleString()}
+                  Total overdue amount: ₦{metrics.overdueAmount.toLocaleString()}
                 </p>
               </div>
               <Button variant="outline" size="sm">View Overdue</Button>

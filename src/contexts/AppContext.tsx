@@ -243,109 +243,140 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [mrfRequests, setMrfRequests] = useState<MRFRequest[]>([
-    {
-      id: "MRF-2025-001",
-      title: "Office Supplies",
-      category: "office-supplies",
-      description: "Stationery and office materials",
-      quantity: "50",
-      estimatedCost: "25000",
-      urgency: "medium",
-      justification: "Regular office operations",
-      status: "Submitted",
-      date: "2025-10-14",
-      requester: "Current User",
-      currentStage: "procurement",
-      procurementManagerApprovalTime: "2025-10-14T08:00:00Z",
-      approvalHistory: [],
-    },
-    {
-      id: "MRF-2025-002",
-      title: "Raw Materials",
-      category: "raw-materials",
-      description: "Production materials for Q4",
-      quantity: "200",
-      estimatedCost: "500000",
-      urgency: "high",
-      justification: "Production schedule requirements",
-      status: "Finance Approved",
-      date: "2025-10-13",
-      requester: "Jane Smith",
-      currentStage: "chairman",
-      procurementManagerApprovalTime: "2025-10-13T09:00:00Z",
-      approvalHistory: [
-        {
-          stage: "procurement",
-          approver: "Procurement Manager",
-          action: "approved",
-          remarks: "Approved for production needs",
-          timestamp: "2025-10-13T10:00:00Z",
-        },
-        {
-          stage: "finance",
-          approver: "Finance Manager",
-          action: "approved",
-          remarks: "Budget allocated",
-          timestamp: "2025-10-14T11:00:00Z",
-        },
-      ],
-    },
-    {
-      id: "MRF-2025-003",
-      title: "Marketing Materials",
-      category: "office-supplies",
-      description: "Brochures and promotional materials",
-      quantity: "100",
-      estimatedCost: "35000",
-      urgency: "low",
-      justification: "Upcoming marketing campaign",
-      status: "Rejected",
-      date: "2025-10-12",
-      requester: "Current User",
-      currentStage: "rejected",
-      procurementManagerApprovalTime: "2025-10-12T08:00:00Z",
-      rejectionReason: "Budget not allocated for marketing materials in Q4. Please revise with lower cost estimate or defer to next quarter.",
-      approvalHistory: [
-        {
-          stage: "procurement",
-          approver: "Procurement Manager",
-          action: "rejected",
-          remarks: "Budget not allocated for marketing materials in Q4. Please revise with lower cost estimate or defer to next quarter.",
-          timestamp: "2025-10-12T10:00:00Z",
-        },
-      ],
-    },
-  ]);
+  // Load initial data from localStorage or use defaults
+  const [mrfRequests, setMrfRequests] = useState<MRFRequest[]>(() => {
+    const stored = localStorage.getItem("mrfRequests");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        console.error("Failed to parse stored MRF requests", e);
+      }
+    }
+    return [
+      {
+        id: "MRF-2025-001",
+        title: "Office Supplies",
+        category: "office-supplies",
+        description: "Stationery and office materials",
+        quantity: "50",
+        estimatedCost: "25000",
+        urgency: "medium",
+        justification: "Regular office operations",
+        status: "Submitted",
+        date: "2025-10-14",
+        requester: "Current User",
+        currentStage: "procurement",
+        procurementManagerApprovalTime: "2025-10-14T08:00:00Z",
+        approvalHistory: [],
+      },
+      {
+        id: "MRF-2025-002",
+        title: "Raw Materials",
+        category: "raw-materials",
+        description: "Production materials for Q4",
+        quantity: "200",
+        estimatedCost: "500000",
+        urgency: "high",
+        justification: "Production schedule requirements",
+        status: "Finance Approved",
+        date: "2025-10-13",
+        requester: "Jane Smith",
+        currentStage: "chairman",
+        procurementManagerApprovalTime: "2025-10-13T09:00:00Z",
+        approvalHistory: [
+          {
+            stage: "procurement",
+            approver: "Procurement Manager",
+            action: "approved",
+            remarks: "Approved for production needs",
+            timestamp: "2025-10-13T10:00:00Z",
+          },
+          {
+            stage: "finance",
+            approver: "Finance Manager",
+            action: "approved",
+            remarks: "Budget allocated",
+            timestamp: "2025-10-14T11:00:00Z",
+          },
+        ],
+      },
+      {
+        id: "MRF-2025-003",
+        title: "Marketing Materials",
+        category: "office-supplies",
+        description: "Brochures and promotional materials",
+        quantity: "100",
+        estimatedCost: "35000",
+        urgency: "low",
+        justification: "Upcoming marketing campaign",
+        status: "Rejected",
+        date: "2025-10-12",
+        requester: "Current User",
+        currentStage: "rejected",
+        procurementManagerApprovalTime: "2025-10-12T08:00:00Z",
+        rejectionReason: "Budget not allocated for marketing materials in Q4. Please revise with lower cost estimate or defer to next quarter.",
+        approvalHistory: [
+          {
+            stage: "procurement",
+            approver: "Procurement Manager",
+            action: "rejected",
+            remarks: "Budget not allocated for marketing materials in Q4. Please revise with lower cost estimate or defer to next quarter.",
+            timestamp: "2025-10-12T10:00:00Z",
+          },
+        ],
+      },
+    ];
+  });
 
-  const [srfRequests, setSrfRequests] = useState<SRFRequest[]>([
-    {
-      id: "SRF-2025-001",
-      title: "Maintenance Service",
-      serviceType: "maintenance",
-      description: "Equipment maintenance",
-      duration: "2 weeks",
-      estimatedCost: "75000",
-      urgency: "medium",
-      justification: "Scheduled maintenance",
-      status: "Pending",
-      date: "2025-10-14",
-      requester: "Sarah Wilson",
-    },
-    {
-      id: "SRF-2025-002",
-      title: "IT Support",
-      serviceType: "it-support",
-      description: "Network infrastructure upgrade",
-      duration: "1 week",
-      estimatedCost: "150000",
-      urgency: "high",
-      justification: "System performance improvement",
-      status: "Completed",
-      date: "2025-10-10",
-      requester: "Tom Brown",
-    },
-  ]);
+  const [srfRequests, setSrfRequests] = useState<SRFRequest[]>(() => {
+    const stored = localStorage.getItem("srfRequests");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        console.error("Failed to parse stored SRF requests", e);
+      }
+    }
+    return [
+      {
+        id: "SRF-2025-001",
+        title: "Maintenance Service",
+        serviceType: "maintenance",
+        description: "Equipment maintenance",
+        duration: "2 weeks",
+        estimatedCost: "75000",
+        urgency: "medium",
+        justification: "Scheduled maintenance",
+        status: "Pending",
+        date: "2025-10-14",
+        requester: "Sarah Wilson",
+      },
+      {
+        id: "SRF-2025-002",
+        title: "IT Support",
+        serviceType: "it-support",
+        description: "Network infrastructure upgrade",
+        duration: "1 week",
+        estimatedCost: "150000",
+        urgency: "high",
+        justification: "System performance improvement",
+        status: "Completed",
+        date: "2025-10-10",
+        requester: "Tom Brown",
+      },
+    ];
+  });
+  
+  // Persist MRF requests to localStorage
+  React.useEffect(() => {
+    localStorage.setItem("mrfRequests", JSON.stringify(mrfRequests));
+  }, [mrfRequests]);
+  
+  // Persist SRF requests to localStorage  
+  React.useEffect(() => {
+    localStorage.setItem("srfRequests", JSON.stringify(srfRequests));
+  }, [srfRequests]);
 
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([
     {
