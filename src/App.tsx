@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useAuth } from "@/contexts/AuthContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -52,6 +53,7 @@ const App = () => {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <NotificationProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -88,6 +90,7 @@ const App = () => {
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+      </NotificationProvider>
       </ThemeProvider>
     </QueryClientProvider>
     </ErrorBoundary>

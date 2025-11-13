@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Check, X, Clock, AlertCircle, CheckCircle } from "lucide-react";
+import { Bell, Check, X, Clock, AlertCircle, CheckCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,71 +9,27 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-interface Notification {
-  id: string;
-  type: "approval" | "reminder" | "alert" | "success";
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-  actionUrl?: string;
-}
+import { useNotifications } from "@/contexts/NotificationContext";
+import { useNavigate } from "react-router-dom";
 
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      type: "approval",
-      title: "MRF Approval Required",
-      message: "MRF-2024-001 requires your approval",
-      timestamp: "5 minutes ago",
-      read: false,
-      actionUrl: "/procurement?id=MRF-2024-001"
-    },
-    {
-      id: "2",
-      type: "reminder",
-      title: "PO Payment Due",
-      message: "Payment for PO-2024-045 is due tomorrow",
-      timestamp: "2 hours ago",
-      read: false,
-      actionUrl: "/procurement?id=PO-2024-045"
-    },
-    {
-      id: "3",
-      type: "success",
-      title: "Delivery Completed",
-      message: "Shipment SHIP-2024-012 has been delivered",
-      timestamp: "1 day ago",
-      read: true,
-      actionUrl: "/logistics?id=SHIP-2024-012"
-    },
-    {
-      id: "4",
-      type: "alert",
-      title: "Low Stock Alert",
-      message: "Item INV-2024-089 is below minimum threshold",
-      timestamp: "2 days ago",
-      read: true,
-      actionUrl: "/inventory?id=INV-2024-089"
-    },
-  ]);
+  const navigate = useNavigate();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    clearNotification,
+  } = useNotifications();
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const [open, setOpen] = useState(false);
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
-  const clearNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const handleNotificationClick = (notification: any) => {
+    markAsRead(notification.id);
+    if (notification.actionUrl) {
+      navigate(notification.actionUrl);
+      setOpen(false);
+    }
   };
 
   const getNotificationIcon = (type: string) => {
@@ -86,13 +42,26 @@ export function NotificationCenter() {
         return <AlertCircle className="h-4 w-4 text-destructive" />;
       case "success":
         return <CheckCircle className="h-4 w-4 text-success" />;
+      case "info":
+        return <Info className="h-4 w-4 text-primary" />;
       default:
         return <Bell className="h-4 w-4" />;
     }
   };
 
+  const getTimeAgo = (timestamp: string) => {
+    const now = new Date();
+    const notificationTime = new Date(timestamp);
+    const diffInSeconds = Math.floor((now.getTime() - notificationTime.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return "Just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  };
+
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
@@ -133,9 +102,10 @@ export function NotificationCenter() {
                 <div
                   key={notification.id}
                   className={cn(
-                    "group px-4 py-3 hover:bg-accent transition-colors",
+                    "group px-4 py-3 hover:bg-accent transition-colors cursor-pointer",
                     !notification.read && "bg-accent/50"
                   )}
+                  onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex gap-3">
                     <div className="mt-1 flex-shrink-0">
@@ -143,16 +113,26 @@ export function NotificationCenter() {
                     </div>
                     <div className="flex-1 space-y-1">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium leading-none">
-                          {notification.title}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium leading-none">
+                            {notification.title}
+                          </p>
+                          {notification.priority === "high" && (
+                            <Badge variant="destructive" className="text-[10px] h-4 px-1">
+                              Urgent
+                            </Badge>
+                          )}
+                        </div>
                         <div className="flex gap-1">
                           {!notification.read && (
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                              onClick={() => markAsRead(notification.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markAsRead(notification.id);
+                              }}
                             >
                               <Check className="h-3 w-3" />
                             </Button>
@@ -161,7 +141,10 @@ export function NotificationCenter() {
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                            onClick={() => clearNotification(notification.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clearNotification(notification.id);
+                            }}
                           >
                             <X className="h-3 w-3" />
                           </Button>
@@ -171,7 +154,7 @@ export function NotificationCenter() {
                         {notification.message}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {notification.timestamp}
+                        {getTimeAgo(notification.timestamp)}
                       </p>
                     </div>
                   </div>
