@@ -59,57 +59,57 @@ const DepartmentDashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Requests</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">My Requests</h1>
+          <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">
             Submit material requests and track your procurement activities
           </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending MRNs</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">Pending</CardTitle>
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.pending}</div>
+            <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.pending}</div>
               <p className="text-xs text-muted-foreground">Awaiting review</p>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Under Review</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">In Review</CardTitle>
+              <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.underReview}</div>
-              <p className="text-xs text-muted-foreground">Being processed</p>
+            <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.underReview}</div>
+              <p className="text-xs text-muted-foreground">Processing</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Converted</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">Converted</CardTitle>
+              <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.converted}</div>
-              <p className="text-xs text-muted-foreground">Now as MRFs</p>
+            <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.converted}</div>
+              <p className="text-xs text-muted-foreground">To MRFs</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Rejected</CardTitle>
-              <XCircle className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">Rejected</CardTitle>
+              <XCircle className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.rejected}</div>
-              <p className="text-xs text-muted-foreground">Need revision</p>
+            <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.rejected}</div>
+              <p className="text-xs text-muted-foreground">Revision</p>
             </CardContent>
           </Card>
         </div>
@@ -120,23 +120,24 @@ const DepartmentDashboard = () => {
             <TabsTrigger value="annual">Annual Planning</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="mrns" className="space-y-4">
+          <TabsContent value="mrns" className="space-y-3 sm:space-y-4">
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle>Material Request Notes (MRN)</CardTitle>
-                    <CardDescription>Submit requests for material procurement</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">Material Request Notes (MRN)</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Submit requests for material procurement</CardDescription>
                   </div>
-                  <Button onClick={() => navigate("/department/mrn/new")}>
+                  <Button onClick={() => navigate("/department/mrn/new")} size="sm" className="sm:size-default">
                     <Plus className="mr-2 h-4 w-4" />
-                    New MRN
+                    <span className="hidden sm:inline">New MRN</span>
+                    <span className="sm:hidden">New</span>
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0">
                 {/* Search and Filter */}
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -160,17 +161,17 @@ const DepartmentDashboard = () => {
                 </div>
 
                 {/* MRN List */}
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Control Number</TableHead>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Items</TableHead>
-                        <TableHead>Urgency</TableHead>
-                        <TableHead>Submitted</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Control #</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Title</TableHead>
+                        <TableHead className="text-xs sm:text-sm hidden md:table-cell">Items</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Urgency</TableHead>
+                        <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Submitted</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Status</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -183,23 +184,24 @@ const DepartmentDashboard = () => {
                       ) : (
                         departmentMRNs.map((mrn) => (
                           <TableRow key={mrn.id}>
-                            <TableCell className="font-mono text-sm">{mrn.controlNumber}</TableCell>
-                            <TableCell className="font-medium">{mrn.title}</TableCell>
-                            <TableCell>{mrn.items.length} items</TableCell>
+                            <TableCell className="font-mono text-xs sm:text-sm">{mrn.controlNumber}</TableCell>
+                            <TableCell className="font-medium text-xs sm:text-sm max-w-[150px] sm:max-w-none truncate">{mrn.title}</TableCell>
+                            <TableCell className="text-xs sm:text-sm hidden md:table-cell">{mrn.items.length} items</TableCell>
                             <TableCell>
-                              <Badge variant={mrn.urgency === "High" ? "destructive" : "secondary"}>
+                              <Badge variant={mrn.urgency === "High" ? "destructive" : "secondary"} className="text-xs">
                                 {mrn.urgency}
                               </Badge>
                             </TableCell>
-                            <TableCell>{format(new Date(mrn.submittedDate), "MMM dd, yyyy")}</TableCell>
+                            <TableCell className="text-xs sm:text-sm hidden lg:table-cell">{format(new Date(mrn.submittedDate), "MMM dd, yyyy")}</TableCell>
                             <TableCell>
-                              <Badge className={getStatusColor(mrn.status)}>
+                              <Badge className={`${getStatusColor(mrn.status)} text-xs`}>
                                 {mrn.status}
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="sm" onClick={() => navigate(`/department/mrn/${mrn.id}`)}>
-                                View Details
+                              <Button variant="ghost" size="sm" onClick={() => navigate(`/department/mrn/${mrn.id}`)} className="text-xs sm:text-sm">
+                                <span className="hidden sm:inline">View Details</span>
+                                <span className="sm:hidden">View</span>
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -212,21 +214,22 @@ const DepartmentDashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="annual" className="space-y-4">
+          <TabsContent value="annual" className="space-y-3 sm:space-y-4">
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle>Annual Procurement Planning</CardTitle>
-                    <CardDescription>Plan your department's material needs for the year</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">Annual Procurement Planning</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Plan your department's material needs for the year</CardDescription>
                   </div>
-                  <Button onClick={() => navigate("/department/annual-plan/new")}>
+                  <Button onClick={() => navigate("/department/annual-plan/new")} size="sm" className="sm:size-default">
                     <Plus className="mr-2 h-4 w-4" />
-                    New Annual Plan
+                    <span className="hidden sm:inline">New Annual Plan</span>
+                    <span className="sm:hidden">New Plan</span>
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 sm:p-6 pt-0">
                 <div className="space-y-4">
                   {departmentPlans.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">

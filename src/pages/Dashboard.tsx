@@ -85,38 +85,38 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col gap-2 sm:gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Procurement Dashboard</h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Overview of your supply chain operations</p>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Procurement Dashboard</h1>
+            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">Overview of your supply chain operations</p>
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
             <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium">{stat.title}</CardTitle>
+                <stat.icon className={`h-3 w-3 sm:h-4 sm:w-4 ${stat.color}`} />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground">{stat.description}</p>
-                <p className="text-xs text-muted-foreground mt-1">{stat.trend}</p>
+              <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+                <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stat.value}</div>
+                <p className="text-xs text-muted-foreground hidden sm:block">{stat.description}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 sm:mt-1 hidden lg:block">{stat.trend}</p>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
           <Card>
-            <CardHeader>
-              <CardTitle>Recent Activities</CardTitle>
-              <CardDescription>Latest procurement actions</CardDescription>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Recent Activities</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Latest procurement actions</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <div className="space-y-3 sm:space-y-4">
                 {recentActivities.map((activity) => (
                   <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0">
                     <div className="flex-1 min-w-0">
@@ -141,34 +141,34 @@ const Dashboard = () => {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Common tasks</CardDescription>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Quick Actions</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Common tasks</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-3">
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/procurement/mrf/new")}>
-                  <CardContent className="p-4 flex flex-col items-center text-center">
-                    <Package className="h-8 w-8 text-primary mb-2" />
-                    <p className="font-medium text-sm">New MRF</p>
+                  <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
+                    <Package className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-1 sm:mb-2" />
+                    <p className="font-medium text-xs sm:text-sm">New MRF</p>
                   </CardContent>
                 </Card>
                 <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/procurement/srf/new")}>
-                  <CardContent className="p-4 flex flex-col items-center text-center">
-                    <ShoppingCart className="h-8 w-8 text-primary mb-2" />
-                    <p className="font-medium text-sm">New SRF</p>
+                  <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
+                    <ShoppingCart className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-1 sm:mb-2" />
+                    <p className="font-medium text-xs sm:text-sm">New SRF</p>
                   </CardContent>
                 </Card>
                 <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/logistics")}>
-                  <CardContent className="p-4 flex flex-col items-center text-center">
-                    <Truck className="h-8 w-8 text-primary mb-2" />
-                    <p className="font-medium text-sm">Logistics</p>
+                  <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
+                    <Truck className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-1 sm:mb-2" />
+                    <p className="font-medium text-xs sm:text-sm">Logistics</p>
                   </CardContent>
                 </Card>
                 <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/inventory")}>
-                  <CardContent className="p-4 flex flex-col items-center text-center">
-                    <Warehouse className="h-8 w-8 text-primary mb-2" />
-                    <p className="font-medium text-sm">Inventory</p>
+                  <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
+                    <Warehouse className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-1 sm:mb-2" />
+                    <p className="font-medium text-xs sm:text-sm">Inventory</p>
                   </CardContent>
                 </Card>
               </div>

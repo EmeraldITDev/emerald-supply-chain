@@ -84,43 +84,43 @@ const ExecutiveDashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Executive Dashboard</h1>
-          <p className="text-muted-foreground">Review and approve Material Requisition Forms</p>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Executive Dashboard</h1>
+          <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">Review and approve Material Requisition Forms</p>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">Pending Approval</CardTitle>
+              <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingMRFs.length}</div>
-              <p className="text-xs text-muted-foreground">Awaiting your review</p>
+            <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{pendingMRFs.length}</div>
+              <p className="text-xs text-muted-foreground">Awaiting review</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">High Value Items</CardTitle>
-              <AlertCircle className="h-4 w-4 text-orange-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">High Value</CardTitle>
+              <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{highValueMRFs.length}</div>
-              <p className="text-xs text-muted-foreground">&gt; ₦1,000,000</p>
+            <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{highValueMRFs.length}</div>
+              <p className="text-xs text-muted-foreground">&gt; ₦1M</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+          <Card className="col-span-2 lg:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">Total Value</CardTitle>
+              <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">
                 ₦{pendingMRFs.reduce((sum, mrf) => sum + parseFloat(mrf.estimatedCost || "0"), 0).toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">Pending requests</p>
@@ -130,39 +130,39 @@ const ExecutiveDashboard = () => {
 
         {/* MRF List */}
         <Card>
-          <CardHeader>
-            <CardTitle>Material Requisition Forms</CardTitle>
-            <CardDescription>Review and approve MRFs from procurement</CardDescription>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Material Requisition Forms</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Review and approve MRFs from procurement</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 sm:p-6 pt-0">
             {pendingMRFs.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
                 <p>No MRFs pending approval</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {pendingMRFs.map((mrf) => (
                   <Card key={mrf.id} className="border-l-4 border-l-primary">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-lg">{mrf.title}</CardTitle>
-                          <CardDescription>
+                    <CardHeader className="p-3 sm:p-4 lg:p-6">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-sm sm:text-base lg:text-lg truncate">{mrf.title}</CardTitle>
+                          <CardDescription className="text-xs sm:text-sm truncate">
                             {mrf.id} • {mrf.requester} • {mrf.department}
                           </CardDescription>
                         </div>
-                        <div className="flex gap-2">
-                          <Badge variant={parseFloat(mrf.estimatedCost) > 1000000 ? "destructive" : "default"}>
+                        <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                          <Badge variant={parseFloat(mrf.estimatedCost) > 1000000 ? "destructive" : "default"} className="text-xs">
                             ₦{parseFloat(mrf.estimatedCost).toLocaleString()}
                           </Badge>
-                          <Badge variant={mrf.urgency === "high" ? "destructive" : "secondary"}>
+                          <Badge variant={mrf.urgency === "high" ? "destructive" : "secondary"} className="text-xs">
                             {mrf.urgency}
                           </Badge>
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4 lg:p-6 pt-0">
                       <div className="grid md:grid-cols-2 gap-4 text-sm">
                         <div>
                           <p className="font-semibold">Category:</p>
