@@ -95,6 +95,7 @@ const Auth = () => {
             <p><strong>Executive:</strong> bunmi.babajide@emeraldcfze.com / any password</p>
             <p><strong>Chairman:</strong> laa@emeraldcfze.com / any password</p>
             <p><strong>Supply Chain Director:</strong> supply@emeraldcfze.com / any password</p>
+            <p><strong>Logistics Manager:</strong> logistics@emeraldcfze.com / any password</p>
             <p><strong>Finance:</strong> finance@emeraldcfze.com / any password</p>
           </div>
         </div>
