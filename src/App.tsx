@@ -17,6 +17,7 @@ import SupplyChainDashboard from "./pages/SupplyChainDashboard";
 import Procurement from "./pages/Procurement";
 import NewMRF from "./pages/NewMRF";
 import NewMRN from "./pages/NewMRN";
+import MRNDetail from "./pages/MRNDetail";
 import NewAnnualPlan from "./pages/NewAnnualPlan";
 import NewSRF from "./pages/NewSRF";
 import Logistics from "./pages/Logistics";
@@ -61,6 +62,7 @@ const App = () => {
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/department" element={<ProtectedRoute><DepartmentDashboard /></ProtectedRoute>} />
             <Route path="/department/mrn/new" element={<ProtectedRoute><NewMRN /></ProtectedRoute>} />
+            <Route path="/department/mrn/:id" element={<ProtectedRoute><MRNDetail /></ProtectedRoute>} />
             <Route path="/department/annual-plan/new" element={<ProtectedRoute><NewAnnualPlan /></ProtectedRoute>} />
             <Route path="/executive" element={<ProtectedRoute><ExecutiveDashboard /></ProtectedRoute>} />
             <Route path="/chairman" element={<ProtectedRoute><ChairmanDashboard /></ProtectedRoute>} />
