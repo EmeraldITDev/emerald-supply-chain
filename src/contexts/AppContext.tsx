@@ -36,6 +36,9 @@ export interface MRFRequest {
   signedPOUrl?: string;
   executiveComments?: string;
   chairmanComments?: string;
+  supplyChainComments?: string;
+  poRejectionReason?: string;
+  poVersion?: number;
 }
 
 export interface SRFRequest {

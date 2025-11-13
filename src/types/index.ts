@@ -41,6 +41,9 @@ export interface MRF {
   signedPOUrl?: string;
   executiveComments?: string;
   chairmanComments?: string;
+  supplyChainComments?: string;
+  poRejectionReason?: string;
+  poVersion?: number;
 }
 
 export interface CreateMRFData {

@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar, AlertCircle } from "lucide-react";
+import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar, AlertCircle, Upload } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
@@ -12,6 +12,7 @@ import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { POGenerationDialog } from "@/components/POGenerationDialog";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import type { MRFRequest } from "@/contexts/AppContext";
 import {
   Select,
@@ -47,6 +48,15 @@ const Procurement = () => {
     );
   }, [mrfRequests]);
 
+  // POs rejected by Supply Chain Director
+  const rejectedPOs = useMemo(() => {
+    return mrfRequests.filter(mrf =>
+      mrf.currentStage === "procurement" &&
+      mrf.status === "PO Rejected by Supply Chain" &&
+      mrf.poRejectionReason
+    );
+  }, [mrfRequests]);
+
   const vendorFromState = (location.state as any)?.vendor as string | undefined;
   const vendorFromQuery = searchParams.get("vendor") || undefined;
   const vendorFilter = vendorFromState || vendorFromQuery || undefined;
@@ -66,6 +76,7 @@ const Procurement = () => {
   // Stats
   const pendingMRNs = mrns.filter(mrn => mrn.status === "Pending" || mrn.status === "Under Review");
   const pendingPOUpload = executiveApprovedMRFs.length;
+  const rejectedPOCount = rejectedPOs.length;
   const inSupplyChain = mrfRequests.filter(mrf => mrf.currentStage === "supply_chain").length;
   const totalPOs = purchaseOrders.length;
 
@@ -193,8 +204,13 @@ const Procurement = () => {
   }) => {
     if (!selectedMRFForPO) return;
 
-    // Generate PO number
-    const poNumber = `PO-${new Date().getFullYear()}-${String(purchaseOrders.length + 1).padStart(3, "0")}`;
+    // Determine if this is a resubmission
+    const isResubmission = selectedMRFForPO.status === "PO Rejected by Supply Chain";
+    const currentVersion = selectedMRFForPO.poVersion || 0;
+    
+    // Generate or update PO number
+    const poNumber = selectedMRFForPO.poNumber || 
+      `PO-${new Date().getFullYear()}-${String(purchaseOrders.length + 1).padStart(3, "0")}`;
     
     // Create the PO
     addPO({
@@ -209,14 +225,17 @@ const Procurement = () => {
     // Update MRF with PO details and route to Supply Chain
     updateMRF(selectedMRFForPO.id, {
       poNumber: poNumber,
-      unsignedPOUrl: `uploads/po/${poNumber}.pdf`, // Placeholder URL
+      unsignedPOUrl: `uploads/po/${poNumber}_v${currentVersion + 1}.pdf`, // Versioned URL
       currentStage: "supply_chain",
-      status: "PO Generated - With Supply Chain"
+      status: isResubmission ? "PO Resubmitted - With Supply Chain" : "PO Generated - With Supply Chain",
+      poVersion: currentVersion + 1,
+      poRejectionReason: undefined, // Clear rejection reason
+      supplyChainComments: undefined // Clear old comments
     });
 
     toast({
-      title: "Purchase Order Created",
-      description: `${poNumber} generated and forwarded to Supply Chain Director`,
+      title: isResubmission ? "Purchase Order Resubmitted" : "Purchase Order Created",
+      description: `${poNumber} ${isResubmission ? 'resubmitted' : 'generated'} and forwarded to Supply Chain Director`,
     });
 
     setPODialogOpen(false);
@@ -263,7 +282,18 @@ const Procurement = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <PullToRefresh onRefresh={async () => {
+        toast({
+          title: "Refreshing data...",
+          description: "Please wait",
+        });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        toast({
+          title: "Data refreshed",
+          description: "All data is up to date",
+        });
+      }}>
+        <div className="space-y-6">
         <div className="flex flex-col gap-2 sm:gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Procurement Dashboard</h1>
@@ -282,6 +312,14 @@ const Procurement = () => {
             onClick={() => setTab("mrf")}
           />
           <StatCard
+            title="Rejected POs"
+            value={rejectedPOCount}
+            description="Need revision & resubmission"
+            icon={XCircle}
+            iconColor="text-destructive"
+            onClick={() => setTab("mrf")}
+          />
+          <StatCard
             title="Pending MRNs"
             value={pendingMRNs.length}
             description="Awaiting review"
@@ -295,14 +333,6 @@ const Procurement = () => {
             description="With Supply Chain Director"
             icon={Package}
             iconColor="text-success"
-          />
-          <StatCard
-            title="Total POs"
-            value={totalPOs}
-            description="Purchase orders"
-            icon={ShoppingCart}
-            iconColor="text-primary"
-            onClick={() => setTab("po")}
           />
         </div>
 
@@ -476,6 +506,67 @@ const Procurement = () => {
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Rejected POs - Need Resubmission */}
+                {rejectedPOs.length > 0 && (
+                  <div className="mb-6 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
+                    <div className="flex items-center gap-2 mb-4">
+                      <XCircle className="h-5 w-5 text-destructive" />
+                      <h3 className="font-semibold text-lg">POs Rejected by Supply Chain</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {rejectedPOs.length} PO(s) rejected and need revision
+                    </p>
+                    <div className="space-y-3">
+                      {rejectedPOs.map((mrf) => (
+                        <Card key={mrf.id} className="bg-card border-destructive/50">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col gap-3">
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="font-semibold">{mrf.title}</h4>
+                                    <Badge variant="destructive">Rejected</Badge>
+                                    <Badge variant="outline">{mrf.poNumber}</Badge>
+                                    {mrf.poVersion && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        v{mrf.poVersion}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground space-y-1">
+                                    <p>MRF ID: <span className="font-medium">{mrf.id}</span></p>
+                                    <p>Requester: {mrf.requester}</p>
+                                    <p>Amount: <span className="font-semibold">₦{parseInt(mrf.estimatedCost).toLocaleString()}</span></p>
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleGeneratePO(mrf)}
+                                >
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  Re-upload PO
+                                </Button>
+                              </div>
+                              
+                              {/* Rejection Details */}
+                              <div className="p-3 bg-destructive/10 rounded-md">
+                                <p className="text-xs font-semibold text-destructive mb-1">Rejection Reason:</p>
+                                <p className="text-sm text-foreground">{mrf.poRejectionReason}</p>
+                                {mrf.supplyChainComments && (
+                                  <>
+                                    <p className="text-xs font-semibold text-muted-foreground mt-2 mb-1">Additional Comments:</p>
+                                    <p className="text-sm text-foreground">{mrf.supplyChainComments}</p>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Executive Approved MRFs - Awaiting PO Upload */}
                 {executiveApprovedMRFs.length > 0 && (
                   <div className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-lg">
@@ -723,6 +814,7 @@ const Procurement = () => {
           </TabsContent>
         </Tabs>
       </div>
+      </PullToRefresh>
 
       <POGenerationDialog
         open={poDialogOpen}

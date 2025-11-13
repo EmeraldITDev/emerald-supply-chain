@@ -9,10 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileText, Upload, Download, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import { PORejectionDialog } from "@/components/PORejectionDialog";
+import { PullToRefresh } from "@/components/PullToRefresh";
+import type { MRFRequest } from "@/contexts/AppContext";
 
 const SupplyChainDashboard = () => {
   const { mrfRequests, updateMRF } = useApp();
   const [selectedMRF, setSelectedMRF] = useState<string | null>(null);
+  const [selectedMRFForRejection, setSelectedMRFForRejection] = useState<MRFRequest | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [poNumbers, setPoNumbers] = useState<{ [key: string]: string }>({});
   const [signedPOs, setSignedPOs] = useState<{ [key: string]: File | null }>({});
 
@@ -62,9 +67,29 @@ const SupplyChainDashboard = () => {
     setSignedPOs(prev => ({ ...prev, [mrfId]: file }));
   };
 
+  const handleRejectPO = (reason: string, comments: string) => {
+    if (!selectedMRFForRejection) return;
+
+    updateMRF(selectedMRFForRejection.id, {
+      currentStage: "procurement",
+      status: "PO Rejected by Supply Chain",
+      poRejectionReason: reason,
+      supplyChainComments: comments
+    });
+    
+    toast.error(`PO ${selectedMRFForRejection.poNumber} rejected - Sent back to Procurement for revision`);
+    setRejectDialogOpen(false);
+    setSelectedMRFForRejection(null);
+  };
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <PullToRefresh onRefresh={async () => {
+        toast.info("Refreshing data...");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        toast.success("Data refreshed");
+      }}>
+        <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Supply Chain Director Dashboard</h1>
           <p className="text-muted-foreground">Review, sign and upload Purchase Orders</p>
@@ -119,10 +144,17 @@ const SupplyChainDashboard = () => {
                           <p className="font-semibold">Quantity:</p>
                           <p className="text-muted-foreground">{mrf.quantity}</p>
                         </div>
-                        <div>
-                          <p className="font-semibold">PO Number:</p>
-                          <p className="text-muted-foreground font-mono">{mrf.poNumber}</p>
-                        </div>
+                                <div>
+                                  <p className="font-semibold">PO Number:</p>
+                                  <p className="text-muted-foreground font-mono">
+                                    {mrf.poNumber}
+                                    {mrf.poVersion && mrf.poVersion > 1 && (
+                                      <Badge variant="secondary" className="ml-2 text-xs">
+                                        v{mrf.poVersion} (Resubmitted)
+                                      </Badge>
+                                    )}
+                                  </p>
+                                </div>
                         <div>
                           <p className="font-semibold">Status:</p>
                           <Badge variant="outline">{mrf.status}</Badge>
@@ -170,15 +202,8 @@ const SupplyChainDashboard = () => {
                         <Button 
                           variant="destructive" 
                           onClick={() => {
-                            const reason = prompt("Enter reason for rejection:");
-                            if (reason) {
-                              updateMRF(mrf.id, {
-                                currentStage: "procurement",
-                                status: "PO Rejected by Supply Chain",
-                                rejectionReason: reason
-                              });
-                              toast.error("PO rejected - Sent back to Procurement for revision");
-                            }
+                            setSelectedMRFForRejection(mrf);
+                            setRejectDialogOpen(true);
                           }}
                         >
                           Reject PO
@@ -192,6 +217,16 @@ const SupplyChainDashboard = () => {
           </CardContent>
         </Card>
       </div>
+      </PullToRefresh>
+
+      {/* PO Rejection Dialog */}
+      <PORejectionDialog
+        open={rejectDialogOpen}
+        onOpenChange={setRejectDialogOpen}
+        mrfTitle={selectedMRFForRejection?.title || ""}
+        poNumber={selectedMRFForRejection?.poNumber || ""}
+        onReject={handleRejectPO}
+      />
     </DashboardLayout>
   );
 };
