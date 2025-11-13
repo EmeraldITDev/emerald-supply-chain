@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar } from "lucide-react";
+import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar, AlertCircle } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
@@ -25,7 +25,7 @@ const Procurement = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { mrfRequests, srfRequests, purchaseOrders, approveMRF, rejectMRF, addPO, mrns, updateMRN, convertMRNToMRF } = useApp();
+  const { mrfRequests, srfRequests, purchaseOrders, approveMRF, rejectMRF, addPO, mrns, updateMRN, convertMRNToMRF, updateMRF } = useApp();
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -38,8 +38,14 @@ const Procurement = () => {
   const [dateFilter, setDateFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date-desc");
 
-  // Procurement can view all MRFs but cannot approve/reject
-  const canApprove = false; // Only Executive can approve MRFs
+  // Procurement Manager can upload PO for Executive-approved MRFs
+  const executiveApprovedMRFs = useMemo(() => {
+    return mrfRequests.filter(mrf => 
+      (mrf.status === "Approved by Executive" || mrf.status === "Executive Approved") && 
+      mrf.currentStage === "procurement" &&
+      !mrf.unsignedPOUrl
+    );
+  }, [mrfRequests]);
 
   const vendorFromState = (location.state as any)?.vendor as string | undefined;
   const vendorFromQuery = searchParams.get("vendor") || undefined;
@@ -58,10 +64,10 @@ const Procurement = () => {
   }, [vendorFilter]);
 
   // Stats
-  const pendingMRFs = mrfRequests.filter(mrf => mrf.currentStage === "procurement");
-  const approvedMRFs = mrfRequests.filter(mrf => mrf.currentStage === "approved");
-  const rejectedMRFs = mrfRequests.filter(mrf => mrf.currentStage === "rejected");
   const pendingMRNs = mrns.filter(mrn => mrn.status === "Pending" || mrn.status === "Under Review");
+  const pendingPOUpload = executiveApprovedMRFs.length;
+  const inSupplyChain = mrfRequests.filter(mrf => mrf.currentStage === "supply_chain").length;
+  const totalPOs = purchaseOrders.length;
 
   // Filtered data
   const filteredMRFs = useMemo(() => {
@@ -185,6 +191,12 @@ const Procurement = () => {
     paymentTerms: string;
     notes: string;
   }) => {
+    if (!selectedMRFForPO) return;
+
+    // Generate PO number
+    const poNumber = `PO-${new Date().getFullYear()}-${String(purchaseOrders.length + 1).padStart(3, "0")}`;
+    
+    // Create the PO
     addPO({
       vendor: poData.vendor,
       items: poData.items,
@@ -194,9 +206,17 @@ const Procurement = () => {
       deliveryDate: poData.deliveryDate,
     });
 
+    // Update MRF with PO details and route to Supply Chain
+    updateMRF(selectedMRFForPO.id, {
+      poNumber: poNumber,
+      unsignedPOUrl: `uploads/po/${poNumber}.pdf`, // Placeholder URL
+      currentStage: "supply_chain",
+      status: "PO Generated - With Supply Chain"
+    });
+
     toast({
       title: "Purchase Order Created",
-      description: `PO has been generated for MRF ${selectedMRFForPO?.id}`,
+      description: `${poNumber} generated and forwarded to Supply Chain Director`,
     });
 
     setPODialogOpen(false);
@@ -254,33 +274,35 @@ const Procurement = () => {
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-4">
           <StatCard
-            title="Pending Review"
-            value={pendingMRFs.length}
-            description="Awaiting your approval"
+            title="Pending PO Upload"
+            value={pendingPOUpload}
+            description="Executive approved, awaiting PO"
             icon={Clock}
             iconColor="text-warning"
-            onClick={() => setStatusFilter("pending")}
+            onClick={() => setTab("mrf")}
           />
           <StatCard
-            title="Approved"
-            value={approvedMRFs.length}
-            description="Fully approved"
-            icon={CheckCircle2}
+            title="Pending MRNs"
+            value={pendingMRNs.length}
+            description="Awaiting review"
+            icon={FileText}
+            iconColor="text-info"
+            onClick={() => setTab("mrn")}
+          />
+          <StatCard
+            title="In Supply Chain"
+            value={inSupplyChain}
+            description="With Supply Chain Director"
+            icon={Package}
             iconColor="text-success"
           />
           <StatCard
-            title="Rejected"
-            value={rejectedMRFs.length}
-            description="Sent back for revision"
-            icon={XCircle}
-            iconColor="text-destructive"
-          />
-          <StatCard
-            title="Total Requests"
-            value={mrfRequests.length}
-            description="All MRFs"
-            icon={FileText}
-            iconColor="text-info"
+            title="Total POs"
+            value={totalPOs}
+            description="Purchase orders"
+            icon={ShoppingCart}
+            iconColor="text-primary"
+            onClick={() => setTab("po")}
           />
         </div>
 
@@ -454,6 +476,51 @@ const Procurement = () => {
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Executive Approved MRFs - Awaiting PO Upload */}
+                {executiveApprovedMRFs.length > 0 && (
+                  <div className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                    <div className="flex items-center gap-2 mb-4">
+                      <AlertCircle className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold text-lg">Action Required: Upload Purchase Orders</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {executiveApprovedMRFs.length} MRF(s) approved by Executive awaiting PO upload
+                    </p>
+                    <div className="space-y-3">
+                      {executiveApprovedMRFs.map((mrf) => (
+                        <Card key={mrf.id} className="bg-card">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h4 className="font-semibold">{mrf.title}</h4>
+                                  <Badge variant="default">Exec Approved</Badge>
+                                  {parseFloat(mrf.estimatedCost) > 1000000 && (
+                                    <Badge variant="destructive">High Value</Badge>
+                                  )}
+                                </div>
+                                <div className="text-sm text-muted-foreground space-y-1">
+                                  <p>MRF ID: <span className="font-medium">{mrf.id}</span></p>
+                                  <p>Requester: {mrf.requester}</p>
+                                  <p>Amount: <span className="font-semibold">₦{parseInt(mrf.estimatedCost).toLocaleString()}</span></p>
+                                  <p className="text-xs italic">Quantity: {mrf.quantity}</p>
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                onClick={() => handleGeneratePO(mrf)}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Upload PO
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <FilterBar
                     searchQuery={searchQuery}

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, AlertCircle, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { PullToRefresh } from "@/components/PullToRefresh";
 
 const ExecutiveDashboard = () => {
   const { mrfRequests, updateMRF, approveMRF, rejectMRF } = useApp();
@@ -51,14 +52,14 @@ const ExecutiveDashboard = () => {
       approveMRF(mrfId, "executive", user?.name || "Executive", comments[mrfId] || "Approved - High value item forwarded to Chairman");
       toast.success("High-value MRF forwarded to Chairman for final approval");
     } else {
-      // Normal value - proceed to supply chain
+      // Normal value - proceed to procurement for PO upload
       updateMRF(mrfId, {
-        status: "Executive Approved",
-        currentStage: "supply_chain",
+        status: "Approved by Executive",
+        currentStage: "procurement",
         executiveComments: comments[mrfId] || "Approved"
       });
       approveMRF(mrfId, "executive", user?.name || "Executive", comments[mrfId] || "Approved");
-      toast.success("MRF approved - Forwarded to Supply Chain for PO generation");
+      toast.success("MRF approved - Forwarded to Procurement Manager for PO upload");
     }
     
     setComments(prev => ({ ...prev, [mrfId]: "" }));
@@ -84,7 +85,12 @@ const ExecutiveDashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4 sm:space-y-6">
+      <PullToRefresh onRefresh={async () => {
+        toast.info("Refreshing data...");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        toast.success("Data refreshed");
+      }}>
+        <div className="space-y-4 sm:space-y-6">
         <div>
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Executive Dashboard</h1>
           <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">Review and approve Material Requisition Forms</p>
@@ -248,6 +254,7 @@ const ExecutiveDashboard = () => {
           </CardContent>
         </Card>
       </div>
+      </PullToRefresh>
     </DashboardLayout>
   );
 };

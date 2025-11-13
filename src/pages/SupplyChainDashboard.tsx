@@ -16,12 +16,12 @@ const SupplyChainDashboard = () => {
   const [poNumbers, setPoNumbers] = useState<{ [key: string]: string }>({});
   const [signedPOs, setSignedPOs] = useState<{ [key: string]: File | null }>({});
 
-  // Filter MRFs at supply chain stage
+  // Filter MRFs at supply chain stage with PO uploaded by Procurement
   const pendingPOs = useMemo(() => {
     return mrfRequests.filter(mrf => 
       mrf.currentStage === "supply_chain" && 
-      (mrf.status === "Executive Approved" || mrf.status === "Chairman Approved") &&
-      !mrf.signedPOUrl
+      mrf.unsignedPOUrl && // PO already uploaded by Procurement
+      !mrf.signedPOUrl     // Not yet signed
     );
   }, [mrfRequests]);
 
@@ -67,7 +67,7 @@ const SupplyChainDashboard = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Supply Chain Director Dashboard</h1>
-          <p className="text-muted-foreground">Generate and sign Purchase Orders</p>
+          <p className="text-muted-foreground">Review, sign and upload Purchase Orders</p>
         </div>
 
         {/* Summary Card */}
@@ -78,7 +78,7 @@ const SupplyChainDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{pendingPOs.length}</div>
-            <p className="text-xs text-muted-foreground">Awaiting PO generation and signature</p>
+            <p className="text-xs text-muted-foreground">POs awaiting review and signature</p>
           </CardContent>
         </Card>
 
@@ -86,7 +86,7 @@ const SupplyChainDashboard = () => {
         <Card>
           <CardHeader>
             <CardTitle>Purchase Orders</CardTitle>
-            <CardDescription>Generate unsigned POs and upload signed copies</CardDescription>
+            <CardDescription>Review, sign, and upload Purchase Orders from Procurement</CardDescription>
           </CardHeader>
           <CardContent>
             {pendingPOs.length === 0 ? (
@@ -119,55 +119,71 @@ const SupplyChainDashboard = () => {
                           <p className="font-semibold">Quantity:</p>
                           <p className="text-muted-foreground">{mrf.quantity}</p>
                         </div>
+                        <div>
+                          <p className="font-semibold">PO Number:</p>
+                          <p className="text-muted-foreground font-mono">{mrf.poNumber}</p>
+                        </div>
+                        <div>
+                          <p className="font-semibold">Status:</p>
+                          <Badge variant="outline">{mrf.status}</Badge>
+                        </div>
                         <div className="md:col-span-2">
                           <p className="font-semibold">Description:</p>
                           <p className="text-muted-foreground">{mrf.description}</p>
                         </div>
                       </div>
 
-                      {!mrf.poNumber ? (
-                        // Generate PO step
-                        <div className="space-y-3">
-                          <div className="space-y-2">
-                            <Label>PO Number</Label>
-                            <Input
-                              value={poNumbers[mrf.id] || ""}
-                              onChange={(e) => setPoNumbers(prev => ({ ...prev, [mrf.id]: e.target.value }))}
-                              placeholder="Enter PO number (e.g., PO-2025-001)"
-                            />
-                          </div>
-                          <Button onClick={() => handleGeneratePO(mrf.id)} className="w-full">
-                            <FileText className="mr-2 h-4 w-4" />
-                            Generate Unsigned PO
-                          </Button>
-                        </div>
-                      ) : !mrf.signedPOUrl ? (
-                        // Upload signed PO step
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                            <span>PO Generated: {mrf.poNumber}</span>
-                          </div>
-                          <Button variant="outline" className="w-full">
-                            <Download className="mr-2 h-4 w-4" />
-                            Download Unsigned PO
-                          </Button>
-                          <div className="space-y-2">
-                            <Label>Upload Signed PO</Label>
-                            <Input
-                              type="file"
-                              accept=".pdf,.doc,.docx"
-                              onChange={(e) => handleFileChange(mrf.id, e.target.files?.[0] || null)}
-                            />
-                          </div>
-                          {signedPOs[mrf.id] && (
-                            <Button onClick={() => handleUploadSignedPO(mrf.id)} className="w-full">
-                              <Upload className="mr-2 h-4 w-4" />
-                              Upload Signed PO & Forward to Finance
-                            </Button>
-                          )}
-                        </div>
-                      ) : null}
+                      {/* Download unsigned PO */}
+                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span className="text-sm flex-1">PO uploaded by Procurement Manager</span>
+                        <Button variant="outline" size="sm" onClick={() => toast.info("Downloading PO...")}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download PO
+                        </Button>
+                      </div>
+
+                      {/* Upload signed PO */}
+                      <div className="space-y-3">
+                        <Label>Upload Signed PO</Label>
+                        <Input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          onChange={(e) => handleFileChange(mrf.id, e.target.files?.[0] || null)}
+                        />
+                        {signedPOs[mrf.id] && (
+                          <p className="text-xs text-muted-foreground">
+                            Selected: {signedPOs[mrf.id]?.name}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={() => handleUploadSignedPO(mrf.id)} 
+                          className="flex-1"
+                          disabled={!signedPOs[mrf.id]}
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload & Forward to Finance
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          onClick={() => {
+                            const reason = prompt("Enter reason for rejection:");
+                            if (reason) {
+                              updateMRF(mrf.id, {
+                                currentStage: "procurement",
+                                status: "PO Rejected by Supply Chain",
+                                rejectionReason: reason
+                              });
+                              toast.error("PO rejected - Sent back to Procurement for revision");
+                            }
+                          }}
+                        >
+                          Reject PO
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
