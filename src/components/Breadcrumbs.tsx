@@ -11,6 +11,10 @@ import {
 
 const routeLabels: Record<string, string> = {
   dashboard: "Dashboard",
+  department: "My Requests",
+  executive: "Executive Dashboard",
+  chairman: "Chairman Dashboard",
+  "supply-chain": "Supply Chain",
   procurement: "Procurement",
   vendors: "Vendors",
   logistics: "Logistics",
@@ -18,6 +22,11 @@ const routeLabels: Record<string, string> = {
   warehouse: "Warehouse",
   reports: "Reports",
   settings: "Settings",
+  mrn: "Material Requests",
+  mrf: "Material Requisition",
+  srf: "Service Requisition",
+  "annual-plan": "Annual Plan",
+  new: "New",
   "new-mrf": "New Material Request",
   "new-srf": "New Service Request",
   "accounts-payable": "Accounts Payable",
@@ -25,6 +34,7 @@ const routeLabels: Record<string, string> = {
   budget: "Budget Control",
   projects: "Project Tracking",
   analytics: "Analytics",
+  "vendor-portal": "Vendor Portal",
 };
 
 export function Breadcrumbs() {
@@ -50,7 +60,17 @@ export function Breadcrumbs() {
         {pathnames.map((pathname, index) => {
           const routeTo = `/${pathnames.slice(0, index + 1).join("/")}`;
           const isLast = index === pathnames.length - 1;
-          const label = routeLabels[pathname] || pathname.charAt(0).toUpperCase() + pathname.slice(1);
+          
+          // Check if this is a dynamic ID (like MRN-123 or MRF-123)
+          const isDynamicId = pathname.match(/^[A-Z]+-\d+/) || pathname.match(/^\d+$/);
+          
+          // For dynamic IDs on the last segment, show abbreviated version
+          let label = routeLabels[pathname] || pathname.charAt(0).toUpperCase() + pathname.slice(1);
+          if (isDynamicId && isLast) {
+            label = pathname.length > 20 ? pathname.substring(0, 17) + "..." : pathname;
+          } else if (isDynamicId) {
+            label = "Details";
+          }
 
           return (
             <span key={routeTo} className="flex items-center">
@@ -59,10 +79,10 @@ export function Breadcrumbs() {
               </BreadcrumbSeparator>
               <BreadcrumbItem>
                 {isLast ? (
-                  <BreadcrumbPage>{label}</BreadcrumbPage>
+                  <BreadcrumbPage className="max-w-[200px] truncate">{label}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink asChild>
-                    <Link to={routeTo}>{label}</Link>
+                    <Link to={routeTo} className="max-w-[200px] truncate">{label}</Link>
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>

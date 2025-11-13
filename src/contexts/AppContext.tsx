@@ -811,7 +811,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return sum + (quantity * unitCost);
     }, 0);
 
-    // Create MRF from MRN
+    // Create MRF from MRN - goes directly to Executive for approval
     const newMRF: MRFRequest = {
       id: `MRF-${new Date().getFullYear()}-${String(mrfRequests.length + 1).padStart(3, "0")}`,
       title: mrn.title,
@@ -821,10 +821,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       estimatedCost: totalCost.toString(),
       urgency: mrn.urgency.toLowerCase() as "high" | "medium" | "low",
       justification: mrn.justification,
-      status: "Submitted",
+      status: "Pending Executive Approval",
       date: new Date().toISOString().split("T")[0],
       requester: mrn.requesterName,
-      currentStage: "procurement",
+      department: mrn.department,
+      currentStage: "executive",
       approvalHistory: [],
     };
 

@@ -19,7 +19,8 @@ const ExecutiveDashboard = () => {
   const pendingMRFs = useMemo(() => {
     return mrfRequests.filter(mrf => 
       mrf.currentStage === "executive" || 
-      (mrf.status === "Submitted" && !mrf.currentStage)
+      (mrf.status === "Submitted" && !mrf.currentStage) ||
+      mrf.status === "Pending Executive Approval"
     );
   }, [mrfRequests]);
 
