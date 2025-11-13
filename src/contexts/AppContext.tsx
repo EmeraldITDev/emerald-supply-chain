@@ -21,14 +21,21 @@ export interface MRFRequest {
   status: string;
   date: string;
   requester: string;
+  department?: string;
   // Approval workflow fields
-  currentStage?: "submitted" | "procurement" | "finance" | "chairman" | "approved" | "rejected";
+  currentStage?: "submitted" | "procurement" | "executive" | "chairman" | "supply_chain" | "finance" | "approved" | "rejected" | "completed";
   procurementManagerApprovalTime?: string;
   approvalHistory?: ApprovalAction[];
   rejectionReason?: string;
   isResubmission?: boolean;
   // Document support
   documents?: string[]; // Array of base64 encoded documents
+  // PO fields
+  poNumber?: string;
+  unsignedPOUrl?: string;
+  signedPOUrl?: string;
+  executiveComments?: string;
+  chairmanComments?: string;
 }
 
 export interface SRFRequest {

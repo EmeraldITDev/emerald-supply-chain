@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, ShoppingCart, Truck, Warehouse, TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import DepartmentDashboard from "./DepartmentDashboard";
 import FinanceDashboard from "./FinanceDashboard";
@@ -21,6 +21,22 @@ const Dashboard = () => {
         <FinanceDashboard />
       </DashboardLayout>
     );
+  }
+
+  if (user?.role === "executive") {
+    return <Navigate to="/executive" replace />;
+  }
+
+  if (user?.role === "chairman") {
+    return <Navigate to="/chairman" replace />;
+  }
+
+  if (user?.role === "supply_chain_director") {
+    return <Navigate to="/supply-chain" replace />;
+  }
+
+  if (user?.role === "procurement") {
+    return <Navigate to="/procurement" replace />;
   }
 
   // Procurement dashboard (default)

@@ -67,7 +67,7 @@ export function AppSidebar() {
         {
           label: "Main",
           items: [
-            { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+            { title: "Dashboard", url: "/procurement", icon: LayoutDashboard },
           ]
         },
         {
@@ -116,6 +116,54 @@ export function AppSidebar() {
           label: "Analytics",
           items: [
             { title: "Reports", url: "/reports", icon: FileText },
+          ]
+        }
+      ];
+    } else if (user?.role === "executive") {
+      return [
+        {
+          label: "Main",
+          items: [
+            { title: "Dashboard", url: "/executive", icon: LayoutDashboard },
+          ]
+        },
+        {
+          label: "Approvals",
+          items: [
+            { title: "MRF Approvals", url: "/executive", icon: FileText },
+          ]
+        }
+      ];
+    } else if (user?.role === "chairman") {
+      return [
+        {
+          label: "Main",
+          items: [
+            { title: "Dashboard", url: "/chairman", icon: LayoutDashboard },
+          ]
+        },
+        {
+          label: "Approvals",
+          items: [
+            { title: "High-Value MRFs", url: "/chairman", icon: FileText },
+            { title: "Payment Approvals", url: "/chairman", icon: DollarSign },
+          ]
+        }
+      ];
+    } else if (user?.role === "supply_chain_director") {
+      return [
+        {
+          label: "Main",
+          items: [
+            { title: "Dashboard", url: "/supply-chain", icon: LayoutDashboard },
+          ]
+        },
+        {
+          label: "Operations",
+          items: [
+            { title: "Purchase Orders", url: "/supply-chain", icon: FileText },
+            { title: "Logistics", url: "/logistics", icon: Truck },
+            { title: "Warehouse", url: "/warehouse", icon: Warehouse },
           ]
         }
       ];

@@ -3,7 +3,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'employee' | 'procurement' | 'finance' | 'admin';
+  role: 'employee' | 'procurement' | 'finance' | 'admin' | 'executive' | 'supply_chain_director' | 'chairman';
   department?: string;
   createdAt: string;
 }
@@ -31,11 +31,16 @@ export interface MRF {
   requester: string;
   requesterId: string;
   date: string;
-  status: 'Pending' | 'Approved' | 'Rejected' | 'In Progress' | 'Completed';
-  currentStage?: 'procurement' | 'finance' | 'management';
+  status: 'Pending' | 'Approved' | 'Rejected' | 'In Progress' | 'Completed' | 'Awaiting Chairman' | 'Processing Payment' | 'Paid';
+  currentStage?: 'procurement' | 'executive' | 'chairman' | 'supply_chain' | 'finance' | 'completed';
   approvalHistory?: ApprovalHistoryEntry[];
   rejectionReason?: string;
   isResubmission?: boolean;
+  poNumber?: string;
+  unsignedPOUrl?: string;
+  signedPOUrl?: string;
+  executiveComments?: string;
+  chairmanComments?: string;
 }
 
 export interface CreateMRFData {

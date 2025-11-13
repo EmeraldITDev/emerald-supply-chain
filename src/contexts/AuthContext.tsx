@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-export type UserRole = "employee" | "procurement" | "finance";
+export type UserRole = "employee" | "procurement" | "finance" | "executive" | "supply_chain_director" | "chairman";
 
 export interface AuthUser {
   email: string;
@@ -20,12 +20,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Role mapping based on email
 const getRoleFromEmail = (email: string): { role: UserRole; name: string; department: string } => {
-  if (email.includes("staff@emeraldcfze.com")) {
-    return { role: "employee", name: "Employee User", department: "General Staff" };
+  if (email.includes("bunmi.babajide@emeraldcfze.com")) {
+    return { role: "executive", name: "Bunmi Babajide", department: "Executive" };
+  } else if (email.includes("laa@emeraldcfze.com")) {
+    return { role: "chairman", name: "Company Chairman", department: "Executive" };
+  } else if (email.includes("supply@emeraldcfze.com") || email.includes("supplychain@emeraldcfze.com")) {
+    return { role: "supply_chain_director", name: "Supply Chain Director", department: "Supply Chain" };
   } else if (email.includes("procurement@emeraldcfze.com")) {
     return { role: "procurement", name: "Procurement Manager", department: "Procurement" };
   } else if (email.includes("finance@emeraldcfze.com") || email.includes("temitope")) {
     return { role: "finance", name: "Temitope Lawal", department: "Finance" };
+  } else if (email.includes("staff@emeraldcfze.com")) {
+    return { role: "employee", name: "Employee User", department: "General Staff" };
   }
   return { role: "employee", name: "Guest User", department: "General" };
 };
