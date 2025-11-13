@@ -17,11 +17,17 @@ const ExecutiveDashboard = () => {
 
   // Filter MRFs awaiting executive approval
   const pendingMRFs = useMemo(() => {
-    return mrfRequests.filter(mrf => 
-      mrf.currentStage === "executive" || 
-      (mrf.status === "Submitted" && !mrf.currentStage) ||
-      mrf.status === "Pending Executive Approval"
-    );
+    return mrfRequests.filter((mrf) => {
+      const stage = (mrf.currentStage || "").toLowerCase().trim();
+      const status = (mrf.status || "").toLowerCase().trim();
+      return (
+        stage === "executive" ||
+        (status === "submitted" && !stage) ||
+        status === "pending executive approval" ||
+        status.includes("pending executive") ||
+        status.includes("awaiting executive")
+      );
+    });
   }, [mrfRequests]);
 
   // High value MRFs (> 1,000,000) need chairman approval
