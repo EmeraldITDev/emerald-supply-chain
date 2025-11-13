@@ -21,26 +21,33 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         
         <div className="flex-1 flex flex-col w-full">
           {/* Header */}
-          <header className="sticky top-0 z-40 flex h-14 sm:h-16 items-center gap-2 sm:gap-4 border-b bg-card px-3 sm:px-4 lg:px-6">
-            <SidebarTrigger />
-            
-            <div className="flex-1 flex items-center gap-2 min-w-0">
-              <Breadcrumbs />
-            </div>
-
-            <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3">
-              <GlobalSearch />
-              <NotificationCenter />
-              <ThemeToggle />
+          <header className="sticky top-0 z-40 border-b bg-card">
+            <div className="flex h-14 sm:h-16 items-center gap-2 sm:gap-4 px-3 sm:px-4 lg:px-6">
+              <SidebarTrigger className="shrink-0" />
               
-              <div className="hidden md:block text-right border-l pl-2 lg:pl-3 ml-1 lg:ml-2">
-                <p className="text-xs lg:text-sm font-medium truncate max-w-[100px] lg:max-w-[160px]">
-                  {user?.name}
-                </p>
-                <p className="text-xs text-muted-foreground truncate max-w-[100px] lg:max-w-[160px]">
-                  {user?.role && user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                </p>
+              <div className="hidden md:flex flex-1 items-center gap-2 min-w-0 overflow-hidden">
+                <Breadcrumbs />
               </div>
+
+              <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 ml-auto">
+                <GlobalSearch />
+                <NotificationCenter />
+                <ThemeToggle />
+                
+                <div className="hidden lg:block text-right border-l pl-2 lg:pl-3 ml-1 lg:ml-2">
+                  <p className="text-xs lg:text-sm font-medium truncate max-w-[100px] lg:max-w-[160px]">
+                    {user?.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate max-w-[100px] lg:max-w-[160px]">
+                    {user?.role && user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Mobile Breadcrumbs - Below header on small screens */}
+            <div className="md:hidden px-3 pb-2 overflow-x-auto">
+              <Breadcrumbs />
             </div>
           </header>
 

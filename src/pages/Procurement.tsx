@@ -244,10 +244,10 @@ const Procurement = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Procurement Dashboard</h1>
-            <p className="text-muted-foreground mt-1">Manage material and service requests</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Procurement Dashboard</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage material and service requests</p>
           </div>
         </div>
 
@@ -285,18 +285,28 @@ const Procurement = () => {
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 h-auto">
-            <TabsTrigger value="mrn" className="text-xs sm:text-sm">
-              Material Requests (MRN)
+          <TabsList className="grid w-full grid-cols-4 h-auto gap-1">
+            <TabsTrigger value="mrn" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3 flex-col sm:flex-row gap-1">
+              <span className="hidden sm:inline">Material Requests (MRN)</span>
+              <span className="sm:hidden">MRN</span>
               {pendingMRNs.length > 0 && (
-                <Badge variant="destructive" className="ml-2">
+                <Badge variant="destructive" className="ml-0 sm:ml-2 text-[8px] sm:text-xs h-4 sm:h-5 px-1">
                   {pendingMRNs.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="mrf" className="text-xs sm:text-sm">MRF (Official)</TabsTrigger>
-            <TabsTrigger value="srf" className="text-xs sm:text-sm">Service Requests</TabsTrigger>
-            <TabsTrigger value="po" className="text-xs sm:text-sm">Purchase Orders</TabsTrigger>
+            <TabsTrigger value="mrf" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
+              <span className="hidden sm:inline">MRF (Official)</span>
+              <span className="sm:hidden">MRF</span>
+            </TabsTrigger>
+            <TabsTrigger value="srf" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
+              <span className="hidden sm:inline">Service Requests</span>
+              <span className="sm:hidden">SRF</span>
+            </TabsTrigger>
+            <TabsTrigger value="po" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
+              <span className="hidden sm:inline">Purchase Orders</span>
+              <span className="sm:hidden">PO</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="mrn" className="space-y-4">

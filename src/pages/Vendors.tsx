@@ -137,16 +137,17 @@ const Vendors = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Vendor Management</h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Manage vendor relationships, KYC, and performance</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Vendor Management</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage vendor relationships, KYC, and performance</p>
           </div>
           <Dialog open={addVendorDialogOpen} onOpenChange={setAddVendorDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2">
+              <Button className="gap-2 self-start sm:self-auto">
                 <Plus className="h-4 w-4" />
-                Add Vendor
+                <span className="hidden sm:inline">Add Vendor</span>
+                <span className="sm:hidden">Add</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -319,10 +320,10 @@ const Vendors = () => {
         </div>
 
         <Tabs defaultValue="all" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 h-auto">
-            <TabsTrigger value="all" className="text-xs sm:text-sm">All Vendors</TabsTrigger>
-            <TabsTrigger value="active" className="text-xs sm:text-sm">Active</TabsTrigger>
-            <TabsTrigger value="pending" className="text-xs sm:text-sm">Pending</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 h-auto gap-1">
+            <TabsTrigger value="all" className="text-xs sm:text-sm px-2 sm:px-4">All Vendors</TabsTrigger>
+            <TabsTrigger value="active" className="text-xs sm:text-sm px-2 sm:px-4">Active</TabsTrigger>
+            <TabsTrigger value="pending" className="text-xs sm:text-sm px-2 sm:px-4">Pending</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">

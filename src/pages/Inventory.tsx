@@ -114,16 +114,17 @@ const Inventory = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Inventory Management</h1>
-            <p className="text-muted-foreground mt-2">Track stock levels, issuance, and reordering</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Inventory Management</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">Track stock levels, issuance, and reordering</p>
           </div>
           <Dialog open={addItemDialogOpen} onOpenChange={setAddItemDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2">
+              <Button className="gap-2 self-start sm:self-auto">
                 <Plus className="h-4 w-4" />
-                Add Item
+                <span className="hidden sm:inline">Add Item</span>
+                <span className="sm:hidden">Add</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -228,10 +229,10 @@ const Inventory = () => {
         </div>
 
         <Tabs defaultValue="all" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="all">All Items</TabsTrigger>
-            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-            <TabsTrigger value="alerts">Low Stock Alerts</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 h-auto gap-1">
+            <TabsTrigger value="all" className="text-xs sm:text-sm px-2 sm:px-4">All Items</TabsTrigger>
+            <TabsTrigger value="transactions" className="text-xs sm:text-sm px-2 sm:px-4">Transactions</TabsTrigger>
+            <TabsTrigger value="alerts" className="text-xs sm:text-sm px-2 sm:px-4">Alerts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">

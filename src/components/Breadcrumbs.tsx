@@ -47,11 +47,11 @@ export function Breadcrumbs() {
 
   return (
     <Breadcrumb>
-      <BreadcrumbList>
-        <BreadcrumbItem>
+      <BreadcrumbList className="flex-nowrap">
+        <BreadcrumbItem className="shrink-0">
           <BreadcrumbLink asChild>
             <Link to="/dashboard" className="flex items-center gap-1">
-              <Home className="h-3.5 w-3.5" />
+              <Home className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               <span className="sr-only">Dashboard</span>
             </Link>
           </BreadcrumbLink>
@@ -73,16 +73,16 @@ export function Breadcrumbs() {
           }
 
           return (
-            <span key={routeTo} className="flex items-center">
+            <span key={routeTo} className="flex items-center shrink-0">
               <BreadcrumbSeparator>
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
               </BreadcrumbSeparator>
-              <BreadcrumbItem>
+              <BreadcrumbItem className="shrink-0">
                 {isLast ? (
-                  <BreadcrumbPage className="max-w-[200px] truncate">{label}</BreadcrumbPage>
+                  <BreadcrumbPage className="max-w-[120px] sm:max-w-[200px] truncate text-xs sm:text-sm">{label}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink asChild>
-                    <Link to={routeTo} className="max-w-[200px] truncate">{label}</Link>
+                    <Link to={routeTo} className="max-w-[120px] sm:max-w-[200px] truncate text-xs sm:text-sm">{label}</Link>
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
