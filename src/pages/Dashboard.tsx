@@ -5,6 +5,7 @@ import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import DepartmentDashboard from "./DepartmentDashboard";
 import FinanceDashboard from "./FinanceDashboard";
+import { PullToRefresh } from "@/components/PullToRefresh";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -38,6 +39,15 @@ const Dashboard = () => {
   if (user?.role === "procurement") {
     return <Navigate to="/procurement" replace />;
   }
+
+  if (user?.role === "logistics") {
+    return <Navigate to="/logistics" replace />;
+  }
+
+  const handleRefresh = async () => {
+    // Simulate data refresh
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  };
 
   // Procurement dashboard (default)
   
@@ -85,7 +95,8 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4 sm:space-y-6">
+      <PullToRefresh onRefresh={handleRefresh}>
+        <div className="space-y-4 sm:space-y-6">
         <div className="flex flex-col gap-2 sm:gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Procurement Dashboard</h1>
@@ -175,7 +186,8 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
-      </div>
+        </div>
+      </PullToRefresh>
     </DashboardLayout>
   );
 };

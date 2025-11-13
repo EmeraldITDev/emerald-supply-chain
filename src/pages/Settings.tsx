@@ -20,8 +20,10 @@ export default function Settings() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Regular employees (non-admin roles) should have limited settings access
+  // Role-based access control
   const isRegularEmployee = user?.role === "employee";
+  const canViewProfile = !isRegularEmployee;
+  const canViewAuditTrail = ['admin', 'chairman', 'executive', 'supply_chain_director', 'procurement', 'finance', 'logistics'].includes(user?.role || '');
 
   const handleSaveProfile = () => {
     toast.success("Profile settings saved successfully");
@@ -60,7 +62,7 @@ export default function Settings() {
 
         <Tabs defaultValue={isRegularEmployee ? "security" : "profile"} className="space-y-6">
           <TabsList className="bg-muted">
-            {!isRegularEmployee && (
+            {canViewProfile && (
               <TabsTrigger value="profile" className="gap-2">
                 <User className="h-4 w-4" />
                 Profile
@@ -74,7 +76,7 @@ export default function Settings() {
               <Shield className="h-4 w-4" />
               Security
             </TabsTrigger>
-            {!isRegularEmployee && (
+            {canViewAuditTrail && (
               <TabsTrigger value="audit" className="gap-2">
                 <Database className="h-4 w-4" />
                 Audit Trail
@@ -168,9 +170,9 @@ export default function Settings() {
             </Card>
           </TabsContent>
 
-          {!isRegularEmployee && (
+          {canViewAuditTrail && (
             <TabsContent value="audit" className="space-y-6">
-              <AuditTrail />
+              <AuditTrail userRole={user?.role} />
             </TabsContent>
           )}
         </Tabs>

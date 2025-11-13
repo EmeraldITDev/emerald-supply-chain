@@ -92,7 +92,11 @@ const mockAuditData: AuditEntry[] = [
   },
 ];
 
-export function AuditTrail() {
+interface AuditTrailProps {
+  userRole?: string;
+}
+
+export function AuditTrail({ userRole }: AuditTrailProps) {
   const [entries] = useState<AuditEntry[]>(mockAuditData);
   const [searchQuery, setSearchQuery] = useState("");
   const [moduleFilter, setModuleFilter] = useState<string>("all");
@@ -100,7 +104,26 @@ export function AuditTrail() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const filteredEntries = entries.filter((entry) => {
+  // Role-based visibility control
+  const canViewFullAudit = ['admin', 'chairman', 'executive', 'supply_chain_director'].includes(userRole || '');
+  const canViewDepartmentAudit = ['procurement', 'finance', 'logistics'].includes(userRole || '');
+  
+  const visibleEntries = entries.filter((entry) => {
+    if (canViewFullAudit) return true;
+    if (canViewDepartmentAudit) {
+      // Show only entries related to user's department
+      const departmentMap: Record<string, string[]> = {
+        'procurement': ['Procurement'],
+        'finance': ['Finance'],
+        'logistics': ['Logistics', 'Inventory', 'Warehouse'],
+      };
+      const allowedModules = departmentMap[userRole || ''] || [];
+      return allowedModules.includes(entry.module);
+    }
+    return false; // Regular employees can't see audit trail
+  });
+
+  const filteredEntries = visibleEntries.filter((entry) => {
     const matchesSearch =
       entry.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
       entry.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -110,6 +133,20 @@ export function AuditTrail() {
 
     return matchesSearch && matchesModule && matchesAction;
   });
+
+  if (!canViewFullAudit && !canViewDepartmentAudit) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Audit Trail</CardTitle>
+          <CardDescription>Access Restricted</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">You do not have permission to view the audit trail.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const totalPages = Math.ceil(filteredEntries.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;

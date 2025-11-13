@@ -3,7 +3,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'employee' | 'procurement' | 'finance' | 'admin' | 'executive' | 'supply_chain_director' | 'chairman';
+  role: 'employee' | 'procurement' | 'finance' | 'admin' | 'executive' | 'supply_chain_director' | 'chairman' | 'logistics';
   department?: string;
   createdAt: string;
 }

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-export type UserRole = "employee" | "procurement" | "finance" | "executive" | "supply_chain_director" | "chairman";
+export type UserRole = "employee" | "procurement" | "finance" | "executive" | "supply_chain_director" | "chairman" | "logistics";
 
 export interface AuthUser {
   email: string;
@@ -26,6 +26,8 @@ const getRoleFromEmail = (email: string): { role: UserRole; name: string; depart
     return { role: "chairman", name: "Company Chairman", department: "Executive" };
   } else if (email.includes("supply@emeraldcfze.com") || email.includes("supplychain@emeraldcfze.com")) {
     return { role: "supply_chain_director", name: "Supply Chain Director", department: "Supply Chain" };
+  } else if (email.includes("logistics@emeraldcfze.com")) {
+    return { role: "logistics", name: "Logistics Manager", department: "Logistics" };
   } else if (email.includes("procurement@emeraldcfze.com")) {
     return { role: "procurement", name: "Procurement Manager", department: "Procurement" };
   } else if (email.includes("finance@emeraldcfze.com") || email.includes("temitope")) {

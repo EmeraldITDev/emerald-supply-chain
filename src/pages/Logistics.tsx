@@ -6,6 +6,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Truck, Users, Calendar, MapPin, Plus, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import {
   Dialog,
   DialogContent,
@@ -70,9 +71,27 @@ const Logistics = () => {
     setVehicleDetailsOpen(true);
   };
 
+  const handleScheduleTrip = () => {
+    toast({
+      title: "Success",
+      description: "Trip scheduled successfully!",
+    });
+    setScheduleDialogOpen(false);
+    // Reset form
+    setNewDestination("");
+    setNewVehicle("");
+    setNewDriver("");
+  };
+
+  const handleRefresh = async () => {
+    // Simulate data refresh
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  };
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <PullToRefresh onRefresh={handleRefresh}>
+        <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Logistics Management</h1>
@@ -326,6 +345,7 @@ const Logistics = () => {
           </TabsContent>
         </Tabs>
       </div>
+      </PullToRefresh>
 
       {/* Trip Details Dialog */}
       <Dialog open={tripDetailsOpen} onOpenChange={setTripDetailsOpen}>

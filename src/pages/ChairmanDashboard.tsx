@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, FileText, DollarSign } from "lucide-react";
 import { toast } from "sonner";
+import { PullToRefresh } from "@/components/PullToRefresh";
 
 const ChairmanDashboard = () => {
   const { mrfRequests, updateMRF, approveMRF, rejectMRF } = useApp();
@@ -62,15 +63,23 @@ const ChairmanDashboard = () => {
 
   const handlePaymentApproval = (mrfId: string) => {
     updateMRF(mrfId, {
-      status: "Paid/Completed",
+      status: "Paid",
       currentStage: "completed"
     });
-    toast.success("Payment approved - Request marked as Paid/Completed");
+    toast.success("Payment approved successfully");
+    setComments(prev => ({ ...prev, [mrfId]: "" }));
+    setSelectedMRF(null);
+  };
+
+  const handleRefresh = async () => {
+    // Simulate data refresh
+    await new Promise(resolve => setTimeout(resolve, 1000));
   };
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <PullToRefresh onRefresh={handleRefresh}>
+        <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Chairman Dashboard</h1>
           <p className="text-muted-foreground">Final approval authority for high-value items and payments</p>
@@ -261,6 +270,7 @@ const ChairmanDashboard = () => {
           </CardContent>
         </Card>
       </div>
+      </PullToRefresh>
     </DashboardLayout>
   );
 };
