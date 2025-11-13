@@ -21,6 +21,21 @@ const ExecutiveDashboard = () => {
     return mrfRequests.filter((mrf) => {
       const stage = (mrf.currentStage || "").toLowerCase().trim();
       const status = (mrf.status || "").toLowerCase().trim();
+      
+      // Explicitly exclude MRFs that have moved past executive stage
+      if (stage === "procurement" || stage === "chairman" || stage === "rejected" || stage === "approved") {
+        return false;
+      }
+      
+      // Explicitly exclude approved or rejected statuses
+      if (status.includes("approved by executive") || 
+          status.includes("pending chairman") ||
+          status === "rejected" ||
+          status === "approved") {
+        return false;
+      }
+      
+      // Only include MRFs at executive stage or pending executive approval
       return (
         stage === "executive" ||
         (status === "submitted" && !stage) ||
