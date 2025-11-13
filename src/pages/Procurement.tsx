@@ -7,13 +7,12 @@ import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState, useMemo } from "react";
-import { MRFApprovalDialog } from "@/components/MRFApprovalDialog";
-import { POGenerationDialog } from "@/components/POGenerationDialog";
-import type { MRFRequest } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Badge } from "@/components/ui/badge";
+import { POGenerationDialog } from "@/components/POGenerationDialog";
+import type { MRFRequest } from "@/contexts/AppContext";
 import {
   Select,
   SelectContent,
@@ -30,8 +29,6 @@ const Procurement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  const [selectedMRF, setSelectedMRF] = useState<MRFRequest | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [poDialogOpen, setPODialogOpen] = useState(false);
   const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(null);
   
@@ -41,8 +38,8 @@ const Procurement = () => {
   const [dateFilter, setDateFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date-desc");
 
-  const canApprove = user?.role === "procurement";
-  const currentUserRole = "procurement";
+  // Procurement can view all MRFs but cannot approve/reject
+  const canApprove = false; // Only Executive can approve MRFs
 
   const vendorFromState = (location.state as any)?.vendor as string | undefined;
   const vendorFromQuery = searchParams.get("vendor") || undefined;
@@ -150,35 +147,29 @@ const Procurement = () => {
   };
 
   const handleMRFClick = (mrf: MRFRequest) => {
-    setSelectedMRF(mrf);
-    setDialogOpen(true);
+    // Procurement can only view MRFs, not approve them
+    toast({
+      title: "View Only",
+      description: "Procurement can view MRFs but cannot approve. Only Executive has approval authority.",
+      variant: "default",
+    });
   };
 
+  // Procurement cannot approve/reject - only view
   const handleApprove = (remarks: string) => {
-    if (!selectedMRF || !canApprove) return;
-    
-    approveMRF(selectedMRF.id, currentUserRole, user?.name || "Procurement Manager", remarks);
-    
     toast({
-      title: "MRF Approved",
-      description: `${selectedMRF.id} has been approved and moved to the next stage.`,
+      title: "Access Denied",
+      description: "Only Executive can approve MRFs. You can view and generate POs.",
+      variant: "destructive",
     });
-
-    console.log(`📧 Email sent to next approver for ${selectedMRF.id}`);
   };
 
   const handleReject = (remarks: string) => {
-    if (!selectedMRF || !canApprove) return;
-    
-    rejectMRF(selectedMRF.id, currentUserRole, user?.name || "Procurement Manager", remarks);
-    
     toast({
-      title: "MRF Rejected",
-      description: `${selectedMRF.id} has been rejected. The requester can edit and resubmit.`,
+      title: "Access Denied",
+      description: "Only Executive can reject MRFs. You can view and generate POs.",
       variant: "destructive",
     });
-
-    console.log(`📧 Rejection email sent to requester for ${selectedMRF.id}`);
   };
 
   const handleGeneratePO = (mrf: MRFRequest) => {
@@ -655,15 +646,6 @@ const Procurement = () => {
           </TabsContent>
         </Tabs>
       </div>
-
-      <MRFApprovalDialog
-        mrf={selectedMRF}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        currentUserRole={currentUserRole}
-      />
 
       <POGenerationDialog
         open={poDialogOpen}

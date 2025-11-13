@@ -20,7 +20,7 @@ const SupplyChainDashboard = () => {
   const pendingPOs = useMemo(() => {
     return mrfRequests.filter(mrf => 
       mrf.currentStage === "supply_chain" && 
-      mrf.status === "Approved" &&
+      (mrf.status === "Executive Approved" || mrf.status === "Chairman Approved") &&
       !mrf.signedPOUrl
     );
   }, [mrfRequests]);
@@ -34,9 +34,10 @@ const SupplyChainDashboard = () => {
 
     updateMRF(mrfId, {
       poNumber,
-      unsignedPOUrl: `unsigned-po-${poNumber}.pdf` // Placeholder
+      unsignedPOUrl: `unsigned-po-${poNumber}.pdf`, // Placeholder
+      status: "PO Generated - Awaiting Signature"
     });
-    toast.success("Unsigned PO generated");
+    toast.success("Unsigned PO generated - Please sign and upload");
     setSelectedMRF(null);
   };
 
@@ -50,9 +51,9 @@ const SupplyChainDashboard = () => {
     updateMRF(mrfId, {
       signedPOUrl: `signed-po-${mrfId}.pdf`, // Placeholder
       currentStage: "finance",
-      status: "In Progress"
+      status: "PO Signed - Forwarded to Finance"
     });
-    toast.success("Signed PO uploaded - Forwarded to Finance");
+    toast.success("Signed PO uploaded successfully - Forwarded to Finance for payment processing");
     setSignedPOs(prev => ({ ...prev, [mrfId]: null }));
     setSelectedMRF(null);
   };

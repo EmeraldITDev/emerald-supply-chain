@@ -37,21 +37,21 @@ const ExecutiveDashboard = () => {
     if (estimatedCost > 1000000) {
       // High value - send to chairman
       updateMRF(mrfId, {
-        status: "Awaiting Chairman",
+        status: "Pending Chairman Approval",
         currentStage: "chairman",
         executiveComments: comments[mrfId] || "Approved - Forwarded to Chairman for final approval"
       });
       approveMRF(mrfId, "executive", user?.name || "Executive", comments[mrfId] || "Approved - High value item forwarded to Chairman");
-      toast.success("MRF forwarded to Chairman for approval");
+      toast.success("High-value MRF forwarded to Chairman for final approval");
     } else {
       // Normal value - proceed to supply chain
       updateMRF(mrfId, {
-        status: "Approved",
+        status: "Executive Approved",
         currentStage: "supply_chain",
         executiveComments: comments[mrfId] || "Approved"
       });
       approveMRF(mrfId, "executive", user?.name || "Executive", comments[mrfId] || "Approved");
-      toast.success("MRF approved successfully");
+      toast.success("MRF approved - Forwarded to Supply Chain for PO generation");
     }
     
     setComments(prev => ({ ...prev, [mrfId]: "" }));

@@ -20,7 +20,7 @@ interface MRFApprovalDialogProps {
   onOpenChange: (open: boolean) => void;
   onApprove: (remarks: string) => void;
   onReject: (remarks: string) => void;
-  currentUserRole: "procurement" | "finance" | "chairman";
+  currentUserRole: "executive" | "finance" | "chairman";
 }
 
 export function MRFApprovalDialog({

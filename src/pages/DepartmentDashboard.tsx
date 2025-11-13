@@ -19,15 +19,16 @@ const DepartmentDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  // Filter MRNs for current user's department
+  // Filter MRNs for current user only (employees see only their own requests)
   const departmentMRNs = useMemo(() => {
     return mrns.filter(mrn => {
       const matchesSearch = mrn.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           mrn.controlNumber.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === "all" || mrn.status === statusFilter;
-      const matchesDepartment = mrn.department === user?.department;
+      // Employees only see their own MRNs
+      const matchesUser = mrn.requesterId === user?.email || mrn.requesterName === user?.name;
       
-      return matchesSearch && matchesStatus && matchesDepartment;
+      return matchesSearch && matchesStatus && matchesUser;
     });
   }, [mrns, searchQuery, statusFilter, user]);
 
@@ -60,9 +61,9 @@ const DepartmentDashboard = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Department Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">My Requests</h1>
           <p className="text-muted-foreground">
-            Submit material requests and track your department's procurement needs
+            Submit material requests and track your procurement activities
           </p>
         </div>
 

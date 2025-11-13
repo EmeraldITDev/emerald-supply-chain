@@ -17,7 +17,10 @@ const ChairmanDashboard = () => {
 
   // Filter MRFs awaiting chairman approval and payment approval
   const pendingApproval = useMemo(() => {
-    return mrfRequests.filter(mrf => mrf.currentStage === "chairman" && mrf.status === "Awaiting Chairman");
+    return mrfRequests.filter(mrf => 
+      mrf.currentStage === "chairman" && 
+      (mrf.status === "Pending Chairman Approval" || mrf.status === "Awaiting Chairman")
+    );
   }, [mrfRequests]);
 
   const pendingPayment = useMemo(() => {
@@ -29,12 +32,12 @@ const ChairmanDashboard = () => {
     if (!mrf) return;
 
     updateMRF(mrfId, {
-      status: "Approved",
+      status: "Chairman Approved",
       currentStage: "supply_chain",
       chairmanComments: comments[mrfId] || "Approved"
     });
     approveMRF(mrfId, "chairman", user?.name || "Chairman", comments[mrfId] || "Approved");
-    toast.success("MRF approved - Proceeding to Supply Chain");
+    toast.success("High-value MRF approved - Forwarded to Supply Chain for PO generation");
     
     setComments(prev => ({ ...prev, [mrfId]: "" }));
     setSelectedMRF(null);
@@ -59,10 +62,10 @@ const ChairmanDashboard = () => {
 
   const handlePaymentApproval = (mrfId: string) => {
     updateMRF(mrfId, {
-      status: "Paid",
+      status: "Paid/Completed",
       currentStage: "completed"
     });
-    toast.success("Payment approved - Request completed");
+    toast.success("Payment approved - Request marked as Paid/Completed");
   };
 
   return (
