@@ -284,6 +284,10 @@ const VendorPortal = () => {
                       <SelectItem value="Office Supplies">Office Supplies</SelectItem>
                       <SelectItem value="Construction">Construction</SelectItem>
                       <SelectItem value="Safety Equipment">Safety Equipment</SelectItem>
+                      <SelectItem value="Automobile">Automobile</SelectItem>
+                      <SelectItem value="Transportation">Transportation</SelectItem>
+                      <SelectItem value="IT Services">IT Services</SelectItem>
+                      <SelectItem value="Logistics">Logistics</SelectItem>
                     </SelectContent>
                   </Select>
                   {formErrors.category && <p className="text-sm text-destructive">{formErrors.category}</p>}
