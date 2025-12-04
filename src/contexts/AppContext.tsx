@@ -569,13 +569,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const userEmail = localStorage.getItem("userEmail") || "Current User";
     const userName = localStorage.getItem("userName") || "Current User";
     
+    // All MRFs go to Executive first for review
+    // Executive will then route based on value: >₦1M to Chairman, else to Procurement for PO
     const newMRF: MRFRequest = {
       ...mrf,
       id: `MRF-2025-${String(mrfRequests.length + 1).padStart(3, "0")}`,
-      status: "Submitted",
+      status: "Pending Executive Approval",
       date: new Date().toISOString().split("T")[0],
       requester: userName,
-      currentStage: "procurement",
+      currentStage: "executive",
       procurementManagerApprovalTime: new Date().toISOString(),
       approvalHistory: [],
     };

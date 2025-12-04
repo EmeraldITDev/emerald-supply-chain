@@ -32,13 +32,14 @@ const ChairmanDashboard = () => {
     const mrf = mrfRequests.find(m => m.id === mrfId);
     if (!mrf) return;
 
+    // Chairman approved high-value MRF - send to Procurement for PO generation
     updateMRF(mrfId, {
-      status: "Chairman Approved",
-      currentStage: "supply_chain",
+      status: "Chairman Approved - Pending PO",
+      currentStage: "procurement",
       chairmanComments: comments[mrfId] || "Approved"
     });
     approveMRF(mrfId, "chairman", user?.name || "Chairman", comments[mrfId] || "Approved");
-    toast.success("High-value MRF approved - Forwarded to Supply Chain for PO generation");
+    toast.success("High-value MRF approved - Forwarded to Procurement for PO generation");
     
     setComments(prev => ({ ...prev, [mrfId]: "" }));
     setSelectedMRF(null);

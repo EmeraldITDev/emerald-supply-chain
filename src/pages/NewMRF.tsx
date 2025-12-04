@@ -64,12 +64,17 @@ const NewMRF = () => {
         description: "Your updated material request has been resubmitted for approval",
       });
     } else {
-      // New submission
+      // New submission - all MRFs go to Executive first
+      const estimatedCost = parseFloat(formData.estimatedCost) || 0;
+      const isHighValue = estimatedCost > 1000000;
+      
       addMRF(formData);
       
       toast({
         title: "MRF Submitted Successfully",
-        description: "Your material request form has been submitted for approval",
+        description: isHighValue 
+          ? "High-value request (>₦1M) - Will require both Executive and Chairman approval"
+          : "Your request has been sent to Executive for approval",
       });
     }
     
