@@ -45,6 +45,41 @@ export function AppSidebar() {
     navigate("/auth");
   };
 
+  // Full procurement navigation (shared by Procurement, Executive, Chairman, Supply Chain Director)
+  const fullProcurementNav = [
+    {
+      label: "Main",
+      items: [
+        { title: "Dashboard", url: "/procurement", icon: LayoutDashboard },
+      ]
+    },
+    {
+      label: "Operations",
+      items: [
+        { 
+          title: "Procurement", 
+          url: "/procurement", 
+          icon: ShoppingCart,
+          subItems: [
+            { title: "Overview", url: "/procurement" },
+            { title: "New MRF", url: "/new-mrf" },
+            { title: "New SRF", url: "/new-srf" },
+          ]
+        },
+        { title: "Vendors", url: "/vendors", icon: Users },
+        { title: "Logistics", url: "/logistics", icon: Truck },
+        { title: "Inventory", url: "/inventory", icon: Package },
+        { title: "Warehouse", url: "/warehouse", icon: Warehouse },
+      ]
+    },
+    {
+      label: "Analytics",
+      items: [
+        { title: "Reports", url: "/reports", icon: FileText },
+      ]
+    }
+  ];
+
   // Role-based navigation structure
   const getNavigationGroups = () => {
     if (user?.role === "employee") {
@@ -63,39 +98,8 @@ export function AppSidebar() {
         }
       ];
     } else if (user?.role === "procurement") {
-      return [
-        {
-          label: "Main",
-          items: [
-            { title: "Dashboard", url: "/procurement", icon: LayoutDashboard },
-          ]
-        },
-        {
-          label: "Operations",
-          items: [
-            { 
-              title: "Procurement", 
-              url: "/procurement", 
-              icon: ShoppingCart,
-              subItems: [
-                { title: "Overview", url: "/procurement" },
-                { title: "New MRF", url: "/new-mrf" },
-                { title: "New SRF", url: "/new-srf" },
-              ]
-            },
-            { title: "Vendors", url: "/vendors", icon: Users },
-            { title: "Logistics", url: "/logistics", icon: Truck },
-            { title: "Inventory", url: "/inventory", icon: Package },
-            { title: "Warehouse", url: "/warehouse", icon: Warehouse },
-          ]
-        },
-        {
-          label: "Analytics",
-          items: [
-            { title: "Reports", url: "/reports", icon: FileText },
-          ]
-        }
-      ];
+      // Procurement Manager: Full system, no approvals
+      return fullProcurementNav;
     } else if (user?.role === "finance") {
       return [
         {
@@ -120,13 +124,9 @@ export function AppSidebar() {
         }
       ];
     } else if (user?.role === "executive") {
+      // Executive: Full procurement access + MRF approval authority
       return [
-        {
-          label: "Main",
-          items: [
-            { title: "Dashboard", url: "/executive", icon: LayoutDashboard },
-          ]
-        },
+        ...fullProcurementNav,
         {
           label: "Approvals",
           items: [
@@ -135,13 +135,9 @@ export function AppSidebar() {
         }
       ];
     } else if (user?.role === "chairman") {
+      // Chairman: Full procurement access + high-value MRF & payment approvals
       return [
-        {
-          label: "Main",
-          items: [
-            { title: "Dashboard", url: "/chairman", icon: LayoutDashboard },
-          ]
-        },
+        ...fullProcurementNav,
         {
           label: "Approvals",
           items: [
@@ -151,19 +147,13 @@ export function AppSidebar() {
         }
       ];
     } else if (user?.role === "supply_chain_director") {
+      // Supply Chain Director: Full procurement access + PO signing
       return [
+        ...fullProcurementNav,
         {
-          label: "Main",
+          label: "PO Management",
           items: [
-            { title: "Dashboard", url: "/supply-chain", icon: LayoutDashboard },
-          ]
-        },
-        {
-          label: "Operations",
-          items: [
-            { title: "Purchase Orders", url: "/supply-chain", icon: FileText },
-            { title: "Logistics", url: "/logistics", icon: Truck },
-            { title: "Warehouse", url: "/warehouse", icon: Warehouse },
+            { title: "Sign Purchase Orders", url: "/supply-chain", icon: FileText },
           ]
         }
       ];
