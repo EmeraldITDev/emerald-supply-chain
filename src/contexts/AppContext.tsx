@@ -475,49 +475,79 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     },
   ]);
 
-  const [trips, setTrips] = useState<Trip[]>([
-    {
-      id: "TRP-001",
-      route: "Lagos - Abuja",
-      vehicle: "TRK-001",
-      driver: "John Smith",
-      status: "In Transit",
-      departure: "2025-10-15 08:00",
-      arrival: "2025-10-16 14:00",
-      cargo: "Office Supplies, 2000kg",
-    },
-    {
-      id: "TRP-002",
-      route: "Abuja - Port Harcourt",
-      vehicle: "TRK-002",
-      driver: "Mary Johnson",
-      status: "Scheduled",
-      departure: "2025-10-16 06:00",
-      arrival: "2025-10-17 10:00",
-      cargo: "Raw Materials, 3500kg",
-    },
-  ]);
+  const [trips, setTrips] = useState<Trip[]>(() => {
+    const stored = localStorage.getItem("trips");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        console.error("Failed to parse stored trips", e);
+      }
+    }
+    return [
+      {
+        id: "TRP-001",
+        route: "Lagos - Abuja",
+        vehicle: "TRK-001",
+        driver: "John Smith",
+        status: "In Transit",
+        departure: "2025-10-15 08:00",
+        arrival: "2025-10-16 14:00",
+        cargo: "Office Supplies, 2000kg",
+      },
+      {
+        id: "TRP-002",
+        route: "Abuja - Port Harcourt",
+        vehicle: "TRK-002",
+        driver: "Mary Johnson",
+        status: "Scheduled",
+        departure: "2025-10-16 06:00",
+        arrival: "2025-10-17 10:00",
+        cargo: "Raw Materials, 3500kg",
+      },
+    ];
+  });
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>([
-    {
-      id: "TRK-001",
-      name: "Truck Alpha",
-      type: "Heavy Duty Truck",
-      plate: "ABC-123-XY",
-      status: "Active",
-      driver: "John Smith",
-      lastMaintenance: "2025-09-15",
-    },
-    {
-      id: "TRK-002",
-      name: "Truck Beta",
-      type: "Medium Truck",
-      plate: "DEF-456-ZW",
-      status: "Active",
-      driver: "Mary Johnson",
-      lastMaintenance: "2025-09-20",
-    },
-  ]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
+    const stored = localStorage.getItem("vehicles");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        console.error("Failed to parse stored vehicles", e);
+      }
+    }
+    return [
+      {
+        id: "TRK-001",
+        name: "Truck Alpha",
+        type: "Heavy Duty Truck",
+        plate: "ABC-123-XY",
+        status: "Active",
+        driver: "John Smith",
+        lastMaintenance: "2025-09-15",
+      },
+      {
+        id: "TRK-002",
+        name: "Truck Beta",
+        type: "Medium Truck",
+        plate: "DEF-456-ZW",
+        status: "Active",
+        driver: "Mary Johnson",
+        lastMaintenance: "2025-09-20",
+      },
+    ];
+  });
+
+  // Persist trips to localStorage
+  React.useEffect(() => {
+    localStorage.setItem("trips", JSON.stringify(trips));
+  }, [trips]);
+
+  // Persist vehicles to localStorage
+  React.useEffect(() => {
+    localStorage.setItem("vehicles", JSON.stringify(vehicles));
+  }, [vehicles]);
 
   const [vendors, setVendors] = useState<Vendor[]>([
     {
@@ -1068,50 +1098,65 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Staff Drivers Management
-  const [staffDrivers, setStaffDrivers] = useState<StaffDriver[]>([
-    {
-      id: "DRV-001",
-      staffId: "EMP-001",
-      name: "John Smith",
-      email: "john.smith@emeraldcfze.com",
-      department: "Operations",
-      licenseNumber: "ABC123456",
-      licenseExpiry: "2026-06-15",
-      status: "available",
-      designatedBy: "Logistics Manager",
-      designatedDate: "2024-06-01",
-      totalTrips: 45,
-      rating: 4.8,
-    },
-    {
-      id: "DRV-002",
-      staffId: "EMP-002",
-      name: "Mary Johnson",
-      email: "mary.johnson@emeraldcfze.com",
-      department: "Operations",
-      licenseNumber: "DEF789012",
-      licenseExpiry: "2025-12-20",
-      status: "on-trip",
-      designatedBy: "Logistics Manager",
-      designatedDate: "2024-07-15",
-      totalTrips: 38,
-      rating: 4.9,
-    },
-    {
-      id: "DRV-003",
-      staffId: "EMP-003",
-      name: "Mike Okonkwo",
-      email: "mike.okonkwo@emeraldcfze.com",
-      department: "Warehouse",
-      licenseNumber: "GHI345678",
-      licenseExpiry: "2026-03-10",
-      status: "available",
-      designatedBy: "Logistics Manager",
-      designatedDate: "2024-09-01",
-      totalTrips: 22,
-      rating: 4.7,
-    },
-  ]);
+  const [staffDrivers, setStaffDrivers] = useState<StaffDriver[]>(() => {
+    const stored = localStorage.getItem("staffDrivers");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        console.error("Failed to parse stored staffDrivers", e);
+      }
+    }
+    return [
+      {
+        id: "DRV-001",
+        staffId: "EMP-001",
+        name: "John Smith",
+        email: "john.smith@emeraldcfze.com",
+        department: "Operations",
+        licenseNumber: "ABC123456",
+        licenseExpiry: "2026-06-15",
+        status: "available",
+        designatedBy: "Logistics Manager",
+        designatedDate: "2024-06-01",
+        totalTrips: 45,
+        rating: 4.8,
+      },
+      {
+        id: "DRV-002",
+        staffId: "EMP-002",
+        name: "Mary Johnson",
+        email: "mary.johnson@emeraldcfze.com",
+        department: "Operations",
+        licenseNumber: "DEF789012",
+        licenseExpiry: "2025-12-20",
+        status: "on-trip",
+        designatedBy: "Logistics Manager",
+        designatedDate: "2024-07-15",
+        totalTrips: 38,
+        rating: 4.9,
+      },
+      {
+        id: "DRV-003",
+        staffId: "EMP-003",
+        name: "Mike Okonkwo",
+        email: "mike.okonkwo@emeraldcfze.com",
+        department: "Warehouse",
+        licenseNumber: "GHI345678",
+        licenseExpiry: "2026-03-10",
+        status: "available",
+        designatedBy: "Logistics Manager",
+        designatedDate: "2024-09-01",
+        totalTrips: 22,
+        rating: 4.7,
+      },
+    ];
+  });
+
+  // Persist staffDrivers to localStorage
+  React.useEffect(() => {
+    localStorage.setItem("staffDrivers", JSON.stringify(staffDrivers));
+  }, [staffDrivers]);
 
   const addStaffDriver = (driver: Omit<StaffDriver, "id" | "designatedDate" | "totalTrips" | "rating">) => {
     const newDriver: StaffDriver = {
