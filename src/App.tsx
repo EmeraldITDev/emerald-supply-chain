@@ -41,10 +41,15 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return isAuthenticated ? <>{children}</> : <Navigate to="/auth" replace />;
 };
 
+// Roles that can access procurement pages (full system visibility)
+const PROCUREMENT_ACCESS_ROLES = ["procurement", "executive", "chairman", "supply_chain_director"];
+
 const ProcurementRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user } = useAuth();
   if (!isAuthenticated) return <Navigate to="/auth" replace />;
-  if (user?.role !== "procurement") return <Navigate to="/dashboard" replace />;
+  if (!user?.role || !PROCUREMENT_ACCESS_ROLES.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
   return <>{children}</>;
 };
 
