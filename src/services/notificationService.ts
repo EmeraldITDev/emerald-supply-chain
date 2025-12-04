@@ -22,7 +22,11 @@ export type NotificationEvent =
   | "po_sent_to_finance"
   | "payment_processing"
   | "payment_approved_by_chairman"
-  | "payment_completed";
+  | "payment_completed"
+  | "trip_assigned_driver"
+  | "trip_assigned_passenger"
+  | "trip_started"
+  | "trip_completed";
 
 export interface AppNotification {
   id: string;
@@ -184,6 +188,46 @@ export const notificationRules: NotificationRule[] = [
     getMessage: (data) => `Payment for PO ${data.poNumber} has been completed - Order fulfilled`,
     actionUrl: (data) => `/dashboard`,
     priority: "high",
+  },
+  
+  // Trip Notifications - Driver receives trip assignment
+  {
+    event: "trip_assigned_driver",
+    roles: ["employee", "logistics"],
+    title: "Trip Assigned to You",
+    getMessage: (data) => `You have been assigned a trip to ${data.destination}. Departure: ${data.departureTime}. Vehicle: ${data.vehicleName} (${data.vehiclePlate}). Passengers: ${data.passengerCount || 0}`,
+    actionUrl: () => `/logistics`,
+    priority: "high",
+  },
+  
+  // Trip Notifications - Passenger receives trip details
+  {
+    event: "trip_assigned_passenger",
+    roles: ["employee"],
+    title: "You're Scheduled for a Trip",
+    getMessage: (data) => `Trip to ${data.destination} on ${data.departureTime}. Driver: ${data.driverName}. Vehicle: ${data.vehicleName} (${data.vehiclePlate}). Pickup: ${data.pickupLocation}`,
+    actionUrl: () => `/dashboard`,
+    priority: "medium",
+  },
+  
+  // Trip Started - Passenger notification
+  {
+    event: "trip_started",
+    roles: ["employee", "logistics"],
+    title: "Trip In Progress",
+    getMessage: (data) => `Trip to ${data.destination} has started. Driver: ${data.driverName} is now en route.`,
+    actionUrl: () => `/logistics`,
+    priority: "medium",
+  },
+  
+  // Trip Completed
+  {
+    event: "trip_completed",
+    roles: ["employee", "logistics"],
+    title: "Trip Completed",
+    getMessage: (data) => `Trip to ${data.destination} has been completed successfully.`,
+    actionUrl: () => `/logistics`,
+    priority: "low",
   },
 ];
 

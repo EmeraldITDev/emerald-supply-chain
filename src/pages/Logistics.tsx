@@ -20,8 +20,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useApp } from "@/contexts/AppContext";
-import type { Trip, Vehicle, StaffDriver } from "@/contexts/AppContext";
+import type { Trip, Vehicle, StaffDriver, TripPassenger } from "@/contexts/AppContext";
+
+// Sample staff list for passenger selection
+const staffList = [
+  { id: "staff-001", name: "Adaora Nwosu", email: "adaora@emeraldcfze.com", department: "Operations" },
+  { id: "staff-002", name: "Chidi Okonkwo", email: "chidi@emeraldcfze.com", department: "Finance" },
+  { id: "staff-003", name: "Fatima Bello", email: "fatima@emeraldcfze.com", department: "HR" },
+  { id: "staff-004", name: "Emeka Eze", email: "emeka@emeraldcfze.com", department: "Procurement" },
+  { id: "staff-005", name: "Ngozi Abubakar", email: "ngozi@emeraldcfze.com", department: "IT" },
+  { id: "staff-006", name: "Tunde Adeyemi", email: "tunde@emeraldcfze.com", department: "Marketing" },
+  { id: "staff-007", name: "Amina Yusuf", email: "amina@emeraldcfze.com", department: "Supply Chain" },
+  { id: "staff-008", name: "Olumide Johnson", email: "olumide@emeraldcfze.com", department: "Warehouse" },
+];
 
 const Logistics = () => {
   const { toast } = useToast();
@@ -53,6 +66,8 @@ const Logistics = () => {
   const [newDriver, setNewDriver] = useState("");
   const [newCargo, setNewCargo] = useState("");
   const [newDeparture, setNewDeparture] = useState("");
+  const [newPickupLocation, setNewPickupLocation] = useState("");
+  const [selectedPassengers, setSelectedPassengers] = useState<string[]>([]);
 
   // Vehicle approval form
   const [approvalNotes, setApprovalNotes] = useState("");
@@ -139,23 +154,62 @@ const Logistics = () => {
       return;
     }
 
+    // Build passengers list
+    const passengers: TripPassenger[] = selectedPassengers.map(staffId => {
+      const staff = staffList.find(s => s.id === staffId);
+      return {
+        id: staffId,
+        name: staff?.name || "",
+        email: staff?.email || "",
+        department: staff?.department || "",
+        pickupLocation: newPickupLocation,
+      };
+    });
+
+    const departureTime = newDeparture 
+      ? new Date(newDeparture).toLocaleString()
+      : new Date().toLocaleString();
+
     addTrip({
       route: newDestination,
       vehicle: selectedVehicleData.id,
+      vehiclePlate: selectedVehicleData.plate,
+      vehicleType: selectedVehicleData.type,
       driver: selectedDriverData.name,
+      driverEmail: selectedDriverData.email,
       status: "Scheduled",
       departure: newDeparture || new Date().toISOString(),
       arrival: "",
-      cargo: newCargo || "Not specified",
+      cargo: newCargo || "Staff Transport",
+      passengers,
+      pickupLocation: newPickupLocation,
+      destination: newDestination,
+      scheduledBy: localStorage.getItem("userName") || "Logistics Coordinator",
+      scheduledDate: new Date().toISOString(),
     });
 
     // Update driver status
     updateStaffDriver(selectedDriverData.id, { status: "on-trip" });
 
+    // Show success toast with notification info
     toast({
       title: "Trip Scheduled Successfully",
-      description: `Trip to ${newDestination} assigned to ${selectedDriverData.name}`,
+      description: `Trip to ${newDestination} assigned to ${selectedDriverData.name}. ${passengers.length} passenger(s) notified.`,
     });
+
+    // Simulate driver notification toast
+    toast({
+      title: "Driver Notified",
+      description: `${selectedDriverData.name} has been notified of the trip assignment`,
+    });
+
+    // Simulate passenger notifications
+    if (passengers.length > 0) {
+      toast({
+        title: "Passengers Notified",
+        description: `${passengers.length} passenger(s) have been notified with trip details`,
+      });
+    }
 
     // Reset form
     setNewDestination("");
@@ -163,7 +217,17 @@ const Logistics = () => {
     setNewDriver("");
     setNewCargo("");
     setNewDeparture("");
+    setNewPickupLocation("");
+    setSelectedPassengers([]);
     setScheduleDialogOpen(false);
+  };
+
+  const handleTogglePassenger = (staffId: string) => {
+    setSelectedPassengers(prev => 
+      prev.includes(staffId) 
+        ? prev.filter(id => id !== staffId)
+        : [...prev, staffId]
+    );
   };
 
   const handleApproveVehicle = () => {
@@ -414,23 +478,56 @@ const Logistics = () => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Cargo Description</Label>
+                      <Label>Pickup Location</Label>
                       <Input
-                        placeholder="e.g., Office Supplies, 2000kg"
+                        placeholder="e.g., Head Office, Gate 2"
+                        value={newPickupLocation}
+                        onChange={(e) => setNewPickupLocation(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Cargo/Purpose</Label>
+                      <Input
+                        placeholder="e.g., Staff Transport, Office Supplies"
                         value={newCargo}
                         onChange={(e) => setNewCargo(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Departure Date/Time</Label>
+                      <Label>Departure Date/Time *</Label>
                       <Input
                         type="datetime-local"
                         value={newDeparture}
                         onChange={(e) => setNewDeparture(e.target.value)}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label>Select Passengers</Label>
+                      <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
+                        {staffList.map(staff => (
+                          <div key={staff.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={staff.id}
+                              checked={selectedPassengers.includes(staff.id)}
+                              onCheckedChange={() => handleTogglePassenger(staff.id)}
+                            />
+                            <label 
+                              htmlFor={staff.id} 
+                              className="text-sm cursor-pointer flex-1"
+                            >
+                              {staff.name} <span className="text-muted-foreground">({staff.department})</span>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedPassengers.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {selectedPassengers.length} passenger(s) selected
+                        </p>
+                      )}
+                    </div>
                     <Button className="w-full" onClick={handleScheduleTrip}>
-                      Schedule Trip
+                      Schedule Trip & Notify All
                     </Button>
                   </div>
                 </DialogContent>
@@ -692,7 +789,7 @@ const Logistics = () => {
 
       {/* Trip Details Dialog */}
       <Dialog open={tripDetailsOpen} onOpenChange={setTripDetailsOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Trip Details - {selectedTrip?.id}</DialogTitle>
             <DialogDescription>Complete trip information and tracking</DialogDescription>
@@ -701,8 +798,8 @@ const Logistics = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground">Route</Label>
-                  <p className="font-medium">{selectedTrip.route}</p>
+                  <Label className="text-muted-foreground">Route / Destination</Label>
+                  <p className="font-medium">{selectedTrip.destination || selectedTrip.route}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Status</Label>
@@ -710,25 +807,76 @@ const Logistics = () => {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Vehicle</Label>
-                  <p className="font-medium">{selectedTrip.vehicle}</p>
+                  <p className="font-medium">
+                    {selectedTrip.vehicle}
+                    {selectedTrip.vehiclePlate && ` (${selectedTrip.vehiclePlate})`}
+                  </p>
+                  {selectedTrip.vehicleType && (
+                    <p className="text-xs text-muted-foreground">{selectedTrip.vehicleType}</p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Driver</Label>
                   <p className="font-medium">{selectedTrip.driver}</p>
+                  {selectedTrip.driverEmail && (
+                    <p className="text-xs text-muted-foreground">{selectedTrip.driverEmail}</p>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Pickup Location</Label>
+                  <p className="font-medium">{selectedTrip.pickupLocation || "Not specified"}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Departure</Label>
-                  <p className="font-medium">{selectedTrip.departure}</p>
+                  <p className="font-medium">
+                    {selectedTrip.departure 
+                      ? new Date(selectedTrip.departure).toLocaleString() 
+                      : "TBD"}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Arrival (ETA)</Label>
-                  <p className="font-medium">{selectedTrip.arrival || "TBD"}</p>
+                  <p className="font-medium">
+                    {selectedTrip.arrival 
+                      ? new Date(selectedTrip.arrival).toLocaleString() 
+                      : "TBD"}
+                  </p>
                 </div>
-                <div className="col-span-2">
-                  <Label className="text-muted-foreground">Cargo Details</Label>
+                <div>
+                  <Label className="text-muted-foreground">Purpose/Cargo</Label>
                   <p className="font-medium">{selectedTrip.cargo}</p>
                 </div>
               </div>
+
+              {/* Passengers Section */}
+              {selectedTrip.passengers && selectedTrip.passengers.length > 0 && (
+                <div className="border-t pt-4">
+                  <Label className="text-muted-foreground mb-2 block">
+                    Passengers ({selectedTrip.passengers.length})
+                  </Label>
+                  <div className="space-y-2">
+                    {selectedTrip.passengers.map((passenger) => (
+                      <div key={passenger.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                        <div>
+                          <p className="font-medium text-sm">{passenger.name}</p>
+                          <p className="text-xs text-muted-foreground">{passenger.department}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{passenger.email}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Scheduling Info */}
+              {selectedTrip.scheduledBy && (
+                <div className="border-t pt-4 text-xs text-muted-foreground">
+                  <p>Scheduled by: {selectedTrip.scheduledBy}</p>
+                  {selectedTrip.scheduledDate && (
+                    <p>Scheduled on: {new Date(selectedTrip.scheduledDate).toLocaleString()}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

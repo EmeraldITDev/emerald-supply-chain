@@ -67,15 +67,32 @@ export interface PurchaseOrder {
   deliveryDate: string;
 }
 
+export interface TripPassenger {
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+  pickupLocation?: string;
+}
+
 export interface Trip {
   id: string;
   route: string;
   vehicle: string;
+  vehiclePlate?: string;
+  vehicleType?: string;
   driver: string;
+  driverEmail?: string;
+  driverPhoto?: string;
   status: string;
   departure: string;
   arrival: string;
   cargo: string;
+  passengers?: TripPassenger[];
+  pickupLocation?: string;
+  destination?: string;
+  scheduledBy?: string;
+  scheduledDate?: string;
 }
 
 export interface VehicleDocument {
