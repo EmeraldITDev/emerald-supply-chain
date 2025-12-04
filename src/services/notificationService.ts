@@ -21,6 +21,7 @@ export type NotificationEvent =
   | "po_signed"
   | "po_sent_to_finance"
   | "payment_processing"
+  | "payment_approved_by_chairman"
   | "payment_completed";
 
 export interface AppNotification {
@@ -115,23 +116,23 @@ export const notificationRules: NotificationRule[] = [
     priority: "medium",
   },
   
-  // PO sent to Supply Chain
+  // PO sent to Supply Chain - Employee and Supply Chain Director see this
   {
     event: "po_sent_to_supply_chain",
-    roles: ["supply_chain_director"],
-    title: "PO Ready for Review",
-    getMessage: (data) => `Purchase Order ${data.poNumber} ready for review and signature`,
-    actionUrl: (data) => `/supply-chain-dashboard`,
-    priority: "high",
+    roles: ["employee", "supply_chain_director"],
+    title: "PO Under Review",
+    getMessage: (data) => `Purchase Order ${data.poNumber} is now under review by Supply Chain`,
+    actionUrl: (data) => `/dashboard`,
+    priority: "medium",
   },
   
-  // PO Rejected by Supply Chain - Procurement sees this
+  // PO Rejected by Supply Chain - Procurement and Employee see this
   {
     event: "po_rejected_by_supply_chain",
-    roles: ["procurement"],
+    roles: ["procurement", "employee"],
     title: "PO Rejected",
     getMessage: (data) => `PO ${data.poNumber} rejected by Supply Chain - Revision required`,
-    actionUrl: (data) => `/procurement`,
+    actionUrl: (data) => `/dashboard`,
     priority: "high",
   },
   
@@ -139,20 +140,20 @@ export const notificationRules: NotificationRule[] = [
   {
     event: "po_signed",
     roles: ["employee", "procurement"],
-    title: "PO Signed",
-    getMessage: (data) => `Purchase Order ${data.poNumber} has been signed and sent to Finance`,
+    title: "PO Approved & Signed",
+    getMessage: (data) => `Purchase Order ${data.poNumber} has been approved and signed`,
     actionUrl: (data) => `/dashboard`,
-    priority: "medium",
+    priority: "high",
   },
   
-  // PO sent to Finance
+  // PO sent to Finance - Employee and Finance see this
   {
     event: "po_sent_to_finance",
-    roles: ["finance"],
-    title: "PO Ready for Payment",
-    getMessage: (data) => `Purchase Order ${data.poNumber} ready for payment processing`,
-    actionUrl: (data) => `/finance-dashboard`,
-    priority: "high",
+    roles: ["employee", "finance"],
+    title: "PO Sent to Finance",
+    getMessage: (data) => `Purchase Order ${data.poNumber} sent to Finance for payment processing`,
+    actionUrl: (data) => `/dashboard`,
+    priority: "medium",
   },
   
   // Payment Processing - Employee sees this
@@ -160,9 +161,19 @@ export const notificationRules: NotificationRule[] = [
     event: "payment_processing",
     roles: ["employee"],
     title: "Payment Processing",
-    getMessage: (data) => `Payment for PO ${data.poNumber} is being processed`,
+    getMessage: (data) => `Payment for PO ${data.poNumber} is being processed by Finance`,
     actionUrl: (data) => `/dashboard`,
-    priority: "low",
+    priority: "medium",
+  },
+  
+  // Payment Approved by Chairman - Employee sees this
+  {
+    event: "payment_approved_by_chairman",
+    roles: ["employee", "finance", "procurement"],
+    title: "Payment Approved",
+    getMessage: (data) => `Payment for PO ${data.poNumber} has been approved by Chairman`,
+    actionUrl: (data) => `/dashboard`,
+    priority: "high",
   },
   
   // Payment Completed - Everyone sees this
@@ -170,9 +181,9 @@ export const notificationRules: NotificationRule[] = [
     event: "payment_completed",
     roles: ["employee", "procurement", "supply_chain_director", "finance", "executive", "chairman"],
     title: "Payment Completed",
-    getMessage: (data) => `Payment for PO ${data.poNumber} has been completed`,
+    getMessage: (data) => `Payment for PO ${data.poNumber} has been completed - Order fulfilled`,
     actionUrl: (data) => `/dashboard`,
-    priority: "medium",
+    priority: "high",
   },
 ];
 
