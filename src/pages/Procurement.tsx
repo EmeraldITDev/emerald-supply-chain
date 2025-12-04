@@ -39,10 +39,12 @@ const Procurement = () => {
   const [dateFilter, setDateFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date-desc");
 
-  // Procurement Manager can upload PO for Executive-approved MRFs
+  // Procurement Manager can upload PO for Executive-approved MRFs (and Chairman-approved high-value MRFs)
   const executiveApprovedMRFs = useMemo(() => {
     return mrfRequests.filter(mrf => 
-      (mrf.status === "Approved by Executive" || mrf.status === "Executive Approved") && 
+      (mrf.status === "Approved by Executive" || 
+       mrf.status === "Executive Approved" ||
+       mrf.status === "Chairman Approved - Pending PO") && 
       mrf.currentStage === "procurement" &&
       !mrf.unsignedPOUrl
     );
