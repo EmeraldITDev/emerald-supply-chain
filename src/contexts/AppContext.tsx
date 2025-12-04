@@ -585,12 +585,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateMRF = (id: string, updates: Partial<MRFRequest>) => {
-    setMrfRequests(mrfRequests.map((mrf) => (mrf.id === id ? { ...mrf, ...updates } : mrf)));
+    setMrfRequests(prev => prev.map((mrf) => (mrf.id === id ? { ...mrf, ...updates } : mrf)));
   };
 
   const approveMRF = (id: string, stage: string, approver: string, remarks: string) => {
-    setMrfRequests(
-      mrfRequests.map((mrf) => {
+    setMrfRequests(prev =>
+      prev.map((mrf) => {
         if (mrf.id !== id) return mrf;
 
         const approvalAction: ApprovalAction = {
@@ -602,6 +602,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         };
 
         const history = [...(mrf.approvalHistory || []), approvalAction];
+        
+        // For executive stage, just add to history - don't change status/stage
+        // The updateMRF call handles the status/stage transition
+        if (stage === "executive") {
+          return {
+            ...mrf,
+            approvalHistory: history,
+          };
+        }
         
         let nextStage: MRFRequest["currentStage"];
         let status: string;
@@ -615,11 +624,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         } else if (stage === "chairman") {
           nextStage = "approved";
           status = "Approved";
-        } else if (stage === "executive") {
-          // Executive stage: preserve the status/stage set by updateMRF
-          // (either "Approved by Executive" for normal items or "Pending Chairman Approval" for high-value)
-          nextStage = mrf.currentStage;
-          status = mrf.status;
         } else {
           nextStage = mrf.currentStage;
           status = mrf.status;
