@@ -78,6 +78,15 @@ export interface Trip {
   cargo: string;
 }
 
+export interface VehicleDocument {
+  id: string;
+  name: string;
+  type: string;
+  documentType: "registration" | "insurance" | "roadworthiness" | "other";
+  fileData: string;
+  uploadDate: string;
+}
+
 export interface Vehicle {
   id: string;
   name: string;
@@ -86,6 +95,30 @@ export interface Vehicle {
   status: string;
   driver: string;
   lastMaintenance: string;
+  // Vendor-registered vehicle fields
+  vendorId?: string;
+  vendorName?: string;
+  approvalStatus?: "pending" | "approved" | "rejected";
+  approvedBy?: string;
+  approvalDate?: string;
+  approvalNotes?: string;
+  documents?: VehicleDocument[];
+}
+
+// Staff member designated as driver by Logistics
+export interface StaffDriver {
+  id: string;
+  staffId: string;
+  name: string;
+  email: string;
+  department: string;
+  licenseNumber: string;
+  licenseExpiry: string;
+  status: "available" | "on-trip" | "off-duty";
+  designatedBy: string;
+  designatedDate: string;
+  totalTrips: number;
+  rating: number;
 }
 
 export interface VendorDocument {
@@ -135,7 +168,20 @@ export interface VendorRegistration {
   status: "Pending" | "Approved" | "Rejected";
   submittedDate: string;
   reviewedDate?: string;
+  reviewedBy?: string;
   reviewNotes?: string;
+  // Vehicle registrations for transport vendors
+  vehicles?: {
+    id: string;
+    name: string;
+    type: string;
+    plate: string;
+    documents: VehicleDocument[];
+    approvalStatus: "pending" | "approved" | "rejected";
+    approvedBy?: string;
+    approvalDate?: string;
+    approvalNotes?: string;
+  }[];
 }
 
 export interface Vendor {
@@ -218,6 +264,7 @@ interface AppContextType {
   vendorRegistrations: VendorRegistration[];
   mrns: MRN[];
   annualPlans: AnnualProcurementPlan[];
+  staffDrivers: StaffDriver[];
   addMRF: (mrf: Omit<MRFRequest, "id" | "status" | "date" | "requester">) => void;
   updateMRF: (id: string, updates: Partial<MRFRequest>) => void;
   approveMRF: (id: string, stage: string, approver: string, remarks: string) => void;
@@ -225,7 +272,11 @@ interface AppContextType {
   addSRF: (srf: Omit<SRFRequest, "id" | "status" | "date" | "requester">) => void;
   addPO: (po: Omit<PurchaseOrder, "id">) => void;
   updateTrip: (id: string, updates: Partial<Trip>) => void;
+  addTrip: (trip: Omit<Trip, "id">) => void;
   updateVehicle: (id: string, updates: Partial<Vehicle>) => void;
+  addVehicle: (vehicle: Omit<Vehicle, "id">) => void;
+  approveVehicle: (vehicleId: string, approver: string, notes: string) => void;
+  rejectVehicle: (vehicleId: string, approver: string, notes: string) => void;
   addVendor: (vendor: Omit<Vendor, "id" | "documents">) => void;
   updateVendor: (id: string, updates: Partial<Vendor>) => void;
   addVendorDocument: (vendorId: string, document: Omit<VendorDocument, "id" | "uploadDate">) => void;
@@ -236,11 +287,16 @@ interface AppContextType {
   updateQuotation: (id: string, updates: Partial<Quotation>) => void;
   addVendorRegistration: (registration: Omit<VendorRegistration, "id" | "submittedDate" | "status">) => void;
   updateVendorRegistration: (id: string, updates: Partial<VendorRegistration>) => void;
+  approveVendorRegistration: (id: string, approver: string, notes: string) => void;
+  rejectVendorRegistration: (id: string, approver: string, notes: string) => void;
   addMRN: (mrn: Omit<MRN, "id" | "controlNumber" | "requesterId" | "requesterName" | "submittedDate" | "status">) => void;
   updateMRN: (id: string, updates: Partial<MRN>) => void;
   convertMRNToMRF: (mrnId: string, reviewerName: string) => void;
   addAnnualPlan: (plan: Omit<AnnualProcurementPlan, "id" | "submittedBy" | "submittedDate" | "status" | "totalEstimatedBudget">) => void;
   updateAnnualPlan: (id: string, updates: Partial<AnnualProcurementPlan>) => void;
+  addStaffDriver: (driver: Omit<StaffDriver, "id" | "designatedDate" | "totalTrips" | "rating">) => void;
+  updateStaffDriver: (id: string, updates: Partial<StaffDriver>) => void;
+  removeStaffDriver: (id: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -691,8 +747,54 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setTrips(trips.map((trip) => (trip.id === id ? { ...trip, ...updates } : trip)));
   };
 
+  const addTrip = (trip: Omit<Trip, "id">) => {
+    const newTrip: Trip = {
+      ...trip,
+      id: `TRP-${String(trips.length + 1).padStart(3, "0")}`,
+    };
+    setTrips([newTrip, ...trips]);
+  };
+
   const updateVehicle = (id: string, updates: Partial<Vehicle>) => {
     setVehicles(vehicles.map((vehicle) => (vehicle.id === id ? { ...vehicle, ...updates } : vehicle)));
+  };
+
+  const addVehicle = (vehicle: Omit<Vehicle, "id">) => {
+    const newVehicle: Vehicle = {
+      ...vehicle,
+      id: `VEH-${String(vehicles.length + 1).padStart(3, "0")}`,
+    };
+    setVehicles([newVehicle, ...vehicles]);
+  };
+
+  const approveVehicle = (vehicleId: string, approver: string, notes: string) => {
+    setVehicles(vehicles.map((vehicle) => 
+      vehicle.id === vehicleId 
+        ? { 
+            ...vehicle, 
+            approvalStatus: "approved" as const,
+            approvedBy: approver,
+            approvalDate: new Date().toISOString(),
+            approvalNotes: notes,
+            status: "Active",
+          } 
+        : vehicle
+    ));
+  };
+
+  const rejectVehicle = (vehicleId: string, approver: string, notes: string) => {
+    setVehicles(vehicles.map((vehicle) => 
+      vehicle.id === vehicleId 
+        ? { 
+            ...vehicle, 
+            approvalStatus: "rejected" as const,
+            approvedBy: approver,
+            approvalDate: new Date().toISOString(),
+            approvalNotes: notes,
+            status: "Rejected",
+          } 
+        : vehicle
+    ));
   };
 
   const addVendor = (vendor: Omit<Vendor, "id" | "documents">) => {
@@ -742,6 +844,74 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const updateVendorRegistration = (id: string, updates: Partial<VendorRegistration>) => {
     setVendorRegistrations(vendorRegistrations.map((reg) => (reg.id === id ? { ...reg, ...updates } : reg)));
+  };
+
+  const approveVendorRegistration = (id: string, approver: string, notes: string) => {
+    const registration = vendorRegistrations.find(r => r.id === id);
+    if (!registration) return;
+
+    // Update registration status
+    setVendorRegistrations(vendorRegistrations.map((reg) => 
+      reg.id === id 
+        ? { 
+            ...reg, 
+            status: "Approved" as const,
+            reviewedBy: approver,
+            reviewedDate: new Date().toISOString(),
+            reviewNotes: notes,
+          } 
+        : reg
+    ));
+
+    // Create vendor from registration
+    const newVendor: Vendor = {
+      id: `V${String(vendors.length + 1).padStart(3, "0")}`,
+      name: registration.companyName,
+      category: registration.category,
+      rating: 0,
+      orders: 0,
+      status: "Active",
+      kyc: "Verified",
+      email: registration.email,
+      phone: registration.phone,
+      address: registration.address,
+      taxId: registration.taxId,
+      contactPerson: registration.contactPerson,
+      documents: [],
+    };
+    setVendors([...vendors, newVendor]);
+
+    // Add any registered vehicles to the vehicles list (pending Logistics approval)
+    if (registration.vehicles && registration.vehicles.length > 0) {
+      const newVehicles = registration.vehicles.map((v, idx) => ({
+        id: `VEH-${String(vehicles.length + idx + 1).padStart(3, "0")}`,
+        name: v.name,
+        type: v.type,
+        plate: v.plate,
+        status: "Pending Approval",
+        driver: "",
+        lastMaintenance: "",
+        vendorId: newVendor.id,
+        vendorName: newVendor.name,
+        approvalStatus: "pending" as const,
+        documents: v.documents,
+      }));
+      setVehicles([...vehicles, ...newVehicles]);
+    }
+  };
+
+  const rejectVendorRegistration = (id: string, approver: string, notes: string) => {
+    setVendorRegistrations(vendorRegistrations.map((reg) => 
+      reg.id === id 
+        ? { 
+            ...reg, 
+            status: "Rejected" as const,
+            reviewedBy: approver,
+            reviewedDate: new Date().toISOString(),
+            reviewNotes: notes,
+          } 
+        : reg
+    ));
   };
 
   const updateVendor = (id: string, updates: Partial<Vendor>) => {
@@ -880,6 +1050,71 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setAnnualPlans(annualPlans.map((plan) => (plan.id === id ? { ...plan, ...updates } : plan)));
   };
 
+  // Staff Drivers Management
+  const [staffDrivers, setStaffDrivers] = useState<StaffDriver[]>([
+    {
+      id: "DRV-001",
+      staffId: "EMP-001",
+      name: "John Smith",
+      email: "john.smith@emeraldcfze.com",
+      department: "Operations",
+      licenseNumber: "ABC123456",
+      licenseExpiry: "2026-06-15",
+      status: "available",
+      designatedBy: "Logistics Manager",
+      designatedDate: "2024-06-01",
+      totalTrips: 45,
+      rating: 4.8,
+    },
+    {
+      id: "DRV-002",
+      staffId: "EMP-002",
+      name: "Mary Johnson",
+      email: "mary.johnson@emeraldcfze.com",
+      department: "Operations",
+      licenseNumber: "DEF789012",
+      licenseExpiry: "2025-12-20",
+      status: "on-trip",
+      designatedBy: "Logistics Manager",
+      designatedDate: "2024-07-15",
+      totalTrips: 38,
+      rating: 4.9,
+    },
+    {
+      id: "DRV-003",
+      staffId: "EMP-003",
+      name: "Mike Okonkwo",
+      email: "mike.okonkwo@emeraldcfze.com",
+      department: "Warehouse",
+      licenseNumber: "GHI345678",
+      licenseExpiry: "2026-03-10",
+      status: "available",
+      designatedBy: "Logistics Manager",
+      designatedDate: "2024-09-01",
+      totalTrips: 22,
+      rating: 4.7,
+    },
+  ]);
+
+  const addStaffDriver = (driver: Omit<StaffDriver, "id" | "designatedDate" | "totalTrips" | "rating">) => {
+    const newDriver: StaffDriver = {
+      ...driver,
+      id: `DRV-${String(staffDrivers.length + 1).padStart(3, "0")}`,
+      designatedDate: new Date().toISOString().split("T")[0],
+      totalTrips: 0,
+      rating: 0,
+    };
+    setStaffDrivers([newDriver, ...staffDrivers]);
+  };
+
+  const updateStaffDriver = (id: string, updates: Partial<StaffDriver>) => {
+    setStaffDrivers(staffDrivers.map((driver) => (driver.id === id ? { ...driver, ...updates } : driver)));
+  };
+
+  const removeStaffDriver = (id: string) => {
+    setStaffDrivers(staffDrivers.filter((driver) => driver.id !== id));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -894,6 +1129,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         vendorRegistrations,
         mrns,
         annualPlans,
+        staffDrivers,
         addMRF,
         updateMRF,
         approveMRF,
@@ -901,7 +1137,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         addSRF,
         addPO,
         updateTrip,
+        addTrip,
         updateVehicle,
+        addVehicle,
+        approveVehicle,
+        rejectVehicle,
         addVendor,
         updateVendor,
         addVendorDocument,
@@ -912,11 +1152,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateQuotation,
         addVendorRegistration,
         updateVendorRegistration,
+        approveVendorRegistration,
+        rejectVendorRegistration,
         addMRN,
         updateMRN,
         convertMRNToMRF,
         addAnnualPlan,
         updateAnnualPlan,
+        addStaffDriver,
+        updateStaffDriver,
+        removeStaffDriver,
       }}
     >
       {children}
