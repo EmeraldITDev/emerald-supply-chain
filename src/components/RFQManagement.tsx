@@ -446,12 +446,12 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
 
                 <TabsContent value="manual" className="space-y-4">
                   <div className="flex gap-2 items-center">
-                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <Select value={selectedCategory || "all"} onValueChange={(v) => setSelectedCategory(v === "all" ? "" : v)}>
                       <SelectTrigger className="w-[200px]">
                         <SelectValue placeholder="Filter by category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Categories</SelectItem>
+                        <SelectItem value="all">All Categories</SelectItem>
                         {categories.map(cat => (
                           <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                         ))}
