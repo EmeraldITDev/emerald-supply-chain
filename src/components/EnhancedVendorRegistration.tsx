@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, FileText, CheckCircle, AlertCircle, X, AlertTriangle, Info, Building2 } from "lucide-react";
 import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES, type VendorDocument, type VendorDocumentType, type EnhancedVendorRegistration as VendorRegType } from "@/types/vendor-registration";
@@ -231,8 +230,8 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
   }
 
   return (
-    <ScrollArea className="h-[calc(100vh-200px)]">
-      <div className="space-y-6 p-1">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 py-8 px-4">
+      <div className="max-w-4xl mx-auto space-y-6">
         {/* Progress Indicator */}
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="pt-4">
@@ -651,6 +650,6 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
           </Button>
         </div>
       </div>
-    </ScrollArea>
+    </div>
   );
 };
