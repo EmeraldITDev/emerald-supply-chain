@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, AlertCircle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { DashboardAlerts } from "@/components/DashboardAlerts";
+import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
 
 const ExecutiveDashboard = () => {
   const { mrfRequests, updateMRF, approveMRF, rejectMRF } = useApp();
@@ -111,6 +113,9 @@ const ExecutiveDashboard = () => {
           <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">Review and approve Material Requisition Forms</p>
         </div>
 
+        {/* Dashboard Alerts */}
+        <DashboardAlerts userRole="executive" maxAlerts={5} />
+
         {/* Summary Cards */}
         <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3">
           <Card>
@@ -148,6 +153,9 @@ const ExecutiveDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Progress Tracker */}
+        <ProcurementProgressTracker mrfRequests={mrfRequests} />
 
         {/* MRF List */}
         <Card>

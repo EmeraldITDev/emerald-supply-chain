@@ -15,6 +15,7 @@ import { POGenerationDialog } from "@/components/POGenerationDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RFQManagement } from "@/components/RFQManagement";
+import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
 import type { MRFRequest } from "@/contexts/AppContext";
 import {
   Select,
@@ -342,6 +343,9 @@ const Procurement = () => {
 
         {/* Dashboard Alerts */}
         <DashboardAlerts userRole={user?.role || 'procurement'} maxAlerts={5} />
+
+        {/* Progress Tracker */}
+        <ProcurementProgressTracker mrfRequests={mrfRequests} />
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-5 h-auto gap-1">

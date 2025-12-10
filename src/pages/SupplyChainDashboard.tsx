@@ -11,6 +11,8 @@ import { FileText, Upload, Download, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PORejectionDialog } from "@/components/PORejectionDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { DashboardAlerts } from "@/components/DashboardAlerts";
+import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
 import type { MRFRequest } from "@/contexts/AppContext";
 
 const SupplyChainDashboard = () => {
@@ -95,6 +97,9 @@ const SupplyChainDashboard = () => {
           <p className="text-muted-foreground">Review, sign and upload Purchase Orders</p>
         </div>
 
+        {/* Dashboard Alerts */}
+        <DashboardAlerts userRole="supply_chain" maxAlerts={5} />
+
         {/* Summary Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -106,6 +111,9 @@ const SupplyChainDashboard = () => {
             <p className="text-xs text-muted-foreground">POs awaiting review and signature</p>
           </CardContent>
         </Card>
+
+        {/* Progress Tracker */}
+        <ProcurementProgressTracker mrfRequests={mrfRequests} />
 
         {/* PO Management */}
         <Card>

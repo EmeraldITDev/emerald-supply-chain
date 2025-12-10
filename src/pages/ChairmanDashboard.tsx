@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, FileText, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { DashboardAlerts } from "@/components/DashboardAlerts";
+import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
 
 const ChairmanDashboard = () => {
   const { mrfRequests, updateMRF, approveMRF, rejectMRF } = useApp();
@@ -85,6 +87,12 @@ const ChairmanDashboard = () => {
           <h1 className="text-3xl font-bold text-foreground">Chairman Dashboard</h1>
           <p className="text-muted-foreground">Final approval authority for high-value items and payments</p>
         </div>
+
+        {/* Dashboard Alerts */}
+        <DashboardAlerts userRole="chairman" maxAlerts={5} />
+
+        {/* Progress Tracker */}
+        <ProcurementProgressTracker mrfRequests={mrfRequests} />
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-3">
