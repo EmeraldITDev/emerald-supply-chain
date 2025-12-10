@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check } from "lucide-react";
+import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef } from "react";
 import logo from "@/assets/emerald-logo.png";
@@ -16,6 +16,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EnhancedVendorRegistration } from "@/components/EnhancedVendorRegistration";
+import { VendorQuoteSubmission } from "@/components/VendorQuoteSubmission";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const VendorPortal = () => {
   const { toast } = useToast();
@@ -26,6 +28,7 @@ const VendorPortal = () => {
   const [activeTab, setActiveTab] = useState("rfqs");
   const [selectedRfqForDetails, setSelectedRfqForDetails] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isBottomBarCollapsed, setIsBottomBarCollapsed] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<Array<{name: string, status: string, uploaded: string, file?: File}>>([
     { name: "CAC Certificate", status: "Approved", uploaded: "2024-01-01" },
     { name: "Tax Clearance", status: "Approved", uploaded: "2024-01-01" },
@@ -573,128 +576,23 @@ const VendorPortal = () => {
           </TabsContent>
 
           <TabsContent value="submit" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Submit Quotation</CardTitle>
-                <CardDescription>Provide your best quote for an RFQ</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="rfq-select">Select RFQ *</Label>
-                  <Select value={selectedRfqId} onValueChange={setSelectedRfqId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose an open RFQ" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {vendorRfqs.map((rfq) => (
-                        <SelectItem key={rfq.id} value={rfq.id}>
-                          {rfq.id} - {rfq.mrfTitle}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedRfqId && (
-                  <>
-                    <Alert className="bg-muted">
-                      <AlertDescription className="text-sm">
-                        {vendorRfqs.find(r => r.id === selectedRfqId)?.description}
-                      </AlertDescription>
-                    </Alert>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="price">Your Quote Price (₦) *</Label>
-                        <Input 
-                          id="price" 
-                          type="number" 
-                          placeholder="Enter total price"
-                          value={quotePrice}
-                          onChange={(e) => {
-                            setQuotePrice(e.target.value);
-                            if (formErrors.price) setFormErrors({...formErrors, price: ''});
-                          }}
-                          className={formErrors.price ? "border-destructive" : ""}
-                        />
-                        {formErrors.price && <p className="text-sm text-destructive">{formErrors.price}</p>}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="delivery-date">Proposed Delivery Date *</Label>
-                        <Input 
-                          id="delivery-date" 
-                          type="date"
-                          value={deliveryDate}
-                          onChange={(e) => {
-                            setDeliveryDate(e.target.value);
-                            if (formErrors.deliveryDate) setFormErrors({...formErrors, deliveryDate: ''});
-                          }}
-                          className={formErrors.deliveryDate ? "border-destructive" : ""}
-                        />
-                        {formErrors.deliveryDate && <p className="text-sm text-destructive">{formErrors.deliveryDate}</p>}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="notes">Additional Notes / Terms</Label>
-                      <Textarea 
-                        id="notes" 
-                        placeholder="Payment terms, delivery conditions, warranties, etc..."
-                        rows={4}
-                        value={quoteNotes}
-                        onChange={(e) => setQuoteNotes(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="quote-doc">Upload Quotation Document (Optional)</Label>
-                      <Input 
-                        ref={quoteDocInputRef}
-                        id="quote-doc" 
-                        type="file" 
-                        className="cursor-pointer" 
-                        accept=".pdf,.doc,.docx"
-                        onChange={handleQuoteDocUpload}
-                      />
-                      {uploadedQuoteDocs.length > 0 && (
-                        <div className="space-y-2">
-                          {uploadedQuoteDocs.map((doc, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded">
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4" />
-                                <span className="text-sm">{doc.name}</span>
-                              </div>
-                              <Button variant="ghost" size="sm" onClick={() => removeQuoteDoc(idx)}>
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <Button 
-                      className="w-full transition-transform hover:scale-105" 
-                      size="lg" 
-                      onClick={handleSubmitQuotation}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Clock className="h-4 w-4 mr-2 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Submit Quotation
-                        </>
-                      )}
-                    </Button>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+            <VendorQuoteSubmission 
+              rfqs={rfqs}
+              vendorId={currentVendorId}
+              vendorName="Steel Works Ltd"
+              onSubmit={(quote) => {
+                addQuotation({
+                  rfqId: quote.rfqId,
+                  vendorId: quote.vendorId,
+                  vendorName: quote.vendorName,
+                  price: quote.price,
+                  deliveryDate: quote.deliveryDate,
+                  notes: quote.notes,
+                  status: "Pending",
+                });
+                setActiveTab("quotations");
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="quotations" className="space-y-4">
