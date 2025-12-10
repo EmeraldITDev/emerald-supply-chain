@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { EnhancedVendorRegistration } from "@/components/EnhancedVendorRegistration";
 
 const VendorPortal = () => {
   const { toast } = useToast();
@@ -242,219 +243,25 @@ const VendorPortal = () => {
   if (!isLoggedIn) {
     if (showRegistration) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl shadow-xl">
-            <CardHeader className="space-y-4">
-              <div className="flex justify-center">
-                <img src={logo} alt="Emerald Industrial" className="h-16 object-contain" />
-              </div>
-              <div className="space-y-2 text-center">
-                <CardTitle className="text-3xl">Vendor Registration</CardTitle>
-                <CardDescription>Apply to become an approved vendor partner</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="company">Company Name *</Label>
-                  <Input 
-                    id="company" 
-                    placeholder="Your Company Ltd"
-                    value={companyName}
-                    onChange={(e) => {
-                      setCompanyName(e.target.value);
-                      if (formErrors.companyName) setFormErrors({...formErrors, companyName: ''});
-                    }}
-                    className={formErrors.companyName ? "border-destructive" : ""}
-                  />
-                  {formErrors.companyName && <p className="text-sm text-destructive">{formErrors.companyName}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Business Category *</Label>
-                  <Select value={category} onValueChange={(val) => {
-                    setCategory(val);
-                    if (formErrors.category) setFormErrors({...formErrors, category: ''});
-                  }}>
-                    <SelectTrigger className={formErrors.category ? "border-destructive" : ""}>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Raw Materials">Raw Materials</SelectItem>
-                      <SelectItem value="Equipment">Equipment</SelectItem>
-                      <SelectItem value="Office Supplies">Office Supplies</SelectItem>
-                      <SelectItem value="Construction">Construction</SelectItem>
-                      <SelectItem value="Safety Equipment">Safety Equipment</SelectItem>
-                      <SelectItem value="Automobile">Automobile</SelectItem>
-                      <SelectItem value="Transportation">Transportation</SelectItem>
-                      <SelectItem value="IT Services">IT Services</SelectItem>
-                      <SelectItem value="Logistics">Logistics</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {formErrors.category && <p className="text-sm text-destructive">{formErrors.category}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="taxId">Tax ID / TIN *</Label>
-                  <Input 
-                    id="taxId" 
-                    placeholder="TIN-123456789"
-                    value={taxId}
-                    onChange={(e) => {
-                      setTaxId(e.target.value);
-                      if (formErrors.taxId) setFormErrors({...formErrors, taxId: ''});
-                    }}
-                    className={formErrors.taxId ? "border-destructive" : ""}
-                  />
-                  {formErrors.taxId && <p className="text-sm text-destructive">{formErrors.taxId}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="contactPerson">Contact Person *</Label>
-                  <Input 
-                    id="contactPerson" 
-                    placeholder="Full Name"
-                    value={contactPerson}
-                    onChange={(e) => {
-                      setContactPerson(e.target.value);
-                      if (formErrors.contactPerson) setFormErrors({...formErrors, contactPerson: ''});
-                    }}
-                    className={formErrors.contactPerson ? "border-destructive" : ""}
-                  />
-                  {formErrors.contactPerson && <p className="text-sm text-destructive">{formErrors.contactPerson}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input 
-                    id="phone" 
-                    placeholder="+234-800-000-0000"
-                    value={phone}
-                    onChange={(e) => {
-                      setPhone(e.target.value);
-                      if (formErrors.phone) setFormErrors({...formErrors, phone: ''});
-                    }}
-                    className={formErrors.phone ? "border-destructive" : ""}
-                  />
-                  {formErrors.phone && <p className="text-sm text-destructive">{formErrors.phone}</p>}
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="address">Business Address *</Label>
-                  <Input 
-                    id="address" 
-                    placeholder="Street, City, State"
-                    value={address}
-                    onChange={(e) => {
-                      setAddress(e.target.value);
-                      if (formErrors.address) setFormErrors({...formErrors, address: ''});
-                    }}
-                    className={formErrors.address ? "border-destructive" : ""}
-                  />
-                  {formErrors.address && <p className="text-sm text-destructive">{formErrors.address}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reg-email">Email Address *</Label>
-                  <Input 
-                    id="reg-email" 
-                    type="email" 
-                    placeholder="vendor@company.com"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (formErrors.email) setFormErrors({...formErrors, email: ''});
-                    }}
-                    className={formErrors.email ? "border-destructive" : ""}
-                  />
-                  {formErrors.email && <p className="text-sm text-destructive">{formErrors.email}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reg-password">Password *</Label>
-                  <Input 
-                    id="reg-password" 
-                    type="password"
-                    placeholder="Minimum 6 characters"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (formErrors.password) setFormErrors({...formErrors, password: ''});
-                    }}
-                    className={formErrors.password ? "border-destructive" : ""}
-                  />
-                  {formErrors.password && <p className="text-sm text-destructive">{formErrors.password}</p>}
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Upload KYC Documents (CAC, Tax Clearance, Bank Details)</Label>
-                <div 
-                  className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 transition-all cursor-pointer hover:bg-accent/50"
-                  onClick={() => document.getElementById('doc-upload')?.click()}
-                >
-                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Click to upload or drag and drop
-                  </p>
-                  <Input 
-                    type="file" 
-                    className="hidden" 
-                    id="doc-upload" 
-                    multiple 
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      if (files.length > 0) {
-                        setUploadedRegDocs([...uploadedRegDocs, ...files]);
-                      }
-                    }}
-                  />
-                  <Button variant="outline" size="sm" className="pointer-events-none">
-                    Select Files
-                  </Button>
-                </div>
-                {uploadedRegDocs.length > 0 && (
-                  <div className="space-y-2 mt-2">
-                    {uploadedRegDocs.map((doc, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 bg-muted rounded">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
-                          <span className="text-sm">{doc.name}</span>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => {
-                            const newDocs = [...uploadedRegDocs];
-                            newDocs.splice(idx, 1);
-                            setUploadedRegDocs(newDocs);
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <Alert>
-                <AlertDescription className="text-sm">
-                  Your application will be reviewed by our procurement team within 3-5 business days. 
-                  Once approved, you'll receive login credentials and access to RFQs via email.
-                </AlertDescription>
-              </Alert>
-
-              <Button className="w-full transition-transform hover:scale-105" size="lg" onClick={handleRegister}>
-                Submit Application
-              </Button>
-              
-              <div className="text-center text-sm text-muted-foreground">
-                Already have an account?{" "}
-                <button 
-                  onClick={() => setShowRegistration(false)} 
-                  className="text-primary hover:underline font-medium"
-                >
-                  Sign In
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <EnhancedVendorRegistration 
+          onSubmit={(registration) => {
+            addVendorRegistration({
+              companyName: registration.companyName || '',
+              category: registration.categories?.join(', ') || '',
+              email: registration.email || '',
+              phone: registration.phone || '',
+              address: registration.address || '',
+              taxId: registration.taxId || '',
+              contactPerson: registration.contactPerson || '',
+            });
+            setShowRegistration(false);
+            toast({
+              title: "Registration Submitted",
+              description: "Your application is pending approval. You'll be notified via email."
+            });
+          }}
+          onCancel={() => setShowRegistration(false)}
+        />
       );
     }
 
