@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar, AlertCircle, Upload } from "lucide-react";
+import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar, AlertCircle, Upload, Send } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
@@ -13,6 +13,8 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { POGenerationDialog } from "@/components/POGenerationDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { DashboardAlerts } from "@/components/DashboardAlerts";
+import { RFQManagement } from "@/components/RFQManagement";
 import type { MRFRequest } from "@/contexts/AppContext";
 import {
   Select,
@@ -338,8 +340,11 @@ const Procurement = () => {
           />
         </div>
 
+        {/* Dashboard Alerts */}
+        <DashboardAlerts userRole={user?.role || 'procurement'} maxAlerts={5} />
+
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 h-auto gap-1">
+          <TabsList className="grid w-full grid-cols-5 h-auto gap-1">
             <TabsTrigger value="mrn" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3 flex-col sm:flex-row gap-1">
               <span className="hidden sm:inline">Material Requests (MRN)</span>
               <span className="sm:hidden">MRN</span>
@@ -353,6 +358,11 @@ const Procurement = () => {
               <span className="hidden sm:inline">MRF (Official)</span>
               <span className="sm:hidden">MRF</span>
             </TabsTrigger>
+            <TabsTrigger value="rfq" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
+              <span className="hidden sm:inline">RFQ Management</span>
+              <span className="sm:hidden">RFQ</span>
+              <Send className="h-3 w-3 ml-1 hidden sm:inline" />
+            </TabsTrigger>
             <TabsTrigger value="srf" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
               <span className="hidden sm:inline">Service Requests</span>
               <span className="sm:hidden">SRF</span>
@@ -362,6 +372,17 @@ const Procurement = () => {
               <span className="sm:hidden">PO</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* RFQ Management Tab */}
+          <TabsContent value="rfq" className="space-y-4">
+            <RFQManagement onVendorSelected={(vendorId, rfqId) => {
+              toast({
+                title: "Vendor Selected",
+                description: "Proceed to generate Purchase Order",
+              });
+              setTab("mrf");
+            }} />
+          </TabsContent>
 
           <TabsContent value="mrn" className="space-y-4">
             <Card>

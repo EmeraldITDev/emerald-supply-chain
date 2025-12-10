@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Warehouse as WarehouseIcon, Package, AlertCircle, CheckCircle, Plus, MapPin } from "lucide-react";
+import { Warehouse as WarehouseIcon, Package, AlertCircle, CheckCircle, Plus, MapPin, Receipt as ReceiptIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import { GRNModule } from "@/components/GRNModule";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Receipt {
   id: string;
@@ -31,6 +33,7 @@ interface Receipt {
 
 const Warehouse = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [receiptDetailsOpen, setReceiptDetailsOpen] = useState(false);
@@ -228,13 +231,22 @@ const Warehouse = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="locations" className="space-y-4">
+        <Tabs defaultValue="grn" className="space-y-4">
           <TabsList>
+            <TabsTrigger value="grn" className="gap-2">
+              <ReceiptIcon className="h-4 w-4" />
+              GRN Management
+            </TabsTrigger>
             <TabsTrigger value="locations">Storage Locations</TabsTrigger>
-            <TabsTrigger value="receipts">Goods Receipt</TabsTrigger>
+            <TabsTrigger value="receipts">Legacy Receipts</TabsTrigger>
             <TabsTrigger value="dispatch">Goods Dispatch</TabsTrigger>
             <TabsTrigger value="ehs">EHS Compliance</TabsTrigger>
           </TabsList>
+
+          {/* GRN Module - New Tab */}
+          <TabsContent value="grn" className="space-y-4">
+            <GRNModule userRole={user?.role || 'employee'} />
+          </TabsContent>
 
           <TabsContent value="locations" className="space-y-4">
             <Card>
