@@ -18,6 +18,10 @@ export type VendorDocumentType =
   | 'CAC'
   | 'TIN'
   | 'HSE_CERTIFICATE'
+  | 'NUPRC_DPR'
+  | 'PENCOM'
+  | 'ITF'
+  | 'NSITF'
   | 'LETTER_OF_INTRODUCTION'
   | 'COMPANY_PROFILE'
   | 'CAC_FORM_7'
@@ -39,7 +43,11 @@ export interface VendorDocumentRequirement {
 export const VENDOR_DOCUMENT_REQUIREMENTS: VendorDocumentRequirement[] = [
   { type: 'CAC', label: 'CAC Certificate', description: 'Corporate Affairs Commission registration certificate', isRequired: true, expiresAnnually: false, isOEMOnly: false },
   { type: 'TIN', label: 'Tax Certificate', description: 'Valid Tax Certificate', isRequired: true, expiresAnnually: false, isOEMOnly: false },
-  { type: 'HSE_CERTIFICATE', label: 'HSE Documents', description: 'Health, Safety & Environment certificates', isRequired: true, expiresAnnually: true, isOEMOnly: false },
+  { type: 'HSE_CERTIFICATE', label: 'HSE Documents', description: 'Health, Safety & Environment documents (e.g., ISO 9001, ISO 14001, ISO 45001, OHSAS 18001, Safety Policy, Environmental Policy)', isRequired: true, expiresAnnually: false, isOEMOnly: false },
+  { type: 'NUPRC_DPR', label: 'NUPRC (DPR)', description: 'Nigerian Upstream Petroleum Regulatory Commission permit (expires annually)', isRequired: true, expiresAnnually: true, isOEMOnly: false },
+  { type: 'PENCOM', label: 'PENCOM', description: 'Pension Commission compliance certificate (expires 31st December)', isRequired: true, expiresAnnually: true, isOEMOnly: false },
+  { type: 'ITF', label: 'ITF', description: 'Industrial Training Fund certificate (expires 31st December)', isRequired: true, expiresAnnually: true, isOEMOnly: false },
+  { type: 'NSITF', label: 'NSITF', description: 'Nigeria Social Insurance Trust Fund certificate (expires 31st December)', isRequired: true, expiresAnnually: true, isOEMOnly: false },
   { type: 'LETTER_OF_INTRODUCTION', label: 'Letter of Introduction', description: 'Company introduction letter on letterhead', isRequired: true, expiresAnnually: false, isOEMOnly: false },
   { type: 'COMPANY_PROFILE', label: 'Company Profile', description: 'Detailed company profile with capabilities', isRequired: true, expiresAnnually: false, isOEMOnly: false },
   { type: 'CAC_FORM_7', label: 'CAC Form 7', description: 'Particulars of Directors', isRequired: true, expiresAnnually: false, isOEMOnly: false },
