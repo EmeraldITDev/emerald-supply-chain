@@ -38,7 +38,7 @@ export interface VendorDocumentRequirement {
 
 export const VENDOR_DOCUMENT_REQUIREMENTS: VendorDocumentRequirement[] = [
   { type: 'CAC', label: 'CAC Certificate', description: 'Corporate Affairs Commission registration certificate', isRequired: true, expiresAnnually: false, isOEMOnly: false },
-  { type: 'TIN', label: 'Tax Identification Number (TIN)', description: 'Valid Tax Identification Number', isRequired: true, expiresAnnually: false, isOEMOnly: false },
+  { type: 'TIN', label: 'Tax Certificate', description: 'Valid Tax Certificate', isRequired: true, expiresAnnually: false, isOEMOnly: false },
   { type: 'HSE_CERTIFICATE', label: 'HSE Documents', description: 'Health, Safety & Environment certificates', isRequired: true, expiresAnnually: true, isOEMOnly: false },
   { type: 'LETTER_OF_INTRODUCTION', label: 'Letter of Introduction', description: 'Company introduction letter on letterhead', isRequired: true, expiresAnnually: false, isOEMOnly: false },
   { type: 'COMPANY_PROFILE', label: 'Company Profile', description: 'Detailed company profile with capabilities', isRequired: true, expiresAnnually: false, isOEMOnly: false },
