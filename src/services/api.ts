@@ -51,9 +51,19 @@ async function apiRequest<T>(
     const data = await response.json();
 
     if (!response.ok) {
+      // Handle validation errors
+      if (data.errors && typeof data.errors === 'object') {
+        const firstError = Object.values(data.errors)[0];
+        const errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+        return {
+          success: false,
+          error: errorMessage || data.message || 'An error occurred',
+        };
+      }
+      
       return {
         success: false,
-        error: data.message || 'An error occurred',
+        error: data.message || data.error || 'An error occurred',
       };
     }
 
@@ -233,11 +243,58 @@ export const vendorApi = {
     return apiRequest<Vendor>(`/vendors/${id}`);
   },
 
-  register: async (data: CreateVendorRegistrationData): Promise<ApiResponse<VendorRegistration>> => {
-    return apiRequest<VendorRegistration>('/vendors/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+  register: async (data: CreateVendorRegistrationData & { documents?: File[] }): Promise<ApiResponse<VendorRegistration>> => {
+    // Use FormData if documents are provided, otherwise JSON
+    const formData = new FormData();
+    formData.append('companyName', data.companyName);
+    formData.append('category', data.category);
+    formData.append('email', data.email);
+    if (data.phone) formData.append('phone', data.phone);
+    if (data.address) formData.append('address', data.address);
+    if (data.taxId) formData.append('taxId', data.taxId);
+    if (data.contactPerson) formData.append('contactPerson', data.contactPerson);
+    
+    // Add documents if provided
+    if (data.documents && data.documents.length > 0) {
+      data.documents.forEach((file) => {
+        formData.append('documents[]', file);
+      });
+    }
+
+    // For FormData, we need to make a direct fetch call (not using apiRequest which sets JSON headers)
+    const token = getAuthToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    // Don't set Content-Type - browser will set it with boundary for FormData
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/vendors/register`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: responseData.message || 'Registration failed',
+        };
+      }
+
+      return {
+        success: true,
+        data: responseData.registration || responseData,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error',
+      };
+    }
   },
 
   getRegistrations: async (): Promise<ApiResponse<VendorRegistration[]>> => {
@@ -247,6 +304,13 @@ export const vendorApi = {
   approveRegistration: async (id: string): Promise<ApiResponse<Vendor>> => {
     return apiRequest<Vendor>(`/vendors/registrations/${id}/approve`, {
       method: 'POST',
+    });
+  },
+
+  rejectRegistration: async (id: string, rejectionReason: string): Promise<ApiResponse<VendorRegistration>> => {
+    return apiRequest<VendorRegistration>(`/vendors/registrations/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ rejectionReason }),
     });
   },
 };

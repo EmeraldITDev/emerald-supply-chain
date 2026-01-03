@@ -16,12 +16,15 @@ const Auth = () => {
   const { toast } = useToast();
   const { login } = useAuth();
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
-    const success = await login(email, password);
+    const result = await login(email, password);
     
-    if (success) {
+    if (result.success) {
       toast({
         title: "Welcome!",
         description: "Successfully signed in to SCM system",
@@ -30,11 +33,12 @@ const Auth = () => {
       navigate("/dashboard");
     } else {
       toast({
-        title: "Error",
-        description: "Please enter email and password",
+        title: "Login Failed",
+        description: result.error || "Invalid credentials. Please check your email and password.",
         variant: "destructive",
       });
     }
+    setIsLoading(false);
   };
 
   return (
@@ -80,8 +84,8 @@ const Auth = () => {
                   required
                 />
               </div>
-              <Button type="submit" className="w-full transition-transform hover:scale-105">
-                Sign In
+              <Button type="submit" className="w-full transition-transform hover:scale-105" disabled={isLoading}>
+                {isLoading ? "Signing in..." : "Sign In"}
               </Button>
             </form>
           </CardContent>
@@ -98,6 +102,7 @@ const Auth = () => {
             <p><strong>Logistics Manager:</strong> logistics@emeraldcfze.com / any password</p>
             <p><strong>Finance:</strong> finance@emeraldcfze.com / any password</p>
           </div>
+          <p className="mt-4 text-xs text-muted-foreground">Note: These are demo credentials. Use your HRIS credentials for real authentication.</p>
         </div>
       </div>
     </div>

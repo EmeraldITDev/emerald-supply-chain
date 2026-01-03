@@ -1,10 +1,11 @@
 // User & Authentication Types
 export interface User {
-  id: string;
+  id: number;
   email: string;
   name: string;
-  role: 'employee' | 'procurement' | 'finance' | 'admin' | 'executive' | 'supply_chain_director' | 'chairman' | 'logistics';
-  department?: string;
+  role: 'employee' | 'procurement_manager' | 'procurement' | 'finance' | 'admin' | 'executive' | 'supply_chain_director' | 'chairman' | 'logistics_manager' | 'logistics';
+  department?: string | null;
+  employeeId?: number;
   createdAt: string;
 }
 
@@ -16,6 +17,7 @@ export interface LoginCredentials {
 export interface AuthResponse {
   user: User;
   token: string;
+  requiresPasswordChange?: boolean;
 }
 
 // MRF (Material Requisition Form) Types

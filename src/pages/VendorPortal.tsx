@@ -10,6 +10,7 @@ import { useState, useRef } from "react";
 import logo from "@/assets/emerald-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
+import { vendorApi } from "@/services/api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -84,13 +85,12 @@ const VendorPortal = () => {
     }
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     const errors: Record<string, string> = {};
     
     if (!companyName) errors.companyName = "Company name is required";
     if (!email) errors.email = "Email is required";
     else if (!validateEmail(email)) errors.email = "Invalid email format";
-    if (!password || password.length < 6) errors.password = "Password must be at least 6 characters";
     if (!category) errors.category = "Category is required";
     if (!phone) errors.phone = "Phone is required";
     if (!address) errors.address = "Address is required";
@@ -108,33 +108,69 @@ const VendorPortal = () => {
       return;
     }
 
-    addVendorRegistration({
-      companyName,
-      category,
-      email,
-      phone,
-      address,
-      taxId,
-      contactPerson,
-    });
+    setIsSubmitting(true);
 
-    toast({ 
-      title: "Registration Submitted", 
-      description: "Your application is pending approval. You'll be notified via email."
-    });
-    
-    // Reset form
-    setShowRegistration(false);
-    setFormErrors({});
-    setEmail("");
-    setPassword("");
-    setCompanyName("");
-    setCategory("");
-    setPhone("");
-    setAddress("");
-    setTaxId("");
-    setContactPerson("");
-    setUploadedRegDocs([]);
+    try {
+      const response = await vendorApi.register({
+        companyName,
+        category,
+        email,
+        phone,
+        address,
+        taxId,
+        contactPerson,
+        documents: uploadedRegDocs.length > 0 ? uploadedRegDocs : undefined,
+      });
+
+      if (response.success) {
+        // Also update local state for immediate UI feedback
+        addVendorRegistration({
+          companyName,
+          category,
+          email,
+          phone,
+          address,
+          taxId,
+          contactPerson,
+        });
+
+        toast({ 
+          title: "Registration Submitted", 
+          description: "Your application is pending approval. You'll be notified via email."
+        });
+        
+        // Reset form
+        setShowRegistration(false);
+        setFormErrors({});
+        setEmail("");
+        setPassword("");
+        setCompanyName("");
+        setCategory("");
+        setPhone("");
+        setAddress("");
+        setTaxId("");
+        setContactPerson("");
+        setUploadedRegDocs([]);
+      } else {
+        // Handle validation errors
+        if (response.error) {
+          setFormErrors({ general: response.error });
+          toast({
+            title: "Registration Failed",
+            description: response.error,
+            variant: "destructive"
+          });
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Registration Failed",
+        description: error.message || "An error occurred. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmitQuotation = async () => {

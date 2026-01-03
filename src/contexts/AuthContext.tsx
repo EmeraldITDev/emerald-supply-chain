@@ -1,90 +1,117 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { authApi } from "@/services/api";
 
-export type UserRole = "employee" | "procurement" | "finance" | "executive" | "supply_chain_director" | "chairman" | "logistics";
+export type UserRole = "employee" | "procurement_manager" | "finance" | "executive" | "supply_chain_director" | "chairman" | "logistics_manager" | "procurement" | "logistics";
 
 export interface AuthUser {
+  id: number;
   email: string;
   role: UserRole;
   name: string;
-  department: string;
+  department: string | null;
+  employeeId?: number;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Role mapping based on email
-const getRoleFromEmail = (email: string): { role: UserRole; name: string; department: string } => {
-  if (email.includes("bunmi.babajide@emeraldcfze.com")) {
-    return { role: "executive", name: "Bunmi Babajide", department: "Executive" };
-  } else if (email.includes("laa@emeraldcfze.com")) {
-    return { role: "chairman", name: "Company Chairman", department: "Executive" };
-  } else if (email.includes("supply@emeraldcfze.com") || email.includes("supplychain@emeraldcfze.com")) {
-    return { role: "supply_chain_director", name: "Supply Chain Director", department: "Supply Chain" };
-  } else if (email.includes("logistics@emeraldcfze.com")) {
-    return { role: "logistics", name: "Logistics Manager", department: "Logistics" };
-  } else if (email.includes("procurement@emeraldcfze.com")) {
-    return { role: "procurement", name: "Procurement Manager", department: "Procurement" };
-  } else if (email.includes("finance@emeraldcfze.com") || email.includes("temitope")) {
-    return { role: "finance", name: "Temitope Lawal", department: "Finance" };
-  } else if (email.includes("staff@emeraldcfze.com")) {
-    return { role: "employee", name: "Employee User", department: "General Staff" };
-  }
-  return { role: "employee", name: "Guest User", department: "General" };
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check for existing session
-    const storedEmail = localStorage.getItem("userEmail");
-    const storedRole = localStorage.getItem("userRole") as UserRole;
-    const storedName = localStorage.getItem("userName");
-    const storedDepartment = localStorage.getItem("userDepartment");
-    
-    if (storedEmail && storedRole && storedName && storedDepartment) {
-      setUser({ email: storedEmail, role: storedRole, name: storedName, department: storedDepartment });
+  const logout = useCallback(async (): Promise<void> => {
+    try {
+      // Call logout API
+      await authApi.logout();
+    } catch (error) {
+      // Continue with logout even if API call fails
+      console.error("Logout API error:", error);
+    } finally {
+      setUser(null);
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("userData");
+      localStorage.removeItem("isAuthenticated");
     }
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Simple validation
+  useEffect(() => {
+    // Check for existing session and validate token
+    const token = localStorage.getItem("authToken");
+    const storedUser = localStorage.getItem("userData");
+    
+    if (token && storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+        
+        // Verify token is still valid by calling /auth/me
+        authApi.getCurrentUser().then((response) => {
+          if (response.success && response.data) {
+            const updatedUser: AuthUser = {
+              id: response.data.id,
+              email: response.data.email,
+              role: response.data.role as UserRole,
+              name: response.data.name,
+              department: response.data.department,
+              employeeId: response.data.employeeId,
+            };
+            setUser(updatedUser);
+            localStorage.setItem("userData", JSON.stringify(updatedUser));
+          } else {
+            // Token invalid, clear session
+            logout();
+          }
+        }).catch(() => {
+          logout();
+        });
+      } catch (error) {
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("userData");
+      }
+    }
+    setLoading(false);
+  }, [logout]);
+
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     if (!email || !password) {
-      return false;
+      return { success: false, error: "Please enter email and password" };
     }
 
-    const { role, name, department } = getRoleFromEmail(email);
-    
-    const authUser: AuthUser = {
-      email,
-      role,
-      name,
-      department,
-    };
+    try {
+      const response = await authApi.login({ email, password });
 
-    setUser(authUser);
-    localStorage.setItem("isAuthenticated", "true");
-    localStorage.setItem("userEmail", email);
-    localStorage.setItem("userRole", role);
-    localStorage.setItem("userName", name);
-    localStorage.setItem("userDepartment", department);
+      if (response.success && response.data) {
+        const userData = response.data.user;
+        const token = response.data.token;
 
-    return true;
-  };
+        const authUser: AuthUser = {
+          id: userData.id,
+          email: userData.email,
+          role: userData.role as UserRole,
+          name: userData.name,
+          department: userData.department,
+          employeeId: userData.employeeId,
+        };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userDepartment");
+        setUser(authUser);
+        localStorage.setItem("authToken", token);
+        localStorage.setItem("userData", JSON.stringify(authUser));
+        localStorage.setItem("isAuthenticated", "true");
+
+        return { success: true };
+      } else {
+        return { success: false, error: response.error || "Login failed" };
+      }
+    } catch (error: any) {
+      return { success: false, error: error.message || "An error occurred during login" };
+    }
   };
 
   return (
@@ -94,6 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         logout,
         isAuthenticated: !!user,
+        loading,
       }}
     >
       {children}

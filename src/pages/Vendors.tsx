@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
+import { vendorApi } from "@/services/api";
+import { VendorRegistration } from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -23,22 +25,162 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const Vendors = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { vendors, addVendorDocument, deleteVendorDocument } = useApp();
+  const { vendors: contextVendors, addVendorDocument, deleteVendorDocument } = useApp();
+  const [vendors, setVendors] = useState(contextVendors);
+  const [loadingVendors, setLoadingVendors] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<typeof vendors[0] | null>(null);
   const [vendorDetailsOpen, setVendorDetailsOpen] = useState(false);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [kycReviewOpen, setKycReviewOpen] = useState(false);
-  const [reviewingVendor, setReviewingVendor] = useState<any>(null);
+  const [reviewingVendor, setReviewingVendor] = useState<VendorRegistration | null>(null);
   const [contactTo, setContactTo] = useState("");
   const [contactSubject, setContactSubject] = useState("");
   const [contactMessage, setContactMessage] = useState("");
+  const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
+  const [loadingRegistrations, setLoadingRegistrations] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // New vendor form
   const [newVendorName, setNewVendorName] = useState("");
   const [newVendorCategory, setNewVendorCategory] = useState("");
   const [newVendorEmail, setNewVendorEmail] = useState("");
+
+  // Fetch vendor registrations
+  useEffect(() => {
+    const fetchRegistrations = async () => {
+      setLoadingRegistrations(true);
+      try {
+        const response = await vendorApi.getRegistrations();
+        if (response.success && response.data) {
+          setVendorRegistrations(response.data);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load vendor registrations",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingRegistrations(false);
+      }
+    };
+
+    fetchRegistrations();
+  }, [toast]);
+
+  // Fetch approved vendors
+  useEffect(() => {
+    const fetchVendors = async () => {
+      setLoadingVendors(true);
+      try {
+        const response = await vendorApi.getAll();
+        if (response.success && response.data) {
+          // Transform API vendor data to match frontend format
+          const transformedVendors = response.data.map((vendor: any) => ({
+            id: vendor.vendor_id || vendor.id,
+            name: vendor.name,
+            category: vendor.category || 'Unknown',
+            status: vendor.status || 'Active',
+            kyc: 'Verified', // Assuming approved vendors are verified
+            rating: vendor.rating || 0,
+            orders: vendor.total_orders || 0,
+            documents: [], // TODO: Fetch documents separately if needed
+          }));
+          setVendors(transformedVendors);
+        }
+      } catch (error) {
+        // Fallback to context vendors if API fails
+        setVendors(contextVendors);
+      } finally {
+        setLoadingVendors(false);
+      }
+    };
+
+    fetchVendors();
+  }, [contextVendors]);
+
+  // Handle approval
+  const handleApprove = async (registrationId: string) => {
+    setIsProcessing(true);
+    try {
+      const response = await vendorApi.approveRegistration(registrationId);
+      if (response.success) {
+        toast({
+          title: "Approved",
+          description: "Vendor registration has been approved. Credentials have been sent via email.",
+        });
+        // Refresh registrations
+        const refreshResponse = await vendorApi.getRegistrations();
+        if (refreshResponse.success && refreshResponse.data) {
+          setVendorRegistrations(refreshResponse.data);
+        }
+        setKycReviewOpen(false);
+        setReviewingVendor(null);
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to approve registration",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle rejection
+  const handleReject = async (registrationId: string) => {
+    if (!rejectionReason.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide a reason for rejection",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const response = await vendorApi.rejectRegistration(registrationId, rejectionReason);
+      if (response.success) {
+        toast({
+          title: "Rejected",
+          description: "Vendor registration has been rejected.",
+        });
+        // Refresh registrations
+        const refreshResponse = await vendorApi.getRegistrations();
+        if (refreshResponse.success && refreshResponse.data) {
+          setVendorRegistrations(refreshResponse.data);
+        }
+        setKycReviewOpen(false);
+        setReviewingVendor(null);
+        setRejectionReason("");
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to reject registration",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -108,10 +250,17 @@ const Vendors = () => {
     }
   }, [vendors]);
 
-  const pendingKYC = [
-    { name: "NewVendor Industries", category: "Raw Materials", submitted: "2024-01-14", documents: 8 },
-    { name: "Global Suppliers", category: "Equipment", submitted: "2024-01-13", documents: 6 },
-  ];
+  // Filter pending registrations
+  const pendingKYC = vendorRegistrations
+    .filter(reg => reg.status === 'Pending')
+    .map(reg => ({
+      id: reg.id,
+      name: reg.companyName,
+      category: reg.category,
+      submitted: new Date(reg.submittedDate).toISOString().split('T')[0],
+      documents: 0, // TODO: Get document count from API
+      registration: reg,
+    }));
 
   const topPerformers = [
     { name: "Steel Works Ltd", score: 4.8, onTime: 96, quality: 98 },
@@ -229,7 +378,7 @@ const Vendors = () => {
               <FileCheck className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">4</div>
+              <div className="text-2xl font-bold">{pendingKYC.length}</div>
               <p className="text-xs text-muted-foreground">Awaiting review</p>
             </CardContent>
           </Card>
@@ -279,7 +428,7 @@ const Vendors = () => {
                       variant="outline" 
                       size="sm"
                       onClick={() => {
-                        setReviewingVendor(vendor);
+                        setReviewingVendor(vendor.registration);
                         setKycReviewOpen(true);
                       }}
                       className="self-start sm:self-center transition-transform hover:scale-105"
@@ -550,79 +699,84 @@ const Vendors = () => {
       </Dialog>
 
       {/* KYC Review Dialog */}
-      <Dialog open={kycReviewOpen} onOpenChange={setKycReviewOpen}>
-        <DialogContent className="max-w-3xl">
+      <Dialog open={kycReviewOpen} onOpenChange={(open) => {
+        setKycReviewOpen(open);
+        if (!open) {
+          setReviewingVendor(null);
+          setRejectionReason("");
+        }
+      }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>KYC Review - {reviewingVendor?.name}</DialogTitle>
-            <DialogDescription>Review vendor documentation and approve/reject KYC</DialogDescription>
+            <DialogTitle>KYC Review - {reviewingVendor?.companyName}</DialogTitle>
+            <DialogDescription>Review vendor registration and approve/reject</DialogDescription>
           </DialogHeader>
           {reviewingVendor && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
                 <div>
-                  <Label className="text-muted-foreground">Company</Label>
-                  <p className="font-medium">{reviewingVendor.name}</p>
+                  <Label className="text-muted-foreground">Company Name</Label>
+                  <p className="font-medium">{reviewingVendor.companyName}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Category</Label>
                   <p className="font-medium">{reviewingVendor.category}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Submitted Date</Label>
-                  <p className="font-medium">{reviewingVendor.submitted}</p>
+                  <Label className="text-muted-foreground">Email</Label>
+                  <p className="font-medium">{reviewingVendor.email}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Documents</Label>
-                  <p className="font-medium">{reviewingVendor.documents} files</p>
+                  <Label className="text-muted-foreground">Phone</Label>
+                  <p className="font-medium">{reviewingVendor.phone || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Contact Person</Label>
+                  <p className="font-medium">{reviewingVendor.contactPerson || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Tax ID</Label>
+                  <p className="font-medium">{reviewingVendor.taxId || 'N/A'}</p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Address</Label>
+                  <p className="font-medium">{reviewingVendor.address || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Submitted Date</Label>
+                  <p className="font-medium">{new Date(reviewingVendor.submittedDate).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge className={getStatusColor(reviewingVendor.status)}>{reviewingVendor.status}</Badge>
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label>Documents for Review</Label>
-                <div className="border rounded-lg p-4 space-y-2 max-h-60 overflow-y-auto">
-                  {['CAC Certificate', 'Tax Clearance', 'Bank Details', 'ISO Certification', 'Insurance Certificate'].map((doc, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary" />
-                        <span className="text-sm">{doc}.pdf</span>
-                      </div>
-                      <Button size="sm" variant="ghost">View</Button>
-                    </div>
-                  ))}
-                </div>
+                <Label>Rejection Reason (if rejecting)</Label>
+                <textarea
+                  className="w-full rounded-md border bg-background p-2 text-sm min-h-[100px]"
+                  placeholder="Enter reason for rejection..."
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                />
               </div>
               
               <div className="flex gap-2 pt-4">
                 <Button 
                   className="flex-1 transition-transform hover:scale-105"
-                  onClick={() => {
-                    toast({ 
-                      title: "KYC Approved", 
-                      description: `${reviewingVendor.name} has been verified and approved` 
-                    });
-                    setKycReviewOpen(false);
-                    setReviewingVendor(null);
-                  }}
+                  onClick={() => reviewingVendor.id && handleApprove(reviewingVendor.id)}
+                  disabled={isProcessing}
                 >
-                  Approve Vendor
+                  {isProcessing ? "Processing..." : "Approve Vendor"}
                 </Button>
                 <Button 
                   variant="destructive" 
                   className="flex-1 transition-transform hover:scale-105"
-                  onClick={() => {
-                    const reason = prompt("Enter rejection reason:");
-                    if (reason) {
-                      toast({ 
-                        title: "KYC Rejected", 
-                        description: `${reviewingVendor.name} application rejected`,
-                        variant: "destructive"
-                      });
-                      setKycReviewOpen(false);
-                      setReviewingVendor(null);
-                    }
-                  }}
+                  onClick={() => reviewingVendor.id && handleReject(reviewingVendor.id)}
+                  disabled={isProcessing || !rejectionReason.trim()}
                 >
-                  Reject
+                  {isProcessing ? "Processing..." : "Reject"}
                 </Button>
               </div>
             </div>
