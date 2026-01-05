@@ -42,11 +42,45 @@ const Vendors = () => {
   const [loadingRegistrations, setLoadingRegistrations] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   
   // New vendor form
   const [newVendorName, setNewVendorName] = useState("");
   const [newVendorCategory, setNewVendorCategory] = useState("");
   const [newVendorEmail, setNewVendorEmail] = useState("");
+
+  // Credential reset handler
+  const handleResetVendorPassword = async (vendorId: string, vendorName: string) => {
+    setIsResettingPassword(true);
+    try {
+      const response = await vendorApi.updateCredentials(vendorId, { resetPassword: true });
+      if (response.success && response.data?.temporaryPassword) {
+        toast({
+          title: "Password Reset Successful",
+          description: `New temporary password for ${vendorName}: ${response.data.temporaryPassword}. The vendor has been notified via email.`,
+        });
+      } else if (response.success) {
+        toast({
+          title: "Password Reset",
+          description: `Password has been reset for ${vendorName}. The vendor has been notified via email.`,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to reset password",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
 
   // Fetch vendor registrations
   useEffect(() => {
@@ -78,16 +112,21 @@ const Vendors = () => {
       try {
         const response = await vendorApi.getAll();
         if (response.success && response.data) {
-          // Transform API vendor data to match frontend format
+          // Transform API vendor data to match frontend Vendor type
           const transformedVendors = response.data.map((vendor: any) => ({
             id: vendor.vendor_id || vendor.id,
-            name: vendor.name,
+            name: vendor.name || vendor.company_name,
             category: vendor.category || 'Unknown',
             status: vendor.status || 'Active',
-            kyc: 'Verified', // Assuming approved vendors are verified
+            kyc: vendor.kyc_status || 'Verified',
             rating: vendor.rating || 0,
             orders: vendor.total_orders || 0,
-            documents: [], // TODO: Fetch documents separately if needed
+            email: vendor.email || '',
+            phone: vendor.phone || '',
+            address: vendor.address || '',
+            taxId: vendor.tax_id || vendor.taxId || '',
+            contactPerson: vendor.contact_person || vendor.contactPerson || '',
+            documents: vendor.documents || [],
           }));
           setVendors(transformedVendors);
         }
@@ -107,15 +146,38 @@ const Vendors = () => {
     setIsProcessing(true);
     try {
       const response = await vendorApi.approveRegistration(registrationId);
-      if (response.success) {
+      if (response.success && response.data) {
+        const { temporaryPassword } = response.data;
         toast({
-          title: "Approved",
-          description: "Vendor registration has been approved. Credentials have been sent via email.",
+          title: "Vendor Approved Successfully",
+          description: temporaryPassword 
+            ? `Vendor account created. Temporary password: ${temporaryPassword}. An email has been sent to the vendor with login credentials.`
+            : "Vendor registration has been approved. Credentials have been sent via email.",
         });
         // Refresh registrations
         const refreshResponse = await vendorApi.getRegistrations();
         if (refreshResponse.success && refreshResponse.data) {
           setVendorRegistrations(refreshResponse.data);
+        }
+        // Also refresh vendors list
+        const vendorsResponse = await vendorApi.getAll();
+        if (vendorsResponse.success && vendorsResponse.data) {
+          const transformedVendors = vendorsResponse.data.map((vendor: any) => ({
+            id: vendor.vendor_id || vendor.id,
+            name: vendor.name || vendor.company_name,
+            category: vendor.category || 'Unknown',
+            status: vendor.status || 'Active',
+            kyc: vendor.kyc_status || 'Verified',
+            rating: vendor.rating || 0,
+            orders: vendor.total_orders || 0,
+            email: vendor.email || '',
+            phone: vendor.phone || '',
+            address: vendor.address || '',
+            taxId: vendor.tax_id || vendor.taxId || '',
+            contactPerson: vendor.contact_person || vendor.contactPerson || '',
+            documents: vendor.documents || [],
+          }));
+          setVendors(transformedVendors);
         }
         setKycReviewOpen(false);
         setReviewingVendor(null);
@@ -628,7 +690,7 @@ const Vendors = () => {
                 )}
               </div>
 
-              <div className="flex gap-2 pt-4">
+              <div className="flex flex-wrap gap-2 pt-4">
                 <Button
                   className="flex-1"
                   onClick={() => {
@@ -644,6 +706,14 @@ const Vendors = () => {
                   onClick={() => setContactDialogOpen(true)}
                 >
                   Contact Vendor
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  disabled={isResettingPassword}
+                  onClick={() => selectedVendor && handleResetVendorPassword(selectedVendor.id, selectedVendor.name)}
+                >
+                  {isResettingPassword ? "Resetting..." : "Reset Password"}
                 </Button>
               </div>
             </div>

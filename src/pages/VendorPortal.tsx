@@ -4,13 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send } from "lucide-react";
+import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import logo from "@/assets/emerald-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
-import { vendorApi } from "@/services/api";
+import { vendorApi, vendorAuthApi } from "@/services/api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -19,23 +19,24 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { EnhancedVendorRegistration } from "@/components/EnhancedVendorRegistration";
 import { VendorQuoteSubmission } from "@/components/VendorQuoteSubmission";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import type { Vendor } from "@/types";
+
+interface VendorData extends Vendor {
+  companyName?: string;
+}
 
 const VendorPortal = () => {
   const { toast } = useToast();
   const { rfqs, quotations, addQuotation, updateQuotation, addVendorRegistration } = useApp();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
-  const [currentVendorId] = useState("V001");
+  const [currentVendor, setCurrentVendor] = useState<VendorData | null>(null);
+  const [currentVendorId, setCurrentVendorId] = useState("");
   const [activeTab, setActiveTab] = useState("rfqs");
   const [selectedRfqForDetails, setSelectedRfqForDetails] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isBottomBarCollapsed, setIsBottomBarCollapsed] = useState(false);
-  const [uploadedDocs, setUploadedDocs] = useState<Array<{name: string, status: string, uploaded: string, file?: File}>>([
-    { name: "CAC Certificate", status: "Approved", uploaded: "2024-01-01" },
-    { name: "Tax Clearance", status: "Approved", uploaded: "2024-01-01" },
-    { name: "Bank Details", status: "Approved", uploaded: "2024-01-01" },
-    { name: "ISO Certificate", status: "Pending", uploaded: "2025-10-15" },
-  ]);
+  const [uploadedDocs, setUploadedDocs] = useState<Array<{name: string, status: string, uploaded: string, file?: File}>>([]);
   const [uploadedQuoteDocs, setUploadedQuoteDocs] = useState<File[]>([]);
   const [uploadedRegDocs, setUploadedRegDocs] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,8 +46,16 @@ const VendorPortal = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   
-  // Registration form
+  // Password change dialog
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [currentPasswordForChange, setCurrentPasswordForChange] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
+  // Registration form (legacy)
   const [companyName, setCompanyName] = useState("");
   const [category, setCategory] = useState("");
   const [phone, setPhone] = useState("");
@@ -61,11 +70,42 @@ const VendorPortal = () => {
   const [quoteNotes, setQuoteNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Check for existing session on mount
+  useEffect(() => {
+    const token = localStorage.getItem('vendorAuthToken');
+    const storedVendor = localStorage.getItem('vendorData');
+    
+    if (token && storedVendor) {
+      try {
+        const vendorData = JSON.parse(storedVendor);
+        setCurrentVendor(vendorData);
+        setCurrentVendorId(vendorData.id);
+        setIsLoggedIn(true);
+        
+        // Verify token is still valid
+        vendorAuthApi.getProfile().then((response) => {
+          if (response.success && response.data) {
+            setCurrentVendor(response.data);
+            localStorage.setItem('vendorData', JSON.stringify(response.data));
+          } else {
+            // Token invalid, logout
+            handleLogout();
+          }
+        }).catch(() => {
+          handleLogout();
+        });
+      } catch {
+        localStorage.removeItem('vendorAuthToken');
+        localStorage.removeItem('vendorData');
+      }
+    }
+  }, []);
+
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const errors: Record<string, string> = {};
     
     if (!email) errors.email = "Email is required";
@@ -76,12 +116,107 @@ const VendorPortal = () => {
     
     if (Object.keys(errors).length > 0) return;
     
-    if (email === "vendor@demo.com" && password === "demo123") {
-      setIsLoggedIn(true);
-      setFormErrors({});
-      toast({ title: "Login Successful", description: "Welcome to Vendor Portal" });
-    } else {
-      setFormErrors({ general: "Invalid credentials" });
+    setIsLoggingIn(true);
+    
+    try {
+      const response = await vendorAuthApi.login(email, password);
+      
+      if (response.success && response.data) {
+        const { vendor, token, requiresPasswordChange } = response.data;
+        
+        // Store token and vendor data
+        localStorage.setItem('vendorAuthToken', token);
+        localStorage.setItem('vendorData', JSON.stringify(vendor));
+        
+        setCurrentVendor(vendor);
+        setCurrentVendorId(vendor.id);
+        setIsLoggedIn(true);
+        setFormErrors({});
+        
+        if (requiresPasswordChange) {
+          setShowPasswordChange(true);
+          setCurrentPasswordForChange(password);
+          toast({
+            title: "Password Change Required",
+            description: "Please change your password to continue.",
+          });
+        } else {
+          toast({ title: "Login Successful", description: "Welcome to Vendor Portal" });
+        }
+      } else {
+        setFormErrors({ general: response.error || "Invalid credentials" });
+      }
+    } catch (error: any) {
+      setFormErrors({ general: error.message || "Login failed. Please try again." });
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (newPassword.length < 8) {
+      toast({
+        title: "Invalid Password",
+        description: "Password must be at least 8 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Password Mismatch",
+        description: "New password and confirmation do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsChangingPassword(true);
+    
+    try {
+      const response = await vendorAuthApi.changePassword(currentPasswordForChange, newPassword);
+      
+      if (response.success) {
+        setShowPasswordChange(false);
+        setNewPassword("");
+        setConfirmPassword("");
+        setCurrentPasswordForChange("");
+        toast({
+          title: "Password Changed",
+          description: "Your password has been updated successfully",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to change password",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to change password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await vendorAuthApi.logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      localStorage.removeItem('vendorAuthToken');
+      localStorage.removeItem('vendorData');
+      setIsLoggedIn(false);
+      setCurrentVendor(null);
+      setCurrentVendorId("");
+      setEmail("");
+      setPassword("");
     }
   };
 
@@ -111,7 +246,7 @@ const VendorPortal = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await vendorApi.register({
+      const response = await vendorApi.registerSimple({
         companyName,
         category,
         email,
@@ -317,15 +452,6 @@ const VendorPortal = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Alert className="bg-info/10 border-info/20">
-              <AlertDescription>
-                <p className="text-sm font-medium text-info">Demo Credentials</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Email: vendor@demo.com<br/>
-                  Password: demo123
-                </p>
-              </AlertDescription>
-            </Alert>
             {formErrors.general && (
               <Alert variant="destructive">
                 <AlertDescription>{formErrors.general}</AlertDescription>
@@ -342,8 +468,9 @@ const VendorPortal = () => {
                   setEmail(e.target.value);
                   if (formErrors.email || formErrors.general) setFormErrors({...formErrors, email: '', general: ''});
                 }}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                onKeyDown={(e) => e.key === 'Enter' && !isLoggingIn && handleLogin()}
                 className={formErrors.email ? "border-destructive" : ""}
+                disabled={isLoggingIn}
               />
               {formErrors.email && <p className="text-sm text-destructive">{formErrors.email}</p>}
             </div>
@@ -357,25 +484,88 @@ const VendorPortal = () => {
                   setPassword(e.target.value);
                   if (formErrors.password || formErrors.general) setFormErrors({...formErrors, password: '', general: ''});
                 }}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                onKeyDown={(e) => e.key === 'Enter' && !isLoggingIn && handleLogin()}
                 className={formErrors.password ? "border-destructive" : ""}
+                disabled={isLoggingIn}
               />
               {formErrors.password && <p className="text-sm text-destructive">{formErrors.password}</p>}
             </div>
-            <Button className="w-full transition-transform hover:scale-105" size="lg" onClick={handleLogin}>
-              Sign In
+            <Button 
+              className="w-full transition-transform hover:scale-105" 
+              size="lg" 
+              onClick={handleLogin}
+              disabled={isLoggingIn}
+            >
+              {isLoggingIn ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
             <div className="text-center text-sm text-muted-foreground">
               Don't have an account?{" "}
               <button 
                 onClick={() => setShowRegistration(true)} 
                 className="text-primary hover:underline font-medium"
+                disabled={isLoggingIn}
               >
                 Register as Vendor
               </button>
             </div>
           </CardContent>
         </Card>
+
+        {/* Password Change Dialog */}
+        <Dialog open={showPasswordChange} onOpenChange={() => {}}>
+          <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+            <DialogHeader>
+              <DialogTitle>Change Your Password</DialogTitle>
+              <DialogDescription>
+                You must change your temporary password before continuing.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">New Password</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Minimum 8 characters"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter new password"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                onClick={handlePasswordChange}
+                disabled={isChangingPassword || !newPassword || !confirmPassword}
+              >
+                {isChangingPassword ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Changing...
+                  </>
+                ) : (
+                  "Change Password"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -388,7 +578,7 @@ const VendorPortal = () => {
             <img src={logo} alt="Emerald Industrial" className="h-10 object-contain" />
             <div className="border-l pl-4">
               <h1 className="font-semibold">Vendor Portal</h1>
-              <p className="text-xs text-muted-foreground">Steel Works Ltd</p>
+              <p className="text-xs text-muted-foreground">{currentVendor?.name || currentVendor?.companyName || 'Vendor'}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -452,7 +642,7 @@ const VendorPortal = () => {
                 )}
               </PopoverContent>
             </Popover>
-            <Button variant="outline" onClick={() => setIsLoggedIn(false)} className="gap-2 transition-transform hover:scale-105">
+            <Button variant="outline" onClick={handleLogout} className="gap-2 transition-transform hover:scale-105">
               <LogOut className="h-4 w-4" />
               Logout
             </Button>
