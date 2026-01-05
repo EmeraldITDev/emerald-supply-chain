@@ -48,7 +48,37 @@ async function apiRequest<T>(
       headers,
     });
 
-    const data = await response.json();
+    // Check if response is HTML (API not configured or unreachable)
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('text/html')) {
+      console.error('API returned HTML instead of JSON. Check VITE_API_BASE_URL configuration.');
+      return {
+        success: false,
+        error: 'API server unreachable. Please check your connection and ensure the backend is running.',
+      };
+    }
+
+    const text = await response.text();
+    
+    // Handle empty responses
+    if (!text) {
+      if (response.ok) {
+        return { success: true, data: undefined as T };
+      }
+      return { success: false, error: 'Empty response from server' };
+    }
+
+    // Try to parse as JSON
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error('Failed to parse API response as JSON:', text.substring(0, 100));
+      return {
+        success: false,
+        error: 'Invalid response from server. Please ensure the API is properly configured.',
+      };
+    }
 
     if (!response.ok) {
       // Handle validation errors
@@ -72,9 +102,10 @@ async function apiRequest<T>(
       data: data,
     };
   } catch (error) {
+    console.error('API request failed:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      error: error instanceof Error ? error.message : 'Network error - please check your connection',
     };
   }
 }
