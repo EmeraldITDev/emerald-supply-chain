@@ -243,8 +243,44 @@ export const vendorApi = {
     return apiRequest<Vendor>(`/vendors/${id}`);
   },
 
-  register: async (data: CreateVendorRegistrationData & { documents?: File[] }): Promise<ApiResponse<VendorRegistration>> => {
-    // Use FormData if documents are provided, otherwise JSON
+  // Enhanced vendor registration with documents
+  register: async (data: {
+    companyName: string;
+    categories: string[];
+    isOEMRepresentative: boolean;
+    email: string;
+    phone: string;
+    alternatePhone?: string;
+    address: string;
+    city: string;
+    state: string;
+    country: string;
+    postalCode?: string;
+    taxId: string;
+    contactPerson: string;
+    contactPersonTitle?: string;
+    contactPersonEmail?: string;
+    contactPersonPhone?: string;
+    website?: string;
+    yearEstablished?: number;
+    numberOfEmployees?: string;
+    annualRevenue?: string;
+    documents: Array<{
+      type: string;
+      fileName: string;
+      fileData: string;
+      fileSize: number;
+      expiryDate?: string;
+    }>;
+  }): Promise<ApiResponse<VendorRegistration>> => {
+    return apiRequest<VendorRegistration>('/vendors/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Legacy register method for simple registrations
+  registerSimple: async (data: CreateVendorRegistrationData & { documents?: File[] }): Promise<ApiResponse<VendorRegistration>> => {
     const formData = new FormData();
     formData.append('companyName', data.companyName);
     formData.append('category', data.category);
@@ -254,20 +290,17 @@ export const vendorApi = {
     if (data.taxId) formData.append('taxId', data.taxId);
     if (data.contactPerson) formData.append('contactPerson', data.contactPerson);
     
-    // Add documents if provided
     if (data.documents && data.documents.length > 0) {
       data.documents.forEach((file) => {
         formData.append('documents[]', file);
       });
     }
 
-    // For FormData, we need to make a direct fetch call (not using apiRequest which sets JSON headers)
     const token = getAuthToken();
     const headers: HeadersInit = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    // Don't set Content-Type - browser will set it with boundary for FormData
 
     try {
       const response = await fetch(`${API_BASE_URL}/vendors/register`, {
@@ -301,8 +334,8 @@ export const vendorApi = {
     return apiRequest<VendorRegistration[]>('/vendors/registrations');
   },
 
-  approveRegistration: async (id: string): Promise<ApiResponse<Vendor>> => {
-    return apiRequest<Vendor>(`/vendors/registrations/${id}/approve`, {
+  approveRegistration: async (id: string): Promise<ApiResponse<{ vendor: Vendor; temporaryPassword: string }>> => {
+    return apiRequest<{ vendor: Vendor; temporaryPassword: string }>(`/vendors/registrations/${id}/approve`, {
       method: 'POST',
     });
   },
@@ -312,5 +345,53 @@ export const vendorApi = {
       method: 'POST',
       body: JSON.stringify({ rejectionReason }),
     });
+  },
+
+  // Update vendor credentials (for Procurement Manager/Supply Chain Director)
+  updateCredentials: async (vendorId: string, data: { email?: string; resetPassword?: boolean }): Promise<ApiResponse<{ temporaryPassword?: string }>> => {
+    return apiRequest<{ temporaryPassword?: string }>(`/vendors/${vendorId}/credentials`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Get vendor profile (for logged-in vendor)
+  getProfile: async (): Promise<ApiResponse<Vendor>> => {
+    return apiRequest<Vendor>('/vendors/profile');
+  },
+
+  // Update vendor profile
+  updateProfile: async (data: Partial<Vendor>): Promise<ApiResponse<Vendor>> => {
+    return apiRequest<Vendor>('/vendors/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// Vendor Authentication API (separate from internal user auth)
+export const vendorAuthApi = {
+  login: async (email: string, password: string): Promise<ApiResponse<{ vendor: Vendor; token: string; requiresPasswordChange: boolean }>> => {
+    return apiRequest<{ vendor: Vendor; token: string; requiresPasswordChange: boolean }>('/vendors/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<ApiResponse<void>> => {
+    return apiRequest<void>('/vendors/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  },
+
+  logout: async (): Promise<ApiResponse<void>> => {
+    return apiRequest<void>('/vendors/auth/logout', {
+      method: 'POST',
+    });
+  },
+
+  getProfile: async (): Promise<ApiResponse<Vendor>> => {
+    return apiRequest<Vendor>('/vendors/auth/me');
   },
 };

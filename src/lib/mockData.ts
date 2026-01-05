@@ -6,7 +6,7 @@ import type { User, MRF, SRF, RFQ, Quotation, Vendor, VendorRegistration } from 
 
 export const mockUsers: User[] = [
   {
-    id: 'user-1',
+    id: 1,
     email: 'staff@emeraldcfze.com',
     name: 'John Doe',
     role: 'employee',
@@ -14,7 +14,7 @@ export const mockUsers: User[] = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'user-2',
+    id: 2,
     email: 'procurement@emeraldcfze.com',
     name: 'Jane Smith',
     role: 'procurement',
@@ -22,7 +22,7 @@ export const mockUsers: User[] = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'user-3',
+    id: 3,
     email: 'finance@emeraldcfze.com',
     name: 'Mike Johnson',
     role: 'finance',
@@ -88,5 +88,5 @@ export const mockVendors: Vendor[] = [
 
 export const mockVendorRegistrations: VendorRegistration[] = [];
 
-// Flag to enable/disable mock data
-export const USE_MOCK_DATA = !import.meta.env.VITE_API_BASE_URL;
+// Flag to enable/disable mock data - DEPRECATED: Always use API
+export const USE_MOCK_DATA = false;

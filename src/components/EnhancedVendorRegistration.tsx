@@ -9,8 +9,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, CheckCircle, AlertCircle, X, AlertTriangle, Info, Building2 } from "lucide-react";
+import { Upload, FileText, CheckCircle, AlertCircle, X, AlertTriangle, Info, Building2, Loader2 } from "lucide-react";
 import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES, type VendorDocument, type VendorDocumentType, type EnhancedVendorRegistration as VendorRegType } from "@/types/vendor-registration";
+import { vendorApi } from "@/services/api";
 
 interface EnhancedVendorRegistrationProps {
   onSubmit: (registration: Partial<VendorRegType>) => void;
@@ -21,6 +22,7 @@ interface EnhancedVendorRegistrationProps {
 export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationOpen = true }: EnhancedVendorRegistrationProps) => {
   const { toast } = useToast();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form state
   const [companyName, setCompanyName] = useState("");
@@ -151,7 +153,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isRegistrationOpen) {
       toast({
         title: "Registration Closed",
@@ -170,32 +172,91 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
       return;
     }
 
-    const registration: Partial<VendorRegType> = {
-      companyName,
-      categories: selectedCategories,
-      isOEMRepresentative,
-      email,
-      phone,
-      alternatePhone,
-      address,
-      city,
-      state,
-      country,
-      postalCode,
-      taxId,
-      contactPerson,
-      contactPersonTitle,
-      contactPersonEmail,
-      contactPersonPhone,
-      website,
-      yearEstablished,
-      numberOfEmployees,
-      annualRevenue,
-      documents: uploadedDocuments,
-      status: "Pending",
-    };
+    setIsSubmitting(true);
 
-    onSubmit(registration);
+    try {
+      // Prepare documents for API
+      const documentsForApi = uploadedDocuments.map(doc => ({
+        type: doc.type,
+        fileName: doc.fileName,
+        fileData: doc.fileData,
+        fileSize: doc.fileSize,
+        expiryDate: doc.expiryDate,
+      }));
+
+      const response = await vendorApi.register({
+        companyName,
+        categories: selectedCategories,
+        isOEMRepresentative,
+        email,
+        phone,
+        alternatePhone,
+        address,
+        city,
+        state,
+        country,
+        postalCode,
+        taxId,
+        contactPerson,
+        contactPersonTitle,
+        contactPersonEmail,
+        contactPersonPhone,
+        website,
+        yearEstablished,
+        numberOfEmployees,
+        annualRevenue,
+        documents: documentsForApi,
+      });
+
+      if (response.success) {
+        toast({
+          title: "Registration Submitted Successfully",
+          description: "Your application has been submitted for review. You will receive an email notification once approved.",
+        });
+
+        // Also call onSubmit for any local state updates
+        const registration: Partial<VendorRegType> = {
+          companyName,
+          categories: selectedCategories,
+          isOEMRepresentative,
+          email,
+          phone,
+          alternatePhone,
+          address,
+          city,
+          state,
+          country,
+          postalCode,
+          taxId,
+          contactPerson,
+          contactPersonTitle,
+          contactPersonEmail,
+          contactPersonPhone,
+          website,
+          yearEstablished,
+          numberOfEmployees,
+          annualRevenue,
+          documents: uploadedDocuments,
+          status: "Pending",
+        };
+
+        onSubmit(registration);
+      } else {
+        toast({
+          title: "Registration Failed",
+          description: response.error || "Failed to submit registration. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Registration Failed",
+        description: error.message || "An error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getDocumentStatus = (docType: VendorDocumentType) => {
@@ -633,10 +694,15 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
           </Button>
           <Button 
             onClick={handleSubmit}
-            disabled={completionPercentage < 100}
+            disabled={completionPercentage < 100 || isSubmitting}
             className="min-w-[150px]"
           >
-            {completionPercentage < 100 ? (
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Submitting...
+              </>
+            ) : completionPercentage < 100 ? (
               <>
                 <AlertTriangle className="h-4 w-4 mr-2" />
                 Incomplete
