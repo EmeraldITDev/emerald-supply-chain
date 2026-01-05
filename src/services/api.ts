@@ -19,7 +19,7 @@ import type {
 } from '@/types';
 
 // Configure your API base URL here
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
 
 // Helper function to get auth token
 const getAuthToken = (): string | null => {
