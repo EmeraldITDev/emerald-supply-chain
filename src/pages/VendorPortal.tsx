@@ -419,6 +419,7 @@ const VendorPortal = () => {
       return (
         <EnhancedVendorRegistration 
           onSubmit={async (registration) => {
+<<<<<<< HEAD
             setIsSubmitting(true);
             try {
               // Convert documents from base64 to File objects for API
@@ -516,6 +517,20 @@ const VendorPortal = () => {
             } finally {
               setIsSubmitting(false);
             }
+=======
+            // The API call is already made inside EnhancedVendorRegistration
+            // Just update local state for UI feedback
+            addVendorRegistration({
+              companyName: registration.companyName || '',
+              category: registration.categories?.join(', ') || '',
+              email: registration.email || '',
+              phone: registration.phone || '',
+              address: registration.address || '',
+              taxId: registration.taxId || '',
+              contactPerson: registration.contactPerson || '',
+            });
+            setShowRegistration(false);
+>>>>>>> bca074bc4ef7d433e37260dad1e415f450b5ae29
           }}
           onCancel={() => setShowRegistration(false)}
         />
