@@ -314,18 +314,41 @@ export const vendorApi = {
   // Legacy register method for simple registrations
   registerSimple: async (data: CreateVendorRegistrationData & { documents?: File[] }): Promise<ApiResponse<VendorRegistration>> => {
     const formData = new FormData();
-    formData.append('companyName', data.companyName);
-    formData.append('category', data.category);
-    formData.append('email', data.email);
-    if (data.phone) formData.append('phone', data.phone);
-    if (data.address) formData.append('address', data.address);
-    if (data.taxId) formData.append('taxId', data.taxId);
-    if (data.contactPerson) formData.append('contactPerson', data.contactPerson);
     
+    // Required fields - always append
+    formData.append('companyName', data.companyName || '');
+    formData.append('category', data.category || '');
+    formData.append('email', data.email || '');
+    
+    // Optional fields - only append if they have a value
+    if (data.phone && data.phone.trim()) {
+      formData.append('phone', data.phone);
+    }
+    if (data.address && data.address.trim()) {
+      formData.append('address', data.address);
+    }
+    if (data.taxId && data.taxId.trim()) {
+      formData.append('taxId', data.taxId);
+    }
+    if (data.contactPerson && data.contactPerson.trim()) {
+      formData.append('contactPerson', data.contactPerson);
+    }
+    
+    // Documents - append each file
     if (data.documents && data.documents.length > 0) {
       data.documents.forEach((file) => {
         formData.append('documents[]', file);
       });
+    }
+    
+    // Debug: Log FormData contents
+    console.log('FormData contents:');
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}: File(${value.name}, ${value.size} bytes)`);
+      } else {
+        console.log(`${key}: ${value}`);
+      }
     }
 
     const token = getAuthToken();
@@ -333,6 +356,8 @@ export const vendorApi = {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+    // Don't set Content-Type for FormData - browser will set it automatically with boundary
+    // Setting it manually will break the multipart/form-data encoding
 
     try {
       const response = await fetch(`${API_BASE_URL}/vendors/register`, {
@@ -344,9 +369,22 @@ export const vendorApi = {
       const responseData = await response.json();
 
       if (!response.ok) {
+        // Log validation errors for debugging
+        if (responseData.errors) {
+          console.error('Validation errors:', responseData.errors);
+          const errorMessages = Object.entries(responseData.errors)
+            .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+            .join('; ');
+          return {
+            success: false,
+            error: errorMessages || responseData.error || responseData.message || 'Registration failed',
+            errors: responseData.errors,
+          };
+        }
         return {
           success: false,
-          error: responseData.message || 'Registration failed',
+          error: responseData.error || responseData.message || 'Registration failed',
+          errors: responseData.errors,
         };
       }
 

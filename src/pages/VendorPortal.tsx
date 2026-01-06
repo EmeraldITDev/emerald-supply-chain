@@ -451,9 +451,16 @@ const VendorPortal = () => {
                 });
               }
 
-              // Ensure categories are provided
-              const categories = registration.categories || [];
-              if (categories.length === 0) {
+              // Ensure category is a non-empty string
+              // EnhancedVendorRegistration sends categories as array, backend expects single string
+              let categoryValue = '';
+              if (registration.categories && Array.isArray(registration.categories) && registration.categories.length > 0) {
+                // Join multiple categories with comma
+                categoryValue = registration.categories.join(', ');
+              } else if (registration.category && typeof registration.category === 'string') {
+                categoryValue = registration.category;
+              } else {
+                // This should not happen if validation worked, but provide fallback
                 console.error('No category provided in registration:', registration);
                 toast({
                   title: "Validation Error",
@@ -464,38 +471,63 @@ const VendorPortal = () => {
                 return;
               }
 
-              // Prepare documents in the format expected by the API
-              const apiDocuments = registration.documents?.map(doc => ({
-                type: doc.type,
-                fileName: doc.fileName,
-                fileData: doc.fileData,
-                fileSize: doc.fileSize,
-                expiryDate: doc.expiryDate,
-              })) || [];
+              // Validate required fields before sending
+              if (!registration.companyName || !categoryValue || !registration.email) {
+                toast({
+                  title: "Validation Error",
+                  description: "Please fill in all required fields (Company Name, Category, Email)",
+                  variant: "destructive"
+                });
+                setIsSubmitting(false);
+                return;
+              }
 
-              const response = await vendorApi.register({
-                companyName: registration.companyName || '',
-                categories: categories,
-                isOEMRepresentative: registration.isOEMRepresentative || false,
-                email: registration.email || '',
-                phone: registration.phone || '',
-                alternatePhone: registration.alternatePhone,
-                address: registration.address || '',
-                city: registration.city || '',
-                state: registration.state || '',
-                country: registration.country || 'Nigeria',
-                postalCode: registration.postalCode,
+              // Build full address string from components
+              const fullAddress = [
+                registration.address,
+                registration.city,
+                registration.state,
+                registration.country,
+                registration.postalCode
+              ].filter(Boolean).join(', ');
+
+              // Log the data being sent for debugging
+              console.log('Sending registration data:', {
+                companyName: registration.companyName,
+                category: categoryValue,
+                email: registration.email,
+                phone: registration.phone || registration.alternatePhone || '',
+                address: fullAddress || registration.address || '',
                 taxId: registration.taxId || '',
                 contactPerson: registration.contactPerson || '',
-                contactPersonTitle: registration.contactPersonTitle,
-                contactPersonEmail: registration.contactPersonEmail,
-                contactPersonPhone: registration.contactPersonPhone,
-                website: registration.website,
-                yearEstablished: registration.yearEstablished,
-                numberOfEmployees: registration.numberOfEmployees,
-                annualRevenue: registration.annualRevenue,
-                documents: apiDocuments,
+                documentsCount: documentFiles.length,
               });
+
+              // Use registerSimple which handles FormData for file uploads
+              // Backend only accepts: companyName, category, email, phone, address, taxId, contactPerson, documents
+              const registrationPayload = {
+                companyName: registration.companyName?.trim() || '',
+                category: categoryValue.trim(),
+                email: registration.email?.trim() || '',
+                phone: (registration.phone || registration.alternatePhone)?.trim() || undefined,
+                address: (fullAddress || registration.address)?.trim() || undefined,
+                taxId: registration.taxId?.trim() || undefined,
+                contactPerson: registration.contactPerson?.trim() || undefined,
+                documents: documentFiles.length > 0 ? documentFiles : undefined,
+              };
+
+              // Final validation - ensure required fields are not empty
+              if (!registrationPayload.companyName || !registrationPayload.category || !registrationPayload.email) {
+                toast({
+                  title: "Validation Error",
+                  description: "Company Name, Category, and Email are required fields",
+                  variant: "destructive"
+                });
+                setIsSubmitting(false);
+                return;
+              }
+
+              const response = await vendorApi.registerSimple(registrationPayload);
 
               if (response.success) {
                 addVendorRegistration({
@@ -514,9 +546,22 @@ const VendorPortal = () => {
                   description: "Your application is pending approval. You'll be notified via email."
                 });
               } else {
+                // Display detailed error message including validation errors
+                const errorMessage = response.error || response.errors 
+                  ? Object.entries(response.errors || {}).map(([field, messages]) => 
+                      `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`
+                    ).join('; ') || response.error
+                  : "An error occurred. Please try again.";
+                
+                console.error('Registration failed:', {
+                  error: response.error,
+                  errors: response.errors,
+                  fullResponse: response
+                });
+                
                 toast({
                   title: "Registration Failed",
-                  description: response.error || "An error occurred. Please try again.",
+                  description: errorMessage,
                   variant: "destructive"
                 });
               }
