@@ -35,6 +35,7 @@ async function apiRequest<T>(
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
     ...options.headers,
   };
 
@@ -424,5 +425,20 @@ export const vendorAuthApi = {
 
   getProfile: async (): Promise<ApiResponse<Vendor>> => {
     return apiRequest<Vendor>('/vendors/auth/me');
+  },
+};
+
+// Dashboard API
+export const dashboardApi = {
+  getProcurementManagerDashboard: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/dashboard/procurement-manager');
+  },
+
+  getSupplyChainDirectorDashboard: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/dashboard/supply-chain-director');
+  },
+
+  getVendorDashboard: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/dashboard/vendor');
   },
 };

@@ -1,15 +1,23 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, ShoppingCart, Truck, Warehouse, TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Package, ShoppingCart, Truck, Warehouse, TrendingUp, AlertCircle, CheckCircle, Clock, Users } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import DepartmentDashboard from "./DepartmentDashboard";
 import FinanceDashboard from "./FinanceDashboard";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { dashboardApi } from "@/services/api";
+import { useEffect, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   // Route to role-specific dashboard
   if (user?.role === "employee") {
@@ -44,49 +52,119 @@ const Dashboard = () => {
     return <Navigate to="/logistics" replace />;
   }
 
+  // Fetch dashboard data for procurement_manager
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (user?.role === "procurement_manager") {
+        setLoading(true);
+        try {
+          const response = await dashboardApi.getProcurementManagerDashboard();
+          if (response.success && response.data) {
+            setDashboardData(response.data);
+          }
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "Failed to load dashboard data",
+            variant: "destructive",
+          });
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchDashboardData();
+  }, [user?.role, toast]);
+
   const handleRefresh = async () => {
-    // Simulate data refresh
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (user?.role === "procurement_manager") {
+      setLoading(true);
+      try {
+        const response = await dashboardApi.getProcurementManagerDashboard();
+        if (response.success && response.data) {
+          setDashboardData(response.data);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to refresh dashboard data",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   };
 
-  // Procurement dashboard (default)
-  
+  // Procurement dashboard (default) - All stats from live database
   const stats = [
     {
-      title: "Pending Requests",
-      value: "12",
-      description: "Awaiting approval",
-      icon: Clock,
-      trend: "+2 from yesterday",
-      color: "text-warning",
-    },
-    {
-      title: "Active POs",
-      value: "28",
-      description: "In progress",
-      icon: ShoppingCart,
-      trend: "+5 this week",
-      color: "text-primary",
-    },
-    {
       title: "Total Vendors",
-      value: "45",
-      description: "Registered suppliers",
+      value: dashboardData?.stats?.totalVendors?.toString() || "0",
+      description: "Active suppliers",
       icon: Package,
-      trend: "+3 this month",
+      trend: "Registered",
       color: "text-info",
     },
     {
-      title: "Completed",
-      value: "156",
-      description: "This month",
-      icon: CheckCircle,
-      trend: "+12% vs last month",
+      title: "Pending KYC",
+      value: dashboardData?.stats?.pendingKYC?.toString() || "0",
+      description: "Vendor registrations",
+      icon: Users,
+      trend: "Awaiting review",
+      color: "text-warning",
+    },
+    {
+      title: "Awaiting Review",
+      value: dashboardData?.stats?.awaitingReview?.toString() || "0",
+      description: "Pending registrations",
+      icon: Clock,
+      trend: "Needs attention",
+      color: "text-warning",
+    },
+    {
+      title: "Avg Rating",
+      value: dashboardData?.stats?.avgRating ? `${dashboardData.stats.avgRating.toFixed(1)}/5.0` : "0.0/5.0",
+      description: "Vendor performance",
+      icon: TrendingUp,
+      trend: "Average rating",
       color: "text-success",
+    },
+    {
+      title: "On-Time Delivery",
+      value: dashboardData?.stats?.onTimeDelivery ? `${dashboardData.stats.onTimeDelivery}%` : "0%",
+      description: "Delivery performance",
+      icon: CheckCircle,
+      trend: "On-time rate",
+      color: "text-success",
+    },
+    {
+      title: "Pending MRFs",
+      value: dashboardData?.stats?.pendingMRFs?.toString() || "0",
+      description: "Material requests",
+      icon: Clock,
+      trend: "Awaiting approval",
+      color: "text-warning",
     },
   ];
 
-  const recentActivities = [
+  // Recent activities from dashboard data or fallback
+  const recentActivities = dashboardData?.pendingRegistrations?.slice(0, 4).map((reg: any, index: number) => ({
+    id: reg.id,
+    type: "Vendor Registration",
+    title: reg.companyName,
+    status: "Pending",
+    date: new Date(reg.createdAt).toLocaleDateString(),
+  })) || dashboardData?.pendingMRFs?.slice(0, 2).map((mrf: any, index: number) => ({
+    id: mrf.id,
+    type: "MRF",
+    title: mrf.title,
+    status: "Pending",
+    date: new Date(mrf.createdAt).toLocaleDateString(),
+  })) || [
     { id: 1, type: "MRF", title: "Office Supplies Request", status: "Pending", date: "2 hours ago" },
     { id: 2, type: "PO", title: "IT Equipment Purchase", status: "Approved", date: "5 hours ago" },
     { id: 3, type: "SRF", title: "Maintenance Service", status: "In Review", date: "1 day ago" },
@@ -104,7 +182,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {stats.map((stat) => (
             <Card key={stat.title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
@@ -123,31 +201,73 @@ const Dashboard = () => {
         <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-base sm:text-lg">Recent Activities</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Latest procurement actions</CardDescription>
+              <CardTitle className="text-base sm:text-lg">
+                {dashboardData?.pendingRegistrations?.length ? "Pending Vendor Registrations" : "Recent Activities"}
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                {dashboardData?.pendingRegistrations?.length 
+                  ? `${dashboardData.pendingRegistrations.length} awaiting review`
+                  : "Latest procurement actions"}
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0">
-              <div className="space-y-3 sm:space-y-4">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{activity.title}</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">{activity.type} • {activity.date}</p>
-                    </div>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full self-start sm:self-center whitespace-nowrap ${
-                        activity.status === "Completed"
-                          ? "bg-accent text-accent-foreground"
-                          : activity.status === "Approved"
-                          ? "bg-primary/10 text-primary"
-                          : "bg-secondary text-secondary-foreground"
-                      }`}
+              {loading ? (
+                <div className="text-center py-4 text-sm text-muted-foreground">Loading...</div>
+              ) : dashboardData?.pendingRegistrations?.length > 0 ? (
+                <div className="space-y-3 sm:space-y-4">
+                  {dashboardData.pendingRegistrations.slice(0, 5).map((reg: any) => (
+                    <div 
+                      key={reg.id} 
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0 cursor-pointer hover:bg-accent/50 p-2 rounded transition-colors"
+                      onClick={() => navigate("/vendors")}
                     >
-                      {activity.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{reg.companyName}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          {reg.category} • {new Date(reg.createdAt).toLocaleDateString()}
+                        </p>
+                        {reg.contactPerson && (
+                          <p className="text-xs text-muted-foreground mt-1">Contact: {reg.contactPerson}</p>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="self-start sm:self-center">
+                        Pending Review
+                      </Badge>
+                    </div>
+                  ))}
+                  {dashboardData.pendingRegistrations.length > 5 && (
+                    <Button 
+                      variant="ghost" 
+                      className="w-full mt-2"
+                      onClick={() => navigate("/vendors")}
+                    >
+                      View All ({dashboardData.pendingRegistrations.length})
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3 sm:space-y-4">
+                  {recentActivities.map((activity) => (
+                    <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{activity.title}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{activity.type} • {activity.date}</p>
+                      </div>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full self-start sm:self-center whitespace-nowrap ${
+                          activity.status === "Completed"
+                            ? "bg-accent text-accent-foreground"
+                            : activity.status === "Approved"
+                            ? "bg-primary/10 text-primary"
+                            : "bg-secondary text-secondary-foreground"
+                        }`}
+                      >
+                        {activity.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 

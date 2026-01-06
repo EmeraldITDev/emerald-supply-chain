@@ -50,7 +50,7 @@ export function AppSidebar() {
     {
       label: "Main",
       items: [
-        { title: "Dashboard", url: "/procurement", icon: LayoutDashboard },
+        { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       ]
     },
     {
@@ -97,7 +97,7 @@ export function AppSidebar() {
           ]
         }
       ];
-    } else if (user?.role === "procurement") {
+    } else if (user?.role === "procurement" || user?.role === "procurement_manager") {
       // Procurement Manager: Full system, no approvals
       return fullProcurementNav;
     } else if (user?.role === "finance") {
