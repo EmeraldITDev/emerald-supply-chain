@@ -419,83 +419,18 @@ const VendorPortal = () => {
       return (
         <EnhancedVendorRegistration 
           onSubmit={async (registration) => {
-            setIsSubmitting(true);
-            try {
-              // Convert documents from base64 to File objects for API
-              const documentFiles: File[] = [];
-              if (registration.documents && registration.documents.length > 0) {
-                registration.documents.forEach((doc) => {
-                  if (doc.fileData && doc.fileName) {
-                    try {
-                      // Extract base64 data and MIME type
-                      const base64Data = doc.fileData.includes(',') 
-                        ? doc.fileData.split(',')[1] 
-                        : doc.fileData;
-                      const mimeMatch = doc.fileData.match(/data:([^;]+);/);
-                      const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
-                      
-                      // Convert base64 to File
-                      const byteCharacters = atob(base64Data);
-                      const byteNumbers = new Array(byteCharacters.length);
-                      for (let i = 0; i < byteCharacters.length; i++) {
-                        byteNumbers[i] = byteCharacters.charCodeAt(i);
-                      }
-                      const byteArray = new Uint8Array(byteNumbers);
-                      const blob = new Blob([byteArray], { type: mimeType });
-                      const file = new File([blob], doc.fileName, { type: mimeType });
-                      documentFiles.push(file);
-                    } catch (error) {
-                      console.error('Error converting document:', doc.fileName, error);
-                      // Skip this document if conversion fails
-                    }
-                  }
-                });
-              }
-
-              const response = await vendorApi.register({
-                companyName: registration.companyName || '',
-                category: registration.categories?.join(', ') || registration.categories?.[0] || '',
-                email: registration.email || '',
-                phone: registration.phone || '',
-                address: registration.address || '',
-                taxId: registration.taxId || '',
-                contactPerson: registration.contactPerson || '',
-                documents: documentFiles.length > 0 ? documentFiles : undefined,
-              });
-
-              if (response.success) {
-                // Also update local state for immediate UI feedback
-                addVendorRegistration({
-                  companyName: registration.companyName || '',
-                  category: registration.categories?.join(', ') || '',
-                  email: registration.email || '',
-                  phone: registration.phone || '',
-                  address: registration.address || '',
-                  taxId: registration.taxId || '',
-                  contactPerson: registration.contactPerson || '',
-                });
-                
-                setShowRegistration(false);
-                toast({
-                  title: "Registration Submitted",
-                  description: "Your application is pending approval. You'll be notified via email."
-                });
-              } else {
-                toast({
-                  title: "Registration Failed",
-                  description: response.error || "An error occurred. Please try again.",
-                  variant: "destructive"
-                });
-              }
-            } catch (error: any) {
-              toast({
-                title: "Registration Failed",
-                description: error.message || "An error occurred. Please try again.",
-                variant: "destructive"
-              });
-            } finally {
-              setIsSubmitting(false);
-            }
+            // The API call is already made inside EnhancedVendorRegistration
+            // Just update local state for UI feedback
+            addVendorRegistration({
+              companyName: registration.companyName || '',
+              category: registration.categories?.join(', ') || '',
+              email: registration.email || '',
+              phone: registration.phone || '',
+              address: registration.address || '',
+              taxId: registration.taxId || '',
+              contactPerson: registration.contactPerson || '',
+            });
+            setShowRegistration(false);
           }}
           onCancel={() => setShowRegistration(false)}
         />
