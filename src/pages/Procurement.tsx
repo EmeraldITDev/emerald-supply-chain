@@ -16,6 +16,7 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RFQManagement } from "@/components/RFQManagement";
 import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
+import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import type { MRFRequest } from "@/contexts/AppContext";
 import {
   Select,
@@ -343,6 +344,13 @@ const Procurement = () => {
 
         {/* Dashboard Alerts */}
         <DashboardAlerts userRole={user?.role || 'procurement'} maxAlerts={5} />
+
+        {/* Vendor Registrations Section */}
+        <VendorRegistrationsList 
+          maxItems={3} 
+          showTabs={false} 
+          title="Pending Vendor Registrations"
+        />
 
         {/* Progress Tracker */}
         <ProcurementProgressTracker mrfRequests={mrfRequests} />

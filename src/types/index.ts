@@ -153,7 +153,7 @@ export interface VendorRegistration {
   address: string;
   taxId: string;
   contactPerson: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
+  status: 'Pending' | 'Under Review' | 'Approved' | 'Rejected';
   submittedDate: string;
 }
 

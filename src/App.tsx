@@ -25,6 +25,7 @@ import Logistics from "./pages/Logistics";
 import Inventory from "./pages/Inventory";
 import Warehouse from "./pages/Warehouse";
 import Vendors from "./pages/Vendors";
+import VendorRegistrationReview from "./pages/VendorRegistrationReview";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import AccountsPayable from "./pages/AccountsPayable";
@@ -81,6 +82,7 @@ const AppRoutes = () => {
         <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="/warehouse" element={<ProtectedRoute><Warehouse /></ProtectedRoute>} />
         <Route path="/vendors" element={<ProtectedRoute><Vendors /></ProtectedRoute>} />
+        <Route path="/vendors/registration/:id" element={<ProtectedRoute><VendorRegistrationReview /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/accounts-payable" element={<ProtectedRoute><AccountsPayable /></ProtectedRoute>} />

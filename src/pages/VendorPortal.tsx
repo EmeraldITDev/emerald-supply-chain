@@ -419,7 +419,6 @@ const VendorPortal = () => {
       return (
         <EnhancedVendorRegistration 
           onSubmit={async (registration) => {
-<<<<<<< HEAD
             setIsSubmitting(true);
             try {
               // Convert documents from base64 to File objects for API
@@ -447,22 +446,14 @@ const VendorPortal = () => {
                       documentFiles.push(file);
                     } catch (error) {
                       console.error('Error converting document:', doc.fileName, error);
-                      // Skip this document if conversion fails
                     }
                   }
                 });
               }
 
-              // Ensure category is a non-empty string
-              // EnhancedVendorRegistration sends categories as array, backend expects single string
-              let categoryValue = '';
-              if (registration.categories && Array.isArray(registration.categories) && registration.categories.length > 0) {
-                // Join multiple categories with comma, or use first one
-                categoryValue = registration.categories.join(', ');
-              } else if (registration.category && typeof registration.category === 'string') {
-                categoryValue = registration.category;
-              } else {
-                // This should not happen if validation worked, but provide fallback
+              // Ensure categories are provided
+              const categories = registration.categories || [];
+              if (categories.length === 0) {
                 console.error('No category provided in registration:', registration);
                 toast({
                   title: "Validation Error",
@@ -473,19 +464,40 @@ const VendorPortal = () => {
                 return;
               }
 
+              // Prepare documents in the format expected by the API
+              const apiDocuments = registration.documents?.map(doc => ({
+                type: doc.type,
+                fileName: doc.fileName,
+                fileData: doc.fileData,
+                fileSize: doc.fileSize,
+                expiryDate: doc.expiryDate,
+              })) || [];
+
               const response = await vendorApi.register({
                 companyName: registration.companyName || '',
-                category: categoryValue,
+                categories: categories,
+                isOEMRepresentative: registration.isOEMRepresentative || false,
                 email: registration.email || '',
                 phone: registration.phone || '',
+                alternatePhone: registration.alternatePhone,
                 address: registration.address || '',
+                city: registration.city || '',
+                state: registration.state || '',
+                country: registration.country || 'Nigeria',
+                postalCode: registration.postalCode,
                 taxId: registration.taxId || '',
                 contactPerson: registration.contactPerson || '',
-                documents: documentFiles.length > 0 ? documentFiles : undefined,
+                contactPersonTitle: registration.contactPersonTitle,
+                contactPersonEmail: registration.contactPersonEmail,
+                contactPersonPhone: registration.contactPersonPhone,
+                website: registration.website,
+                yearEstablished: registration.yearEstablished,
+                numberOfEmployees: registration.numberOfEmployees,
+                annualRevenue: registration.annualRevenue,
+                documents: apiDocuments,
               });
 
               if (response.success) {
-                // Also update local state for immediate UI feedback
                 addVendorRegistration({
                   companyName: registration.companyName || '',
                   category: registration.categories?.join(', ') || '',
@@ -517,20 +529,6 @@ const VendorPortal = () => {
             } finally {
               setIsSubmitting(false);
             }
-=======
-            // The API call is already made inside EnhancedVendorRegistration
-            // Just update local state for UI feedback
-            addVendorRegistration({
-              companyName: registration.companyName || '',
-              category: registration.categories?.join(', ') || '',
-              email: registration.email || '',
-              phone: registration.phone || '',
-              address: registration.address || '',
-              taxId: registration.taxId || '',
-              contactPerson: registration.contactPerson || '',
-            });
-            setShowRegistration(false);
->>>>>>> bca074bc4ef7d433e37260dad1e415f450b5ae29
           }}
           onCancel={() => setShowRegistration(false)}
         />
