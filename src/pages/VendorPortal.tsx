@@ -452,9 +452,29 @@ const VendorPortal = () => {
                 });
               }
 
+              // Ensure category is a non-empty string
+              // EnhancedVendorRegistration sends categories as array, backend expects single string
+              let categoryValue = '';
+              if (registration.categories && Array.isArray(registration.categories) && registration.categories.length > 0) {
+                // Join multiple categories with comma, or use first one
+                categoryValue = registration.categories.join(', ');
+              } else if (registration.category && typeof registration.category === 'string') {
+                categoryValue = registration.category;
+              } else {
+                // This should not happen if validation worked, but provide fallback
+                console.error('No category provided in registration:', registration);
+                toast({
+                  title: "Validation Error",
+                  description: "Please select at least one business category",
+                  variant: "destructive"
+                });
+                setIsSubmitting(false);
+                return;
+              }
+
               const response = await vendorApi.register({
                 companyName: registration.companyName || '',
-                category: registration.categories?.join(', ') || registration.categories?.[0] || '',
+                category: categoryValue,
                 email: registration.email || '',
                 phone: registration.phone || '',
                 address: registration.address || '',

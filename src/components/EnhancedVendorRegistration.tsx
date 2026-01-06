@@ -175,37 +175,63 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
     setIsSubmitting(true);
 
     try {
-      // Prepare documents for API
-      const documentsForApi = uploadedDocuments.map(doc => ({
-        type: doc.type,
-        fileName: doc.fileName,
-        fileData: doc.fileData,
-        fileSize: doc.fileSize,
-        expiryDate: doc.expiryDate,
-      }));
+      // Convert base64 documents to File objects for API
+      const documentFiles: File[] = [];
+      if (uploadedDocuments.length > 0) {
+        uploadedDocuments.forEach((doc) => {
+          if (doc.fileData && doc.fileName) {
+            try {
+              // Extract base64 data (remove data:type;base64, prefix if present)
+              const base64Data = doc.fileData.includes(',')
+                ? doc.fileData.split(',')[1]
+                : doc.fileData;
+              
+              // Detect MIME type from base64 prefix or default
+              const mimeMatch = doc.fileData.match(/data:([^;]+);/);
+              const mimeType = mimeMatch ? mimeMatch[1] : 'application/pdf';
 
-      const response = await vendorApi.register({
-        companyName,
-        categories: selectedCategories,
-        isOEMRepresentative,
-        email,
-        phone,
-        alternatePhone,
+              // Convert base64 to binary
+              const byteCharacters = atob(base64Data);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const byteArray = new Uint8Array(byteNumbers);
+              const blob = new Blob([byteArray], { type: mimeType });
+              const file = new File([blob], doc.fileName, { type: mimeType });
+              documentFiles.push(file);
+            } catch (error) {
+              console.error('Error converting document:', doc.fileName, error);
+            }
+          }
+        });
+      }
+
+      // Convert categories array to string for backend (backend expects 'category' not 'categories')
+      const categoryString = selectedCategories.length > 0 
+        ? selectedCategories.join(', ') 
+        : 'General'; // Fallback, though validation should prevent this
+
+      // Build full address string from components
+      const fullAddress = [
         address,
         city,
         state,
         country,
-        postalCode,
+        postalCode
+      ].filter(Boolean).join(', ');
+
+      // Backend only accepts these fields: companyName, category, email, phone, address, taxId, contactPerson, documents
+      // Use registerSimple which handles FormData for file uploads
+      const response = await vendorApi.registerSimple({
+        companyName,
+        category: categoryString, // Backend expects 'category' as string, not 'categories' as array
+        email,
+        phone: phone || alternatePhone, // Use primary phone, fallback to alternate
+        address: fullAddress || address, // Use full address if available, otherwise just address field
         taxId,
         contactPerson,
-        contactPersonTitle,
-        contactPersonEmail,
-        contactPersonPhone,
-        website,
-        yearEstablished,
-        numberOfEmployees,
-        annualRevenue,
-        documents: documentsForApi,
+        documents: documentFiles.length > 0 ? documentFiles : undefined,
       });
 
       if (response.success) {
