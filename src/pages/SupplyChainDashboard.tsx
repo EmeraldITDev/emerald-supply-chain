@@ -13,6 +13,7 @@ import { PORejectionDialog } from "@/components/PORejectionDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
+import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import type { MRFRequest } from "@/contexts/AppContext";
 
 const SupplyChainDashboard = () => {
@@ -111,6 +112,13 @@ const SupplyChainDashboard = () => {
             <p className="text-xs text-muted-foreground">POs awaiting review and signature</p>
           </CardContent>
         </Card>
+
+        {/* Vendor Registrations Section */}
+        <VendorRegistrationsList 
+          maxItems={3} 
+          showTabs={false} 
+          title="Pending Vendor Registrations"
+        />
 
         {/* Progress Tracker */}
         <ProcurementProgressTracker mrfRequests={mrfRequests} />
