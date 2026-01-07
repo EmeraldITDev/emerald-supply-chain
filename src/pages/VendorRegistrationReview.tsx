@@ -62,9 +62,12 @@ const VendorRegistrationReview = () => {
       try {
         // Fetch the specific registration by ID
         const response = await vendorApi.getRegistration(id);
+        console.log('Registration API Response:', response);
         if (response.success && response.data) {
+          console.log('Registration Data:', response.data);
           setRegistration(response.data);
         } else {
+          console.error('Registration fetch failed:', response.error);
           toast({
             title: "Not Found",
             description: response.error || "Vendor registration not found",
@@ -73,6 +76,7 @@ const VendorRegistrationReview = () => {
           navigate("/vendors");
         }
       } catch (error) {
+        console.error('Registration fetch error:', error);
         toast({
           title: "Error",
           description: "Failed to load registration details",
@@ -242,7 +246,24 @@ const VendorRegistrationReview = () => {
 
   // Type assertion for enhanced registration data
   const enhancedReg = registration as any;
-  const documents: VendorDocument[] = enhancedReg.documents || [];
+  const documents: VendorDocument[] = (registration?.documents || enhancedReg?.documents || []) as VendorDocument[];
+  
+  // Debug: Log registration data to console
+  useEffect(() => {
+    if (registration) {
+      console.log('Registration loaded:', registration);
+      console.log('Company Name:', registration.companyName);
+      console.log('Email:', registration.email);
+      console.log('Phone:', registration.phone);
+      console.log('Address:', registration.address);
+      console.log('Contact Person:', registration.contactPerson);
+      console.log('Tax ID:', registration.taxId);
+      console.log('Category:', registration.category);
+      console.log('Documents:', documents);
+    } else {
+      console.log('Registration is null or undefined');
+    }
+  }, [registration, documents]);
 
   return (
     <DashboardLayout>
@@ -254,12 +275,12 @@ const VendorRegistrationReview = () => {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">{registration.companyName}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">{registration?.companyName || "Vendor Registration"}</h1>
               <p className="text-sm text-muted-foreground">Vendor Registration Review</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {getStatusBadge(registration.status)}
+            {getStatusBadge(registration?.status || "Pending")}
           </div>
         </div>
 
@@ -277,15 +298,15 @@ const VendorRegistrationReview = () => {
               <CardContent className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <Label className="text-muted-foreground">Company Name</Label>
-                  <p className="font-medium">{registration.companyName}</p>
+                  <p className="font-medium">{registration?.companyName || "N/A"}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Category</Label>
-                  <p className="font-medium">{registration.category || enhancedReg.categories?.join(", ") || "N/A"}</p>
+                  <p className="font-medium">{registration?.category || enhancedReg?.categories?.join(", ") || "N/A"}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Tax ID</Label>
-                  <p className="font-medium">{registration.taxId || "N/A"}</p>
+                  <p className="font-medium">{registration?.taxId || "N/A"}</p>
                 </div>
                 {enhancedReg.yearEstablished && (
                   <div>
@@ -336,9 +357,9 @@ const VendorRegistrationReview = () => {
               <CardContent className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <Label className="text-muted-foreground">Contact Person</Label>
-                  <p className="font-medium">{registration.contactPerson || "N/A"}</p>
+                  <p className="font-medium">{registration?.contactPerson || "N/A"}</p>
                 </div>
-                {enhancedReg.contactPersonTitle && (
+                {enhancedReg?.contactPersonTitle && (
                   <div>
                     <Label className="text-muted-foreground">Title</Label>
                     <p className="font-medium">{enhancedReg.contactPersonTitle}</p>
@@ -347,13 +368,13 @@ const VendorRegistrationReview = () => {
                 <div>
                   <Label className="text-muted-foreground">Email</Label>
                   <p className="font-medium flex items-center gap-1">
-                    <Mail className="h-4 w-4" /> {registration.email}
+                    <Mail className="h-4 w-4" /> {registration?.email || "N/A"}
                   </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Phone</Label>
                   <p className="font-medium flex items-center gap-1">
-                    <Phone className="h-4 w-4" /> {registration.phone || "N/A"}
+                    <Phone className="h-4 w-4" /> {registration?.phone || "N/A"}
                   </p>
                 </div>
                 {enhancedReg.alternatePhone && (
@@ -369,10 +390,10 @@ const VendorRegistrationReview = () => {
                   <p className="font-medium flex items-start gap-1">
                     <MapPin className="h-4 w-4 mt-1" />
                     <span>
-                      {registration.address}
-                      {enhancedReg.city && `, ${enhancedReg.city}`}
-                      {enhancedReg.state && `, ${enhancedReg.state}`}
-                      {enhancedReg.country && `, ${enhancedReg.country}`}
+                      {registration?.address || "N/A"}
+                      {enhancedReg?.city && `, ${enhancedReg.city}`}
+                      {enhancedReg?.state && `, ${enhancedReg.state}`}
+                      {enhancedReg?.country && `, ${enhancedReg.country}`}
                     </span>
                   </p>
                 </div>
