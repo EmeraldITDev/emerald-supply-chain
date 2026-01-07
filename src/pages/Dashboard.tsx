@@ -219,7 +219,7 @@ const Dashboard = () => {
                     <div 
                       key={reg.id} 
                       className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0 cursor-pointer hover:bg-accent/50 p-2 rounded transition-colors"
-                      onClick={() => navigate("/vendors")}
+                      onClick={() => navigate(`/vendors/registration/${reg.id}`)}
                     >
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{reg.companyName}</p>
