@@ -65,6 +65,14 @@ const VendorRegistrationReview = () => {
         console.log('Registration API Response:', response);
         if (response.success && response.data) {
           console.log('Registration Data:', response.data);
+          console.log('Company Name:', response.data.companyName);
+          console.log('Email:', response.data.email);
+          console.log('Phone:', response.data.phone);
+          console.log('Address:', response.data.address);
+          console.log('Contact Person:', response.data.contactPerson);
+          console.log('Tax ID:', response.data.taxId);
+          console.log('Category:', response.data.category);
+          console.log('Documents:', response.data.documents);
           setRegistration(response.data);
         } else {
           console.error('Registration fetch failed:', response.error);
@@ -247,23 +255,6 @@ const VendorRegistrationReview = () => {
   // Type assertion for enhanced registration data
   const enhancedReg = registration as any;
   const documents: VendorDocument[] = (registration?.documents || enhancedReg?.documents || []) as VendorDocument[];
-  
-  // Debug: Log registration data to console
-  useEffect(() => {
-    if (registration) {
-      console.log('Registration loaded:', registration);
-      console.log('Company Name:', registration.companyName);
-      console.log('Email:', registration.email);
-      console.log('Phone:', registration.phone);
-      console.log('Address:', registration.address);
-      console.log('Contact Person:', registration.contactPerson);
-      console.log('Tax ID:', registration.taxId);
-      console.log('Category:', registration.category);
-      console.log('Documents:', documents);
-    } else {
-      console.log('Registration is null or undefined');
-    }
-  }, [registration, documents]);
 
   return (
     <DashboardLayout>
