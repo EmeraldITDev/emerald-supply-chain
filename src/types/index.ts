@@ -155,6 +155,14 @@ export interface VendorRegistration {
   contactPerson: string;
   status: 'Pending' | 'Under Review' | 'Approved' | 'Rejected';
   submittedDate: string;
+  createdAt?: string;
+  documents?: Array<{
+    id: string;
+    fileName: string;
+    fileType: string;
+    fileUrl: string;
+    uploadedAt: string;
+  }>;
 }
 
 export interface CreateVendorRegistrationData {

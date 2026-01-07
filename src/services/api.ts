@@ -409,13 +409,11 @@ export const vendorApi = {
           return {
             success: false,
             error: errorMessages || responseData.error || responseData.message || 'Registration failed',
-            errors: responseData.errors,
           };
         }
         return {
           success: false,
           error: responseData.error || responseData.message || 'Registration failed',
-          errors: responseData.errors,
         };
       }
 
