@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -611,9 +612,8 @@ const VendorPortal = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input 
+              <PasswordInput 
                 id="password" 
-                type="password"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -665,9 +665,8 @@ const VendorPortal = () => {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="newPassword">New Password</Label>
-                <Input
+                <PasswordInput
                   id="newPassword"
-                  type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Minimum 8 characters"
@@ -675,9 +674,8 @@ const VendorPortal = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                <Input
+                <PasswordInput
                   id="confirmPassword"
-                  type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new password"
