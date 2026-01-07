@@ -19,7 +19,34 @@ import type {
 } from '@/types';
 
 // Configure your API base URL here
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
+// For Lovable previews and production, always use the deployed backend
+// Only use localhost if explicitly set in VITE_API_BASE_URL for local development
+const getApiBaseUrl = () => {
+  // If explicitly set, use it (for local development)
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  
+  // Detect if running in Lovable preview or production
+  const isLovablePreview = typeof window !== 'undefined' && window.location.origin.includes('lovable.app');
+  const isProduction = typeof window !== 'undefined' && !window.location.origin.includes('localhost');
+  
+  // Always use deployed backend for Lovable previews and production
+  if (isLovablePreview || isProduction) {
+    return 'https://supply-chain-backend-hwh6.onrender.com/api';
+  }
+  
+  // Default fallback to deployed backend (safer than localhost)
+  return 'https://supply-chain-backend-hwh6.onrender.com/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+// Log the API URL being used (helpful for debugging in Lovable)
+if (typeof window !== 'undefined') {
+  console.log('API Base URL:', API_BASE_URL);
+  console.log('Current Origin:', window.location.origin);
+}
 
 // Helper function to get auth token
 const getAuthToken = (): string | null => {
