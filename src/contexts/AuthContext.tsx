@@ -79,58 +79,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   }, [logout]);
 
-  // Demo users for offline/testing mode
-  const demoUsers: Record<string, AuthUser> = {
-    'procurement@emeraldcfze.com': {
-      id: 1,
-      email: 'procurement@emeraldcfze.com',
-      role: 'procurement_manager',
-      name: 'Procurement Manager',
-      department: 'Procurement',
-    },
-    'supply@emeraldcfze.com': {
-      id: 2,
-      email: 'supply@emeraldcfze.com',
-      role: 'supply_chain_director',
-      name: 'Supply Chain Director',
-      department: 'Supply Chain',
-    },
-    'bunmi.babajide@emeraldcfze.com': {
-      id: 3,
-      email: 'bunmi.babajide@emeraldcfze.com',
-      role: 'executive',
-      name: 'Bunmi Babajide',
-      department: 'Executive',
-    },
-    'laa@emeraldcfze.com': {
-      id: 4,
-      email: 'laa@emeraldcfze.com',
-      role: 'chairman',
-      name: 'Chairman',
-      department: 'Executive',
-    },
-    'logistics@emeraldcfze.com': {
-      id: 5,
-      email: 'logistics@emeraldcfze.com',
-      role: 'logistics_manager',
-      name: 'Logistics Manager',
-      department: 'Logistics',
-    },
-    'finance@emeraldcfze.com': {
-      id: 6,
-      email: 'finance@emeraldcfze.com',
-      role: 'finance',
-      name: 'Finance Manager',
-      department: 'Finance',
-    },
-    'staff@emeraldcfze.com': {
-      id: 7,
-      email: 'staff@emeraldcfze.com',
-      role: 'employee',
-      name: 'Staff Employee',
-      department: 'Operations',
-    },
-  };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     if (!email || !password) {
@@ -161,27 +109,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         return { success: true };
       } else {
-        // If API fails, check for demo user
-        const demoUser = demoUsers[email.toLowerCase()];
-        if (demoUser) {
-          setUser(demoUser);
-          localStorage.setItem("authToken", "demo-token");
-          localStorage.setItem("userData", JSON.stringify(demoUser));
-          localStorage.setItem("isAuthenticated", "true");
-          return { success: true };
-        }
         return { success: false, error: response.error || "Login failed" };
       }
     } catch (error: any) {
-      // On network error, fall back to demo users
-      const demoUser = demoUsers[email.toLowerCase()];
-      if (demoUser) {
-        setUser(demoUser);
-        localStorage.setItem("authToken", "demo-token");
-        localStorage.setItem("userData", JSON.stringify(demoUser));
-        localStorage.setItem("isAuthenticated", "true");
-        return { success: true };
-      }
       return { success: false, error: error.message || "An error occurred during login" };
     }
   };

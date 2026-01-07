@@ -91,19 +91,6 @@ const Auth = () => {
           </CardContent>
         </Card>
 
-        <div className="mt-6 space-y-2 text-sm text-muted-foreground">
-          <p className="font-semibold text-foreground">Demo Credentials:</p>
-          <div className="space-y-1">
-            <p><strong>Employee:</strong> staff@emeraldcfze.com / any password</p>
-            <p><strong>Procurement Manager:</strong> procurement@emeraldcfze.com / any password</p>
-            <p><strong>Executive:</strong> bunmi.babajide@emeraldcfze.com / any password</p>
-            <p><strong>Chairman:</strong> laa@emeraldcfze.com / any password</p>
-            <p><strong>Supply Chain Director:</strong> supply@emeraldcfze.com / any password</p>
-            <p><strong>Logistics Manager:</strong> logistics@emeraldcfze.com / any password</p>
-            <p><strong>Finance:</strong> finance@emeraldcfze.com / any password</p>
-          </div>
-          <p className="mt-4 text-xs text-muted-foreground">Note: These are demo credentials. Use your HRIS credentials for real authentication.</p>
-        </div>
       </div>
     </div>
   );
