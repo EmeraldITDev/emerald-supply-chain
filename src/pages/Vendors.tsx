@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Users, TrendingUp, FileCheck, Plus, Star, Upload, Download, Trash2, FileText } from "lucide-react";
+import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -468,50 +469,22 @@ const Vendors = () => {
           </Card>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Pending KYC Submissions</CardTitle>
-              <CardDescription>Vendors awaiting verification</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {pendingKYC.map((vendor) => (
-                  <div key={vendor.name} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg">
-                    <div className="space-y-1 flex-1 min-w-0">
-                      <p className="font-semibold truncate">{vendor.name}</p>
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-                        <span className="whitespace-nowrap">Category: {vendor.category}</span>
-                        <span className="whitespace-nowrap">Documents: {vendor.documents}</span>
-                        <span className="whitespace-nowrap">Submitted: {vendor.submitted}</span>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        setReviewingVendor(vendor.registration);
-                        setKycReviewOpen(true);
-                      }}
-                      className="self-start sm:self-center transition-transform hover:scale-105"
-                    >
-                      Review
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Vendor Registrations Section */}
+        <VendorRegistrationsList 
+          showTabs={true} 
+          title="Vendor Registrations"
+        />
 
+        <div className="grid gap-6 lg:grid-cols-1">
           <Card>
             <CardHeader>
               <CardTitle>Top Performers</CardTitle>
               <CardDescription>Highest rated vendors</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-3">
                 {topPerformers.map((vendor) => (
-                  <div key={vendor.name} className="space-y-2">
+                  <div key={vendor.name} className="p-4 border rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="font-medium text-sm">{vendor.name}</p>
                       <div className="flex items-center gap-1">
