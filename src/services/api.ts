@@ -431,6 +431,10 @@ export const vendorApi = {
     return apiRequest<VendorRegistration[]>('/vendors/registrations');
   },
 
+  getRegistration: async (id: string): Promise<ApiResponse<VendorRegistration>> => {
+    return apiRequest<VendorRegistration>(`/vendors/registrations/${id}`);
+  },
+
   approveRegistration: async (id: string): Promise<ApiResponse<{ vendor: Vendor; temporaryPassword: string }>> => {
     return apiRequest<{ vendor: Vendor; temporaryPassword: string }>(`/vendors/registrations/${id}/approve`, {
       method: 'POST',

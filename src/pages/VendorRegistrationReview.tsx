@@ -60,20 +60,17 @@ const VendorRegistrationReview = () => {
       
       setLoading(true);
       try {
-        // Fetch all registrations and find the one we need
-        const response = await vendorApi.getRegistrations();
+        // Fetch the specific registration by ID
+        const response = await vendorApi.getRegistration(id);
         if (response.success && response.data) {
-          const found = response.data.find(r => r.id === id);
-          if (found) {
-            setRegistration(found);
-          } else {
-            toast({
-              title: "Not Found",
-              description: "Vendor registration not found",
-              variant: "destructive",
-            });
-            navigate("/vendors");
-          }
+          setRegistration(response.data);
+        } else {
+          toast({
+            title: "Not Found",
+            description: response.error || "Vendor registration not found",
+            variant: "destructive",
+          });
+          navigate("/vendors");
         }
       } catch (error) {
         toast({
