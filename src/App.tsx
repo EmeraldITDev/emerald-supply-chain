@@ -33,6 +33,7 @@ import AccountsReceivable from "./pages/AccountsReceivable";
 import BudgetControl from "./pages/BudgetControl";
 import Projects from "./pages/Projects";
 import VendorPortal from "./pages/VendorPortal";
+import VendorRegistrationSuccess from "./pages/VendorRegistrationSuccess";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -90,6 +91,7 @@ const AppRoutes = () => {
         <Route path="/budget" element={<ProtectedRoute><BudgetControl /></ProtectedRoute>} />
         <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
         <Route path="/vendor-portal" element={<VendorPortal />} />
+        <Route path="/vendor-registration-success" element={<VendorRegistrationSuccess />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

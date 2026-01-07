@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import logo from "@/assets/emerald-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
@@ -27,6 +28,7 @@ interface VendorData extends Vendor {
 
 const VendorPortal = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { rfqs, quotations, addQuotation, updateQuotation, addVendorRegistration } = useApp();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
@@ -540,11 +542,8 @@ const VendorPortal = () => {
                   contactPerson: registration.contactPerson || '',
                 });
                 
-                setShowRegistration(false);
-                toast({
-                  title: "Registration Submitted",
-                  description: "Your application is pending approval. You'll be notified via email."
-                });
+                // Navigate to success page
+                navigate('/vendor-registration-success');
               } else {
                 // Display error message
                 const errorMessage = response.error || "An error occurred. Please try again.";
