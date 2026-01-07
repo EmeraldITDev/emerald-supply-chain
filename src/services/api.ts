@@ -125,9 +125,13 @@ async function apiRequest<T>(
       };
     }
 
+    // Extract data property if backend response has it, otherwise use the response as-is
+    // Backend returns {success: true, data: {...}}, so we extract the inner data
+    const responseData = (data && typeof data === 'object' && 'data' in data) ? data.data : data;
+
     return {
       success: true,
-      data: data,
+      data: responseData,
     };
   } catch (error) {
     console.error('API request failed:', error);

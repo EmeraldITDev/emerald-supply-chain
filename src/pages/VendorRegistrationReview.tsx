@@ -62,18 +62,31 @@ const VendorRegistrationReview = () => {
       try {
         // Fetch the specific registration by ID
         const response = await vendorApi.getRegistration(id);
-        console.log('Registration API Response:', response);
+        console.log('Full API Response:', JSON.stringify(response, null, 2));
         if (response.success && response.data) {
-          console.log('Registration Data:', response.data);
-          console.log('Company Name:', response.data.companyName);
-          console.log('Email:', response.data.email);
-          console.log('Phone:', response.data.phone);
-          console.log('Address:', response.data.address);
-          console.log('Contact Person:', response.data.contactPerson);
-          console.log('Tax ID:', response.data.taxId);
-          console.log('Category:', response.data.category);
-          console.log('Documents:', response.data.documents);
-          setRegistration(response.data);
+          // apiRequest now extracts the data property from backend responses
+          const registrationData = response.data;
+          console.log('Registration Data Object:', registrationData);
+          console.log('Company Name:', registrationData?.companyName);
+          console.log('Email:', registrationData?.email);
+          console.log('Phone:', registrationData?.phone);
+          console.log('Address:', registrationData?.address);
+          console.log('Contact Person:', registrationData?.contactPerson);
+          console.log('Tax ID:', registrationData?.taxId);
+          console.log('Category:', registrationData?.category);
+          console.log('Documents:', registrationData?.documents);
+          
+          // Ensure we have the actual registration object
+          if (registrationData && typeof registrationData === 'object' && 'companyName' in registrationData) {
+            setRegistration(registrationData as VendorRegistration);
+          } else {
+            console.error('Invalid registration data structure:', registrationData);
+            toast({
+              title: "Error",
+              description: "Invalid data format received from server",
+              variant: "destructive",
+            });
+          }
         } else {
           console.error('Registration fetch failed:', response.error);
           toast({
