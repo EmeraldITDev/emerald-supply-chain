@@ -457,8 +457,8 @@ const VendorPortal = () => {
               if (registration.categories && Array.isArray(registration.categories) && registration.categories.length > 0) {
                 // Join multiple categories with comma
                 categoryValue = registration.categories.join(', ');
-              } else if (registration.category && typeof registration.category === 'string') {
-                categoryValue = registration.category;
+              } else if ((registration as any).category && typeof (registration as any).category === 'string') {
+                categoryValue = (registration as any).category;
               } else {
                 // This should not happen if validation worked, but provide fallback
                 console.error('No category provided in registration:', registration);
@@ -546,16 +546,11 @@ const VendorPortal = () => {
                   description: "Your application is pending approval. You'll be notified via email."
                 });
               } else {
-                // Display detailed error message including validation errors
-                const errorMessage = response.error || response.errors 
-                  ? Object.entries(response.errors || {}).map(([field, messages]) => 
-                      `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`
-                    ).join('; ') || response.error
-                  : "An error occurred. Please try again.";
+                // Display error message
+                const errorMessage = response.error || "An error occurred. Please try again.";
                 
                 console.error('Registration failed:', {
                   error: response.error,
-                  errors: response.errors,
                   fullResponse: response
                 });
                 
