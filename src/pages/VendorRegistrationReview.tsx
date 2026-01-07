@@ -159,15 +159,28 @@ const VendorRegistrationReview = () => {
   };
 
   const handleDownloadDocument = (document: VendorDocument) => {
-    if (document.fileData) {
-      const link = window.document.createElement("a");
-      link.href = document.fileData;
-      link.download = document.fileName || document.name;
-      link.click();
-      toast({
-        title: "Downloading",
-        description: `Downloading ${document.fileName || document.name}...`,
-      });
+    // Support both fileData (base64 or URL) and fileUrl
+    const downloadUrl = document.fileData || (document as any).fileUrl;
+    
+    if (downloadUrl) {
+      // If it's a URL (starts with http), open in new tab, otherwise download
+      if (downloadUrl.startsWith('http://') || downloadUrl.startsWith('https://')) {
+        window.open(downloadUrl, '_blank');
+        toast({
+          title: "Opening Document",
+          description: `Opening ${document.fileName || document.name}...`,
+        });
+      } else {
+        // Base64 data URL
+        const link = window.document.createElement("a");
+        link.href = downloadUrl;
+        link.download = document.fileName || document.name || 'document';
+        link.click();
+        toast({
+          title: "Downloading",
+          description: `Downloading ${document.fileName || document.name}...`,
+        });
+      }
     } else {
       toast({
         title: "Download Error",
@@ -437,8 +450,8 @@ const VendorRegistrationReview = () => {
                 <div>
                   <Label className="text-muted-foreground">Submitted Date</Label>
                   <p className="font-medium">
-                    {registration.submittedDate
-                      ? new Date(registration.submittedDate).toLocaleDateString()
+                    {registration.createdAt
+                      ? new Date(registration.createdAt).toLocaleDateString()
                       : "N/A"}
                   </p>
                 </div>
