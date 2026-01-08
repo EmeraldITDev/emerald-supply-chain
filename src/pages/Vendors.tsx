@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
-import { vendorApi } from "@/services/api";
+import { vendorApi, dashboardApi } from "@/services/api";
 import { VendorRegistration } from "@/types";
 import {
   Dialog,
@@ -44,6 +44,16 @@ const Vendors = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  
+  // Dashboard stats from API
+  const [dashboardStats, setDashboardStats] = useState({
+    totalVendors: 0,
+    activeVendors: 0,
+    pendingRegistrations: 0,
+    avgRating: 0,
+    onTimeDelivery: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
   
   // New vendor form
   const [newVendorName, setNewVendorName] = useState("");
@@ -83,27 +93,50 @@ const Vendors = () => {
     }
   };
 
-  // Fetch vendor registrations
+  // Fetch vendor registrations and dashboard stats from API (same source as Dashboard)
   useEffect(() => {
-    const fetchRegistrations = async () => {
+    const fetchDashboardData = async () => {
       setLoadingRegistrations(true);
+      setLoadingStats(true);
       try {
-        const response = await vendorApi.getRegistrations();
+        const response = await dashboardApi.getProcurementManagerDashboard();
         if (response.success && response.data) {
-          setVendorRegistrations(response.data);
+          // Map pending registrations to VendorRegistration format
+          if (response.data.pendingRegistrations) {
+            const registrations = response.data.pendingRegistrations.map((reg: any) => ({
+              id: reg.id,
+              companyName: reg.companyName,
+              email: reg.email,
+              category: reg.category,
+              status: "Pending" as const,
+              submittedDate: reg.createdAt,
+              contactPerson: reg.contactPerson,
+            }));
+            setVendorRegistrations(registrations);
+          }
+          
+          // Set dashboard stats from API
+          setDashboardStats({
+            totalVendors: response.data.totalVendors || 0,
+            activeVendors: response.data.activeVendors || 0,
+            pendingRegistrations: response.data.pendingRegistrations?.length || 0,
+            avgRating: response.data.avgVendorRating || 0,
+            onTimeDelivery: response.data.onTimeDeliveryRate || 0,
+          });
         }
       } catch (error) {
         toast({
           title: "Error",
-          description: "Failed to load vendor registrations",
+          description: "Failed to load vendor data",
           variant: "destructive",
         });
       } finally {
         setLoadingRegistrations(false);
+        setLoadingStats(false);
       }
     };
 
-    fetchRegistrations();
+    fetchDashboardData();
   }, [toast]);
 
   // Fetch approved vendors
@@ -430,8 +463,8 @@ const Vendors = () => {
               <Users className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">42</div>
-              <p className="text-xs text-muted-foreground">38 active</p>
+              <div className="text-2xl font-bold">{loadingStats ? "..." : dashboardStats.totalVendors}</div>
+              <p className="text-xs text-muted-foreground">{loadingStats ? "Loading..." : `${dashboardStats.activeVendors} active`}</p>
             </CardContent>
           </Card>
 
@@ -441,7 +474,7 @@ const Vendors = () => {
               <FileCheck className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pendingKYC.length}</div>
+              <div className="text-2xl font-bold">{loadingStats ? "..." : dashboardStats.pendingRegistrations}</div>
               <p className="text-xs text-muted-foreground">Awaiting review</p>
             </CardContent>
           </Card>
@@ -452,7 +485,7 @@ const Vendors = () => {
               <Star className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">4.6</div>
+              <div className="text-2xl font-bold">{loadingStats ? "..." : dashboardStats.avgRating.toFixed(1)}</div>
               <p className="text-xs text-muted-foreground">Out of 5.0</p>
             </CardContent>
           </Card>
@@ -463,7 +496,7 @@ const Vendors = () => {
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">91%</div>
+              <div className="text-2xl font-bold">{loadingStats ? "..." : `${dashboardStats.onTimeDelivery}%`}</div>
               <p className="text-xs text-muted-foreground">Last 30 days</p>
             </CardContent>
           </Card>
@@ -473,6 +506,8 @@ const Vendors = () => {
         <VendorRegistrationsList 
           showTabs={true} 
           title="Vendor Registrations"
+          externalRegistrations={vendorRegistrations}
+          externalLoading={loadingRegistrations}
         />
 
         <div className="grid gap-6 lg:grid-cols-1">
