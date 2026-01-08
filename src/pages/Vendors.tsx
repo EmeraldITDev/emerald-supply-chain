@@ -539,57 +539,46 @@ const Vendors = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="all" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 h-auto gap-1">
-            <TabsTrigger value="all" className="text-xs sm:text-sm px-2 sm:px-4">All Vendors</TabsTrigger>
-            <TabsTrigger value="active" className="text-xs sm:text-sm px-2 sm:px-4">Active</TabsTrigger>
-            <TabsTrigger value="pending" className="text-xs sm:text-sm px-2 sm:px-4">Pending</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="all" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Vendor Directory</CardTitle>
-                <CardDescription>Complete list of registered vendors</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {vendors.map((vendor) => (
-                    <div key={vendor.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg">
-                      <div className="space-y-2 flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-semibold whitespace-nowrap">{vendor.id}</span>
-                          <span className="text-sm truncate">{vendor.name}</span>
-                          <Badge className={getStatusColor(vendor.status)}>{vendor.status}</Badge>
-                          <Badge className={getStatusColor(vendor.kyc)}>{vendor.kyc}</Badge>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-                          <span className="whitespace-nowrap">Category: {vendor.category}</span>
-                          <span className="whitespace-nowrap">Orders: {vendor.orders}</span>
-                          <span className="flex items-center gap-1 whitespace-nowrap">
-                            <Star className="h-3 w-3 fill-primary text-primary" />
-                            {vendor.rating}
-                          </span>
-                        </div>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedVendor(vendor);
-                          setVendorDetailsOpen(true);
-                        }}
-                        className="self-start sm:self-center"
-                      >
-                        View Profile
-                      </Button>
+        <Card>
+          <CardHeader>
+            <CardTitle>Vendor Directory</CardTitle>
+            <CardDescription>Complete list of registered vendors</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {vendors.map((vendor) => (
+                <div key={vendor.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg">
+                  <div className="space-y-2 flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold whitespace-nowrap">{vendor.id}</span>
+                      <span className="text-sm truncate">{vendor.name}</span>
+                      <Badge className={getStatusColor(vendor.kyc)}>{vendor.kyc}</Badge>
                     </div>
-                  ))}
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+                      <span className="whitespace-nowrap">Category: {vendor.category}</span>
+                      <span className="whitespace-nowrap">Orders: {vendor.orders}</span>
+                      <span className="flex items-center gap-1 whitespace-nowrap">
+                        <Star className="h-3 w-3 fill-primary text-primary" />
+                        {vendor.rating}
+                      </span>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectedVendor(vendor);
+                      setVendorDetailsOpen(true);
+                    }}
+                    className="self-start sm:self-center"
+                  >
+                    View Profile
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Vendor Details Dialog */}
