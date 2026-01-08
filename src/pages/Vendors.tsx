@@ -115,13 +115,14 @@ const Vendors = () => {
             setVendorRegistrations(registrations);
           }
           
-          // Set dashboard stats from API
+          // Set dashboard stats from API (nested under 'stats' object)
+          const stats = response.data.stats;
           setDashboardStats({
-            totalVendors: response.data.totalVendors || 0,
-            activeVendors: response.data.activeVendors || 0,
-            pendingRegistrations: response.data.pendingRegistrations?.length || 0,
-            avgRating: response.data.avgVendorRating || 0,
-            onTimeDelivery: response.data.onTimeDeliveryRate || 0,
+            totalVendors: stats?.totalVendors || 0,
+            activeVendors: stats?.totalVendors || 0, // Use totalVendors as active count
+            pendingRegistrations: stats?.pendingKYC || response.data.pendingRegistrations?.length || 0,
+            avgRating: stats?.avgRating || 0,
+            onTimeDelivery: stats?.onTimeDelivery || 0,
           });
         }
       } catch (error) {
