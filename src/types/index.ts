@@ -12,11 +12,13 @@ export interface User {
 export interface LoginCredentials {
   email: string;
   password: string;
+  remember_me?: boolean;
 }
 
 export interface AuthResponse {
   user: User;
   token: string;
+  expiresAt?: string;
   requiresPasswordChange?: boolean;
 }
 

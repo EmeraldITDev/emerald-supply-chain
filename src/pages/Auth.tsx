@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -13,6 +14,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true); // Default to true for persistent login
   const navigate = useNavigate();
   const { toast } = useToast();
   const { login } = useAuth();
@@ -23,7 +25,7 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    const result = await login(email, password);
+    const result = await login(email, password, rememberMe);
     
     if (result.success) {
       toast({
@@ -83,6 +85,19 @@ const Auth = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="remember"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
+                />
+                <Label
+                  htmlFor="remember"
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  Keep me signed in
+                </Label>
               </div>
               <Button type="submit" className="w-full transition-transform hover:scale-105" disabled={isLoading}>
                 {isLoading ? "Signing in..." : "Sign In"}

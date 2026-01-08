@@ -14,7 +14,7 @@ export interface AuthUser {
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
@@ -38,6 +38,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem("authToken");
       localStorage.removeItem("userData");
       localStorage.removeItem("isAuthenticated");
+      localStorage.removeItem("tokenExpiry");
     }
   }, []);
 
@@ -45,8 +46,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Check for existing session and validate token
     const token = localStorage.getItem("authToken");
     const storedUser = localStorage.getItem("userData");
+    const tokenExpiry = localStorage.getItem("tokenExpiry");
     
     if (token && storedUser) {
+      // Check if token has expired
+      if (tokenExpiry) {
+        const expiryDate = new Date(tokenExpiry);
+        if (expiryDate < new Date()) {
+          // Token expired, clear session
+          logout();
+          setLoading(false);
+          return;
+        }
+      }
+      
       try {
         const userData = JSON.parse(storedUser);
         setUser(userData);
@@ -74,24 +87,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         localStorage.removeItem("authToken");
         localStorage.removeItem("userData");
+        localStorage.removeItem("tokenExpiry");
       }
     }
     setLoading(false);
   }, [logout]);
 
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string, password: string, rememberMe: boolean = true): Promise<{ success: boolean; error?: string }> => {
     if (!email || !password) {
       return { success: false, error: "Please enter email and password" };
     }
 
     try {
-      // First try the real API
-      const response = await authApi.login({ email, password });
+      // First try the real API with remember_me flag
+      const response = await authApi.login({ email, password, remember_me: rememberMe });
 
       if (response.success && response.data) {
         const userData = response.data.user;
         const token = response.data.token;
+        const expiresAt = response.data.expiresAt; // Token expiration from backend
 
         const authUser: AuthUser = {
           id: userData.id,
@@ -106,6 +121,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem("authToken", token);
         localStorage.setItem("userData", JSON.stringify(authUser));
         localStorage.setItem("isAuthenticated", "true");
+        
+        // Store token expiration for client-side validation
+        if (expiresAt) {
+          localStorage.setItem("tokenExpiry", expiresAt);
+        }
 
         return { success: true };
       } else {

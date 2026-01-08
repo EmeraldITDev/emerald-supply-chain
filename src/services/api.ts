@@ -160,6 +160,12 @@ export const authApi = {
   getCurrentUser: async (): Promise<ApiResponse<User>> => {
     return apiRequest<User>('/auth/me');
   },
+
+  refreshToken: async (): Promise<ApiResponse<{ token: string; expiresAt: string }>> => {
+    return apiRequest<{ token: string; expiresAt: string }>('/auth/refresh-token', {
+      method: 'POST',
+    });
+  },
 };
 
 // MRF API
