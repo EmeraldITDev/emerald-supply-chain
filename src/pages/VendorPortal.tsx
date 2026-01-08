@@ -422,6 +422,12 @@ const VendorPortal = () => {
       return (
         <EnhancedVendorRegistration 
           onSubmit={async (registration) => {
+            // Prevent double submission
+            if (isSubmitting) {
+              console.log('Registration already in progress, ignoring duplicate submission');
+              return;
+            }
+            
             setIsSubmitting(true);
             try {
               // Convert documents from base64 to File objects for API
@@ -533,28 +539,31 @@ const VendorPortal = () => {
               const response = await vendorApi.registerSimple(registrationPayload);
 
               if (response.success) {
-                addVendorRegistration({
-                  companyName: registration.companyName || '',
-                  category: registration.categories?.join(', ') || '',
-                  email: registration.email || '',
-                  phone: registration.phone || '',
-                  address: registration.address || '',
-                  taxId: registration.taxId || '',
-                  contactPerson: registration.contactPerson || '',
-                });
+                // Only add to local state if it's a new registration (201) or if we have registration data
+                if (response.data) {
+                  addVendorRegistration({
+                    companyName: registration.companyName || '',
+                    category: registration.categories?.join(', ') || '',
+                    email: registration.email || '',
+                    phone: registration.phone || '',
+                    address: registration.address || '',
+                    taxId: registration.taxId || '',
+                    contactPerson: registration.contactPerson || '',
+                  });
+                }
                 
-                // Show success toast
+                setShowRegistration(false);
                 toast({
-                  title: "Registration Submitted Successfully",
-                  description: "Your application has been submitted for review. You will receive an email notification once approved.",
+                  title: "Registration Submitted",
+                  description: response.data?.message || "Your application is pending approval. You'll be notified via email."
                 });
-                
-                // Navigate to success page
-                navigate('/vendor-registration-success');
-                return; // Exit early to prevent further processing
               } else {
-                // Display error message
-                const errorMessage = response.error || "An error occurred. Please try again.";
+                // Display detailed error message including validation errors
+                const errorMessage = response.error || response.errors 
+                  ? Object.entries(response.errors || {}).map(([field, messages]) => 
+                      `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`
+                    ).join('; ') || response.error
+                  : "An error occurred. Please try again.";
                 
                 console.error('Registration failed:', {
                   error: response.error,
