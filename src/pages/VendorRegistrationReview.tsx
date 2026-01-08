@@ -117,13 +117,14 @@ const VendorRegistrationReview = () => {
     setIsProcessing(true);
     try {
       const response = await vendorApi.approveRegistration(registration.id);
-      if (response.success && response.data) {
-        const { temporaryPassword } = response.data;
+      // Check if the approval was successful - response.success being true means it worked
+      if (response.success) {
+        const temporaryPassword = response.data?.temporaryPassword;
         toast({
           title: "Vendor Approved",
           description: temporaryPassword
             ? `Account created. Temporary password: ${temporaryPassword}`
-            : "Credentials have been sent via email.",
+            : "Vendor has been approved and credentials have been sent via email.",
         });
         navigate("/vendors");
       } else {
