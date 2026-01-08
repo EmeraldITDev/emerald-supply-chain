@@ -185,8 +185,12 @@ const VendorRegistrationReview = () => {
   };
 
   const handleDownloadDocument = (document: VendorDocument) => {
-    // Support both fileData (base64 or URL) and fileUrl
-    const downloadUrl = document.fileData || (document as any).fileUrl;
+    // Support multiple property names from backend (camelCase and snake_case)
+    const doc = document as any;
+    const downloadUrl = doc.fileData || doc.fileUrl || doc.file_url || doc.url || doc.path || doc.file_path;
+    
+    console.log('Document object:', doc);
+    console.log('Download URL found:', downloadUrl);
     
     if (downloadUrl) {
       // If it's a URL (starts with http), open in new tab, otherwise download
@@ -194,23 +198,33 @@ const VendorRegistrationReview = () => {
         window.open(downloadUrl, '_blank');
         toast({
           title: "Opening Document",
-          description: `Opening ${document.fileName || document.name}...`,
+          description: `Opening ${doc.fileName || doc.file_name || doc.name}...`,
         });
-      } else {
+      } else if (downloadUrl.startsWith('data:')) {
         // Base64 data URL
         const link = window.document.createElement("a");
         link.href = downloadUrl;
-        link.download = document.fileName || document.name || 'document';
+        link.download = doc.fileName || doc.file_name || doc.name || 'document';
         link.click();
         toast({
           title: "Downloading",
-          description: `Downloading ${document.fileName || document.name}...`,
+          description: `Downloading ${doc.fileName || doc.file_name || doc.name}...`,
+        });
+      } else {
+        // Assume it's a relative path - prepend API base URL
+        const apiBase = import.meta.env.VITE_API_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
+        const fullUrl = downloadUrl.startsWith('/') ? `${apiBase}${downloadUrl}` : `${apiBase}/${downloadUrl}`;
+        window.open(fullUrl, '_blank');
+        toast({
+          title: "Opening Document",
+          description: `Opening ${doc.fileName || doc.file_name || doc.name}...`,
         });
       }
     } else {
+      console.error('No download URL found in document:', doc);
       toast({
         title: "Download Error",
-        description: "Document data not available",
+        description: "Document URL not available. Check console for details.",
         variant: "destructive",
       });
     }
