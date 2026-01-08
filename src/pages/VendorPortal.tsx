@@ -543,8 +543,15 @@ const VendorPortal = () => {
                   contactPerson: registration.contactPerson || '',
                 });
                 
+                // Show success toast
+                toast({
+                  title: "Registration Submitted Successfully",
+                  description: "Your application has been submitted for review. You will receive an email notification once approved.",
+                });
+                
                 // Navigate to success page
                 navigate('/vendor-registration-success');
+                return; // Exit early to prevent further processing
               } else {
                 // Display error message
                 const errorMessage = response.error || "An error occurred. Please try again.";

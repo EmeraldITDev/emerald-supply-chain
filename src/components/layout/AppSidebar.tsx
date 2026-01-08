@@ -146,8 +146,9 @@ export function AppSidebar() {
           ]
         }
       ];
-    } else if (user?.role === "supply_chain_director") {
+    } else if (user?.role === "supply_chain_director" || user?.role === "supply_chain") {
       // Supply Chain Director: Full procurement access + PO signing
+      // Note: Database may use "supply_chain" or "supply_chain_director" for this role
       return [
         ...fullProcurementNav,
         {

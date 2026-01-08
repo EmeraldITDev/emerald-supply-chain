@@ -40,7 +40,7 @@ const Dashboard = () => {
     return <Navigate to="/chairman" replace />;
   }
 
-  if (user?.role === "supply_chain_director") {
+  if (user?.role === "supply_chain_director" || user?.role === "supply_chain") {
     return <Navigate to="/supply-chain" replace />;
   }
 

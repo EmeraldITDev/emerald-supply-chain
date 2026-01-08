@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { authApi } from "@/services/api";
 
-export type UserRole = "employee" | "procurement_manager" | "finance" | "executive" | "supply_chain_director" | "chairman" | "logistics_manager" | "procurement" | "logistics";
+export type UserRole = "employee" | "procurement_manager" | "finance" | "executive" | "supply_chain_director" | "supply_chain" | "chairman" | "logistics_manager" | "procurement" | "logistics";
 
 export interface AuthUser {
   id: number;
