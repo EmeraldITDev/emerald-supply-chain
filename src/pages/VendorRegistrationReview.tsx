@@ -129,8 +129,8 @@ const VendorRegistrationReview = () => {
         navigate("/vendors");
       } else {
         toast({
-          title: "Error",
-          description: response.error || "Failed to approve registration",
+          title: "Server Error",
+          description: response.error || "Backend server error. Please check the server logs or try again later.",
           variant: "destructive",
         });
       }
