@@ -18,6 +18,8 @@ import { RFQManagement } from "@/components/RFQManagement";
 import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import type { MRFRequest } from "@/contexts/AppContext";
+import { dashboardApi } from "@/services/api";
+import type { VendorRegistration } from "@/types";
 import {
   Select,
   SelectContent,
@@ -36,6 +38,10 @@ const Procurement = () => {
   
   const [poDialogOpen, setPODialogOpen] = useState(false);
   const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(null);
+  
+  // Vendor registrations from dashboard API
+  const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
+  const [vendorRegistrationsLoading, setVendorRegistrationsLoading] = useState(true);
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -78,6 +84,39 @@ const Procurement = () => {
   useEffect(() => {
     if (vendorFilter) setTab("po");
   }, [vendorFilter]);
+
+  // Fetch vendor registrations from the dashboard API (same source as Dashboard)
+  useEffect(() => {
+    const fetchVendorRegistrations = async () => {
+      setVendorRegistrationsLoading(true);
+      try {
+        const response = await dashboardApi.getProcurementManagerDashboard();
+        if (response.success && response.data?.pendingRegistrations) {
+          // Map the dashboard data to VendorRegistration format
+          const registrations = response.data.pendingRegistrations.map((reg: any) => ({
+            id: reg.id,
+            companyName: reg.companyName,
+            email: reg.email,
+            category: reg.category,
+            status: "Pending" as const,
+            submittedDate: reg.createdAt,
+            contactPerson: reg.contactPerson,
+          }));
+          setVendorRegistrations(registrations);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load vendor registrations",
+          variant: "destructive",
+        });
+      } finally {
+        setVendorRegistrationsLoading(false);
+      }
+    };
+
+    fetchVendorRegistrations();
+  }, [toast]);
 
   // Stats
   const pendingMRNs = mrns.filter(mrn => mrn.status === "Pending" || mrn.status === "Under Review");
@@ -350,6 +389,8 @@ const Procurement = () => {
           maxItems={3} 
           showTabs={false} 
           title="Pending Vendor Registrations"
+          externalRegistrations={vendorRegistrations}
+          externalLoading={vendorRegistrationsLoading}
         />
 
         {/* Progress Tracker */}

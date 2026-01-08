@@ -23,6 +23,8 @@ interface VendorRegistrationsListProps {
   showTabs?: boolean;
   title?: string;
   onViewRegistration?: (registration: VendorRegistration) => void;
+  externalRegistrations?: VendorRegistration[];
+  externalLoading?: boolean;
 }
 
 const VendorRegistrationsList = ({
@@ -30,6 +32,8 @@ const VendorRegistrationsList = ({
   showTabs = true,
   title = "Vendor Registrations",
   onViewRegistration,
+  externalRegistrations,
+  externalLoading,
 }: VendorRegistrationsListProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -37,7 +41,16 @@ const VendorRegistrationsList = ({
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("pending");
 
+  // Use external data if provided, otherwise fetch from API
+  const useExternalData = externalRegistrations !== undefined;
+
   useEffect(() => {
+    if (useExternalData) {
+      setRegistrations(externalRegistrations || []);
+      setLoading(externalLoading || false);
+      return;
+    }
+
     const fetchRegistrations = async () => {
       setLoading(true);
       try {
@@ -57,7 +70,7 @@ const VendorRegistrationsList = ({
     };
 
     fetchRegistrations();
-  }, [toast]);
+  }, [toast, useExternalData, externalRegistrations, externalLoading]);
 
   const pendingRegistrations = registrations.filter(r => r.status === "Pending" || r.status === "Under Review");
   const approvedRegistrations = registrations.filter(r => r.status === "Approved");
