@@ -555,15 +555,11 @@ const VendorPortal = () => {
                 setShowRegistration(false);
                 toast({
                   title: "Registration Submitted",
-                  description: response.data?.message || "Your application is pending approval. You'll be notified via email."
+                  description: (response.data as any)?.message || "Your application is pending approval. You'll be notified via email."
                 });
               } else {
-                // Display detailed error message including validation errors
-                const errorMessage = response.error || response.errors 
-                  ? Object.entries(response.errors || {}).map(([field, messages]) => 
-                      `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`
-                    ).join('; ') || response.error
-                  : "An error occurred. Please try again.";
+                // Display detailed error message
+                const errorMessage = response.error || "An error occurred. Please try again.";
                 
                 console.error('Registration failed:', {
                   error: response.error,
