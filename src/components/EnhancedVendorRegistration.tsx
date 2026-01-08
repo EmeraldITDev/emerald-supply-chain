@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, FileText, CheckCircle, AlertCircle, X, AlertTriangle, Info, Building2, Loader2 } from "lucide-react";
 import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES, type VendorDocument, type VendorDocumentType, type EnhancedVendorRegistration as VendorRegType } from "@/types/vendor-registration";
-import { vendorApi } from "@/services/api";
+
 
 interface EnhancedVendorRegistrationProps {
   onSubmit: (registration: Partial<VendorRegType>) => void;
@@ -172,117 +172,34 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
       return;
     }
 
-    setIsSubmitting(true);
+    // Build the registration object and let the parent handle API call
+    const registration: Partial<VendorRegType> = {
+      companyName,
+      categories: selectedCategories,
+      isOEMRepresentative,
+      email,
+      phone,
+      alternatePhone,
+      address,
+      city,
+      state,
+      country,
+      postalCode,
+      taxId,
+      contactPerson,
+      contactPersonTitle,
+      contactPersonEmail,
+      contactPersonPhone,
+      website,
+      yearEstablished,
+      numberOfEmployees,
+      annualRevenue,
+      documents: uploadedDocuments,
+      status: "Pending",
+    };
 
-    try {
-      // Convert base64 documents to File objects for API
-      const documentFiles: File[] = [];
-      if (uploadedDocuments.length > 0) {
-        uploadedDocuments.forEach((doc) => {
-          if (doc.fileData && doc.fileName) {
-            try {
-              // Extract base64 data (remove data:type;base64, prefix if present)
-              const base64Data = doc.fileData.includes(',')
-                ? doc.fileData.split(',')[1]
-                : doc.fileData;
-              
-              // Detect MIME type from base64 prefix or default
-              const mimeMatch = doc.fileData.match(/data:([^;]+);/);
-              const mimeType = mimeMatch ? mimeMatch[1] : 'application/pdf';
-
-              // Convert base64 to binary
-              const byteCharacters = atob(base64Data);
-              const byteNumbers = new Array(byteCharacters.length);
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-              }
-              const byteArray = new Uint8Array(byteNumbers);
-              const blob = new Blob([byteArray], { type: mimeType });
-              const file = new File([blob], doc.fileName, { type: mimeType });
-              documentFiles.push(file);
-            } catch (error) {
-              console.error('Error converting document:', doc.fileName, error);
-            }
-          }
-        });
-      }
-
-      // Convert categories array to string for backend (backend expects 'category' not 'categories')
-      const categoryString = selectedCategories.length > 0 
-        ? selectedCategories.join(', ') 
-        : 'General'; // Fallback, though validation should prevent this
-
-      // Build full address string from components
-      const fullAddress = [
-        address,
-        city,
-        state,
-        country,
-        postalCode
-      ].filter(Boolean).join(', ');
-
-      // Backend only accepts these fields: companyName, category, email, phone, address, taxId, contactPerson, documents
-      // Use registerSimple which handles FormData for file uploads
-      const response = await vendorApi.registerSimple({
-        companyName,
-        category: categoryString, // Backend expects 'category' as string, not 'categories' as array
-        email,
-        phone: phone || alternatePhone, // Use primary phone, fallback to alternate
-        address: fullAddress || address, // Use full address if available, otherwise just address field
-        taxId,
-        contactPerson,
-        documents: documentFiles.length > 0 ? documentFiles : undefined,
-      });
-
-      if (response.success) {
-        toast({
-          title: "Registration Submitted Successfully",
-          description: "Your application has been submitted for review. You will receive an email notification once approved.",
-        });
-
-        // Also call onSubmit for any local state updates
-        const registration: Partial<VendorRegType> = {
-          companyName,
-          categories: selectedCategories,
-          isOEMRepresentative,
-          email,
-          phone,
-          alternatePhone,
-          address,
-          city,
-          state,
-          country,
-          postalCode,
-          taxId,
-          contactPerson,
-          contactPersonTitle,
-          contactPersonEmail,
-          contactPersonPhone,
-          website,
-          yearEstablished,
-          numberOfEmployees,
-          annualRevenue,
-          documents: uploadedDocuments,
-          status: "Pending",
-        };
-
-        onSubmit(registration);
-      } else {
-        toast({
-          title: "Registration Failed",
-          description: response.error || "Failed to submit registration. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Registration Failed",
-        description: error.message || "An error occurred. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Let the parent component handle the API call and navigation
+    onSubmit(registration);
   };
 
   const getDocumentStatus = (docType: VendorDocumentType) => {
