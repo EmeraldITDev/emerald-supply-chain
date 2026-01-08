@@ -77,6 +77,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             };
             setUser(updatedUser);
             localStorage.setItem("userData", JSON.stringify(updatedUser));
+            
+            // Update token expiration if provided
+            if ((response.data as any).tokenExpiresAt) {
+              localStorage.setItem("tokenExpiry", (response.data as any).tokenExpiresAt);
+            }
+            
+            // Check if token is expiring soon (within 7 days) and refresh it
+            if ((response.data as any).tokenExpiresAt) {
+              const expiryDate = new Date((response.data as any).tokenExpiresAt);
+              const daysUntilExpiry = (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24);
+              
+              // Refresh token if it expires within 7 days
+              if (daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
+                authApi.refreshToken().then((refreshResponse) => {
+                  if (refreshResponse.success && refreshResponse.data) {
+                    localStorage.setItem("authToken", refreshResponse.data.token);
+                    if (refreshResponse.data.expiresAt) {
+                      localStorage.setItem("tokenExpiry", refreshResponse.data.expiresAt);
+                    }
+                  }
+                }).catch((error) => {
+                  console.warn("Token refresh failed:", error);
+                  // Don't logout on refresh failure, token might still be valid
+                });
+              }
+            }
           } else {
             // Token invalid, clear session
             logout();
