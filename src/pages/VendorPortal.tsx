@@ -5,7 +5,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2 } from "lucide-react";
+import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2, Building, Mail, Phone, MapPin, Globe, Calendar, Star, User, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -73,6 +73,15 @@ const VendorPortal = () => {
   const [quoteNotes, setQuoteNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Vendor stats from API
+  const [vendorStats, setVendorStats] = useState({
+    successRate: 0,
+    avgResponseTime: "N/A",
+    totalOrders: 0,
+    rating: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(false);
+
   // Check for existing session on mount
   useEffect(() => {
     const token = localStorage.getItem('vendorAuthToken');
@@ -85,11 +94,24 @@ const VendorPortal = () => {
         setCurrentVendorId(vendorData.id);
         setIsLoggedIn(true);
         
-        // Verify token is still valid
+        // Verify token is still valid and fetch full profile
         vendorAuthApi.getProfile().then((response) => {
           if (response.success && response.data) {
-            setCurrentVendor(response.data);
-            localStorage.setItem('vendorData', JSON.stringify(response.data));
+            const fullVendor = response.data as any;
+            setCurrentVendor(fullVendor);
+            localStorage.setItem('vendorData', JSON.stringify(fullVendor));
+            
+            // Calculate stats from vendor data
+            const approvedQuotes = quotations.filter(q => q.vendorId === vendorData.id && q.status === 'Approved').length;
+            const totalQuotes = quotations.filter(q => q.vendorId === vendorData.id).length;
+            const successRate = totalQuotes > 0 ? Math.round((approvedQuotes / totalQuotes) * 100) : 0;
+            
+            setVendorStats({
+              successRate,
+              avgResponseTime: fullVendor.avg_response_time || fullVendor.avgResponseTime || "N/A",
+              totalOrders: fullVendor.total_orders || fullVendor.totalOrders || fullVendor.orders || 0,
+              rating: fullVendor.rating || 0,
+            });
           } else {
             // Token invalid, logout
             handleLogout();
@@ -102,7 +124,7 @@ const VendorPortal = () => {
         localStorage.removeItem('vendorData');
       }
     }
-  }, []);
+  }, [quotations]);
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -843,19 +865,26 @@ const VendorPortal = () => {
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">96%</div>
+              <div className="text-2xl font-bold">
+                {vendorQuotations.length > 0 
+                  ? `${Math.round((vendorQuotations.filter(q => q.status === "Approved").length / vendorQuotations.length) * 100)}%`
+                  : "0%"}
+              </div>
               <p className="text-xs text-muted-foreground">Quote approval rate</p>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
-              <Clock className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm font-medium">Rating</CardTitle>
+              <Star className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">4.2h</div>
-              <p className="text-xs text-muted-foreground">Below 8h target</p>
+              <div className="text-2xl font-bold flex items-center gap-1">
+                {(currentVendor as any)?.rating || vendorStats.rating || 0}
+                <span className="text-sm font-normal text-muted-foreground">/5</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Performance rating</p>
             </CardContent>
           </Card>
         </div>
@@ -873,6 +902,7 @@ const VendorPortal = () => {
             <TabsTrigger value="submit">Submit Quotation</TabsTrigger>
             <TabsTrigger value="quotations">My Quotations</TabsTrigger>
             <TabsTrigger value="documents">KYC Documents</TabsTrigger>
+            <TabsTrigger value="profile">My Profile</TabsTrigger>
           </TabsList>
 
           <TabsContent value="rfqs" className="space-y-4">
@@ -1081,6 +1111,215 @@ const VendorPortal = () => {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* My Profile Tab */}
+          <TabsContent value="profile" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Company Profile
+                </CardTitle>
+                <CardDescription>Your registered company information and documents</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Basic Information */}
+                <div>
+                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Basic Information
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Company Name</Label>
+                      <p className="font-medium">{currentVendor?.name || (currentVendor as any)?.company_name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Vendor ID</Label>
+                      <p className="font-medium">{(currentVendor as any)?.vendor_id || currentVendor?.id || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Status</Label>
+                      <Badge className={getStatusColor((currentVendor as any)?.status || 'Active')}>
+                        {(currentVendor as any)?.status || 'Active'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Category</Label>
+                      <p className="font-medium">{(currentVendor as any)?.category || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Rating</Label>
+                      <p className="font-medium flex items-center gap-1">
+                        <Star className="h-4 w-4 fill-primary text-primary" />
+                        {(currentVendor as any)?.rating || 0}/5.0
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Total Orders</Label>
+                      <p className="font-medium">{(currentVendor as any)?.total_orders || (currentVendor as any)?.totalOrders || vendorStats.totalOrders || 0}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Contact Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-start gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Email</Label>
+                        <p className="font-medium">{(currentVendor as any)?.email || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Phone</Label>
+                        <p className="font-medium">{(currentVendor as any)?.phone || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <User className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Contact Person</Label>
+                        <p className="font-medium">{(currentVendor as any)?.contact_person || (currentVendor as any)?.contactPerson || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Website</Label>
+                        <p className="font-medium">{(currentVendor as any)?.website || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 md:col-span-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Address</Label>
+                        <p className="font-medium">{(currentVendor as any)?.address || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Business Information */}
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <Building className="h-4 w-4" />
+                    Business Information
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Tax ID</Label>
+                      <p className="font-medium">{(currentVendor as any)?.tax_id || (currentVendor as any)?.taxId || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Year Established</Label>
+                      <p className="font-medium">{(currentVendor as any)?.year_established || (currentVendor as any)?.yearEstablished || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Number of Employees</Label>
+                      <p className="font-medium">{(currentVendor as any)?.number_of_employees || (currentVendor as any)?.numberOfEmployees || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Annual Revenue</Label>
+                      <p className="font-medium">{(currentVendor as any)?.annual_revenue || (currentVendor as any)?.annualRevenue || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Registration Date</Label>
+                      <p className="font-medium flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {(currentVendor as any)?.created_at || (currentVendor as any)?.createdAt
+                          ? new Date((currentVendor as any)?.created_at || (currentVendor as any)?.createdAt).toLocaleDateString()
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Registration Documents */}
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Registration Documents
+                  </h4>
+                  {(currentVendor as any)?.documents && (currentVendor as any).documents.length > 0 ? (
+                    <div className="space-y-2">
+                      {(currentVendor as any).documents.map((doc: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-5 w-5 text-primary" />
+                            <div>
+                              <p className="text-sm font-medium">{doc.type || doc.name || doc.fileName || `Document ${idx + 1}`}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {doc.file_name || doc.fileName || ''}
+                                {doc.expiry_date && ` • Expires: ${new Date(doc.expiry_date).toLocaleDateString()}`}
+                              </p>
+                            </div>
+                          </div>
+                          {(doc.file_url || doc.file_path) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(doc.file_url || doc.file_path, '_blank')}
+                              className="gap-2"
+                            >
+                              <Download className="h-4 w-4" />
+                              View
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-sm text-muted-foreground border rounded-md border-dashed">
+                      <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No registration documents available</p>
+                      <p className="text-xs mt-1">Documents submitted during registration will appear here</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Performance Stats */}
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Performance Statistics
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-3 border rounded-md bg-muted/30 text-center">
+                      <p className="text-2xl font-bold text-primary">
+                        {vendorQuotations.length > 0 
+                          ? `${Math.round((vendorQuotations.filter(q => q.status === "Approved").length / vendorQuotations.length) * 100)}%`
+                          : "0%"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Success Rate</p>
+                    </div>
+                    <div className="p-3 border rounded-md bg-muted/30 text-center">
+                      <p className="text-2xl font-bold text-primary">{vendorQuotations.length}</p>
+                      <p className="text-xs text-muted-foreground">Total Quotes</p>
+                    </div>
+                    <div className="p-3 border rounded-md bg-muted/30 text-center">
+                      <p className="text-2xl font-bold text-primary">{vendorQuotations.filter(q => q.status === "Approved").length}</p>
+                      <p className="text-xs text-muted-foreground">Approved</p>
+                    </div>
+                    <div className="p-3 border rounded-md bg-muted/30 text-center">
+                      <p className="text-2xl font-bold text-primary flex items-center justify-center gap-1">
+                        <Star className="h-4 w-4 fill-primary" />
+                        {(currentVendor as any)?.rating || 0}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Rating</p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
