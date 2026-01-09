@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, TrendingUp, FileCheck, Plus, Star, Upload, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2 } from "lucide-react";
+import { Users, TrendingUp, FileCheck, Plus, Star, Upload, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check } from "lucide-react";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -74,15 +74,46 @@ const Vendors = () => {
   const [newVendorCategory, setNewVendorCategory] = useState("");
   const [newVendorEmail, setNewVendorEmail] = useState("");
 
+  // Copy to clipboard helper
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied!",
+        description: "Password copied to clipboard",
+      });
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
   // Credential reset handler
   const handleResetVendorPassword = async (vendorId: string, vendorName: string) => {
     setIsResettingPassword(true);
     try {
       const response = await vendorApi.updateCredentials(vendorId, { resetPassword: true });
       if (response.success && response.data?.temporaryPassword) {
+        const tempPassword = response.data.temporaryPassword;
         toast({
           title: "Password Reset Successful",
-          description: `New temporary password for ${vendorName}: ${response.data.temporaryPassword}. The vendor has been notified via email.`,
+          description: (
+            <div className="space-y-2">
+              <p>New temporary password for {vendorName}:</p>
+              <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                <code className="text-sm font-mono font-medium flex-1">{tempPassword}</code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(tempPassword)}
+                  className="h-7 w-7 p-0 shrink-0"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">The vendor has been notified via email.</p>
+            </div>
+          ),
+          duration: 30000,
         });
       } else if (response.success) {
         toast({
@@ -297,9 +328,27 @@ const Vendors = () => {
         const { temporaryPassword } = response.data;
         toast({
           title: "Vendor Approved Successfully",
-          description: temporaryPassword 
-            ? `Vendor account created. Temporary password: ${temporaryPassword}. An email has been sent to the vendor with login credentials.`
-            : "Vendor registration has been approved. Credentials have been sent via email.",
+          description: temporaryPassword ? (
+            <div className="space-y-2">
+              <p>Vendor account created successfully!</p>
+              <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                <div className="flex-1">
+                  <span className="text-xs text-muted-foreground block">Temporary password:</span>
+                  <code className="text-sm font-mono font-medium">{temporaryPassword}</code>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(temporaryPassword)}
+                  className="h-7 w-7 p-0 shrink-0"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">An email has been sent to the vendor with login credentials.</p>
+            </div>
+          ) : "Vendor registration has been approved. Credentials have been sent via email.",
+          duration: 30000,
         });
         // Refresh registrations
         const refreshResponse = await vendorApi.getRegistrations();
