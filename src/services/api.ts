@@ -495,6 +495,14 @@ export const vendorApi = {
   getComments: async (vendorId: string): Promise<ApiResponse<Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string }>>> => {
     return apiRequest<Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string }>>(`/vendors/${vendorId}/comments`);
   },
+
+  // Invite a potential vendor to register via email
+  inviteVendor: async (data: { companyName: string; email: string; category: string }): Promise<ApiResponse<{ success: boolean }>> => {
+    return apiRequest<{ success: boolean }>('/vendors/invite', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // Vendor Authentication API (separate from internal user auth)
@@ -521,6 +529,13 @@ export const vendorAuthApi = {
 
   getProfile: async (): Promise<ApiResponse<Vendor>> => {
     return apiRequest<Vendor>('/vendors/auth/me');
+  },
+
+  updateProfile: async (data: { contact_person?: string; phone?: string; address?: string }): Promise<ApiResponse<Vendor>> => {
+    return apiRequest<Vendor>('/vendors/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   },
 };
 

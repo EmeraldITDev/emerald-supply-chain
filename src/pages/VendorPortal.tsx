@@ -5,7 +5,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2, Building, Mail, Phone, MapPin, Globe, Calendar, Star, User, Download } from "lucide-react";
+import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2, Building, Mail, Phone, MapPin, Globe, Calendar, Star, User, Download, AlertTriangle, Edit, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -81,6 +81,83 @@ const VendorPortal = () => {
     rating: 0,
   });
   const [loadingStats, setLoadingStats] = useState(false);
+
+  // Profile editing state
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editProfileData, setEditProfileData] = useState({
+    contactPerson: "",
+    phone: "",
+    address: "",
+  });
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Expiring documents calculation
+  const getExpiringDocuments = () => {
+    if (!currentVendor || !(currentVendor as any)?.documents) return [];
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    
+    return ((currentVendor as any).documents || []).filter((doc: any) => {
+      if (!doc.expiry_date && !doc.expiryDate) return false;
+      const expiryDate = new Date(doc.expiry_date || doc.expiryDate);
+      return expiryDate <= thirtyDaysFromNow && expiryDate >= new Date();
+    });
+  };
+
+  const handleStartEditProfile = () => {
+    setEditProfileData({
+      contactPerson: (currentVendor as any)?.contact_person || (currentVendor as any)?.contactPerson || "",
+      phone: (currentVendor as any)?.phone || "",
+      address: (currentVendor as any)?.address || "",
+    });
+    setIsEditingProfile(true);
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
+    try {
+      const response = await vendorAuthApi.updateProfile({
+        contact_person: editProfileData.contactPerson,
+        phone: editProfileData.phone,
+        address: editProfileData.address,
+      });
+
+      if (response.success && response.data) {
+        setCurrentVendor((prev: any) => ({
+          ...prev,
+          contact_person: editProfileData.contactPerson,
+          contactPerson: editProfileData.contactPerson,
+          phone: editProfileData.phone,
+          address: editProfileData.address,
+        }));
+        localStorage.setItem('vendorData', JSON.stringify({
+          ...currentVendor,
+          contact_person: editProfileData.contactPerson,
+          phone: editProfileData.phone,
+          address: editProfileData.address,
+        }));
+        toast({
+          title: "Profile Updated",
+          description: "Your profile information has been saved successfully",
+        });
+        setIsEditingProfile(false);
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to update profile",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   // Check for existing session on mount
   useEffect(() => {
@@ -1119,13 +1196,49 @@ const VendorPortal = () => {
 
           {/* My Profile Tab */}
           <TabsContent value="profile" className="space-y-4">
+            {/* Document Expiry Warning Banner */}
+            {getExpiringDocuments().length > 0 && (
+              <Alert className="border-warning bg-warning/10">
+                <AlertTriangle className="h-4 w-4 text-warning" />
+                <AlertDescription>
+                  <div className="font-semibold text-warning mb-1">
+                    Compliance Documents Expiring Soon
+                  </div>
+                  <div className="text-sm">
+                    {getExpiringDocuments().length} document(s) will expire within 30 days:
+                    <ul className="mt-1 list-disc list-inside">
+                      {getExpiringDocuments().slice(0, 3).map((doc: any, idx: number) => (
+                        <li key={idx}>
+                          {doc.type || doc.name || `Document ${idx + 1}`} - expires{' '}
+                          {new Date(doc.expiry_date || doc.expiryDate).toLocaleDateString()}
+                        </li>
+                      ))}
+                      {getExpiringDocuments().length > 3 && (
+                        <li>...and {getExpiringDocuments().length - 3} more</li>
+                      )}
+                    </ul>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building className="h-5 w-5" />
-                  Company Profile
-                </CardTitle>
-                <CardDescription>Your registered company information and documents</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building className="h-5 w-5" />
+                      Company Profile
+                    </CardTitle>
+                    <CardDescription>Your registered company information and documents</CardDescription>
+                  </div>
+                  {!isEditingProfile && (
+                    <Button variant="outline" size="sm" onClick={handleStartEditProfile} className="gap-2">
+                      <Edit className="h-4 w-4" />
+                      Edit Profile
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Basic Information */}
@@ -1167,49 +1280,119 @@ const VendorPortal = () => {
                   </div>
                 </div>
 
-                {/* Contact Information */}
+                {/* Contact Information - Editable */}
                 <div className="pt-4 border-t">
-                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    Contact Information
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-start gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Email</Label>
-                        <p className="font-medium">{(currentVendor as any)?.email || 'N/A'}</p>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      Contact Information
+                    </h4>
+                    {isEditingProfile && (
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setIsEditingProfile(false)}
+                          disabled={isSavingProfile}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          onClick={handleSaveProfile}
+                          disabled={isSavingProfile}
+                          className="gap-2"
+                        >
+                          {isSavingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                          Save Changes
+                        </Button>
                       </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Phone</Label>
-                        <p className="font-medium">{(currentVendor as any)?.phone || 'N/A'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <User className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Contact Person</Label>
-                        <p className="font-medium">{(currentVendor as any)?.contact_person || (currentVendor as any)?.contactPerson || 'N/A'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Website</Label>
-                        <p className="font-medium">{(currentVendor as any)?.website || 'N/A'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2 md:col-span-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Address</Label>
-                        <p className="font-medium">{(currentVendor as any)?.address || 'N/A'}</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
+                  
+                  {isEditingProfile ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-start gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground mt-3" />
+                        <div className="flex-1">
+                          <Label className="text-muted-foreground text-xs">Email (read-only)</Label>
+                          <Input value={(currentVendor as any)?.email || ''} disabled className="bg-muted" />
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Phone className="h-4 w-4 text-muted-foreground mt-3" />
+                        <div className="flex-1">
+                          <Label className="text-muted-foreground text-xs">Phone</Label>
+                          <Input 
+                            value={editProfileData.phone} 
+                            onChange={(e) => setEditProfileData(prev => ({ ...prev, phone: e.target.value }))}
+                            placeholder="Enter phone number"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <User className="h-4 w-4 text-muted-foreground mt-3" />
+                        <div className="flex-1">
+                          <Label className="text-muted-foreground text-xs">Contact Person</Label>
+                          <Input 
+                            value={editProfileData.contactPerson} 
+                            onChange={(e) => setEditProfileData(prev => ({ ...prev, contactPerson: e.target.value }))}
+                            placeholder="Enter contact person name"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2 md:col-span-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground mt-3" />
+                        <div className="flex-1">
+                          <Label className="text-muted-foreground text-xs">Address</Label>
+                          <Textarea 
+                            value={editProfileData.address} 
+                            onChange={(e) => setEditProfileData(prev => ({ ...prev, address: e.target.value }))}
+                            placeholder="Enter company address"
+                            rows={2}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-start gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Email</Label>
+                          <p className="font-medium">{(currentVendor as any)?.email || 'N/A'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Phone</Label>
+                          <p className="font-medium">{(currentVendor as any)?.phone || 'N/A'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <User className="h-4 w-4 text-muted-foreground mt-0.5" />
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Contact Person</Label>
+                          <p className="font-medium">{(currentVendor as any)?.contact_person || (currentVendor as any)?.contactPerson || 'N/A'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Website</Label>
+                          <p className="font-medium">{(currentVendor as any)?.website || 'N/A'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2 md:col-span-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Address</Label>
+                          <p className="font-medium">{(currentVendor as any)?.address || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Business Information */}
