@@ -81,6 +81,7 @@ const Vendors = () => {
   const [newVendorName, setNewVendorName] = useState("");
   const [newVendorCategory, setNewVendorCategory] = useState("");
   const [newVendorEmail, setNewVendorEmail] = useState("");
+  const [isInvitingVendor, setIsInvitingVendor] = useState(false);
 
 
   // Copy to clipboard helper
@@ -689,24 +690,70 @@ const Vendors = () => {
                     onChange={(e) => setNewVendorEmail(e.target.value)}
                   />
                 </div>
-                <Button className="w-full transition-transform hover:scale-105" onClick={() => {
-                  if (!newVendorName || !newVendorCategory || !newVendorEmail) {
-                    toast({ title: "Validation Error", description: "Please fill all fields", variant: "destructive" });
-                    return;
-                  }
-                  
-                  toast({ 
-                    title: "Vendor Registration Initiated", 
-                    description: `${newVendorName} added to vendor directory (Pending KYC)` 
-                  });
-                  
-                  // Reset form
-                  setNewVendorName("");
-                  setNewVendorCategory("");
-                  setNewVendorEmail("");
-                  setAddVendorDialogOpen(false);
-                }}>
-                  Add Vendor
+                <Button 
+                  className="w-full transition-transform hover:scale-105" 
+                  disabled={isInvitingVendor}
+                  onClick={async () => {
+                    if (!newVendorName || !newVendorCategory || !newVendorEmail) {
+                      toast({ title: "Validation Error", description: "Please fill all fields", variant: "destructive" });
+                      return;
+                    }
+                    
+                    // Validate email format
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(newVendorEmail)) {
+                      toast({ title: "Validation Error", description: "Please enter a valid email address", variant: "destructive" });
+                      return;
+                    }
+                    
+                    setIsInvitingVendor(true);
+                    try {
+                      const response = await vendorApi.inviteVendor({
+                        companyName: newVendorName,
+                        email: newVendorEmail,
+                        category: newVendorCategory,
+                      });
+                      
+                      if (response.success) {
+                        toast({ 
+                          title: "Invitation Sent", 
+                          description: `Registration invitation email sent to ${newVendorEmail}` 
+                        });
+                        
+                        // Reset form
+                        setNewVendorName("");
+                        setNewVendorCategory("");
+                        setNewVendorEmail("");
+                        setAddVendorDialogOpen(false);
+                      } else {
+                        toast({ 
+                          title: "Error", 
+                          description: response.error || "Failed to send invitation", 
+                          variant: "destructive" 
+                        });
+                      }
+                    } catch (error: any) {
+                      toast({ 
+                        title: "Error", 
+                        description: error.message || "Failed to send invitation", 
+                        variant: "destructive" 
+                      });
+                    } finally {
+                      setIsInvitingVendor(false);
+                    }
+                  }}
+                >
+                  {isInvitingVendor ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Sending Invitation...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="h-4 w-4 mr-2" />
+                      Send Registration Invite
+                    </>
+                  )}
                 </Button>
               </div>
             </DialogContent>
