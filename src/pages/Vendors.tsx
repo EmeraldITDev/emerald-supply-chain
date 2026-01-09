@@ -3,14 +3,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, TrendingUp, FileCheck, Plus, Star, Upload, Download, Trash2, FileText } from "lucide-react";
+import { Users, TrendingUp, FileCheck, Plus, Star, Upload, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2 } from "lucide-react";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
 import { vendorApi, dashboardApi } from "@/services/api";
-import { VendorRegistration } from "@/types";
+import { VendorRegistration, Vendor } from "@/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +41,7 @@ const Vendors = () => {
   const [loadingVendors, setLoadingVendors] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
-  const [selectedVendor, setSelectedVendor] = useState<typeof vendors[0] | null>(null);
+  const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [vendorDetailsOpen, setVendorDetailsOpen] = useState(false);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [kycReviewOpen, setKycReviewOpen] = useState(false);
@@ -44,6 +54,10 @@ const Vendors = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [loadingVendorProfile, setLoadingVendorProfile] = useState(false);
+  const [deleteVendorDialogOpen, setDeleteVendorDialogOpen] = useState(false);
+  const [vendorToDelete, setVendorToDelete] = useState<any>(null);
+  const [isDeletingVendor, setIsDeletingVendor] = useState(false);
   
   // Dashboard stats from API
   const [dashboardStats, setDashboardStats] = useState({
@@ -91,6 +105,77 @@ const Vendors = () => {
     } finally {
       setIsResettingPassword(false);
     }
+  };
+
+  // View vendor profile with full details
+  const handleViewVendorProfile = async (vendor: any) => {
+    setSelectedVendor(vendor);
+    setVendorDetailsOpen(true);
+    setLoadingVendorProfile(true);
+    
+    try {
+      const response = await vendorApi.getById(vendor.id);
+      if (response.success && response.data) {
+        const apiData = response.data as any;
+        const fullVendor = {
+          ...vendor,
+          ...apiData,
+          id: vendor.id, // Keep original ID
+          name: apiData.name || apiData.company_name || vendor.name,
+        };
+        setSelectedVendor(fullVendor);
+      }
+    } catch (error) {
+      console.error('Failed to fetch full vendor profile:', error);
+    } finally {
+      setLoadingVendorProfile(false);
+    }
+  };
+
+  // Delete vendor handler
+  const handleDeleteVendor = async () => {
+    if (!vendorToDelete) return;
+    
+    setIsDeletingVendor(true);
+    try {
+      const response = await vendorApi.delete(vendorToDelete.id);
+      if (response.success) {
+        toast({
+          title: "Vendor Deleted",
+          description: `${vendorToDelete.name} has been removed from the system.`,
+        });
+        // Remove from local state
+        setVendors(prev => prev.filter(v => v.id !== vendorToDelete.id));
+        setDeleteVendorDialogOpen(false);
+        setVendorDetailsOpen(false);
+        setVendorToDelete(null);
+        setSelectedVendor(null);
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to delete vendor",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete vendor",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingVendor(false);
+    }
+  };
+
+  // Open contact dialog with pre-filled vendor email
+  const handleOpenContactDialog = () => {
+    if (selectedVendor) {
+      setContactTo(selectedVendor.email || '');
+      setContactSubject(`Inquiry for ${selectedVendor.name}`);
+      setContactMessage('');
+    }
+    setContactDialogOpen(true);
   };
 
   // Fetch vendor registrations and dashboard stats from API (same source as Dashboard)
@@ -566,10 +651,7 @@ const Vendors = () => {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => {
-                      setSelectedVendor(vendor);
-                      setVendorDetailsOpen(true);
-                    }}
+                    onClick={() => handleViewVendorProfile(vendor)}
                     className="self-start sm:self-center"
                   >
                     View Profile
@@ -583,40 +665,135 @@ const Vendors = () => {
 
       {/* Vendor Details Dialog */}
       <Dialog open={vendorDetailsOpen} onOpenChange={setVendorDetailsOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Vendor Profile - {selectedVendor?.name}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Building className="h-5 w-5" />
+              Vendor Profile - {selectedVendor?.name}
+            </DialogTitle>
             <DialogDescription>Complete vendor information and performance</DialogDescription>
           </DialogHeader>
           {selectedVendor && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-6">
+              {loadingVendorProfile && (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span className="ml-2 text-sm text-muted-foreground">Loading full profile...</span>
+                </div>
+              )}
+              
+              {/* Basic Information */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-muted-foreground">Vendor ID</Label>
+                  <Label className="text-muted-foreground text-xs">Vendor ID</Label>
                   <p className="font-medium">{selectedVendor.id}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Status</Label>
-                  <Badge className={getStatusColor(selectedVendor.status)}>{selectedVendor.status}</Badge>
+                  <Label className="text-muted-foreground text-xs">Status</Label>
+                  <div className="mt-1">
+                    <Badge className={getStatusColor(selectedVendor.status)}>{selectedVendor.status}</Badge>
+                  </div>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Category</Label>
+                  <Label className="text-muted-foreground text-xs">KYC Status</Label>
+                  <div className="mt-1">
+                    <Badge className={getStatusColor(selectedVendor.kyc)}>{selectedVendor.kyc}</Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Category</Label>
                   <p className="font-medium">{selectedVendor.category}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">KYC Status</Label>
-                  <Badge className={getStatusColor(selectedVendor.kyc)}>{selectedVendor.kyc}</Badge>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Rating</Label>
+                  <Label className="text-muted-foreground text-xs">Rating</Label>
                   <p className="font-medium flex items-center gap-1">
                     <Star className="h-4 w-4 fill-primary text-primary" />
                     {selectedVendor.rating}/5.0
                   </p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Total Orders</Label>
-                  <p className="font-medium">{selectedVendor.orders}</p>
+                  <Label className="text-muted-foreground text-xs">Total Orders</Label>
+                  <p className="font-medium">{selectedVendor.orders || selectedVendor.totalOrders || 0}</p>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="pt-4 border-t">
+                <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  Contact Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-start gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Email</Label>
+                      <p className="font-medium">{selectedVendor.email || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Phone</Label>
+                      <p className="font-medium">{selectedVendor.phone || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Contact Person</Label>
+                      <p className="font-medium">{selectedVendor.contactPerson || selectedVendor.contact_person || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Website</Label>
+                      <p className="font-medium">{selectedVendor.website || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 md:col-span-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Address</Label>
+                      <p className="font-medium">{selectedVendor.address || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Business Information */}
+              <div className="pt-4 border-t">
+                <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  <Building className="h-4 w-4" />
+                  Business Information
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Tax ID</Label>
+                    <p className="font-medium">{selectedVendor.taxId || selectedVendor.tax_id || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Year Established</Label>
+                    <p className="font-medium">{selectedVendor.yearEstablished || selectedVendor.year_established || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Number of Employees</Label>
+                    <p className="font-medium">{selectedVendor.numberOfEmployees || selectedVendor.number_of_employees || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Annual Revenue</Label>
+                    <p className="font-medium">{selectedVendor.annualRevenue || selectedVendor.annual_revenue || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Registration Date</Label>
+                    <p className="font-medium flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {selectedVendor.createdAt || selectedVendor.created_at 
+                        ? new Date(selectedVendor.createdAt || selectedVendor.created_at).toLocaleDateString()
+                        : 'N/A'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -644,7 +821,7 @@ const Vendors = () => {
                   Upload CAC certificates, tax documents, bank details, or other vendor documents (Max 5MB)
                 </p>
                 
-                {selectedVendor.documents.length === 0 ? (
+                {(!selectedVendor.documents || selectedVendor.documents.length === 0) ? (
                   <div className="text-center py-6 text-sm text-muted-foreground border rounded-md border-dashed">
                     <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p>No documents uploaded yet</p>
@@ -652,7 +829,7 @@ const Vendors = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {selectedVendor.documents.map((doc) => (
+                    {selectedVendor.documents.map((doc: any) => (
                       <div
                         key={doc.id}
                         className="flex items-center justify-between p-3 border rounded-md bg-muted/30"
@@ -660,9 +837,10 @@ const Vendors = () => {
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <FileText className="h-5 w-5 text-primary flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{doc.name}</p>
+                            <p className="text-sm font-medium truncate">{doc.name || doc.fileName}</p>
                             <p className="text-xs text-muted-foreground">
-                              {(doc.size / 1024).toFixed(1)} KB • {new Date(doc.uploadDate).toLocaleDateString()}
+                              {doc.size ? `${(doc.size / 1024).toFixed(1)} KB • ` : ''}
+                              {doc.uploadDate || doc.uploadedAt ? new Date(doc.uploadDate || doc.uploadedAt).toLocaleDateString() : ''}
                             </p>
                           </div>
                         </div>
@@ -688,7 +866,8 @@ const Vendors = () => {
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-2 pt-4">
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-2 pt-4 border-t">
                 <Button
                   className="flex-1"
                   onClick={() => {
@@ -701,8 +880,9 @@ const Vendors = () => {
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setContactDialogOpen(true)}
+                  onClick={handleOpenContactDialog}
                 >
+                  <Mail className="h-4 w-4 mr-2" />
                   Contact Vendor
                 </Button>
                 <Button
@@ -711,7 +891,19 @@ const Vendors = () => {
                   disabled={isResettingPassword}
                   onClick={() => selectedVendor && handleResetVendorPassword(selectedVendor.id, selectedVendor.name)}
                 >
+                  {isResettingPassword ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   {isResettingPassword ? "Resetting..." : "Reset Password"}
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => {
+                    setVendorToDelete(selectedVendor);
+                    setDeleteVendorDialogOpen(true);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Vendor
                 </Button>
               </div>
             </div>
@@ -851,6 +1043,35 @@ const Vendors = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Vendor Confirmation Dialog */}
+      <AlertDialog open={deleteVendorDialogOpen} onOpenChange={setDeleteVendorDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Vendor</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{vendorToDelete?.name}</strong>? This action cannot be undone and will remove all associated data including orders, documents, and history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingVendor}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteVendor}
+              disabled={isDeletingVendor}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingVendor ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Vendor"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

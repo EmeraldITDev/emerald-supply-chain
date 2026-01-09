@@ -312,6 +312,12 @@ export const vendorApi = {
     return apiRequest<Vendor>(`/vendors/${id}`);
   },
 
+  delete: async (id: string): Promise<ApiResponse<void>> => {
+    return apiRequest<void>(`/vendors/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Enhanced vendor registration with documents
   register: async (data: {
     companyName: string;
