@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, TrendingUp, FileCheck, Plus, Star, Upload, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check } from "lucide-react";
+import { Users, TrendingUp, FileCheck, Plus, Star, Upload, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -59,6 +60,13 @@ const Vendors = () => {
   const [vendorToDelete, setVendorToDelete] = useState<any>(null);
   const [isDeletingVendor, setIsDeletingVendor] = useState(false);
   
+  // Rating and comments state
+  const [vendorComments, setVendorComments] = useState<Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string }>>([]);
+  const [newRating, setNewRating] = useState(0);
+  const [newComment, setNewComment] = useState("");
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [loadingComments, setLoadingComments] = useState(false);
+  
   // Dashboard stats from API
   const [dashboardStats, setDashboardStats] = useState({
     totalVendors: 0,
@@ -73,6 +81,7 @@ const Vendors = () => {
   const [newVendorName, setNewVendorName] = useState("");
   const [newVendorCategory, setNewVendorCategory] = useState("");
   const [newVendorEmail, setNewVendorEmail] = useState("");
+
 
   // Copy to clipboard helper
   const copyToClipboard = async (text: string) => {
@@ -145,11 +154,18 @@ const Vendors = () => {
     setSelectedVendor(vendor);
     setVendorDetailsOpen(true);
     setLoadingVendorProfile(true);
+    setVendorComments([]);
+    setNewRating(0);
+    setNewComment("");
     
     try {
-      const response = await vendorApi.getById(vendor.id);
-      if (response.success && response.data) {
-        const apiData = response.data as any;
+      const [profileResponse, commentsResponse] = await Promise.all([
+        vendorApi.getById(vendor.id),
+        vendorApi.getComments(vendor.id)
+      ]);
+      
+      if (profileResponse.success && profileResponse.data) {
+        const apiData = profileResponse.data as any;
         const fullVendor = {
           ...vendor,
           ...apiData,
@@ -158,10 +174,76 @@ const Vendors = () => {
         };
         setSelectedVendor(fullVendor);
       }
+      
+      if (commentsResponse.success && commentsResponse.data) {
+        setVendorComments(commentsResponse.data);
+      }
     } catch (error) {
       console.error('Failed to fetch full vendor profile:', error);
     } finally {
       setLoadingVendorProfile(false);
+    }
+  };
+
+  // Submit vendor rating and comment
+  const handleSubmitRating = async () => {
+    if (!selectedVendor || newRating === 0) {
+      toast({
+        title: "Rating Required",
+        description: "Please select a rating before submitting",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmittingRating(true);
+    try {
+      const response = await vendorApi.updateRating(selectedVendor.id, {
+        rating: newRating,
+        comment: newComment,
+      });
+
+      if (response.success && response.data) {
+        // Update the vendor's rating in the UI
+        setSelectedVendor((prev: any) => ({
+          ...prev,
+          rating: response.data!.rating,
+        }));
+        
+        // Add new comment to the list
+        if (response.data.comments) {
+          setVendorComments(response.data.comments);
+        }
+        
+        // Update vendor in the list
+        setVendors((prev) =>
+          prev.map((v) =>
+            v.id === selectedVendor.id ? { ...v, rating: response.data!.rating } : v
+          )
+        );
+
+        setNewRating(0);
+        setNewComment("");
+        
+        toast({
+          title: "Rating Submitted",
+          description: "Vendor rating and comment have been saved",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to submit rating",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit rating",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingRating(false);
     }
   };
 
@@ -951,6 +1033,97 @@ const Vendors = () => {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Rating & Comments Section */}
+              <div className="pt-4 border-t">
+                <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Ratings & Comments
+                </h4>
+                
+                {/* Add New Rating */}
+                <div className="p-4 border rounded-lg bg-muted/30 mb-4">
+                  <Label className="text-sm font-medium mb-2 block">Add Rating & Comment</Label>
+                  <div className="flex items-center gap-1 mb-3">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setNewRating(star)}
+                        className="p-1 hover:scale-110 transition-transform"
+                      >
+                        <Star
+                          className={`h-6 w-6 ${
+                            star <= newRating
+                              ? "fill-primary text-primary"
+                              : "text-muted-foreground"
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="ml-2 text-sm text-muted-foreground">
+                      {newRating > 0 ? `${newRating}/5` : "Select rating"}
+                    </span>
+                  </div>
+                  <Textarea
+                    placeholder="Add a comment about this vendor's performance, quality, delivery, etc."
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    className="mb-3"
+                    rows={3}
+                  />
+                  <Button
+                    onClick={handleSubmitRating}
+                    disabled={isSubmittingRating || newRating === 0}
+                    className="gap-2"
+                  >
+                    {isSubmittingRating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    Submit Rating
+                  </Button>
+                </div>
+
+                {/* Previous Comments */}
+                {vendorComments.length > 0 ? (
+                  <div className="space-y-3 max-h-48 overflow-y-auto">
+                    {vendorComments.map((comment) => (
+                      <div key={comment.id} className="p-3 border rounded-md bg-background">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-0.5">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`h-3 w-3 ${
+                                    star <= comment.rating
+                                      ? "fill-primary text-primary"
+                                      : "text-muted-foreground"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-xs font-medium">{comment.createdBy}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(comment.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {comment.comment && (
+                          <p className="text-sm text-muted-foreground">{comment.comment}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-sm text-muted-foreground border rounded-md border-dashed">
+                    <MessageSquare className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                    <p>No ratings or comments yet</p>
                   </div>
                 )}
               </div>

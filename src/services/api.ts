@@ -482,6 +482,19 @@ export const vendorApi = {
       body: JSON.stringify(data),
     });
   },
+
+  // Update vendor rating (manual moderation)
+  updateRating: async (vendorId: string, data: { rating: number; comment: string }): Promise<ApiResponse<{ rating: number; comments: Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string }> }>> => {
+    return apiRequest<{ rating: number; comments: Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string }> }>(`/vendors/${vendorId}/rating`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Get vendor comments/reviews
+  getComments: async (vendorId: string): Promise<ApiResponse<Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string }>>> => {
+    return apiRequest<Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string }>>(`/vendors/${vendorId}/comments`);
+  },
 };
 
 // Vendor Authentication API (separate from internal user auth)
