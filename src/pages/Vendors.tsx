@@ -89,9 +89,11 @@ const Vendors = () => {
 
   // Credential reset handler
   const handleResetVendorPassword = async (vendorId: string, vendorName: string) => {
+    console.log('Resetting password for vendor ID:', vendorId, 'Name:', vendorName);
     setIsResettingPassword(true);
     try {
       const response = await vendorApi.updateCredentials(vendorId, { resetPassword: true });
+      console.log('Reset password response:', response);
       if (response.success && response.data?.temporaryPassword) {
         const tempPassword = response.data.temporaryPassword;
         toast({
@@ -186,9 +188,13 @@ const Vendors = () => {
   const handleDeleteVendor = async () => {
     if (!vendorToDelete) return;
     
+    console.log('Deleting vendor:', vendorToDelete);
+    console.log('Using vendor ID for API:', vendorToDelete.id);
+    
     setIsDeletingVendor(true);
     try {
       const response = await vendorApi.delete(vendorToDelete.id);
+      console.log('Delete vendor response:', response);
       if (response.success) {
         toast({
           title: "Vendor Deleted",
@@ -291,8 +297,13 @@ const Vendors = () => {
         const response = await vendorApi.getAll();
         if (response.success && response.data) {
           // Transform API vendor data to match frontend Vendor type
+          // Log raw API response for debugging
+          console.log('Raw vendor data from API:', response.data);
+          
           const transformedVendors = response.data.map((vendor: any) => ({
-            id: vendor.vendor_id || vendor.id,
+            // Use numeric id for API calls, vendor_id for display
+            id: vendor.id, // Always use the actual database ID for API calls
+            displayId: vendor.vendor_id || `V${String(vendor.id).padStart(3, '0')}`, // Display ID
             name: vendor.name || vendor.company_name,
             category: vendor.category || 'Unknown',
             status: vendor.status || 'Active',
@@ -306,6 +317,7 @@ const Vendors = () => {
             contactPerson: vendor.contact_person || vendor.contactPerson || '',
             documents: vendor.documents || [],
           }));
+          console.log('Transformed vendors:', transformedVendors);
           setVendors(transformedVendors);
         }
       } catch (error) {
@@ -359,7 +371,8 @@ const Vendors = () => {
         const vendorsResponse = await vendorApi.getAll();
         if (vendorsResponse.success && vendorsResponse.data) {
           const transformedVendors = vendorsResponse.data.map((vendor: any) => ({
-            id: vendor.vendor_id || vendor.id,
+            id: vendor.id, // Use actual database ID for API calls
+            displayId: vendor.vendor_id || `V${String(vendor.id).padStart(3, '0')}`,
             name: vendor.name || vendor.company_name,
             category: vendor.category || 'Unknown',
             status: vendor.status || 'Active',
