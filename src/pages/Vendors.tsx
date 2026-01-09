@@ -132,6 +132,25 @@ const Vendors = () => {
     }
   };
 
+  // Refresh dashboard stats
+  const refreshDashboardStats = async () => {
+    try {
+      const response = await dashboardApi.getProcurementManagerDashboard();
+      if (response.success && response.data) {
+        const stats = response.data.stats;
+        setDashboardStats({
+          totalVendors: stats?.totalVendors || 0,
+          activeVendors: stats?.totalVendors || 0,
+          pendingRegistrations: stats?.pendingKYC || response.data.pendingRegistrations?.length || 0,
+          avgRating: stats?.avgRating || 0,
+          onTimeDelivery: stats?.onTimeDelivery || 0,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to refresh stats:', error);
+    }
+  };
+
   // Delete vendor handler
   const handleDeleteVendor = async () => {
     if (!vendorToDelete) return;
@@ -146,6 +165,14 @@ const Vendors = () => {
         });
         // Remove from local state
         setVendors(prev => prev.filter(v => v.id !== vendorToDelete.id));
+        // Update stats immediately (optimistic) and refresh from server
+        setDashboardStats(prev => ({
+          ...prev,
+          totalVendors: Math.max(0, prev.totalVendors - 1),
+          activeVendors: Math.max(0, prev.activeVendors - 1),
+        }));
+        refreshDashboardStats();
+        
         setDeleteVendorDialogOpen(false);
         setVendorDetailsOpen(false);
         setVendorToDelete(null);

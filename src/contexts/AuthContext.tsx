@@ -39,14 +39,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem("userData");
       localStorage.removeItem("isAuthenticated");
       localStorage.removeItem("tokenExpiry");
+      sessionStorage.removeItem("authToken");
+      sessionStorage.removeItem("userData");
     }
   }, []);
 
   useEffect(() => {
-    // Check for existing session and validate token
-    const token = localStorage.getItem("authToken");
-    const storedUser = localStorage.getItem("userData");
-    const tokenExpiry = localStorage.getItem("tokenExpiry");
+    // Check for existing session - try localStorage first (persistent), then sessionStorage
+    let token = localStorage.getItem("authToken");
+    let storedUser = localStorage.getItem("userData");
+    let tokenExpiry = localStorage.getItem("tokenExpiry");
+    let storage: Storage = localStorage;
+    
+    // If not in localStorage, check sessionStorage
+    if (!token || !storedUser) {
+      token = sessionStorage.getItem("authToken");
+      storedUser = sessionStorage.getItem("userData");
+      tokenExpiry = sessionStorage.getItem("tokenExpiry");
+      storage = sessionStorage;
+    }
     
     if (token && storedUser) {
       // Check if token has expired
@@ -76,11 +87,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               employeeId: response.data.employeeId,
             };
             setUser(updatedUser);
-            localStorage.setItem("userData", JSON.stringify(updatedUser));
+            storage.setItem("userData", JSON.stringify(updatedUser));
             
             // Update token expiration if provided
             if ((response.data as any).tokenExpiresAt) {
-              localStorage.setItem("tokenExpiry", (response.data as any).tokenExpiresAt);
+              storage.setItem("tokenExpiry", (response.data as any).tokenExpiresAt);
             }
             
             // Check if token is expiring soon (within 7 days) and refresh it
@@ -92,9 +103,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               if (daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
                 authApi.refreshToken().then((refreshResponse) => {
                   if (refreshResponse.success && refreshResponse.data) {
-                    localStorage.setItem("authToken", refreshResponse.data.token);
+                    storage.setItem("authToken", refreshResponse.data.token);
                     if (refreshResponse.data.expiresAt) {
-                      localStorage.setItem("tokenExpiry", refreshResponse.data.expiresAt);
+                      storage.setItem("tokenExpiry", refreshResponse.data.expiresAt);
                     }
                   }
                 }).catch((error) => {
@@ -114,6 +125,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem("authToken");
         localStorage.removeItem("userData");
         localStorage.removeItem("tokenExpiry");
+        sessionStorage.removeItem("authToken");
+        sessionStorage.removeItem("userData");
+        sessionStorage.removeItem("tokenExpiry");
       }
     }
     setLoading(false);
@@ -144,13 +158,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
 
         setUser(authUser);
-        localStorage.setItem("authToken", token);
-        localStorage.setItem("userData", JSON.stringify(authUser));
-        localStorage.setItem("isAuthenticated", "true");
+        
+        // Use localStorage for "remember me", sessionStorage otherwise
+        const storage = rememberMe ? localStorage : sessionStorage;
+        storage.setItem("authToken", token);
+        storage.setItem("userData", JSON.stringify(authUser));
+        storage.setItem("isAuthenticated", "true");
         
         // Store token expiration for client-side validation
         if (expiresAt) {
-          localStorage.setItem("tokenExpiry", expiresAt);
+          storage.setItem("tokenExpiry", expiresAt);
         }
 
         return { success: true };

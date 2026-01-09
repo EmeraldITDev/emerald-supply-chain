@@ -48,9 +48,9 @@ if (typeof window !== 'undefined') {
   console.log('Current Origin:', window.location.origin);
 }
 
-// Helper function to get auth token
+// Helper function to get auth token (check localStorage first, then sessionStorage)
 const getAuthToken = (): string | null => {
-  return localStorage.getItem('authToken');
+  return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
 };
 
 // Helper function for API requests
