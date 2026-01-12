@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,10 +20,12 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { MRFRequest } from "@/contexts/AppContext";
+import { vendorApi } from "@/services/api";
+import type { Vendor } from "@/types";
 
 interface POGenerationDialogProps {
   open: boolean;
@@ -45,6 +47,31 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate }: POGe
   const [deliveryDate, setDeliveryDate] = useState<Date>();
   const [paymentTerms, setPaymentTerms] = useState("");
   const [notes, setNotes] = useState("");
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+
+  // Fetch vendors when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchVendors();
+    }
+  }, [open]);
+
+  const fetchVendors = async () => {
+    setLoadingVendors(true);
+    try {
+      const response = await vendorApi.getAll();
+      if (response.success && response.data) {
+        // Filter only active vendors
+        const activeVendors = response.data.filter(v => v.status === 'Active');
+        setVendors(activeVendors);
+      }
+    } catch (error) {
+      console.error('Failed to fetch vendors:', error);
+    } finally {
+      setLoadingVendors(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,19 +134,34 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate }: POGe
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="vendor">Vendor/Supplier *</Label>
-              <Select value={vendor} onValueChange={setVendor} required>
+              <Select value={vendor} onValueChange={setVendor} required disabled={loadingVendors}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select vendor" />
+                  <SelectValue placeholder={loadingVendors ? "Loading vendors..." : "Select vendor"} />
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
-                  <SelectItem value="Emerald Supplies Ltd">Emerald Supplies Ltd</SelectItem>
-                  <SelectItem value="Tech Solutions Inc">Tech Solutions Inc</SelectItem>
-                  <SelectItem value="Global Materials Co">Global Materials Co</SelectItem>
-                  <SelectItem value="Premium Vendors LLC">Premium Vendors LLC</SelectItem>
-                  <SelectItem value="Quality Distributors">Quality Distributors</SelectItem>
-                  <SelectItem value="Swift Logistics">Swift Logistics</SelectItem>
+                  {loadingVendors ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <span>Loading vendors...</span>
+                    </div>
+                  ) : vendors.length === 0 ? (
+                    <div className="p-4 text-sm text-muted-foreground text-center">
+                      No active vendors found
+                    </div>
+                  ) : (
+                    vendors.map((v) => (
+                      <SelectItem key={v.id} value={v.name}>
+                        {v.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {!loadingVendors && vendors.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No active vendors available. Please ensure vendors are registered and activated in the system.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
