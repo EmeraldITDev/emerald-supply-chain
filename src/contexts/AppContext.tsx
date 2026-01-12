@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { mrfApi, srfApi, rfqApi } from "@/services/api";
+import type { MRF, SRF, RFQ as RFQType } from "@/types";
 
 // Types
 export interface ApprovalAction {
@@ -270,23 +272,24 @@ export interface AnnualPlanItem {
 }
 
 interface AppContextType {
+  // Read-only data from API (MRF, SRF, RFQ workflows)
   mrfRequests: MRFRequest[];
   srfRequests: SRFRequest[];
+  rfqs: RFQ[];
+  quotations: Quotation[];
+  loading: boolean;
+  
+  // Local state data (Logistics, non-workflow)
   purchaseOrders: PurchaseOrder[];
   trips: Trip[];
   vehicles: Vehicle[];
   vendors: Vendor[];
-  rfqs: RFQ[];
-  quotations: Quotation[];
   vendorRegistrations: VendorRegistration[];
   mrns: MRN[];
   annualPlans: AnnualProcurementPlan[];
   staffDrivers: StaffDriver[];
-  addMRF: (mrf: Omit<MRFRequest, "id" | "status" | "date" | "requester">) => void;
-  updateMRF: (id: string, updates: Partial<MRFRequest>) => void;
-  approveMRF: (id: string, stage: string, approver: string, remarks: string) => void;
-  rejectMRF: (id: string, stage: string, approver: string, remarks: string) => void;
-  addSRF: (srf: Omit<SRFRequest, "id" | "status" | "date" | "requester">) => void;
+  
+  // Logistics/Vehicle management functions (keep these)
   addPO: (po: Omit<PurchaseOrder, "id">) => void;
   updateTrip: (id: string, updates: Partial<Trip>) => void;
   addTrip: (trip: Omit<Trip, "id">) => void;
@@ -298,10 +301,6 @@ interface AppContextType {
   updateVendor: (id: string, updates: Partial<Vendor>) => void;
   addVendorDocument: (vendorId: string, document: Omit<VendorDocument, "id" | "uploadDate">) => void;
   deleteVendorDocument: (vendorId: string, documentId: string) => void;
-  addRFQ: (rfq: Omit<RFQ, "id" | "createdDate">) => void;
-  updateRFQ: (id: string, updates: Partial<RFQ>) => void;
-  addQuotation: (quotation: Omit<Quotation, "id" | "submittedDate">) => void;
-  updateQuotation: (id: string, updates: Partial<Quotation>) => void;
   addVendorRegistration: (registration: Omit<VendorRegistration, "id" | "submittedDate" | "status">) => void;
   updateVendorRegistration: (id: string, updates: Partial<VendorRegistration>) => void;
   approveVendorRegistration: (id: string, approver: string, notes: string) => void;
@@ -314,145 +313,123 @@ interface AppContextType {
   addStaffDriver: (driver: Omit<StaffDriver, "id" | "designatedDate" | "totalTrips" | "rating">) => void;
   updateStaffDriver: (id: string, updates: Partial<StaffDriver>) => void;
   removeStaffDriver: (id: string) => void;
+  
+  // Refresh functions to reload data from API
+  refreshMRFs: () => Promise<void>;
+  refreshSRFs: () => Promise<void>;
+  refreshRFQs: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  // Load initial data from localStorage or use defaults
-  const [mrfRequests, setMrfRequests] = useState<MRFRequest[]>(() => {
-    const stored = localStorage.getItem("mrfRequests");
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {
-        console.error("Failed to parse stored MRF requests", e);
-      }
-    }
-    return [
-      {
-        id: "MRF-2025-001",
-        title: "Office Supplies",
-        category: "office-supplies",
-        description: "Stationery and office materials",
-        quantity: "50",
-        estimatedCost: "25000",
-        urgency: "medium",
-        justification: "Regular office operations",
-        status: "Submitted",
-        date: "2025-10-14",
-        requester: "Current User",
-        currentStage: "procurement",
-        procurementManagerApprovalTime: "2025-10-14T08:00:00Z",
-        approvalHistory: [],
-      },
-      {
-        id: "MRF-2025-002",
-        title: "Raw Materials",
-        category: "raw-materials",
-        description: "Production materials for Q4",
-        quantity: "200",
-        estimatedCost: "500000",
-        urgency: "high",
-        justification: "Production schedule requirements",
-        status: "Finance Approved",
-        date: "2025-10-13",
-        requester: "Jane Smith",
-        currentStage: "chairman",
-        procurementManagerApprovalTime: "2025-10-13T09:00:00Z",
-        approvalHistory: [
-          {
-            stage: "procurement",
-            approver: "Procurement Manager",
-            action: "approved",
-            remarks: "Approved for production needs",
-            timestamp: "2025-10-13T10:00:00Z",
-          },
-          {
-            stage: "finance",
-            approver: "Finance Manager",
-            action: "approved",
-            remarks: "Budget allocated",
-            timestamp: "2025-10-14T11:00:00Z",
-          },
-        ],
-      },
-      {
-        id: "MRF-2025-003",
-        title: "Marketing Materials",
-        category: "office-supplies",
-        description: "Brochures and promotional materials",
-        quantity: "100",
-        estimatedCost: "35000",
-        urgency: "low",
-        justification: "Upcoming marketing campaign",
-        status: "Rejected",
-        date: "2025-10-12",
-        requester: "Current User",
-        currentStage: "rejected",
-        procurementManagerApprovalTime: "2025-10-12T08:00:00Z",
-        rejectionReason: "Budget not allocated for marketing materials in Q4. Please revise with lower cost estimate or defer to next quarter.",
-        approvalHistory: [
-          {
-            stage: "procurement",
-            approver: "Procurement Manager",
-            action: "rejected",
-            remarks: "Budget not allocated for marketing materials in Q4. Please revise with lower cost estimate or defer to next quarter.",
-            timestamp: "2025-10-12T10:00:00Z",
-          },
-        ],
-      },
-    ];
-  });
+  // API-backed state for workflows (read-only from context, modified via API)
+  const [mrfRequests, setMrfRequests] = useState<MRFRequest[]>([]);
+  const [srfRequests, setSrfRequests] = useState<SRFRequest[]>([]);
+  const [rfqsState, setRfqsState] = useState<RFQ[]>([]);
+  const [quotationsState, setQuotationsState] = useState<Quotation[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [srfRequests, setSrfRequests] = useState<SRFRequest[]>(() => {
-    const stored = localStorage.getItem("srfRequests");
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {
-        console.error("Failed to parse stored SRF requests", e);
+  // Fetch MRFs from API
+  const refreshMRFs = async () => {
+    try {
+      const response = await mrfApi.getAll();
+      if (response.success && response.data) {
+        // Convert API MRF type to AppContext MRFRequest type
+        const converted = response.data.map((mrf: MRF) => ({
+          id: mrf.id,
+          title: mrf.title,
+          category: mrf.category,
+          description: mrf.description,
+          quantity: String(mrf.quantity),
+          estimatedCost: String(mrf.estimated_cost || mrf.estimatedCost || 0),
+          urgency: String(mrf.urgency).toLowerCase(),
+          justification: mrf.justification,
+          status: mrf.status,
+          date: mrf.created_at || mrf.date || "",
+          requester: mrf.requester_name || mrf.requester || "Unknown",
+          department: mrf.department,
+          currentStage: (mrf.current_stage || mrf.currentStage || "submitted") as any,
+          approvalHistory: (mrf.approval_history || mrf.approvalHistory || []) as any,
+          rejectionReason: mrf.rejection_reason || mrf.rejectionReason,
+          isResubmission: mrf.is_resubmission || mrf.isResubmission,
+          poNumber: mrf.po_number || mrf.poNumber,
+          unsignedPOUrl: mrf.unsigned_po_url || mrf.unsignedPOUrl,
+          signedPOUrl: mrf.signed_po_url || mrf.signedPOUrl,
+          poVersion: mrf.po_version || mrf.poVersion || 1,
+        }));
+        setMrfRequests(converted);
       }
+    } catch (error) {
+      console.error("Failed to fetch MRFs:", error);
     }
-    return [
-      {
-        id: "SRF-2025-001",
-        title: "Maintenance Service",
-        serviceType: "maintenance",
-        description: "Equipment maintenance",
-        duration: "2 weeks",
-        estimatedCost: "75000",
-        urgency: "medium",
-        justification: "Scheduled maintenance",
-        status: "Pending",
-        date: "2025-10-14",
-        requester: "Sarah Wilson",
-      },
-      {
-        id: "SRF-2025-002",
-        title: "IT Support",
-        serviceType: "it-support",
-        description: "Network infrastructure upgrade",
-        duration: "1 week",
-        estimatedCost: "150000",
-        urgency: "high",
-        justification: "System performance improvement",
-        status: "Completed",
-        date: "2025-10-10",
-        requester: "Tom Brown",
-      },
-    ];
-  });
-  
-  // Persist MRF requests to localStorage
-  React.useEffect(() => {
-    localStorage.setItem("mrfRequests", JSON.stringify(mrfRequests));
-  }, [mrfRequests]);
-  
-  // Persist SRF requests to localStorage  
-  React.useEffect(() => {
-    localStorage.setItem("srfRequests", JSON.stringify(srfRequests));
-  }, [srfRequests]);
+  };
+
+  // Fetch SRFs from API
+  const refreshSRFs = async () => {
+    try {
+      const response = await srfApi.getAll();
+      if (response.success && response.data) {
+        // Convert API SRF type to AppContext SRFRequest type
+        const converted = response.data.map((srf: SRF) => ({
+          id: srf.id,
+          title: srf.title,
+          serviceType: srf.service_type || srf.serviceType || "",
+          description: srf.description,
+          duration: srf.duration || "",
+          estimatedCost: String(srf.estimated_cost || srf.estimatedCost || 0),
+          urgency: String(srf.urgency).toLowerCase(),
+          justification: srf.justification,
+          status: srf.status,
+          date: srf.created_at || srf.date || "",
+          requester: srf.requester_name || srf.requester || "Unknown",
+        }));
+        setSrfRequests(converted);
+      }
+    } catch (error) {
+      console.error("Failed to fetch SRFs:", error);
+    }
+  };
+
+  // Fetch RFQs from API
+  const refreshRFQs = async () => {
+    try {
+      const response = await rfqApi.getAll();
+      if (response.success && response.data) {
+        // Convert API RFQ type to AppContext RFQ type
+        const converted = response.data.map((rfq: RFQType) => ({
+          id: rfq.id,
+          mrfId: rfq.mrf_id || "",
+          mrfTitle: rfq.title,
+          description: rfq.description,
+          quantity: String(rfq.quantity || ""),
+          estimatedCost: String(rfq.estimated_cost || 0),
+          deadline: rfq.deadline,
+          status: rfq.status as "Open" | "Closed" | "Awarded",
+          createdDate: rfq.created_at || "",
+          vendorIds: [], // Will be populated from relationships if needed
+        }));
+        setRfqsState(converted);
+      }
+    } catch (error) {
+      console.error("Failed to fetch RFQs:", error);
+    }
+  };
+
+  // Initial data fetch
+  useEffect(() => {
+    const fetchAllData = async () => {
+      setLoading(true);
+      await Promise.all([
+        refreshMRFs(),
+        refreshSRFs(),
+        refreshRFQs(),
+      ]);
+      setLoading(false);
+    };
+    
+    fetchAllData();
+  }, []);
 
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([
     {
@@ -731,46 +708,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     },
   ]);
 
-  const [rfqs, setRfqs] = useState<RFQ[]>([
-    {
-      id: "RFQ-2025-001",
-      mrfId: "MRF-2025-001",
-      mrfTitle: "Office Supplies",
-      description: "Stationery and office materials",
-      quantity: "50",
-      estimatedCost: "25000",
-      deadline: "2025-10-20",
-      status: "Open",
-      createdDate: "2025-10-14",
-      vendorIds: ["V001", "V002"],
-    },
-    {
-      id: "RFQ-2025-002",
-      mrfId: "MRF-2025-002",
-      mrfTitle: "Raw Materials",
-      description: "Production materials for Q4",
-      quantity: "200",
-      estimatedCost: "500000",
-      deadline: "2025-10-25",
-      status: "Open",
-      createdDate: "2025-10-13",
-      vendorIds: ["V001"],
-    },
-  ]);
-
-  const [quotations, setQuotations] = useState<Quotation[]>([
-    {
-      id: "QUO-2025-001",
-      rfqId: "RFQ-2025-001",
-      vendorId: "V001",
-      vendorName: "Steel Works Ltd",
-      price: "23500",
-      deliveryDate: "2025-10-18",
-      notes: "Can deliver within 4 days",
-      status: "Pending",
-      submittedDate: "2025-10-15",
-    },
-  ]);
+  // Use the API-backed state defined above
+  const rfqs = rfqsState;
+  const quotations = quotationsState;
 
   const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([
     {
@@ -787,119 +727,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     },
   ]);
 
-  const addMRF = (mrf: Omit<MRFRequest, "id" | "status" | "date" | "requester">) => {
-    const userEmail = localStorage.getItem("userEmail") || "Current User";
-    const userName = localStorage.getItem("userName") || "Current User";
-    
-    // All MRFs go to Executive first for review
-    // Executive will then route based on value: >₦1M to Chairman, else to Procurement for PO
-    const newMRF: MRFRequest = {
-      ...mrf,
-      id: `MRF-2025-${String(mrfRequests.length + 1).padStart(3, "0")}`,
-      status: "Pending Executive Approval",
-      date: new Date().toISOString().split("T")[0],
-      requester: userName,
-      currentStage: "executive",
-      procurementManagerApprovalTime: new Date().toISOString(),
-      approvalHistory: [],
-    };
-    setMrfRequests([newMRF, ...mrfRequests]);
-  };
-
-  const updateMRF = (id: string, updates: Partial<MRFRequest>) => {
-    setMrfRequests(prev => prev.map((mrf) => (mrf.id === id ? { ...mrf, ...updates } : mrf)));
-  };
-
-  const approveMRF = (id: string, stage: string, approver: string, remarks: string) => {
-    setMrfRequests(prev =>
-      prev.map((mrf) => {
-        if (mrf.id !== id) return mrf;
-
-        const approvalAction: ApprovalAction = {
-          stage,
-          approver,
-          action: "approved",
-          remarks,
-          timestamp: new Date().toISOString(),
-        };
-
-        const history = [...(mrf.approvalHistory || []), approvalAction];
-        
-        // For executive stage, just add to history - don't change status/stage
-        // The updateMRF call handles the status/stage transition
-        if (stage === "executive") {
-          return {
-            ...mrf,
-            approvalHistory: history,
-          };
-        }
-        
-        let nextStage: MRFRequest["currentStage"];
-        let status: string;
-
-        if (stage === "procurement") {
-          nextStage = "finance";
-          status = "Procurement Approved";
-        } else if (stage === "finance") {
-          nextStage = "chairman";
-          status = "Finance Approved";
-        } else if (stage === "chairman") {
-          nextStage = "approved";
-          status = "Approved";
-        } else {
-          nextStage = mrf.currentStage;
-          status = mrf.status;
-        }
-
-        return {
-          ...mrf,
-          currentStage: nextStage,
-          status,
-          approvalHistory: history,
-        };
-      })
-    );
-  };
-
-  const rejectMRF = (id: string, stage: string, approver: string, remarks: string) => {
-    setMrfRequests(
-      mrfRequests.map((mrf) => {
-        if (mrf.id !== id) return mrf;
-
-        const rejectionAction: ApprovalAction = {
-          stage,
-          approver,
-          action: "rejected",
-          remarks,
-          timestamp: new Date().toISOString(),
-        };
-
-        const history = [...(mrf.approvalHistory || []), rejectionAction];
-
-        return {
-          ...mrf,
-          currentStage: "rejected",
-          status: "Rejected",
-          rejectionReason: remarks,
-          approvalHistory: history,
-        };
-      })
-    );
-  };
-
-  const addSRF = (srf: Omit<SRFRequest, "id" | "status" | "date" | "requester">) => {
-    const userEmail = localStorage.getItem("userEmail") || "Current User";
-    const userName = localStorage.getItem("userName") || "Current User";
-    
-    const newSRF: SRFRequest = {
-      ...srf,
-      id: `SRF-2025-${String(srfRequests.length + 1).padStart(3, "0")}`,
-      status: "Pending",
-      date: new Date().toISOString().split("T")[0],
-      requester: userName,
-    };
-    setSrfRequests([newSRF, ...srfRequests]);
-  };
+  // MRF, SRF, RFQ CRUD functions removed - components should call API directly
+  // Data is now read-only in context, fetched from API via refresh functions
 
   const addPO = (po: Omit<PurchaseOrder, "id">) => {
     const newPO: PurchaseOrder = {
@@ -972,31 +801,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setVendors([...vendors, newVendor]);
   };
 
-  const addRFQ = (rfq: Omit<RFQ, "id" | "createdDate">) => {
-    const newRFQ: RFQ = {
-      ...rfq,
-      id: `RFQ-2025-${String(rfqs.length + 1).padStart(3, "0")}`,
-      createdDate: new Date().toISOString().split("T")[0],
-    };
-    setRfqs([newRFQ, ...rfqs]);
-  };
-
-  const updateRFQ = (id: string, updates: Partial<RFQ>) => {
-    setRfqs(rfqs.map((rfq) => (rfq.id === id ? { ...rfq, ...updates } : rfq)));
-  };
-
-  const addQuotation = (quotation: Omit<Quotation, "id" | "submittedDate">) => {
-    const newQuotation: Quotation = {
-      ...quotation,
-      id: `QUO-2025-${String(quotations.length + 1).padStart(3, "0")}`,
-      submittedDate: new Date().toISOString().split("T")[0],
-    };
-    setQuotations([newQuotation, ...quotations]);
-  };
-
-  const updateQuotation = (id: string, updates: Partial<Quotation>) => {
-    setQuotations(quotations.map((quo) => (quo.id === id ? { ...quo, ...updates } : quo)));
-  };
+  // RFQ and Quotation CRUD functions removed - use API directly
 
   const addVendorRegistration = (registration: Omit<VendorRegistration, "id" | "submittedDate" | "status">) => {
     const newRegistration: VendorRegistration = {
@@ -1299,23 +1104,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AppContext.Provider
       value={{
+        // API-backed workflow data (read-only)
         mrfRequests,
         srfRequests,
+        rfqs,
+        quotations,
+        loading,
+        
+        // Local state data
         purchaseOrders,
         trips,
         vehicles,
         vendors,
-        rfqs,
-        quotations,
         vendorRegistrations,
         mrns,
         annualPlans,
         staffDrivers,
-        addMRF,
-        updateMRF,
-        approveMRF,
-        rejectMRF,
-        addSRF,
+        
+        // Logistics/Vehicle management functions
         addPO,
         updateTrip,
         addTrip,
@@ -1327,10 +1133,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateVendor,
         addVendorDocument,
         deleteVendorDocument,
-        addRFQ,
-        updateRFQ,
-        addQuotation,
-        updateQuotation,
         addVendorRegistration,
         updateVendorRegistration,
         approveVendorRegistration,
@@ -1343,6 +1145,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         addStaffDriver,
         updateStaffDriver,
         removeStaffDriver,
+        
+        // API refresh functions
+        refreshMRFs,
+        refreshSRFs,
+        refreshRFQs,
       }}
     >
       {children}

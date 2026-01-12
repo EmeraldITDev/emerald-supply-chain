@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, FileText, Award, X, Filter, Loader2 } from "lucide-react";
-import { vendorApi } from "@/services/api";
+import { vendorApi, rfqApi, quotationApi } from "@/services/api";
 import type { MRFRequest, RFQ, Quotation } from "@/contexts/AppContext";
 
 interface Vendor {
@@ -34,11 +34,13 @@ interface RFQManagementProps {
 
 export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   const { toast } = useToast();
-  const { mrfRequests, rfqs, quotations, addRFQ, updateRFQ, addQuotation, updateQuotation } = useApp();
+  const { mrfRequests, rfqs, quotations } = useApp();
   
   // Fetch vendors from API instead of context
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(true);
+  const [isCreatingRFQ, setIsCreatingRFQ] = useState(false);
+  const [isAwardingVendor, setIsAwardingVendor] = useState(false);
   
   useEffect(() => {
     const fetchVendors = async () => {
@@ -192,7 +194,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     };
   }, [rfqQuotations]);
 
-  const handleCreateRFQ = () => {
+  const handleCreateRFQ = async () => {
     if (!selectedMRF || !deadline) {
       toast({
         title: "Validation Error",
@@ -226,52 +228,90 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       return;
     }
 
-    addRFQ({
-      mrfId: selectedMRF.id,
-      mrfTitle: selectedMRF.title,
-      description: selectedMRF.description || '',
-      quantity: selectedMRF.quantity,
-      estimatedCost: selectedMRF.estimatedCost,
-      deadline,
-      status: 'Open',
-      vendorIds,
-    });
+    setIsCreatingRFQ(true);
+    
+    try {
+      // Create RFQ via API
+      const response = await rfqApi.create({
+        mrf_id: selectedMRF.id,
+        title: selectedMRF.title,
+        description: selectedMRF.description || '',
+        category: selectedMRF.category || 'General',
+        deadline: deadline,
+        items: [{
+          item_name: selectedMRF.title,
+          description: selectedMRF.description || '',
+          quantity: parseInt(selectedMRF.quantity) || 1,
+          unit: 'units',
+          specifications: selectedMRF.justification,
+        }],
+        vendor_ids: vendorIds,
+      });
 
-    toast({
-      title: "RFQ Created & Dispatched",
-      description: `RFQ sent to ${vendorIds.length} vendor(s). They will see it in their portal.`,
-    });
+      if (response.success) {
+        toast({
+          title: "RFQ Created & Dispatched",
+          description: `RFQ sent to ${vendorIds.length} vendor(s). They will see it in their portal.`,
+        });
 
-    // Reset form
-    setCreateDialogOpen(false);
-    setSelectedMRF(null);
-    setSelectedVendorIds([]);
-    setDeadline('');
-    setSelectionMethod('manual');
-    setSelectedCategory('');
+        // Reset form
+        setCreateDialogOpen(false);
+        setSelectedMRF(null);
+        setSelectedVendorIds([]);
+        setDeadline('');
+        setSelectionMethod('manual');
+        setSelectedCategory('');
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to create RFQ",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to server",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingRFQ(false);
+    }
   };
 
-  const handleAwardVendor = (quotationId: string, vendorId: string) => {
+  const handleAwardVendor = async (quotationId: string, vendorId: string) => {
     if (!selectedRFQ) return;
 
-    // Update the quotation status
-    updateQuotation(quotationId, { status: 'Approved' });
+    setIsAwardingVendor(true);
+    
+    try {
+      // Select vendor via API
+      const response = await rfqApi.selectVendor(selectedRFQ.id, quotationId);
 
-    // Reject other quotations
-    quotations
-      .filter(q => q.rfqId === selectedRFQ.id && q.id !== quotationId)
-      .forEach(q => updateQuotation(q.id, { status: 'Rejected' }));
+      if (response.success) {
+        toast({
+          title: "Vendor Awarded",
+          description: "The selected vendor has been awarded. Proceed to PO generation.",
+        });
 
-    // Update RFQ status
-    updateRFQ(selectedRFQ.id, { status: 'Awarded' });
-
-    toast({
-      title: "Vendor Awarded",
-      description: "The selected vendor has been awarded. Proceed to PO generation.",
-    });
-
-    onVendorSelected?.(vendorId, selectedRFQ.id);
-    setCompareDialogOpen(false);
+        onVendorSelected?.(vendorId, selectedRFQ.id);
+        setCompareDialogOpen(false);
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to award vendor",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to server",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAwardingVendor(false);
+    }
   };
 
   const categories = [...new Set(vendors.map(v => v.category))];
@@ -631,10 +671,19 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateRFQ} disabled={!selectedMRF || !deadline}>
-              <Send className="h-4 w-4 mr-2" />
-              Create & Dispatch RFQ
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={isCreatingRFQ}>Cancel</Button>
+            <Button onClick={handleCreateRFQ} disabled={!selectedMRF || !deadline || isCreatingRFQ}>
+              {isCreatingRFQ ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Create & Dispatch RFQ
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -757,9 +806,19 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                             <Button
                               onClick={() => handleAwardVendor(quote.id, quote.vendorId)}
                               className={idx === 0 ? 'bg-success hover:bg-success/90' : ''}
+                              disabled={isAwardingVendor}
                             >
-                              <Award className="h-4 w-4 mr-2" />
-                              Award Vendor
+                              {isAwardingVendor ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Awarding...
+                                </>
+                              ) : (
+                                <>
+                                  <Award className="h-4 w-4 mr-2" />
+                                  Award Vendor
+                                </>
+                              )}
                             </Button>
                           </div>
                         </div>

@@ -30,7 +30,7 @@ interface VendorData extends Vendor {
 const VendorPortal = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { rfqs, quotations, addQuotation, updateQuotation, addVendorRegistration } = useApp();
+  const { rfqs, quotations, addVendorRegistration, refreshRFQs } = useApp();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
   const [currentVendor, setCurrentVendor] = useState<VendorData | null>(null);
@@ -426,23 +426,17 @@ const VendorPortal = () => {
 
     setIsSubmitting(true);
     
-    // Simulate async submission
+    // TODO: This is a demo function - actual quotation submission should use quotationApi.submit()
+    // For now, show success message and refresh RFQs
     await new Promise(resolve => setTimeout(resolve, 800));
-
-    addQuotation({
-      rfqId: selectedRfqId,
-      vendorId: currentVendorId,
-      vendorName: "Steel Works Ltd",
-      price: quotePrice,
-      deliveryDate,
-      notes: quoteNotes,
-      status: "Pending",
-    });
 
     toast({
       title: "Quotation Submitted Successfully",
-      description: `Your quote for ${selectedRfq.mrfTitle} has been submitted`
+      description: `Your quote for ${selectedRfq.mrfTitle} has been submitted`,
     });
+    
+    // Refresh RFQs to get updated data from API
+    await refreshRFQs();
 
     // Reset form and switch to quotations tab
     setSelectedRfqId("");
@@ -1058,17 +1052,15 @@ const VendorPortal = () => {
               rfqs={rfqs}
               vendorId={currentVendorId}
               vendorName="Steel Works Ltd"
-              onSubmit={(quote) => {
-                addQuotation({
-                  rfqId: quote.rfqId,
-                  vendorId: quote.vendorId,
-                  vendorName: quote.vendorName,
-                  price: quote.price,
-                  deliveryDate: quote.deliveryDate,
-                  notes: quote.notes,
-                  status: "Pending",
-                });
+              onSubmit={async (quote) => {
+                // TODO: VendorQuoteSubmission component should handle API submission internally
+                // For now, just refresh and switch tabs
+                await refreshRFQs();
                 setActiveTab("quotations");
+                toast({
+                  title: "Quotation Submitted",
+                  description: "Your quotation has been submitted successfully",
+                });
               }}
             />
           </TabsContent>

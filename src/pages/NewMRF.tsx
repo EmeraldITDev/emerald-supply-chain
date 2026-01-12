@@ -7,19 +7,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { ArrowLeft, AlertCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useApp, type MRFRequest } from "@/contexts/AppContext";
+import { type MRFRequest } from "@/contexts/AppContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { mrfApi } from "@/services/api";
 
 const NewMRF = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { addMRF, updateMRF } = useApp();
   
   const rejectedMRF = location.state?.rejectedMRF as MRFRequest | undefined;
   const isResubmission = !!rejectedMRF;
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -45,40 +46,76 @@ const NewMRF = () => {
     }
   }, [rejectedMRF]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    if (isResubmission && rejectedMRF) {
-      // Resubmission: update existing MRF with new approval flow
-      updateMRF(rejectedMRF.id, {
-        ...formData,
-        status: "Submitted",
-        currentStage: "procurement",
-        procurementManagerApprovalTime: new Date().toISOString(),
-        isResubmission: true,
-        date: new Date().toISOString().split("T")[0],
-      });
-      
+    try {
+      if (isResubmission && rejectedMRF) {
+        // Resubmission: update existing MRF
+        const response = await mrfApi.update(rejectedMRF.id, {
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          quantity: parseInt(formData.quantity) || 0,
+          estimatedCost: parseFloat(formData.estimatedCost) || 0,
+          urgency: formData.urgency,
+          justification: formData.justification,
+        });
+        
+        if (response.success) {
+          toast({
+            title: "MRF Resubmitted Successfully",
+            description: "Your updated material request has been resubmitted for approval",
+          });
+          navigate("/dashboard");
+        } else {
+          toast({
+            title: "Error",
+            description: response.error || "Failed to resubmit MRF",
+            variant: "destructive",
+          });
+        }
+      } else {
+        // New submission
+        const response = await mrfApi.create({
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          quantity: parseInt(formData.quantity) || 0,
+          estimatedCost: parseFloat(formData.estimatedCost) || 0,
+          urgency: formData.urgency,
+          justification: formData.justification,
+        });
+        
+        if (response.success) {
+          const estimatedCost = parseFloat(formData.estimatedCost) || 0;
+          const isHighValue = estimatedCost > 1000000;
+          
+          toast({
+            title: "MRF Submitted Successfully",
+            description: isHighValue 
+              ? "High-value request (>₦1M) - Will require both Executive and Chairman approval"
+              : "Your request has been sent to Executive for approval",
+          });
+          navigate("/dashboard");
+        } else {
+          toast({
+            title: "Error",
+            description: response.error || "Failed to create MRF",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
       toast({
-        title: "MRF Resubmitted Successfully",
-        description: "Your updated material request has been resubmitted for approval",
+        title: "Error",
+        description: "Failed to connect to server. Please try again.",
+        variant: "destructive",
       });
-    } else {
-      // New submission - all MRFs go to Executive first
-      const estimatedCost = parseFloat(formData.estimatedCost) || 0;
-      const isHighValue = estimatedCost > 1000000;
-      
-      addMRF(formData);
-      
-      toast({
-        title: "MRF Submitted Successfully",
-        description: isHighValue 
-          ? "High-value request (>₦1M) - Will require both Executive and Chairman approval"
-          : "Your request has been sent to Executive for approval",
-      });
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    navigate("/dashboard");
   };
 
   const handleChange = (field: string, value: string) => {
@@ -225,13 +262,21 @@ const NewMRF = () => {
               </div>
 
               <div className="flex gap-3 pt-4">
-                <Button type="submit" className="flex-1">
-                  {isResubmission ? "Resubmit Request" : "Submit Request"}
+                <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    isResubmission ? "Resubmit Request" : "Submit Request"
+                  )}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => navigate("/dashboard")}
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </Button>

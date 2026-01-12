@@ -7,14 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useApp } from "@/contexts/AppContext";
+import { srfApi } from "@/services/api";
 
 const NewSRF = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { addSRF } = useApp();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     serviceType: "",
@@ -25,17 +25,43 @@ const NewSRF = () => {
     justification: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    addSRF(formData);
-    
-    toast({
-      title: "SRF Submitted Successfully",
-      description: "Your service request form has been submitted for approval",
-    });
-    
-    navigate("/procurement");
+    try {
+      const response = await srfApi.create({
+        title: formData.title,
+        description: formData.description,
+        serviceType: formData.serviceType,
+        urgency: formData.urgency,
+        justification: formData.justification,
+        estimatedCost: parseFloat(formData.estimatedCost) || 0,
+        duration: formData.duration,
+      });
+      
+      if (response.success) {
+        toast({
+          title: "SRF Submitted Successfully",
+          description: "Your service request form has been submitted for approval",
+        });
+        navigate("/procurement");
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to create SRF",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to server. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (field: string, value: string) => {
@@ -166,13 +192,21 @@ const NewSRF = () => {
               </div>
 
               <div className="flex gap-3 pt-4">
-                <Button type="submit" className="flex-1">
-                  Submit Request
+                <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Request"
+                  )}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => navigate("/procurement")}
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </Button>

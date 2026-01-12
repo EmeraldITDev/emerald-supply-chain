@@ -1,10 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useApp } from "@/contexts/AppContext";
-import { CheckCircle, Download, Clock, Calendar, DollarSign, TrendingUp } from "lucide-react";
-import { useState, useMemo } from "react";
+import { CheckCircle, Download, Clock, Calendar, DollarSign, TrendingUp, Loader2 } from "lucide-react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { mrfApi } from "@/services/api";
+import type { MRF } from "@/types";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import {
@@ -17,8 +19,10 @@ import {
 import { Input } from "@/components/ui/input";
 
 const FinanceDashboard = () => {
-  const { mrfRequests, purchaseOrders, updateMRF } = useApp();
   const { toast } = useToast();
+  const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [processedItems, setProcessedItems] = useState<Set<string>>(new Set());
   
   // Filter states
@@ -28,17 +32,77 @@ const FinanceDashboard = () => {
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
 
-  // Filter for MRFs that have signed POs and are ready for payment
-  const approvedMRFs = mrfRequests.filter(mrf => 
-    mrf.signedPOUrl && mrf.currentStage === "finance"
-  );
+  // Fetch MRFs from backend API
+  const fetchMRFs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await mrfApi.getAll();
+      if (response.success && response.data) {
+        setMrfRequests(response.data);
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to load MRFs",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to server",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
-  const pendingPayment = approvedMRFs.filter(mrf => !processedItems.has(mrf.id));
-  const processed = approvedMRFs.filter(mrf => processedItems.has(mrf.id));
+  useEffect(() => {
+    fetchMRFs();
+  }, [fetchMRFs]);
+
+  // Helper functions
+  const getEstimatedCost = (mrf: MRF) => {
+    return parseFloat(String(mrf.estimated_cost || mrf.estimatedCost || "0"));
+  };
+
+  const getRequesterName = (mrf: MRF) => {
+    return mrf.requester_name || mrf.requester || "Unknown";
+  };
+
+  const getDate = (mrf: MRF) => {
+    return mrf.created_at || mrf.date || "";
+  };
+
+  const getCurrentStage = (mrf: MRF) => {
+    return (mrf.current_stage || mrf.currentStage || "").toLowerCase();
+  };
+
+  // Filter for MRFs that have signed POs and are ready for payment
+  const approvedMRFs = useMemo(() => {
+    return mrfRequests.filter(mrf => {
+      const stage = getCurrentStage(mrf);
+      const status = (mrf.status || "").toLowerCase();
+      return stage === "finance" || status.includes("finance");
+    });
+  }, [mrfRequests]);
+
+  const pendingPayment = useMemo(() => {
+    return approvedMRFs.filter(mrf => !processedItems.has(mrf.id));
+  }, [approvedMRFs, processedItems]);
+
+  const processed = useMemo(() => {
+    return approvedMRFs.filter(mrf => processedItems.has(mrf.id));
+  }, [approvedMRFs, processedItems]);
 
   // Calculate totals
-  const totalPending = pendingPayment.reduce((sum, mrf) => sum + parseInt(mrf.estimatedCost), 0);
-  const totalProcessed = processed.reduce((sum, mrf) => sum + parseInt(mrf.estimatedCost), 0);
+  const totalPending = useMemo(() => {
+    return pendingPayment.reduce((sum, mrf) => sum + getEstimatedCost(mrf), 0);
+  }, [pendingPayment]);
+
+  const totalProcessed = useMemo(() => {
+    return processed.reduce((sum, mrf) => sum + getEstimatedCost(mrf), 0);
+  }, [processed]);
 
   // Filtered data
   const filteredRequests = useMemo(() => {
@@ -80,22 +144,42 @@ const FinanceDashboard = () => {
     return filtered;
   }, [pendingPayment, processed, statusFilter, searchQuery, dateFilter, minAmount, maxAmount]);
 
-  const handleMarkProcessed = (id: string) => {
+  const handleMarkProcessed = async (id: string) => {
     const mrf = mrfRequests.find(m => m.id === id);
     if (!mrf) return;
     
-    // Update MRF to processing payment status and forward to chairman
-    updateMRF(id, {
-      status: "Processing Payment",
-      currentStage: "chairman"
-    });
+    setActionLoading(id);
     
-    setProcessedItems(prev => new Set([...prev, id]));
-    
-    toast({
-      title: "Payment Forwarded",
-      description: `${mrf.title} has been forwarded to Chairman for payment approval`,
-    });
+    try {
+      // Call the real backend API endpoint for processing payment
+      const response = await mrfApi.processPayment(id);
+      
+      if (response.success) {
+        setProcessedItems(prev => new Set([...prev, id]));
+        
+        toast({
+          title: "Payment Forwarded",
+          description: `${mrf.title} has been forwarded to Chairman for payment approval`,
+        });
+        
+        // Refresh the list from backend
+        await fetchMRFs();
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to process payment",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to server",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const statusOptions = [
@@ -109,13 +193,14 @@ const FinanceDashboard = () => {
     (maxAmount ? 1 : 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Finance Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Payment Processing & Financial Oversight</p>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Finance Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Payment Processing & Financial Oversight</p>
+          </div>
         </div>
-      </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -277,9 +362,19 @@ const FinanceDashboard = () => {
                             size="sm"
                             onClick={() => handleMarkProcessed(mrf.id)}
                             className="gradient-primary hover:opacity-90"
+                            disabled={actionLoading === mrf.id}
                           >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Mark as Processed
+                            {actionLoading === mrf.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Mark as Processed
+                              </>
+                            )}
                           </Button>
                         </div>
                       )}
@@ -291,7 +386,8 @@ const FinanceDashboard = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 };
 
