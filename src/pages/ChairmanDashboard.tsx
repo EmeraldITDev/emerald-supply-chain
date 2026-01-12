@@ -1,98 +1,202 @@
-import { useState, useMemo } from "react";
-import { useApp } from "@/contexts/AppContext";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle, XCircle, FileText, DollarSign } from "lucide-react";
+import { CheckCircle, XCircle, FileText, DollarSign, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
+import { mrfApi } from "@/services/api";
+import type { MRF } from "@/types";
 
 const ChairmanDashboard = () => {
-  const { mrfRequests, updateMRF, approveMRF, rejectMRF } = useApp();
   const { user } = useAuth();
+  const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedMRF, setSelectedMRF] = useState<string | null>(null);
   const [comments, setComments] = useState<{ [key: string]: string }>({});
 
-  // Filter MRFs awaiting chairman approval and payment approval
-  const pendingApproval = useMemo(() => {
-    return mrfRequests.filter(mrf => 
-      mrf.currentStage === "chairman" && 
-      (mrf.status === "Pending Chairman Approval" || mrf.status === "Awaiting Chairman")
-    );
-  }, [mrfRequests]);
+  // Fetch MRFs from backend API
+  const fetchMRFs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await mrfApi.getAll();
+      if (response.success && response.data) {
+        setMrfRequests(response.data);
+      } else {
+        toast.error(response.error || "Failed to load MRFs");
+      }
+    } catch (error) {
+      toast.error("Failed to connect to server");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const pendingPayment = useMemo(() => {
-    return mrfRequests.filter(mrf => mrf.status === "Processing Payment");
-  }, [mrfRequests]);
+  useEffect(() => {
+    fetchMRFs();
+  }, [fetchMRFs]);
 
-  const handleApprove = (mrfId: string) => {
-    const mrf = mrfRequests.find(m => m.id === mrfId);
-    if (!mrf) return;
-
-    // Chairman approved high-value MRF - send to Procurement for PO generation
-    updateMRF(mrfId, {
-      status: "Chairman Approved - Pending PO",
-      currentStage: "procurement",
-      chairmanComments: comments[mrfId] || "Approved"
-    });
-    approveMRF(mrfId, "chairman", user?.name || "Chairman", comments[mrfId] || "Approved");
-    toast.success("High-value MRF approved - Forwarded to Procurement for PO generation");
-    
-    setComments(prev => ({ ...prev, [mrfId]: "" }));
-    setSelectedMRF(null);
+  // Helper functions for field access
+  const getEstimatedCost = (mrf: MRF) => {
+    return parseFloat(String(mrf.estimated_cost || mrf.estimatedCost || "0"));
   };
 
-  const handleReject = (mrfId: string) => {
+  const getRequesterName = (mrf: MRF) => {
+    return mrf.requester_name || mrf.requester || "Unknown";
+  };
+
+  // Filter MRFs awaiting chairman approval (high-value items)
+  const pendingApproval = useMemo(() => {
+    return mrfRequests.filter(mrf => {
+      const status = (mrf.status || "").toLowerCase();
+      const stage = (mrf.current_stage || mrf.currentStage || "").toLowerCase();
+      
+      return (
+        stage === "chairman_review" ||
+        stage === "chairman" ||
+        status.includes("pending chairman") ||
+        status.includes("awaiting chairman")
+      );
+    });
+  }, [mrfRequests]);
+
+  // Filter MRFs awaiting payment approval
+  const pendingPayment = useMemo(() => {
+    return mrfRequests.filter(mrf => {
+      const status = (mrf.status || "").toLowerCase();
+      const stage = (mrf.current_stage || mrf.currentStage || "").toLowerCase();
+      
+      return (
+        stage === "chairman_payment" ||
+        status === "processing payment" ||
+        status.includes("payment pending chairman")
+      );
+    });
+  }, [mrfRequests]);
+
+  // Calculate total value
+  const totalValue = useMemo(() => {
+    return [...pendingApproval, ...pendingPayment].reduce((sum, mrf) => sum + getEstimatedCost(mrf), 0);
+  }, [pendingApproval, pendingPayment]);
+
+  const handleApprove = async (mrfId: string) => {
+    setActionLoading(mrfId);
+    
+    try {
+      // Call the real backend API endpoint for chairman approval
+      const response = await mrfApi.chairmanApprove(mrfId, comments[mrfId] || "Approved");
+      
+      if (response.success) {
+        toast.success("High-value MRF approved - Forwarded to Procurement for PO generation");
+        await fetchMRFs();
+        setComments(prev => ({ ...prev, [mrfId]: "" }));
+        setSelectedMRF(null);
+      } else {
+        toast.error(response.error || "Failed to approve MRF");
+      }
+    } catch (error) {
+      toast.error("Failed to connect to server");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReject = async (mrfId: string) => {
     if (!comments[mrfId]?.trim()) {
       toast.error("Please provide rejection reason");
       return;
     }
 
-    updateMRF(mrfId, {
-      status: "Rejected",
-      currentStage: "rejected",
-      rejectionReason: comments[mrfId]
-    });
-    rejectMRF(mrfId, "chairman", user?.name || "Chairman", comments[mrfId]);
-    toast.success("MRF rejected");
-    setComments(prev => ({ ...prev, [mrfId]: "" }));
-    setSelectedMRF(null);
+    setActionLoading(mrfId);
+
+    try {
+      const response = await mrfApi.workflowReject(mrfId, comments[mrfId], "Rejected by Chairman");
+      
+      if (response.success) {
+        toast.success("MRF rejected");
+        await fetchMRFs();
+        setComments(prev => ({ ...prev, [mrfId]: "" }));
+        setSelectedMRF(null);
+      } else {
+        toast.error(response.error || "Failed to reject MRF");
+      }
+    } catch (error) {
+      toast.error("Failed to connect to server");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handlePaymentApproval = (mrfId: string) => {
-    updateMRF(mrfId, {
-      status: "Paid",
-      currentStage: "completed"
-    });
-    toast.success("Payment approved successfully");
-    setComments(prev => ({ ...prev, [mrfId]: "" }));
-    setSelectedMRF(null);
-  };
-
-  const handleRefresh = async () => {
-    // Simulate data refresh
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  const handlePaymentApproval = async (mrfId: string) => {
+    setActionLoading(mrfId);
+    
+    try {
+      // Call the real backend API endpoint for payment approval
+      const response = await mrfApi.approvePayment(mrfId);
+      
+      if (response.success) {
+        toast.success("Payment approved successfully - MRF workflow completed");
+        await fetchMRFs();
+        setComments(prev => ({ ...prev, [mrfId]: "" }));
+        setSelectedMRF(null);
+      } else {
+        toast.error(response.error || "Failed to approve payment");
+      }
+    } catch (error) {
+      toast.error("Failed to connect to server");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   return (
     <DashboardLayout>
-      <PullToRefresh onRefresh={handleRefresh}>
+      <PullToRefresh onRefresh={async () => {
+        toast.info("Refreshing data...");
+        await fetchMRFs();
+        toast.success("Data refreshed");
+      }}>
         <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Chairman Dashboard</h1>
-          <p className="text-muted-foreground">Final approval authority for high-value items and payments</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Chairman Dashboard</h1>
+            <p className="text-muted-foreground">Final approval authority for high-value items and payments</p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={fetchMRFs}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
 
         {/* Dashboard Alerts */}
         <DashboardAlerts userRole="chairman" maxAlerts={5} />
 
         {/* Progress Tracker */}
-        <ProcurementProgressTracker mrfRequests={mrfRequests} />
+        <ProcurementProgressTracker mrfRequests={mrfRequests.map(mrf => ({
+          id: mrf.id,
+          title: mrf.title,
+          category: mrf.category || "",
+          description: mrf.description || "",
+          quantity: String(mrf.quantity || ""),
+          estimatedCost: String(mrf.estimated_cost || mrf.estimatedCost || ""),
+          urgency: mrf.urgency || "medium",
+          justification: mrf.justification || "",
+          status: mrf.status,
+          date: mrf.created_at || mrf.date || "",
+          requester: mrf.requester_name || mrf.requester || "",
+          currentStage: (mrf.current_stage || mrf.currentStage) as any,
+        }))} />
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-3">
@@ -125,7 +229,7 @@ const ChairmanDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ₦{[...pendingApproval, ...pendingPayment].reduce((sum, mrf) => sum + parseFloat(mrf.estimatedCost || "0"), 0).toLocaleString()}
+                ₦{totalValue.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">Pending decisions</p>
             </CardContent>
@@ -139,103 +243,124 @@ const ChairmanDashboard = () => {
             <CardDescription>Items exceeding ₦1,000,000 requiring final approval</CardDescription>
           </CardHeader>
           <CardContent>
-            {pendingApproval.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : pendingApproval.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
                 <p>No high-value MRFs pending approval</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {pendingApproval.map((mrf) => (
-                  <Card key={mrf.id} className="border-l-4 border-l-destructive">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-lg">{mrf.title}</CardTitle>
-                          <CardDescription>
-                            {mrf.id} • {mrf.requester} • {mrf.department}
-                          </CardDescription>
+                {pendingApproval.map((mrf) => {
+                  const estimatedCost = getEstimatedCost(mrf);
+                  const isActionLoading = actionLoading === mrf.id;
+
+                  return (
+                    <Card key={mrf.id} className="border-l-4 border-l-destructive">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-lg">{mrf.title}</CardTitle>
+                            <CardDescription>
+                              {mrf.id} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
+                            </CardDescription>
+                          </div>
+                          <Badge variant="destructive">
+                            ₦{estimatedCost.toLocaleString()}
+                          </Badge>
                         </div>
-                        <Badge variant="destructive">
-                          ₦{parseFloat(mrf.estimatedCost).toLocaleString()}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <p className="font-semibold">Category:</p>
-                          <p className="text-muted-foreground">{mrf.category}</p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid md:grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="font-semibold">Category:</p>
+                            <p className="text-muted-foreground">{mrf.category}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold">Quantity:</p>
+                            <p className="text-muted-foreground">{mrf.quantity}</p>
+                          </div>
+                          <div className="md:col-span-2">
+                            <p className="font-semibold">Description:</p>
+                            <p className="text-muted-foreground">{mrf.description}</p>
+                          </div>
+                          <div className="md:col-span-2">
+                            <p className="font-semibold">Justification:</p>
+                            <p className="text-muted-foreground">{mrf.justification}</p>
+                          </div>
+                          {(mrf.executiveComments || mrf.executive_remarks) && (
+                            <div className="md:col-span-2 bg-muted p-3 rounded-lg">
+                              <p className="font-semibold text-sm">Executive Comments:</p>
+                              <p className="text-sm">{mrf.executiveComments || mrf.executive_remarks}</p>
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <p className="font-semibold">Quantity:</p>
-                          <p className="text-muted-foreground">{mrf.quantity}</p>
-                        </div>
-                        <div className="md:col-span-2">
-                          <p className="font-semibold">Description:</p>
-                          <p className="text-muted-foreground">{mrf.description}</p>
-                        </div>
-                        <div className="md:col-span-2">
-                          <p className="font-semibold">Justification:</p>
-                          <p className="text-muted-foreground">{mrf.justification}</p>
-                        </div>
-                        {mrf.executiveComments && (
-                          <div className="md:col-span-2 bg-muted p-3 rounded-lg">
-                            <p className="font-semibold text-sm">Executive Comments:</p>
-                            <p className="text-sm">{mrf.executiveComments}</p>
+
+                        {selectedMRF === mrf.id && (
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Chairman Comments:</label>
+                            <Textarea
+                              value={comments[mrf.id] || ""}
+                              onChange={(e) => setComments(prev => ({ ...prev, [mrf.id]: e.target.value }))}
+                              placeholder="Enter your comments..."
+                              rows={3}
+                              disabled={isActionLoading}
+                            />
                           </div>
                         )}
-                      </div>
 
-                      {selectedMRF === mrf.id && (
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Chairman Comments:</label>
-                          <Textarea
-                            value={comments[mrf.id] || ""}
-                            onChange={(e) => setComments(prev => ({ ...prev, [mrf.id]: e.target.value }))}
-                            placeholder="Enter your comments..."
-                            rows={3}
-                          />
+                        <div className="flex gap-2">
+                          {selectedMRF === mrf.id ? (
+                            <>
+                              <Button 
+                                onClick={() => handleApprove(mrf.id)}
+                                className="flex-1"
+                                disabled={isActionLoading}
+                              >
+                                {isActionLoading ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                )}
+                                Approve
+                              </Button>
+                              <Button 
+                                onClick={() => handleReject(mrf.id)}
+                                variant="destructive"
+                                className="flex-1"
+                                disabled={isActionLoading}
+                              >
+                                {isActionLoading ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                )}
+                                Reject
+                              </Button>
+                              <Button 
+                                onClick={() => setSelectedMRF(null)}
+                                variant="outline"
+                                disabled={isActionLoading}
+                              >
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <Button 
+                              onClick={() => setSelectedMRF(mrf.id)}
+                              className="w-full"
+                            >
+                              Review
+                            </Button>
+                          )}
                         </div>
-                      )}
-
-                      <div className="flex gap-2">
-                        {selectedMRF === mrf.id ? (
-                          <>
-                            <Button 
-                              onClick={() => handleApprove(mrf.id)}
-                              className="flex-1"
-                            >
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              Approve
-                            </Button>
-                            <Button 
-                              onClick={() => handleReject(mrf.id)}
-                              variant="destructive"
-                              className="flex-1"
-                            >
-                              <XCircle className="mr-2 h-4 w-4" />
-                              Reject
-                            </Button>
-                            <Button 
-                              onClick={() => setSelectedMRF(null)}
-                              variant="outline"
-                            >
-                              Cancel
-                            </Button>
-                          </>
-                        ) : (
-                          <Button 
-                            onClick={() => setSelectedMRF(mrf.id)}
-                            className="w-full"
-                          >
-                            Review
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -248,32 +373,51 @@ const ChairmanDashboard = () => {
             <CardDescription>Final payment authorization from Finance</CardDescription>
           </CardHeader>
           <CardContent>
-            {pendingPayment.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : pendingPayment.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <DollarSign className="mx-auto h-12 w-12 mb-4 opacity-50" />
                 <p>No payments pending approval</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {pendingPayment.map((mrf) => (
-                  <Card key={mrf.id} className="border-l-4 border-l-primary">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-lg">{mrf.title}</CardTitle>
-                          <CardDescription>{mrf.id} • PO: {mrf.poNumber}</CardDescription>
+                {pendingPayment.map((mrf) => {
+                  const estimatedCost = getEstimatedCost(mrf);
+                  const isActionLoading = actionLoading === mrf.id;
+
+                  return (
+                    <Card key={mrf.id} className="border-l-4 border-l-primary">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-lg">{mrf.title}</CardTitle>
+                            <CardDescription>
+                              {mrf.id} • PO: {mrf.po_number || mrf.poNumber || "N/A"}
+                            </CardDescription>
+                          </div>
+                          <Badge>₦{estimatedCost.toLocaleString()}</Badge>
                         </div>
-                        <Badge>₦{parseFloat(mrf.estimatedCost).toLocaleString()}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <Button onClick={() => handlePaymentApproval(mrf.id)} className="w-full">
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Approve Payment
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardHeader>
+                      <CardContent>
+                        <Button 
+                          onClick={() => handlePaymentApproval(mrf.id)} 
+                          className="w-full"
+                          disabled={isActionLoading}
+                        >
+                          {isActionLoading ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                          )}
+                          Approve Payment
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </CardContent>

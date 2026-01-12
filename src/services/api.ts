@@ -198,6 +198,7 @@ export const mrfApi = {
     });
   },
 
+  // Legacy simple approve (deprecated - use workflow endpoints)
   approve: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
     return apiRequest<MRF>(`/mrfs/${id}/approve`, {
       method: 'POST',
@@ -205,6 +206,7 @@ export const mrfApi = {
     });
   },
 
+  // Legacy simple reject (deprecated - use workflow endpoints)
   reject: async (id: string, reason: string): Promise<ApiResponse<MRF>> => {
     return apiRequest<MRF>(`/mrfs/${id}/reject`, {
       method: 'POST',
@@ -215,6 +217,92 @@ export const mrfApi = {
   delete: async (id: string): Promise<ApiResponse<void>> => {
     return apiRequest<void>(`/mrfs/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  // ==========================================
+  // Phase 1: MRF Multi-Stage Workflow Endpoints
+  // ==========================================
+
+  // Executive approves MRF (routes to chairman if >1M, else to procurement)
+  executiveApprove: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/executive-approve`, {
+      method: 'POST',
+      body: JSON.stringify({ remarks }),
+    });
+  },
+
+  // Chairman approves high-value MRF (>1M)
+  chairmanApprove: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/chairman-approve`, {
+      method: 'POST',
+      body: JSON.stringify({ remarks }),
+    });
+  },
+
+  // Procurement Manager generates PO
+  generatePO: async (id: string, poNumber: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/generate-po`, {
+      method: 'POST',
+      body: JSON.stringify({ po_number: poNumber }),
+    });
+  },
+
+  // Supply Chain Director uploads signed PO
+  uploadSignedPO: async (id: string, signedPOFile: File): Promise<ApiResponse<MRF>> => {
+    const token = getAuthToken();
+    const formData = new FormData();
+    formData.append('signed_po', signedPOFile);
+
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/mrfs/${id}/upload-signed-po`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return { success: false, error: data.message || 'Failed to upload signed PO' };
+      }
+      return { success: true, data: data.data || data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Network error' };
+    }
+  },
+
+  // Supply Chain Director rejects PO (returns to procurement)
+  rejectPO: async (id: string, reason: string, comments?: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/reject-po`, {
+      method: 'POST',
+      body: JSON.stringify({ reason, comments }),
+    });
+  },
+
+  // Finance processes payment
+  processPayment: async (id: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/process-payment`, {
+      method: 'POST',
+    });
+  },
+
+  // Chairman approves final payment
+  approvePayment: async (id: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/approve-payment`, {
+      method: 'POST',
+    });
+  },
+
+  // Reject MRF at any workflow stage
+  workflowReject: async (id: string, reason: string, comments?: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/workflow-reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason, comments }),
     });
   },
 };
@@ -253,6 +341,10 @@ export const rfqApi = {
     return apiRequest<RFQ[]>(`/rfqs?${params.toString()}`);
   },
 
+  getById: async (id: string): Promise<ApiResponse<RFQ>> => {
+    return apiRequest<RFQ>(`/rfqs/${id}`);
+  },
+
   create: async (data: CreateRFQData): Promise<ApiResponse<RFQ>> => {
     return apiRequest<RFQ>('/rfqs', {
       method: 'POST',
@@ -264,6 +356,69 @@ export const rfqApi = {
     return apiRequest<RFQ>(`/rfqs/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  },
+
+  // ==========================================
+  // Phase 2: RFQ Workflow Endpoints
+  // ==========================================
+
+  // Get all quotations for comparison (Procurement Manager)
+  getQuotations: async (rfqId: string): Promise<ApiResponse<{
+    rfq: RFQ;
+    quotations: Array<{
+      quotation: Quotation;
+      vendor: Vendor;
+      items: Array<{
+        item_name: string;
+        quantity: number;
+        unit_price: number;
+        total_price: number;
+      }>;
+    }>;
+    statistics: {
+      total_quotations: number;
+      lowest_bid: number;
+      highest_bid: number;
+      average_bid: number;
+    };
+  }>> => {
+    return apiRequest(`/rfqs/${rfqId}/quotations`);
+  },
+
+  // Select winning vendor (Procurement Manager)
+  selectVendor: async (rfqId: string, quotationId: string): Promise<ApiResponse<{
+    rfq_id: string;
+    status: string;
+    selected_vendor: { id: string; name: string };
+    selected_quotation: { id: string; total_amount: number };
+  }>> => {
+    return apiRequest(`/rfqs/${rfqId}/select-vendor`, {
+      method: 'POST',
+      body: JSON.stringify({ quotation_id: quotationId }),
+    });
+  },
+
+  // Close RFQ without selection (Procurement Manager)
+  close: async (rfqId: string, reason: string): Promise<ApiResponse<{ rfq_id: string; status: string }>> => {
+    return apiRequest(`/rfqs/${rfqId}/close`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  // Mark RFQ as viewed by vendor (Vendor Portal)
+  markViewed: async (rfqId: string): Promise<ApiResponse<{ success: boolean }>> => {
+    return apiRequest(`/rfqs/${rfqId}/mark-viewed`, {
+      method: 'POST',
+    });
+  },
+
+  // Invite vendors to RFQ
+  inviteVendors: async (rfqId: string, vendorIds: string[]): Promise<ApiResponse<RFQ>> => {
+    return apiRequest<RFQ>(`/rfqs/${rfqId}/invite-vendors`, {
+      method: 'POST',
+      body: JSON.stringify({ vendor_ids: vendorIds }),
     });
   },
 };
@@ -278,8 +433,38 @@ export const quotationApi = {
     return apiRequest<Quotation[]>(`/quotations/vendor/${vendorId}`);
   },
 
+  getByRFQ: async (rfqId: string): Promise<ApiResponse<Quotation[]>> => {
+    return apiRequest<Quotation[]>(`/quotations/rfq/${rfqId}`);
+  },
+
   create: async (data: CreateQuotationData): Promise<ApiResponse<Quotation>> => {
     return apiRequest<Quotation>('/quotations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Submit quotation with line items (Vendor Portal)
+  submit: async (rfqId: string, data: {
+    quote_number?: string;
+    total_amount: number;
+    currency?: string;
+    delivery_days?: number;
+    delivery_date?: string;
+    payment_terms?: string;
+    validity_days?: number;
+    warranty_period?: string;
+    notes?: string;
+    items: Array<{
+      rfq_item_id?: string;
+      item_name: string;
+      quantity: number;
+      unit: string;
+      unit_price: number;
+      specifications?: string;
+    }>;
+  }): Promise<ApiResponse<Quotation>> => {
+    return apiRequest<Quotation>(`/rfqs/${rfqId}/submit-quotation`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -295,6 +480,36 @@ export const quotationApi = {
     return apiRequest<Quotation>(`/quotations/${id}/reject`, {
       method: 'POST',
     });
+  },
+};
+
+// Vendor Portal API (for vendors to access their RFQs)
+export const vendorPortalApi = {
+  // Get all RFQs assigned to the logged-in vendor
+  getAssignedRFQs: async (): Promise<ApiResponse<Array<{
+    id: string;
+    title: string;
+    description: string;
+    deadline: string;
+    status: string;
+    items: Array<{
+      id: string;
+      item_name: string;
+      quantity: number;
+      unit: string;
+      specifications: string;
+    }>;
+    sent_at: string;
+    viewed_at: string | null;
+    responded: boolean;
+    has_submitted_quote: boolean;
+  }>>> => {
+    return apiRequest('/vendors/rfqs');
+  },
+
+  // Get vendor's submitted quotations
+  getMyQuotations: async (): Promise<ApiResponse<Quotation[]>> => {
+    return apiRequest<Quotation[]>('/vendors/quotations');
   },
 };
 

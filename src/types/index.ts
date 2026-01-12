@@ -27,27 +27,56 @@ export interface MRF {
   id: string;
   title: string;
   category: string;
-  urgency: 'Low' | 'Medium' | 'High';
+  urgency: 'Low' | 'Medium' | 'High' | 'low' | 'medium' | 'high';
   description: string;
   quantity: string;
   estimatedCost: string;
+  estimated_cost?: string; // Backend snake_case variant
   justification: string;
   requester: string;
+  requester_name?: string; // Backend snake_case variant
   requesterId: string;
+  requester_id?: string; // Backend snake_case variant
   date: string;
-  status: 'Pending' | 'Approved' | 'Rejected' | 'In Progress' | 'Completed' | 'Awaiting Chairman' | 'Processing Payment' | 'Paid';
-  currentStage?: 'procurement' | 'executive' | 'chairman' | 'supply_chain' | 'finance' | 'completed';
+  created_at?: string; // Backend snake_case variant
+  department?: string;
+  status: string; // Flexible to match backend workflow statuses
+  currentStage?: 'pending' | 'executive_review' | 'chairman_review' | 'procurement' | 'executive' | 'chairman' | 'supply_chain' | 'finance' | 'chairman_payment' | 'completed' | 'rejected';
+  current_stage?: string; // Backend snake_case variant
   approvalHistory?: ApprovalHistoryEntry[];
+  approval_history?: ApprovalHistoryEntry[]; // Backend snake_case variant
   rejectionReason?: string;
+  rejection_reason?: string; // Backend snake_case variant
   isResubmission?: boolean;
+  is_resubmission?: boolean; // Backend snake_case variant
   poNumber?: string;
+  po_number?: string; // Backend snake_case variant
   unsignedPOUrl?: string;
+  unsigned_po_url?: string; // Backend snake_case variant
   signedPOUrl?: string;
+  signed_po_url?: string; // Backend snake_case variant
   executiveComments?: string;
+  executive_remarks?: string; // Backend snake_case variant
   chairmanComments?: string;
+  chairman_remarks?: string; // Backend snake_case variant
   supplyChainComments?: string;
   poRejectionReason?: string;
+  po_rejection_reason?: string; // Backend snake_case variant
   poVersion?: number;
+  po_version?: number; // Backend snake_case variant
+  currency?: string;
+  // Executive approval fields from backend
+  executive_approved?: boolean;
+  executive_approved_by?: string;
+  executive_approved_at?: string;
+  // Chairman approval fields from backend
+  chairman_approved?: boolean;
+  chairman_approved_by?: string;
+  chairman_approved_at?: string;
+  // Payment fields from backend
+  payment_status?: 'pending' | 'processing' | 'approved' | 'paid' | 'rejected';
+  payment_approved_at?: string;
+  payment_approved_by?: string;
 }
 
 export interface CreateMRFData {
