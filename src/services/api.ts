@@ -241,11 +241,42 @@ export const mrfApi = {
   },
 
   // Procurement Manager generates PO
-  generatePO: async (id: string, poNumber: string): Promise<ApiResponse<MRF>> => {
-    return apiRequest<MRF>(`/mrfs/${id}/generate-po`, {
-      method: 'POST',
-      body: JSON.stringify({ po_number: poNumber }),
-    });
+  generatePO: async (id: string, poNumber: string, poFile?: File): Promise<ApiResponse<MRF>> => {
+    const token = getAuthToken();
+    
+    if (poFile) {
+      // If file is provided, use FormData
+      const formData = new FormData();
+      formData.append('po_number', poNumber);
+      formData.append('unsigned_po', poFile);
+
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/mrfs/${id}/generate-po`, {
+          method: 'POST',
+          headers,
+          body: formData,
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          return { success: false, error: data.message || 'Failed to generate PO' };
+        }
+        return { success: true, data: data.data || data };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Network error' };
+      }
+    } else {
+      // If no file, use JSON
+      return apiRequest<MRF>(`/mrfs/${id}/generate-po`, {
+        method: 'POST',
+        body: JSON.stringify({ po_number: poNumber }),
+      });
+    }
   },
 
   // Supply Chain Director uploads signed PO

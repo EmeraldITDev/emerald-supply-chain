@@ -338,6 +338,7 @@ const Procurement = () => {
     deliveryDate: string;
     paymentTerms: string;
     notes: string;
+    poFile: File | null;
   }) => {
     if (!selectedMRFForPO) return;
 
@@ -348,8 +349,8 @@ const Procurement = () => {
       `PO-${new Date().getFullYear()}-${String(purchaseOrders.length + 1).padStart(3, "0")}`;
     
     try {
-      // Call the real backend API endpoint
-      const response = await mrfApi.generatePO(selectedMRFForPO.id, poNumber);
+      // Call the real backend API endpoint with file upload
+      const response = await mrfApi.generatePO(selectedMRFForPO.id, poNumber, poData.poFile || undefined);
       
       if (response.success) {
         // Also add to local PO list for immediate UI feedback
@@ -720,13 +721,13 @@ const Procurement = () => {
                                     <p>Amount: <span className="font-semibold">₦{parseInt(mrf.estimatedCost).toLocaleString()}</span></p>
                                   </div>
                                 </div>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleGeneratePO(mrf)}
-                                >
-                                  <Upload className="h-4 w-4 mr-2" />
-                                  Re-upload PO
-                                </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleGeneratePO(mrf)}
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Regenerate PO
+                              </Button>
                               </div>
                               
                               {/* Rejection Details */}
@@ -782,8 +783,8 @@ const Procurement = () => {
                                 size="sm"
                                 onClick={() => handleGeneratePO(mrf)}
                               >
-                                <Download className="h-4 w-4 mr-2" />
-                                Upload PO
+                                <FileText className="h-4 w-4 mr-2" />
+                                Generate PO
                               </Button>
                             </div>
                           </CardContent>
