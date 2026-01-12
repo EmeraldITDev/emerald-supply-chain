@@ -118,8 +118,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Token invalid, clear session
             logout();
           }
+          setLoading(false);
         }).catch(() => {
           logout();
+          setLoading(false);
         });
       } catch (error) {
         localStorage.removeItem("authToken");
@@ -128,9 +130,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         sessionStorage.removeItem("authToken");
         sessionStorage.removeItem("userData");
         sessionStorage.removeItem("tokenExpiry");
+        setLoading(false);
       }
+    } else {
+      setLoading(false);
     }
-    setLoading(false);
   }, [logout]);
 
 
