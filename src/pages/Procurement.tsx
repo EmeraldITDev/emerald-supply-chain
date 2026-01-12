@@ -1,12 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar, AlertCircle, Upload, Send } from "lucide-react";
+import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar, AlertCircle, Upload, Send, Loader2, RefreshCw } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -18,8 +18,8 @@ import { RFQManagement } from "@/components/RFQManagement";
 import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import type { MRFRequest } from "@/contexts/AppContext";
-import { dashboardApi } from "@/services/api";
-import type { VendorRegistration } from "@/types";
+import { dashboardApi, mrfApi } from "@/services/api";
+import type { VendorRegistration, MRF } from "@/types";
 import {
   Select,
   SelectContent,
@@ -32,9 +32,14 @@ const Procurement = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { mrfRequests, srfRequests, purchaseOrders, approveMRF, rejectMRF, addPO, mrns, updateMRN, convertMRNToMRF, updateMRF } = useApp();
+  const { srfRequests, purchaseOrders, mrns, updateMRN, convertMRNToMRF, addPO } = useApp();
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // MRF requests from backend API
+  const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
+  const [mrfLoading, setMrfLoading] = useState(true);
+  const [poGenerating, setPoGenerating] = useState(false);
   
   const [poDialogOpen, setPODialogOpen] = useState(false);
   const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(null);
@@ -49,24 +54,103 @@ const Procurement = () => {
   const [dateFilter, setDateFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date-desc");
 
+  // Fetch MRFs from backend API
+  const fetchMRFs = useCallback(async () => {
+    setMrfLoading(true);
+    try {
+      const response = await mrfApi.getAll();
+      if (response.success && response.data) {
+        setMrfRequests(response.data);
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to load MRFs",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to server",
+        variant: "destructive",
+      });
+    } finally {
+      setMrfLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchMRFs();
+  }, [fetchMRFs]);
+
+  // Helper functions for MRF field access (handles both camelCase and snake_case)
+  const getMRFEstimatedCost = (mrf: MRF) => String(mrf.estimated_cost || mrf.estimatedCost || "0");
+  const getMRFRequester = (mrf: MRF) => mrf.requester_name || mrf.requester || "Unknown";
+  const getMRFDate = (mrf: MRF) => mrf.created_at || mrf.date || "";
+  const getMRFStage = (mrf: MRF) => (mrf.current_stage || mrf.currentStage || "").toLowerCase();
+  const getMRFPOUrl = (mrf: MRF) => mrf.unsigned_po_url || mrf.unsignedPOUrl;
+  const getMRFRejectionReason = (mrf: MRF) => mrf.po_rejection_reason || mrf.poRejectionReason;
+  const getMRFPONumber = (mrf: MRF) => mrf.po_number || mrf.poNumber;
+  const getMRFPOVersion = (mrf: MRF) => mrf.po_version || mrf.poVersion || 1;
+
+  // Convert MRF (API type) to MRFRequest (UI component type)
+  const convertToMRFRequest = (mrf: MRF): MRFRequest => ({
+    id: mrf.id,
+    title: mrf.title,
+    category: mrf.category,
+    description: mrf.description,
+    quantity: String(mrf.quantity),
+    estimatedCost: getMRFEstimatedCost(mrf),
+    urgency: String(mrf.urgency).toLowerCase() as any,
+    justification: mrf.justification,
+    status: mrf.status,
+    date: getMRFDate(mrf),
+    requester: getMRFRequester(mrf),
+    department: mrf.department,
+    currentStage: getMRFStage(mrf) as any,
+    approvalHistory: (mrf.approval_history || mrf.approvalHistory || []) as any,
+    rejectionReason: mrf.rejection_reason || mrf.rejectionReason,
+    isResubmission: mrf.is_resubmission || mrf.isResubmission,
+    poNumber: getMRFPONumber(mrf),
+    unsignedPOUrl: getMRFPOUrl(mrf),
+    signedPOUrl: mrf.signed_po_url || mrf.signedPOUrl,
+    executiveComments: mrf.executive_remarks || mrf.executiveComments,
+    chairmanComments: mrf.chairman_remarks || mrf.chairmanComments,
+    supplyChainComments: mrf.supplyChainComments,
+    poRejectionReason: getMRFRejectionReason(mrf),
+    poVersion: getMRFPOVersion(mrf),
+  });
+
   // Procurement Manager can upload PO for Executive-approved MRFs (and Chairman-approved high-value MRFs)
   const executiveApprovedMRFs = useMemo(() => {
-    return mrfRequests.filter(mrf => 
-      (mrf.status === "Approved by Executive" || 
-       mrf.status === "Executive Approved" ||
-       mrf.status === "Chairman Approved - Pending PO") && 
-      mrf.currentStage === "procurement" &&
-      !mrf.unsignedPOUrl
-    );
+    return mrfRequests.filter(mrf => {
+      const status = (mrf.status || "").toLowerCase();
+      const stage = getMRFStage(mrf);
+      const hasNoUnsignedPO = !getMRFPOUrl(mrf);
+      
+      return (
+        (status.includes("approved by executive") || 
+         status.includes("executive approved") ||
+         status.includes("chairman approved") ||
+         stage === "procurement") && 
+        hasNoUnsignedPO
+      );
+    });
   }, [mrfRequests]);
 
   // POs rejected by Supply Chain Director
   const rejectedPOs = useMemo(() => {
-    return mrfRequests.filter(mrf =>
-      mrf.currentStage === "procurement" &&
-      mrf.status === "PO Rejected by Supply Chain" &&
-      mrf.poRejectionReason
-    );
+    return mrfRequests.filter(mrf => {
+      const stage = getMRFStage(mrf);
+      const status = (mrf.status || "").toLowerCase();
+      const rejectionReason = getMRFRejectionReason(mrf);
+      
+      return (
+        stage === "procurement" &&
+        status.includes("rejected") &&
+        rejectionReason
+      );
+    });
   }, [mrfRequests]);
 
   const vendorFromState = (location.state as any)?.vendor as string | undefined;
@@ -133,17 +217,18 @@ const Procurement = () => {
       filtered = filtered.filter(mrf =>
         mrf.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         mrf.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        mrf.requester.toLowerCase().includes(searchQuery.toLowerCase())
+        getMRFRequester(mrf).toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     if (statusFilter !== "all") {
       filtered = filtered.filter(mrf => {
-        if (statusFilter === "pending") return mrf.currentStage === "procurement";
-        if (statusFilter === "approved") return mrf.currentStage === "approved";
-        if (statusFilter === "rejected") return mrf.currentStage === "rejected";
-        if (statusFilter === "finance") return mrf.currentStage === "finance";
-        if (statusFilter === "chairman") return mrf.currentStage === "chairman";
+        const stage = getMRFStage(mrf);
+        if (statusFilter === "pending") return stage === "procurement";
+        if (statusFilter === "approved") return stage === "completed";
+        if (statusFilter === "rejected") return stage === "rejected";
+        if (statusFilter === "finance") return stage === "finance";
+        if (statusFilter === "chairman") return stage === "chairman" || stage === "chairman_review";
         return true;
       });
     }
@@ -151,7 +236,7 @@ const Procurement = () => {
     if (dateFilter !== "all") {
       const now = new Date();
       filtered = filtered.filter(mrf => {
-        const mrfDate = new Date(mrf.date);
+        const mrfDate = new Date(getMRFDate(mrf));
         const daysDiff = (now.getTime() - mrfDate.getTime()) / (1000 * 60 * 60 * 24);
         
         if (dateFilter === "today") return daysDiff < 1;
@@ -162,10 +247,15 @@ const Procurement = () => {
     }
 
     filtered.sort((a, b) => {
-      if (sortBy === "date-desc") return new Date(b.date).getTime() - new Date(a.date).getTime();
-      if (sortBy === "date-asc") return new Date(a.date).getTime() - new Date(b.date).getTime();
-      if (sortBy === "amount-desc") return parseInt(b.estimatedCost) - parseInt(a.estimatedCost);
-      if (sortBy === "amount-asc") return parseInt(a.estimatedCost) - parseInt(b.estimatedCost);
+      const dateA = getMRFDate(a);
+      const dateB = getMRFDate(b);
+      const costA = parseFloat(getMRFEstimatedCost(a));
+      const costB = parseFloat(getMRFEstimatedCost(b));
+      
+      if (sortBy === "date-desc") return new Date(dateB).getTime() - new Date(dateA).getTime();
+      if (sortBy === "date-asc") return new Date(dateA).getTime() - new Date(dateB).getTime();
+      if (sortBy === "amount-desc") return costB - costA;
+      if (sortBy === "amount-asc") return costA - costB;
       return 0;
     });
 
@@ -194,12 +284,13 @@ const Procurement = () => {
     }
   };
 
-  const getApprovalTimerColor = (mrf: MRFRequest) => {
-    if (!mrf.procurementManagerApprovalTime || mrf.currentStage === "approved" || mrf.currentStage === "rejected") {
+  const getApprovalTimerColor = (mrf: MRFRequest | MRF) => {
+    const stage = getMRFStage(mrf as MRF);
+    if (!((mrf as any).procurementManagerApprovalTime) || stage === "completed" || stage === "rejected") {
       return null;
     }
     
-    const startTime = new Date(mrf.procurementManagerApprovalTime);
+    const startTime = new Date((mrf as any).procurementManagerApprovalTime);
     const now = new Date();
     const hoursElapsed = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
     
@@ -208,13 +299,18 @@ const Procurement = () => {
     return "text-destructive";
   };
 
-  const handleMRFClick = (mrf: MRFRequest) => {
+  const handleMRFClick = (mrf: MRFRequest | MRF) => {
     // Procurement can only view MRFs, not approve them
     toast({
       title: "View Only",
       description: "Procurement can view MRFs but cannot approve. Only Executive has approval authority.",
       variant: "default",
     });
+  };
+
+  const handleGeneratePO = (mrf: MRFRequest | MRF) => {
+    setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
+    setPODialogOpen(true);
   };
 
   // Procurement cannot approve/reject - only view
@@ -234,12 +330,8 @@ const Procurement = () => {
     });
   };
 
-  const handleGeneratePO = (mrf: MRFRequest) => {
-    setSelectedMRFForPO(mrf);
-    setPODialogOpen(true);
-  };
 
-  const handlePOGeneration = (poData: {
+  const handlePOGeneration = async (poData: {
     vendor: string;
     items: string;
     amount: string;
@@ -249,42 +341,55 @@ const Procurement = () => {
   }) => {
     if (!selectedMRFForPO) return;
 
-    // Determine if this is a resubmission
-    const isResubmission = selectedMRFForPO.status === "PO Rejected by Supply Chain";
-    const currentVersion = selectedMRFForPO.poVersion || 0;
-    
-    // Generate or update PO number
+    setPoGenerating(true);
+
+    // Generate PO number
     const poNumber = selectedMRFForPO.poNumber || 
       `PO-${new Date().getFullYear()}-${String(purchaseOrders.length + 1).padStart(3, "0")}`;
     
-    // Create the PO
-    addPO({
-      vendor: poData.vendor,
-      items: poData.items,
-      amount: poData.amount,
-      status: "Pending",
-      date: new Date().toISOString().split("T")[0],
-      deliveryDate: poData.deliveryDate,
-    });
+    try {
+      // Call the real backend API endpoint
+      const response = await mrfApi.generatePO(selectedMRFForPO.id, poNumber);
+      
+      if (response.success) {
+        // Also add to local PO list for immediate UI feedback
+        addPO({
+          vendor: poData.vendor,
+          items: poData.items,
+          amount: poData.amount,
+          status: "Pending",
+          date: new Date().toISOString().split("T")[0],
+          deliveryDate: poData.deliveryDate,
+        });
 
-    // Update MRF with PO details and route to Supply Chain
-    updateMRF(selectedMRFForPO.id, {
-      poNumber: poNumber,
-      unsignedPOUrl: `uploads/po/${poNumber}_v${currentVersion + 1}.pdf`, // Versioned URL
-      currentStage: "supply_chain",
-      status: isResubmission ? "PO Resubmitted - With Supply Chain" : "PO Generated - With Supply Chain",
-      poVersion: currentVersion + 1,
-      poRejectionReason: undefined, // Clear rejection reason
-      supplyChainComments: undefined // Clear old comments
-    });
+        const isResubmission = selectedMRFForPO.status?.toLowerCase().includes("rejected");
+        
+        toast({
+          title: isResubmission ? "Purchase Order Resubmitted" : "Purchase Order Created",
+          description: `${poNumber} ${isResubmission ? 'resubmitted' : 'generated'} and forwarded to Supply Chain Director`,
+        });
 
-    toast({
-      title: isResubmission ? "Purchase Order Resubmitted" : "Purchase Order Created",
-      description: `${poNumber} ${isResubmission ? 'resubmitted' : 'generated'} and forwarded to Supply Chain Director`,
-    });
-
-    setPODialogOpen(false);
-    setSelectedMRFForPO(null);
+        setPODialogOpen(false);
+        setSelectedMRFForPO(null);
+        
+        // Refresh MRFs from backend
+        await fetchMRFs();
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to generate PO",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to server",
+        variant: "destructive",
+      });
+    } finally {
+      setPoGenerating(false);
+    }
   };
 
   const handleConvertMRNToMRF = (mrnId: string) => {
@@ -394,7 +499,7 @@ const Procurement = () => {
         />
 
         {/* Progress Tracker */}
-        <ProcurementProgressTracker mrfRequests={mrfRequests} />
+        <ProcurementProgressTracker mrfRequests={mrfRequests.map(convertToMRFRequest)} />
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-5 h-auto gap-1">
@@ -780,13 +885,13 @@ const Procurement = () => {
                           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-center">
                             <div className="flex items-center gap-2">
                               {timerColor && <Clock className={`h-4 w-4 ${timerColor}`} />}
-                              {request.currentStage === "approved" && <CheckCircle2 className="h-5 w-5 text-success" />}
-                              {request.currentStage === "rejected" && <XCircle className="h-5 w-5 text-destructive" />}
+                              {getMRFStage(request as MRF) === "completed" && <CheckCircle2 className="h-5 w-5 text-success" />}
+                              {getMRFStage(request as MRF) === "rejected" && <XCircle className="h-5 w-5 text-destructive" />}
                               <Badge className={getStatusColor(request.status)}>
                                 {request.status}
                               </Badge>
                             </div>
-                            {request.currentStage === "approved" && (
+                            {getMRFStage(request as MRF) === "procurement" && (
                               <Button
                                 size="sm"
                                 variant="default"
