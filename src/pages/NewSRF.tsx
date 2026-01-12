@@ -30,22 +30,31 @@ const NewSRF = () => {
     setIsSubmitting(true);
     
     try {
+      // Capitalize urgency for backend (expects 'Low', 'Medium', 'High')
+      const capitalizeUrgency = (urgency: string): 'Low' | 'Medium' | 'High' => {
+        const normalized = urgency.toLowerCase();
+        if (normalized === 'low') return 'Low';
+        if (normalized === 'medium') return 'Medium';
+        if (normalized === 'high' || normalized === 'critical') return 'High';
+        return 'Medium'; // Default fallback
+      };
+      
       const response = await srfApi.create({
         title: formData.title,
         description: formData.description,
         serviceType: formData.serviceType,
-        urgency: formData.urgency,
+        urgency: capitalizeUrgency(formData.urgency),
         justification: formData.justification,
-        estimatedCost: parseFloat(formData.estimatedCost) || 0,
+        estimatedCost: formData.estimatedCost,
         duration: formData.duration,
       });
       
       if (response.success) {
-        toast({
-          title: "SRF Submitted Successfully",
-          description: "Your service request form has been submitted for approval",
-        });
-        navigate("/procurement");
+    toast({
+      title: "SRF Submitted Successfully",
+      description: "Your service request form has been submitted for approval",
+    });
+    navigate("/procurement");
       } else {
         toast({
           title: "Error",

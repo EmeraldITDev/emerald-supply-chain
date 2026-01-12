@@ -240,27 +240,27 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
         deadline: deadline,
         items: [{
           item_name: selectedMRF.title,
-          description: selectedMRF.description || '',
+      description: selectedMRF.description || '',
           quantity: parseInt(selectedMRF.quantity) || 1,
           unit: 'units',
           specifications: selectedMRF.justification,
         }],
         vendor_ids: vendorIds,
-      });
+    });
 
       if (response.success) {
-        toast({
-          title: "RFQ Created & Dispatched",
-          description: `RFQ sent to ${vendorIds.length} vendor(s). They will see it in their portal.`,
-        });
+    toast({
+      title: "RFQ Created & Dispatched",
+      description: `RFQ sent to ${vendorIds.length} vendor(s). They will see it in their portal.`,
+    });
 
-        // Reset form
-        setCreateDialogOpen(false);
-        setSelectedMRF(null);
-        setSelectedVendorIds([]);
-        setDeadline('');
-        setSelectionMethod('manual');
-        setSelectedCategory('');
+    // Reset form
+    setCreateDialogOpen(false);
+    setSelectedMRF(null);
+    setSelectedVendorIds([]);
+    setDeadline('');
+    setSelectionMethod('manual');
+    setSelectedCategory('');
       } else {
         toast({
           title: "Error",
@@ -289,13 +289,13 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       const response = await rfqApi.selectVendor(selectedRFQ.id, quotationId);
 
       if (response.success) {
-        toast({
-          title: "Vendor Awarded",
-          description: "The selected vendor has been awarded. Proceed to PO generation.",
-        });
+    toast({
+      title: "Vendor Awarded",
+      description: "The selected vendor has been awarded. Proceed to PO generation.",
+    });
 
-        onVendorSelected?.(vendorId, selectedRFQ.id);
-        setCompareDialogOpen(false);
+    onVendorSelected?.(vendorId, selectedRFQ.id);
+    setCompareDialogOpen(false);
       } else {
         toast({
           title: "Error",
@@ -680,8 +680,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                 </>
               ) : (
                 <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Create & Dispatch RFQ
+              <Send className="h-4 w-4 mr-2" />
+              Create & Dispatch RFQ
                 </>
               )}
             </Button>
@@ -815,8 +815,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                 </>
                               ) : (
                                 <>
-                                  <Award className="h-4 w-4 mr-2" />
-                                  Award Vendor
+                              <Award className="h-4 w-4 mr-2" />
+                              Award Vendor
                                 </>
                               )}
                             </Button>

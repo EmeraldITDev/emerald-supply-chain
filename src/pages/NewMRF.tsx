@@ -50,16 +50,39 @@ const NewMRF = () => {
     e.preventDefault();
     setIsSubmitting(true);
     
+    // Validate urgency is selected
+    if (!formData.urgency) {
+      toast({
+        title: "Validation Error",
+        description: "Please select an urgency level",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    
     try {
+      // Capitalize urgency for backend (expects 'Low', 'Medium', 'High')
+      const capitalizeUrgency = (urgency: string): 'Low' | 'Medium' | 'High' => {
+        const normalized = urgency.toLowerCase();
+        if (normalized === 'low') return 'Low';
+        if (normalized === 'medium') return 'Medium';
+        if (normalized === 'high' || normalized === 'critical') return 'High';
+        return 'Medium'; // Default fallback
+      };
+      
+      const urgencyValue = capitalizeUrgency(formData.urgency);
+      console.log('Submitting MRF with urgency:', urgencyValue, 'from form value:', formData.urgency);
+      
       if (isResubmission && rejectedMRF) {
         // Resubmission: update existing MRF
         const response = await mrfApi.update(rejectedMRF.id, {
           title: formData.title,
           description: formData.description,
           category: formData.category,
-          quantity: parseInt(formData.quantity) || 0,
-          estimatedCost: parseFloat(formData.estimatedCost) || 0,
-          urgency: formData.urgency,
+          quantity: formData.quantity,
+          estimatedCost: formData.estimatedCost,
+          urgency: urgencyValue,
           justification: formData.justification,
         });
         
@@ -78,15 +101,18 @@ const NewMRF = () => {
         }
       } else {
         // New submission
-        const response = await mrfApi.create({
+        const payload = {
           title: formData.title,
           description: formData.description,
           category: formData.category,
-          quantity: parseInt(formData.quantity) || 0,
-          estimatedCost: parseFloat(formData.estimatedCost) || 0,
-          urgency: formData.urgency,
+          quantity: formData.quantity,
+          estimatedCost: formData.estimatedCost,
+          urgency: urgencyValue,
           justification: formData.justification,
-        });
+        };
+        
+        console.log('Creating MRF with payload:', payload);
+        const response = await mrfApi.create(payload);
         
         if (response.success) {
           const estimatedCost = parseFloat(formData.estimatedCost) || 0;
