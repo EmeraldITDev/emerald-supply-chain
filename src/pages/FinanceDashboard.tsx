@@ -155,12 +155,12 @@ const FinanceDashboard = () => {
       const response = await mrfApi.processPayment(id);
       
       if (response.success) {
-        setProcessedItems(prev => new Set([...prev, id]));
-        
-        toast({
-          title: "Payment Forwarded",
-          description: `${mrf.title} has been forwarded to Chairman for payment approval`,
-        });
+    setProcessedItems(prev => new Set([...prev, id]));
+    
+    toast({
+      title: "Payment Forwarded",
+      description: `${mrf.title} has been forwarded to Chairman for payment approval`,
+    });
         
         // Refresh the list from backend
         await fetchMRFs();
@@ -194,13 +194,13 @@ const FinanceDashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Finance Dashboard</h1>
-            <p className="text-muted-foreground mt-1">Payment Processing & Financial Oversight</p>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Finance Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Payment Processing & Financial Oversight</p>
         </div>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -371,8 +371,8 @@ const FinanceDashboard = () => {
                               </>
                             ) : (
                               <>
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Mark as Processed
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Mark as Processed
                               </>
                             )}
                           </Button>
@@ -386,7 +386,7 @@ const FinanceDashboard = () => {
           </div>
         </CardContent>
       </Card>
-      </div>
+    </div>
     </DashboardLayout>
   );
 };

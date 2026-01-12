@@ -84,13 +84,13 @@ const NewMRF = () => {
           estimatedCost: formData.estimatedCost,
           urgency: urgencyValue,
           justification: formData.justification,
-        });
-        
+      });
+      
         if (response.success) {
-          toast({
-            title: "MRF Resubmitted Successfully",
-            description: "Your updated material request has been resubmitted for approval",
-          });
+      toast({
+        title: "MRF Resubmitted Successfully",
+        description: "Your updated material request has been resubmitted for approval",
+      });
           navigate("/dashboard");
         } else {
           toast({
@@ -99,7 +99,7 @@ const NewMRF = () => {
             variant: "destructive",
           });
         }
-      } else {
+    } else {
         // New submission
         const payload = {
           title: formData.title,
@@ -115,16 +115,16 @@ const NewMRF = () => {
         const response = await mrfApi.create(payload);
         
         if (response.success) {
-          const estimatedCost = parseFloat(formData.estimatedCost) || 0;
-          const isHighValue = estimatedCost > 1000000;
-          
-          toast({
-            title: "MRF Submitted Successfully",
-            description: isHighValue 
-              ? "High-value request (>₦1M) - Will require both Executive and Chairman approval"
-              : "Your request has been sent to Executive for approval",
-          });
-          navigate("/dashboard");
+      const estimatedCost = parseFloat(formData.estimatedCost) || 0;
+      const isHighValue = estimatedCost > 1000000;
+      
+      toast({
+        title: "MRF Submitted Successfully",
+        description: isHighValue 
+          ? "High-value request (>₦1M) - Will require both Executive and Chairman approval"
+          : "Your request has been sent to Executive for approval",
+      });
+    navigate("/dashboard");
         } else {
           toast({
             title: "Error",

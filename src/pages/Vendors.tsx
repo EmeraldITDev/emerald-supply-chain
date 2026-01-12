@@ -418,29 +418,56 @@ const Vendors = () => {
   const handleApprove = async (registrationId: string) => {
     setIsProcessing(true);
     try {
+      // Find the registration to get the email
+      const registration = vendorRegistrations.find(r => r.id === registrationId);
+      const vendorEmail = registration?.email || '';
+      
       const response = await vendorApi.approveRegistration(registrationId);
       if (response.success && response.data) {
         const { temporaryPassword } = response.data;
         toast({
           title: "Vendor Approved Successfully",
           description: temporaryPassword ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <p>Vendor account created successfully!</p>
-              <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                <div className="flex-1">
-                  <span className="text-xs text-muted-foreground block">Temporary password:</span>
-                  <code className="text-sm font-mono font-medium">{temporaryPassword}</code>
+              
+              {/* Email/Login */}
+              {vendorEmail && (
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground block">Login Email:</span>
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                    <code className="text-sm font-mono flex-1">{vendorEmail}</code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(vendorEmail)}
+                      className="h-7 w-7 p-0 shrink-0"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyToClipboard(temporaryPassword)}
-                  className="h-7 w-7 p-0 shrink-0"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
+              )}
+              
+              {/* Password */}
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground block">Temporary Password:</span>
+                <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                  <code className="text-sm font-mono font-medium flex-1">{temporaryPassword}</code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(temporaryPassword)}
+                    className="h-7 w-7 p-0 shrink-0"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">An email has been sent to the vendor with login credentials.</p>
+              
+              <p className="text-xs text-muted-foreground">
+                An email has been sent to the vendor with these login credentials.
+              </p>
             </div>
           ) : "Vendor registration has been approved. Credentials have been sent via email.",
           duration: 30000,

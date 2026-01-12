@@ -30,6 +30,7 @@ import {
   FileCheck,
   AlertTriangle,
   Loader2,
+  Copy,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -111,6 +112,14 @@ const VendorRegistrationReview = () => {
     fetchRegistration();
   }, [id, navigate, toast]);
 
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: `${label} copied to clipboard`,
+    });
+  };
+
   const handleApprove = async () => {
     if (!registration) return;
     
@@ -120,11 +129,52 @@ const VendorRegistrationReview = () => {
       // Check if the approval was successful - response.success being true means it worked
       if (response.success) {
         const temporaryPassword = response.data?.temporaryPassword;
+        const vendorEmail = registration.email;
+        
         toast({
-          title: "Vendor Approved",
-          description: temporaryPassword
-            ? `Account created. Temporary password: ${temporaryPassword}`
-            : "Vendor has been approved and credentials have been sent via email.",
+          title: "Vendor Approved Successfully",
+          description: temporaryPassword ? (
+            <div className="space-y-3">
+              <p>Vendor account created successfully!</p>
+              
+              {/* Email/Login */}
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground block">Login Email:</span>
+                <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                  <code className="text-sm font-mono flex-1">{vendorEmail}</code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(vendorEmail, "Email")}
+                    className="h-7 w-7 p-0 shrink-0"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Password */}
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground block">Temporary Password:</span>
+                <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                  <code className="text-sm font-mono font-medium flex-1">{temporaryPassword}</code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(temporaryPassword, "Password")}
+                    className="h-7 w-7 p-0 shrink-0"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              <p className="text-xs text-muted-foreground">
+                An email has been sent to the vendor with these login credentials.
+              </p>
+            </div>
+          ) : "Vendor has been approved and credentials have been sent via email.",
+          duration: 30000,
         });
         navigate("/vendors");
       } else {
