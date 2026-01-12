@@ -14,7 +14,7 @@ import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES, type VendorDocument, t
 
 
 interface EnhancedVendorRegistrationProps {
-  onSubmit: (registration: Partial<VendorRegType>) => void;
+  onSubmit: (registration: Partial<VendorRegType>) => Promise<void>;
   onCancel: () => void;
   isRegistrationOpen?: boolean;
 }
@@ -172,34 +172,44 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
       return;
     }
 
-    // Build the registration object and let the parent handle API call
-    const registration: Partial<VendorRegType> = {
-      companyName,
-      categories: selectedCategories,
-      isOEMRepresentative,
-      email,
-      phone,
-      alternatePhone,
-      address,
-      city,
-      state,
-      country,
-      postalCode,
-      taxId,
-      contactPerson,
-      contactPersonTitle,
-      contactPersonEmail,
-      contactPersonPhone,
-      website,
-      yearEstablished,
-      numberOfEmployees,
-      annualRevenue,
-      documents: uploadedDocuments,
-      status: "Pending",
-    };
+    // Set submitting state to show loading button
+    setIsSubmitting(true);
 
-    // Let the parent component handle the API call and navigation
-    onSubmit(registration);
+    try {
+      // Build the registration object and let the parent handle API call
+      const registration: Partial<VendorRegType> = {
+        companyName,
+        categories: selectedCategories,
+        isOEMRepresentative,
+        email,
+        phone,
+        alternatePhone,
+        address,
+        city,
+        state,
+        country,
+        postalCode,
+        taxId,
+        contactPerson,
+        contactPersonTitle,
+        contactPersonEmail,
+        contactPersonPhone,
+        website,
+        yearEstablished,
+        numberOfEmployees,
+        annualRevenue,
+        documents: uploadedDocuments,
+        status: "Pending",
+      };
+
+      // Wait for parent component to handle the API call
+      await onSubmit(registration);
+    } catch (error) {
+      console.error('Submission error:', error);
+      // Error handling is done in parent, just log here
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getDocumentStatus = (docType: VendorDocumentType) => {
