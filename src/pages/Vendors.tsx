@@ -616,11 +616,18 @@ const Vendors = () => {
       registration: reg,
     }));
 
-  const topPerformers = [
-    { name: "Steel Works Ltd", score: 4.8, onTime: 96, quality: 98 },
-    { name: "SafetyFirst Co", score: 4.9, onTime: 99, quality: 97 },
-    { name: "BuildMart Supplies", score: 4.5, onTime: 92, quality: 94 },
-  ];
+  // Calculate top performers from real vendor data, sorted by rating
+  const topPerformers = vendors
+    .filter(v => v.status === 'Active' && v.rating > 0)
+    .sort((a, b) => b.rating - a.rating)
+    .slice(0, 3)
+    .map(v => ({
+      id: v.id,
+      name: v.name,
+      score: v.rating,
+      orders: v.orders,
+      category: v.category,
+    }));
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -821,23 +828,27 @@ const Vendors = () => {
               <CardDescription>Highest rated vendors</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 sm:grid-cols-3">
-                {topPerformers.map((vendor) => (
-                  <div key={vendor.name} className="p-4 border rounded-lg space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-sm">{vendor.name}</p>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-primary text-primary" />
-                        <span className="text-sm font-semibold">{vendor.score}</span>
+              {topPerformers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No top performing vendors yet. Vendors need ratings to appear here.</p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {topPerformers.map((vendor) => (
+                    <div key={vendor.id} className="p-4 border rounded-lg space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm truncate flex-1 mr-2">{vendor.name}</p>
+                        <div className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-primary text-primary" />
+                          <span className="text-sm font-semibold">{vendor.score.toFixed(1)}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <span>Orders: {vendor.orders}</span>
+                        <span>Category: {vendor.category}</span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                      <span>On-Time: {vendor.onTime}%</span>
-                      <span>Quality: {vendor.quality}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

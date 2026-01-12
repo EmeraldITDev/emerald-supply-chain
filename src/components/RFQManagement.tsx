@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +13,20 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, FileText, Award, X, Filter } from "lucide-react";
-import type { MRFRequest, Vendor, RFQ, Quotation } from "@/contexts/AppContext";
+import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, FileText, Award, X, Filter, Loader2 } from "lucide-react";
+import { vendorApi } from "@/services/api";
+import type { MRFRequest, RFQ, Quotation } from "@/contexts/AppContext";
+
+interface Vendor {
+  id: string;
+  name: string;
+  category: string;
+  rating: number;
+  orders: number;
+  status: string;
+  kyc: string;
+  email?: string;
+}
 
 interface RFQManagementProps {
   onVendorSelected?: (vendorId: string, rfqId: string) => void;
@@ -22,7 +34,44 @@ interface RFQManagementProps {
 
 export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   const { toast } = useToast();
-  const { mrfRequests, vendors, rfqs, quotations, addRFQ, updateRFQ, addQuotation, updateQuotation } = useApp();
+  const { mrfRequests, rfqs, quotations, addRFQ, updateRFQ, addQuotation, updateQuotation } = useApp();
+  
+  // Fetch vendors from API instead of context
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loadingVendors, setLoadingVendors] = useState(true);
+  
+  useEffect(() => {
+    const fetchVendors = async () => {
+      setLoadingVendors(true);
+      try {
+        const response = await vendorApi.getAll();
+        if (response.success && response.data) {
+          const transformedVendors = response.data.map((vendor: any) => ({
+            id: vendor.id,
+            name: vendor.name || vendor.company_name,
+            category: vendor.category || 'Unknown',
+            status: vendor.status || 'Active',
+            kyc: vendor.kyc_status || 'Verified',
+            rating: vendor.rating || 0,
+            orders: vendor.total_orders || 0,
+            email: vendor.email || '',
+          }));
+          setVendors(transformedVendors);
+        }
+      } catch (error) {
+        console.error('Failed to fetch vendors:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load vendors",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingVendors(false);
+      }
+    };
+    
+    fetchVendors();
+  }, [toast]);
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
@@ -471,46 +520,59 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                   </div>
 
                   <ScrollArea className="h-[300px] border rounded-lg p-4">
-                    <div className="space-y-2">
-                      {filteredVendors.map((vendor) => (
-                        <div 
-                          key={vendor.id}
-                          className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                            selectedVendorIds.includes(vendor.id) 
-                              ? 'bg-primary/10 border-primary' 
-                              : 'hover:bg-accent'
-                          }`}
-                          onClick={() => {
-                            if (selectedVendorIds.includes(vendor.id)) {
-                              setSelectedVendorIds(selectedVendorIds.filter(id => id !== vendor.id));
-                            } else {
-                              setSelectedVendorIds([...selectedVendorIds, vendor.id]);
-                            }
-                          }}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Checkbox 
-                              checked={selectedVendorIds.includes(vendor.id)}
-                              onCheckedChange={() => {}}
-                            />
-                            <div>
-                              <div className="flex items-center">
-                                <p className="font-medium">{vendor.name}</p>
-                                {getVendorBadge(vendor)}
+                    {loadingVendors ? (
+                      <div className="flex items-center justify-center h-full">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <span className="ml-2 text-muted-foreground">Loading vendors...</span>
+                      </div>
+                    ) : filteredVendors.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center">
+                        <Users className="h-8 w-8 text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">No vendors found</p>
+                        <p className="text-xs text-muted-foreground">Try adjusting your filters or add vendors to the system</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {filteredVendors.map((vendor) => (
+                          <div 
+                            key={vendor.id}
+                            className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                              selectedVendorIds.includes(vendor.id) 
+                                ? 'bg-primary/10 border-primary' 
+                                : 'hover:bg-accent'
+                            }`}
+                            onClick={() => {
+                              if (selectedVendorIds.includes(vendor.id)) {
+                                setSelectedVendorIds(selectedVendorIds.filter(id => id !== vendor.id));
+                              } else {
+                                setSelectedVendorIds([...selectedVendorIds, vendor.id]);
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Checkbox 
+                                checked={selectedVendorIds.includes(vendor.id)}
+                                onCheckedChange={() => {}}
+                              />
+                              <div>
+                                <div className="flex items-center">
+                                  <p className="font-medium">{vendor.name}</p>
+                                  {getVendorBadge(vendor)}
+                                </div>
+                                <p className="text-sm text-muted-foreground">{vendor.category}</p>
                               </div>
-                              <p className="text-sm text-muted-foreground">{vendor.category}</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="flex items-center gap-1">
+                                <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                                <span className="font-medium">{vendor.rating.toFixed(1)}</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">{vendor.orders} orders</p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="flex items-center gap-1">
-                              <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                              <span className="font-medium">{vendor.rating}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">{vendor.orders} orders</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </ScrollArea>
                   <p className="text-sm text-muted-foreground">
                     {selectedVendorIds.length} vendor(s) selected
