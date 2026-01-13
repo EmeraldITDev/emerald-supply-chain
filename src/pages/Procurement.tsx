@@ -342,15 +342,35 @@ const Procurement = () => {
   }) => {
     if (!selectedMRFForPO) return;
 
+    // Validate file upload
+    if (!poData.poFile) {
+      toast({
+        title: "Validation Error",
+        description: "Please upload a PO document before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setPoGenerating(true);
 
     // Generate PO number
     const poNumber = selectedMRFForPO.poNumber || 
       `PO-${new Date().getFullYear()}-${String(purchaseOrders.length + 1).padStart(3, "0")}`;
     
+    console.log('Generating PO:', {
+      mrfId: selectedMRFForPO.id,
+      poNumber,
+      fileName: poData.poFile.name,
+      fileSize: poData.poFile.size,
+      vendor: poData.vendor,
+    });
+    
     try {
       // Call the real backend API endpoint with file upload
-      const response = await mrfApi.generatePO(selectedMRFForPO.id, poNumber, poData.poFile || undefined);
+      const response = await mrfApi.generatePO(selectedMRFForPO.id, poNumber, poData.poFile);
+      
+      console.log('PO Generation Response:', response);
       
       if (response.success) {
         // Also add to local PO list for immediate UI feedback
@@ -376,16 +396,18 @@ const Procurement = () => {
         // Refresh MRFs from backend
         await fetchMRFs();
       } else {
+        console.error('PO Generation Error:', response.error);
         toast({
-          title: "Error",
-          description: response.error || "Failed to generate PO",
+          title: "PO Generation Failed",
+          description: response.error || "Failed to generate PO. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
+      console.error('PO Generation Exception:', error);
       toast({
-        title: "Error",
-        description: "Failed to connect to server",
+        title: "Network Error",
+        description: error instanceof Error ? error.message : "Failed to connect to server. Please check your connection.",
         variant: "destructive",
       });
     } finally {
@@ -1003,6 +1025,7 @@ const Procurement = () => {
         onOpenChange={setPODialogOpen}
         mrf={selectedMRFForPO}
         onGenerate={handlePOGeneration}
+        isGenerating={poGenerating}
       />
     </DashboardLayout>
   );

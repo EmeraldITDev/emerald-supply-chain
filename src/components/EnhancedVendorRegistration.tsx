@@ -176,31 +176,31 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
     setIsSubmitting(true);
 
     try {
-      // Build the registration object and let the parent handle API call
-      const registration: Partial<VendorRegType> = {
-        companyName,
-        categories: selectedCategories,
-        isOEMRepresentative,
-        email,
-        phone,
-        alternatePhone,
-        address,
-        city,
-        state,
-        country,
-        postalCode,
-        taxId,
-        contactPerson,
-        contactPersonTitle,
-        contactPersonEmail,
-        contactPersonPhone,
-        website,
-        yearEstablished,
-        numberOfEmployees,
-        annualRevenue,
-        documents: uploadedDocuments,
-        status: "Pending",
-      };
+    // Build the registration object and let the parent handle API call
+    const registration: Partial<VendorRegType> = {
+      companyName,
+      categories: selectedCategories,
+      isOEMRepresentative,
+      email,
+      phone,
+      alternatePhone,
+      address,
+      city,
+      state,
+      country,
+      postalCode,
+      taxId,
+      contactPerson,
+      contactPersonTitle,
+      contactPersonEmail,
+      contactPersonPhone,
+      website,
+      yearEstablished,
+      numberOfEmployees,
+      annualRevenue,
+      documents: uploadedDocuments,
+      status: "Pending",
+    };
 
       // Wait for parent component to handle the API call
       await onSubmit(registration);

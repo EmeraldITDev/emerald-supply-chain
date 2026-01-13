@@ -39,10 +39,11 @@ interface POGenerationDialogProps {
     paymentTerms: string;
     notes: string;
     poFile: File | null;
-  }) => void;
+  }) => Promise<void>;
+  isGenerating?: boolean;
 }
 
-export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate }: POGenerationDialogProps) {
+export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, isGenerating = false }: POGenerationDialogProps) {
   const [vendor, setVendor] = useState("");
   const [amount, setAmount] = useState(mrf?.estimatedCost || "");
   const [deliveryDate, setDeliveryDate] = useState<Date>();
@@ -51,6 +52,7 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate }: POGe
   const [poFile, setPOFile] = useState<File | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch vendors when dialog opens
   useEffect(() => {
@@ -75,30 +77,48 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate }: POGe
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!vendor || !deliveryDate || !paymentTerms || !poFile) {
+      console.warn('PO Generation: Missing required fields', { vendor, deliveryDate, paymentTerms, hasFile: !!poFile });
       return;
     }
 
-    onGenerate({
+    console.log('PO Generation: Submitting', {
       vendor,
-      items: mrf?.description || "",
-      amount: amount,
+      mrfId: mrf?.id,
+      amount,
       deliveryDate: format(deliveryDate, "yyyy-MM-dd"),
       paymentTerms,
-      notes,
-      poFile
+      fileName: poFile.name,
+      fileSize: poFile.size
     });
 
-    // Reset form
-    setVendor("");
-    setAmount("");
-    setDeliveryDate(undefined);
-    setPaymentTerms("");
-    setNotes("");
-    setPOFile(null);
+    setIsSubmitting(true);
+    try {
+      await onGenerate({
+        vendor,
+        items: mrf?.description || "",
+        amount: amount,
+        deliveryDate: format(deliveryDate, "yyyy-MM-dd"),
+        paymentTerms,
+        notes,
+        poFile
+      });
+
+      // Reset form only on success
+      setVendor("");
+      setAmount("");
+      setDeliveryDate(undefined);
+      setPaymentTerms("");
+      setNotes("");
+      setPOFile(null);
+    } catch (error) {
+      console.error('PO Generation: Submit failed', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -257,10 +277,27 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate }: POGe
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting || isGenerating}
+            >
               Cancel
             </Button>
-            <Button type="submit">Generate PO</Button>
+            <Button 
+              type="submit" 
+              disabled={!vendor || !deliveryDate || !paymentTerms || !poFile || isSubmitting || isGenerating}
+            >
+              {isSubmitting || isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                'Generate PO'
+              )}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

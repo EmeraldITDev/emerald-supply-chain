@@ -435,7 +435,7 @@ const Vendors = () => {
               {vendorEmail && (
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground block">Login Email:</span>
-                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+              <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
                     <code className="text-sm font-mono flex-1">{vendorEmail}</code>
                     <Button
                       variant="ghost"
@@ -445,7 +445,7 @@ const Vendors = () => {
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
-                  </div>
+                </div>
                 </div>
               )}
               
@@ -454,15 +454,15 @@ const Vendors = () => {
                 <span className="text-xs text-muted-foreground block">Temporary Password:</span>
                 <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
                   <code className="text-sm font-mono font-medium flex-1">{temporaryPassword}</code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyToClipboard(temporaryPassword)}
-                    className="h-7 w-7 p-0 shrink-0"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(temporaryPassword)}
+                  className="h-7 w-7 p-0 shrink-0"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
               </div>
               
               <p className="text-xs text-muted-foreground">

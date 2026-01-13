@@ -245,6 +245,25 @@ export const mrfApi = {
     const token = getAuthToken();
     
     if (poFile) {
+      // Validate file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (poFile.size > maxSize) {
+        return { 
+          success: false, 
+          error: `File size (${(poFile.size / (1024 * 1024)).toFixed(2)}MB) exceeds maximum allowed size of 10MB` 
+        };
+      }
+
+      // Validate file type
+      const allowedTypes = ['.pdf', '.doc', '.docx'];
+      const fileExtension = '.' + poFile.name.split('.').pop()?.toLowerCase();
+      if (!allowedTypes.includes(fileExtension)) {
+        return { 
+          success: false, 
+          error: `Invalid file type. Allowed types: ${allowedTypes.join(', ')}` 
+        };
+      }
+
       // If file is provided, use FormData
       const formData = new FormData();
       formData.append('po_number', poNumber);
@@ -255,6 +274,14 @@ export const mrfApi = {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
+      console.log('Sending PO generation request:', {
+        mrfId: id,
+        poNumber,
+        fileName: poFile.name,
+        fileSize: poFile.size,
+        fileType: poFile.type,
+      });
+
       try {
         const response = await fetch(`${API_BASE_URL}/mrfs/${id}/generate-po`, {
           method: 'POST',
@@ -262,20 +289,53 @@ export const mrfApi = {
           body: formData,
         });
 
-        const data = await response.json();
-        if (!response.ok) {
-          return { success: false, error: data.message || 'Failed to generate PO' };
+        let data;
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          console.error('Failed to parse response:', parseError);
+          return { 
+            success: false, 
+            error: `Server returned invalid response (Status: ${response.status})` 
+          };
         }
+
+        if (!response.ok) {
+          console.error('PO generation failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            data,
+          });
+
+          // Handle validation errors
+          if (data.errors) {
+            const errorMessages = Object.entries(data.errors)
+              .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+              .join('; ');
+            return { success: false, error: errorMessages };
+          }
+
+          return { 
+            success: false, 
+            error: data.message || data.error || `Failed to generate PO (Status: ${response.status})` 
+          };
+        }
+
+        console.log('PO generated successfully:', data);
         return { success: true, data: data.data || data };
       } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : 'Network error' };
+        console.error('PO generation network error:', error);
+        return { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Network error - unable to reach server' 
+        };
       }
     } else {
       // If no file, use JSON
-      return apiRequest<MRF>(`/mrfs/${id}/generate-po`, {
-        method: 'POST',
-        body: JSON.stringify({ po_number: poNumber }),
-      });
+    return apiRequest<MRF>(`/mrfs/${id}/generate-po`, {
+      method: 'POST',
+      body: JSON.stringify({ po_number: poNumber }),
+    });
     }
   },
 
