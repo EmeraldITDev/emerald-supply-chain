@@ -354,6 +354,13 @@ export const mrfApi = {
     });
   },
 
+  // Procurement Manager deletes/clears PO
+  deletePO: async (id: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/po`, {
+      method: 'DELETE',
+    });
+  },
+
   // Procurement Manager generates PO
   generatePO: async (id: string, poNumber: string, poFile?: File): Promise<ApiResponse<MRF>> => {
     const token = getAuthToken();

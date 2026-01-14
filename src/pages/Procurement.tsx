@@ -60,6 +60,9 @@ const Procurement = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [mrfToDelete, setMrfToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deletePODialogOpen, setDeletePODialogOpen] = useState(false);
+  const [selectedMRFForPODelete, setSelectedMRFForPODelete] = useState<MRF | null>(null);
+  const [isDeletingPO, setIsDeletingPO] = useState(false);
   
   // Vendor registrations from dashboard API
   const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
@@ -538,6 +541,43 @@ const Procurement = () => {
         description: "PO document is not available for download",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleDeletePO = (mrf: MRF) => {
+    setSelectedMRFForPODelete(mrf);
+    setDeletePODialogOpen(true);
+  };
+
+  const confirmDeletePO = async () => {
+    if (!selectedMRFForPODelete) return;
+    
+    setIsDeletingPO(true);
+    try {
+      const response = await mrfApi.deletePO(selectedMRFForPODelete.id);
+      if (response.success) {
+        toast({
+          title: "PO Deleted",
+          description: "PO has been cleared. You can now regenerate it.",
+        });
+        await fetchMRFs();
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to delete PO",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to server",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingPO(false);
+      setDeletePODialogOpen(false);
+      setSelectedMRFForPODelete(null);
     }
   };
 
@@ -1097,18 +1137,35 @@ const Procurement = () => {
                             )}
                               {/* Download PO if available */}
                               {getMRFPOUrl(request as MRF) && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDownloadPO(request as MRF);
-                                  }}
-                                >
-                                  <Download className="h-3 w-3 mr-1" />
-                                  Download PO
-                                </Button>
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownloadPO(request as MRF);
+                                    }}
+                                  >
+                                    <Download className="h-3 w-3 mr-1" />
+                                    Download PO
+                                  </Button>
+                                  {/* Delete PO button - only for procurement managers */}
+                                  {(user?.role === 'procurement_manager' || user?.role === 'procurement' || user?.role === 'admin') && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-xs text-destructive hover:text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeletePO(request as MRF);
+                                      }}
+                                    >
+                                      <Trash2 className="h-3 w-3 mr-1" />
+                                      Delete PO
+                                    </Button>
+                                  )}
+                                </>
                               )}
                               {/* Allow delete for pending or rejected MRFs only */}
                               {((request.status || "").toLowerCase() === "pending" || 
@@ -1321,6 +1378,37 @@ const Procurement = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete PO Confirmation Dialog */}
+      <AlertDialog open={deletePODialogOpen} onOpenChange={setDeletePODialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Purchase Order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the PO for MRF {selectedMRFForPODelete?.id}? 
+              This will clear the PO number and files, allowing you to regenerate a new PO. 
+              The MRF will be reset to the procurement stage.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingPO}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeletePO}
+              disabled={isDeletingPO}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingPO ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete PO"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
