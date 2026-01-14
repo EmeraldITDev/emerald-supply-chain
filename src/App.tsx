@@ -94,9 +94,10 @@ const AppRoutes = () => {
         <Route path="/chairman" element={<ProtectedRoute><ChairmanDashboard /></ProtectedRoute>} />
         <Route path="/supply-chain" element={<ProtectedRoute><SupplyChainDashboard /></ProtectedRoute>} />
         <Route path="/procurement" element={<ProcurementRoute><Procurement /></ProcurementRoute>} />
-        <Route path="/new-mrf" element={<ProcurementRoute><NewMRF /></ProcurementRoute>} />
+        {/* Only employees can create MRF/SRF */}
+        <Route path="/new-mrf" element={<ProtectedRoute><NewMRF /></ProtectedRoute>} />
         <Route path="/new-srf" element={<ProtectedRoute><NewSRF /></ProtectedRoute>} />
-        <Route path="/procurement/mrf/new" element={<ProcurementRoute><NewMRF /></ProcurementRoute>} />
+        <Route path="/procurement/mrf/new" element={<ProtectedRoute><NewMRF /></ProtectedRoute>} />
         <Route path="/procurement/srf/new" element={<ProtectedRoute><NewSRF /></ProtectedRoute>} />
         <Route path="/logistics" element={<ProtectedRoute><Logistics /></ProtectedRoute>} />
         <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />

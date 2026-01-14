@@ -14,7 +14,7 @@ import { format } from "date-fns";
 
 const DepartmentDashboard = () => {
   const { user } = useAuth();
-  const { mrns, annualPlans } = useApp();
+  const { mrns, annualPlans, mrfRequests, srfRequests } = useApp();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -115,8 +115,10 @@ const DepartmentDashboard = () => {
         </div>
 
         <Tabs defaultValue="mrns" className="space-y-4">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="mrns">Material Request Notes</TabsTrigger>
+            <TabsTrigger value="mrf">Material Request Forms (MRF)</TabsTrigger>
+            <TabsTrigger value="srf">Service Request Forms (SRF)</TabsTrigger>
             <TabsTrigger value="annual">Annual Planning</TabsTrigger>
           </TabsList>
 
@@ -209,6 +211,108 @@ const DepartmentDashboard = () => {
                       )}
                     </TableBody>
                   </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* MRF Tab - Only for employees */}
+          <TabsContent value="mrf" className="space-y-3 sm:space-y-4">
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Material Request Forms (MRF)</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Official material requisition forms</CardDescription>
+                  </div>
+                  {user?.role === "employee" && (
+                    <Button onClick={() => navigate("/new-mrf")} size="sm" className="sm:size-default">
+                      <Plus className="mr-2 h-4 w-4" />
+                      <span className="hidden sm:inline">New MRF</span>
+                      <span className="sm:hidden">New</span>
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="space-y-3">
+                  {mrfRequests.filter(mrf => mrf.requesterId === user?.email || mrf.requester === user?.name).length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No MRFs found.</p>
+                      {user?.role === "employee" && (
+                        <p className="text-sm mt-1">Create your first Material Request Form.</p>
+                      )}
+                    </div>
+                  ) : (
+                    mrfRequests
+                      .filter(mrf => mrf.requesterId === user?.email || mrf.requester === user?.name)
+                      .map((mrf) => (
+                        <Card key={mrf.id}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h3 className="font-semibold">{mrf.title}</h3>
+                                <p className="text-sm text-muted-foreground">MRF ID: {mrf.id}</p>
+                                <p className="text-sm text-muted-foreground">Status: {mrf.status}</p>
+                              </div>
+                              <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* SRF Tab - Only for employees */}
+          <TabsContent value="srf" className="space-y-3 sm:space-y-4">
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Service Request Forms (SRF)</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Official service requisition forms</CardDescription>
+                  </div>
+                  {user?.role === "employee" && (
+                    <Button onClick={() => navigate("/new-srf")} size="sm" className="sm:size-default">
+                      <Plus className="mr-2 h-4 w-4" />
+                      <span className="hidden sm:inline">New SRF</span>
+                      <span className="sm:hidden">New</span>
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="space-y-3">
+                  {srfRequests.filter(srf => srf.requesterId === user?.email || srf.requester === user?.name).length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No SRFs found.</p>
+                      {user?.role === "employee" && (
+                        <p className="text-sm mt-1">Create your first Service Request Form.</p>
+                      )}
+                    </div>
+                  ) : (
+                    srfRequests
+                      .filter(srf => srf.requesterId === user?.email || srf.requester === user?.name)
+                      .map((srf) => (
+                        <Card key={srf.id}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h3 className="font-semibold">{srf.title}</h3>
+                                <p className="text-sm text-muted-foreground">SRF ID: {srf.id}</p>
+                                <p className="text-sm text-muted-foreground">Status: {srf.status}</p>
+                              </div>
+                              <Badge className={getStatusColor(srf.status)}>{srf.status}</Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                  )}
                 </div>
               </CardContent>
             </Card>

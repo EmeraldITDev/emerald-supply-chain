@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { type MRFRequest } from "@/contexts/AppContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { mrfApi } from "@/services/api";
@@ -16,7 +17,20 @@ import { mrfApi } from "@/services/api";
 const NewMRF = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const { toast } = useToast();
+
+  // Only employees can create MRF
+  useEffect(() => {
+    if (user && user.role !== "employee") {
+      toast({
+        title: "Access Denied",
+        description: "Only staff members can create Material Request Forms. Please contact your administrator.",
+        variant: "destructive",
+      });
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, navigate, toast]);
   
   const rejectedMRF = location.state?.rejectedMRF as MRFRequest | undefined;
   const isResubmission = !!rejectedMRF;

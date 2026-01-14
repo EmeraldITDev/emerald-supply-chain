@@ -62,8 +62,7 @@ export function AppSidebar() {
           icon: ShoppingCart,
           subItems: [
             { title: "Overview", url: "/procurement" },
-            { title: "New MRF", url: "/new-mrf" },
-            { title: "New SRF", url: "/new-srf" },
+            // MRF/SRF creation removed - only employees can create via Department Dashboard
           ]
         },
         { title: "Vendors", url: "/vendors", icon: Users },
@@ -94,6 +93,8 @@ export function AppSidebar() {
           label: "Requests",
           items: [
             { title: "My Requests", url: "/dashboard", icon: FileText },
+            { title: "New MRF", url: "/new-mrf", icon: FileText },
+            { title: "New SRF", url: "/new-srf", icon: FileText },
           ]
         }
       ];

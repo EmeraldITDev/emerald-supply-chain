@@ -45,6 +45,8 @@ const Procurement = () => {
   
   const [poDialogOpen, setPODialogOpen] = useState(false);
   const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(null);
+  const [grnCompletionDialogOpen, setGrnCompletionDialogOpen] = useState(false);
+  const [selectedMRFForGRN, setSelectedMRFForGRN] = useState<MRF | null>(null);
   
   // Vendor registrations from dashboard API
   const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
@@ -467,6 +469,19 @@ const Procurement = () => {
     }
   };
 
+  const handlePOGenerationSuccess = () => {
+    fetchMRFs();
+  };
+
+  const handleCompleteGRN = (mrf: MRF) => {
+    setSelectedMRFForGRN(mrf);
+    setGrnCompletionDialogOpen(true);
+  };
+
+  const handleGRNCompletionSuccess = () => {
+    fetchMRFs();
+  };
+
   const handleConvertMRNToMRF = (mrnId: string) => {
     const mrn = mrns.find(m => m.id === mrnId);
     if (!mrn) return;
@@ -755,10 +770,13 @@ const Procurement = () => {
                     <CardTitle>Material Request Forms</CardTitle>
                     <CardDescription>Review and approve material requisitions</CardDescription>
                   </div>
-                  <Button onClick={() => navigate("/procurement/mrf/new")} size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    New MRF
-                  </Button>
+                  {/* Only employees can create MRF */}
+                  {user?.role === "employee" && (
+                    <Button onClick={() => navigate("/procurement/mrf/new")} size="sm">
+                      <Plus className="mr-2 h-4 w-4" />
+                      New MRF
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -998,10 +1016,13 @@ const Procurement = () => {
                     <CardTitle>Service Request Forms</CardTitle>
                     <CardDescription>List of all service requisition requests</CardDescription>
                   </div>
-                  <Button onClick={() => navigate("/procurement/srf/new")} size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    New SRF
-                  </Button>
+                  {/* Only employees can create SRF */}
+                  {user?.role === "employee" && (
+                    <Button onClick={() => navigate("/procurement/srf/new")} size="sm">
+                      <Plus className="mr-2 h-4 w-4" />
+                      New SRF
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>

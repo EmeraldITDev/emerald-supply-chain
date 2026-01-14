@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,11 +9,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { srfApi } from "@/services/api";
 
 const NewSRF = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { toast } = useToast();
+
+  // Only employees can create SRF
+  useEffect(() => {
+    if (user && user.role !== "employee") {
+      toast({
+        title: "Access Denied",
+        description: "Only staff members can create Service Request Forms. Please contact your administrator.",
+        variant: "destructive",
+      });
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, navigate, toast]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
