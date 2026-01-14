@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { AuditTrail } from "@/components/AuditTrail";
 import { NotificationPreferences } from "@/components/NotificationPreferences";
+import UserManagement from "@/pages/UserManagement";
 import { Settings as SettingsIcon, User, Bell, Shield, Database } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -261,6 +262,12 @@ export default function Settings() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {canManageUsers && (
+            <TabsContent value="users" className="space-y-6">
+              <UserManagement />
+            </TabsContent>
+          )}
 
           {canViewAuditTrail && (
             <TabsContent value="audit" className="space-y-6">

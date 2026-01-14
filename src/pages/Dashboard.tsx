@@ -278,18 +278,23 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0">
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/procurement/mrf/new")}>
-                  <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
-                    <Package className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-1 sm:mb-2" />
-                    <p className="font-medium text-xs sm:text-sm">New MRF</p>
-                  </CardContent>
-                </Card>
-                <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/procurement/srf/new")}>
-                  <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
-                    <ShoppingCart className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-1 sm:mb-2" />
-                    <p className="font-medium text-xs sm:text-sm">New SRF</p>
-                  </CardContent>
-                </Card>
+                {/* Only employees can create MRF/SRF */}
+                {user?.role === "employee" && (
+                  <>
+                    <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/procurement/mrf/new")}>
+                      <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
+                        <Package className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-1 sm:mb-2" />
+                        <p className="font-medium text-xs sm:text-sm">New MRF</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/procurement/srf/new")}>
+                      <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
+                        <ShoppingCart className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-1 sm:mb-2" />
+                        <p className="font-medium text-xs sm:text-sm">New SRF</p>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
                 <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/logistics")}>
                   <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
                     <Truck className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-1 sm:mb-2" />

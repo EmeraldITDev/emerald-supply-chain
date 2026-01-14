@@ -32,6 +32,7 @@ import {
   Loader2,
   Copy,
 } from "lucide-react";
+import { OneDriveLink } from "@/components/OneDriveLink";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -508,14 +509,23 @@ const VendorRegistrationReview = () => {
                             )}
                           </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDownloadDocument(doc)}
-                        >
-                          <Download className="h-4 w-4 mr-1" />
-                          Download
-                        </Button>
+                        {(doc.file_share_url || doc.fileShareUrl) ? (
+                          <OneDriveLink
+                            webUrl={doc.file_share_url || doc.fileShareUrl}
+                            fileName={doc.fileName || doc.name}
+                            variant="button"
+                            size="sm"
+                          />
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadDocument(doc)}
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            Download
+                          </Button>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -264,8 +264,10 @@ export const ProcurementProgressTracker = ({ mrfRequests, showTitle = true }: Pr
           </CardDescription>
         </CardHeader>
       )}
-      <CardContent className="space-y-6">
-        {activeMRFs.map((mrf) => {
+      <CardContent>
+        <div className="overflow-x-auto">
+          <div className="space-y-6 min-w-[600px]">
+            {activeMRFs.map((mrf) => {
           const stages = getStagesForMRF(mrf);
           const progress = getProgressPercentage(stages);
           
@@ -309,6 +311,8 @@ export const ProcurementProgressTracker = ({ mrfRequests, showTitle = true }: Pr
             </div>
           );
         })}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

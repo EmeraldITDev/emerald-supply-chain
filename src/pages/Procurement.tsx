@@ -185,6 +185,16 @@ const Procurement = () => {
     });
   }, [mrfRequests]);
 
+  // Filter MRFs that need GRN completion
+  const grnRequestedMRFs = useMemo(() => {
+    return mrfRequests.filter(mrf => {
+      const workflowState = getWorkflowState(mrf);
+      const grnRequested = mrf.grn_requested || mrf.grnRequested;
+      const grnCompleted = mrf.grn_completed || mrf.grnCompleted;
+      return workflowState === "grn_requested" && grnRequested && !grnCompleted;
+    });
+  }, [mrfRequests]);
+
   const vendorFromState = (location.state as any)?.vendor as string | undefined;
   const vendorFromQuery = searchParams.get("vendor") || undefined;
   const vendorFilter = vendorFromState || vendorFromQuery || undefined;
