@@ -92,6 +92,8 @@ const Procurement = () => {
   const getMRFRejectionReason = (mrf: MRF) => mrf.po_rejection_reason || mrf.poRejectionReason;
   const getMRFPONumber = (mrf: MRF) => mrf.po_number || mrf.poNumber;
   const getMRFPOVersion = (mrf: MRF) => mrf.po_version || mrf.poVersion || 1;
+  const getMRFPOShareUrl = (mrf: MRF) => mrf.unsigned_po_share_url || mrf.unsignedPOShareUrl || getMRFPOUrl(mrf);
+  const getMRFSignedPOShareUrl = (mrf: MRF) => mrf.signed_po_share_url || mrf.signedPOShareUrl || (mrf.signed_po_url || mrf.signedPOUrl);
 
   // Convert MRF (API type) to MRFRequest (UI component type)
   const convertToMRFRequest = (mrf: MRF): MRFRequest => ({

@@ -53,8 +53,12 @@ export interface MRF {
   po_number?: string; // Backend snake_case variant
   unsignedPOUrl?: string;
   unsigned_po_url?: string; // Backend snake_case variant
+  unsignedPOShareUrl?: string;
+  unsigned_po_share_url?: string; // Backend snake_case variant - view-only sharing link
   signedPOUrl?: string;
   signed_po_url?: string; // Backend snake_case variant
+  signedPOShareUrl?: string;
+  signed_po_share_url?: string; // Backend snake_case variant - view-only sharing link
   executiveComments?: string;
   executive_remarks?: string; // Backend snake_case variant
   chairmanComments?: string;

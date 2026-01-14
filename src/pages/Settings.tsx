@@ -11,25 +11,59 @@ import { NotificationPreferences } from "@/components/NotificationPreferences";
 import { Settings as SettingsIcon, User, Bell, Shield, Database } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { authApi } from "@/services/api";
 import { toast } from "sonner";
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState(user?.name || "");
+  const [department, setDepartment] = useState(user?.department || "");
+  const [phone, setPhone] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Role-based access control
   const isRegularEmployee = user?.role === "employee";
   const canViewProfile = !isRegularEmployee;
   const canViewAuditTrail = ['admin', 'chairman', 'executive', 'supply_chain_director', 'procurement', 'finance', 'logistics'].includes(user?.role || '');
 
-  const handleSaveProfile = () => {
-    toast.success("Profile settings saved successfully");
+  const handleSaveProfile = async () => {
+    if (!name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      const response = await authApi.updateProfile({
+        name: name.trim(),
+        department: department.trim() || null,
+        phone: phone.trim() || undefined,
+      });
+
+      if (response.success) {
+        toast.success("Profile updated successfully");
+        // Update local user data
+        if (response.data) {
+          // The context will refresh on next page load or we can trigger a refresh
+          window.location.reload(); // Simple refresh to get updated data
+        }
+      } else {
+        toast.error(response.error || "Failed to update profile");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred while updating profile");
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
       toast.error("Please fill all password fields");
       return;
@@ -42,11 +76,24 @@ export default function Settings() {
       toast.error("Password must be at least 8 characters");
       return;
     }
-    // In real app, call API to change password
-    toast.success("Password changed successfully");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+
+    setIsChangingPassword(true);
+    try {
+      const response = await authApi.changePassword(currentPassword, newPassword);
+
+      if (response.success) {
+        toast.success("Password changed successfully");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        toast.error(response.error || "Failed to change password");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred while changing password");
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   return (
@@ -94,28 +141,57 @@ export default function Settings() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" defaultValue={user?.name} />
+                  <Input 
+                    id="name" 
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your full name"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" defaultValue={user?.email} disabled />
+                  <Input id="email" type="email" value={user?.email || ""} disabled />
                   <p className="text-xs text-muted-foreground">Email cannot be changed</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Input id="role" defaultValue={user?.role} disabled />
+                  <Input 
+                    id="role" 
+                    value={user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1).replace('_', ' ') : ""} 
+                    disabled 
+                  />
                   <p className="text-xs text-muted-foreground">Role is assigned by administrators</p>
                 </div>
                 <Separator />
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
-                  <Input id="department" placeholder="e.g., Procurement, Finance" />
+                  <Input 
+                    id="department" 
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    placeholder="e.g., Procurement, Finance"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" placeholder="+971 XX XXX XXXX" />
+                  <Label htmlFor="phone">Phone Number (Optional)</Label>
+                  <Input 
+                    id="phone" 
+                    type="tel" 
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+971 XX XXX XXXX" 
+                  />
                 </div>
-                <Button onClick={handleSaveProfile}>Save Changes</Button>
+                <Button onClick={handleSaveProfile} disabled={isSavingProfile}>
+                  {isSavingProfile ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -165,7 +241,16 @@ export default function Settings() {
                     placeholder="Confirm new password"
                   />
                 </div>
-                <Button onClick={handleChangePassword}>Change Password</Button>
+                <Button onClick={handleChangePassword} disabled={isChangingPassword}>
+                  {isChangingPassword ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Changing Password...
+                    </>
+                  ) : (
+                    "Change Password"
+                  )}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

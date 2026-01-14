@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { mrfApi } from "@/services/api";
 import type { MRF } from "@/types";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { OneDriveLink } from "@/components/OneDriveLink";
 import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import {
@@ -353,7 +354,14 @@ const FinanceDashboard = () => {
                         <p className="text-sm text-muted-foreground mt-2 line-clamp-1">{mrf.description}</p>
                       </div>
                       {!isProcessed && (
-                        <div className="flex gap-2 self-start lg:self-center">
+                        <div className="flex gap-2 self-start lg:self-center items-center flex-wrap">
+                          {(mrf.signed_po_share_url || mrf.signedPOShareUrl || mrf.signed_po_url || mrf.signedPOUrl) && (
+                            <OneDriveLink 
+                              webUrl={mrf.signed_po_share_url || mrf.signedPOShareUrl || mrf.signed_po_url || mrf.signedPOUrl} 
+                              fileName={`Signed PO-${mrf.po_number || mrf.poNumber || 'N/A'}.pdf`}
+                              variant="badge"
+                            />
+                          )}
                           <Button size="sm" variant="outline">
                             <Download className="h-4 w-4 mr-1" />
                             Documents

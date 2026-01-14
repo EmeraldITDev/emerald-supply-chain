@@ -166,6 +166,24 @@ export const authApi = {
       method: 'POST',
     });
   },
+
+  updateProfile: async (data: { name?: string; department?: string; phone?: string }): Promise<ApiResponse<User>> => {
+    return apiRequest<User>('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<ApiResponse<void>> => {
+    return apiRequest<void>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+        newPassword_confirmation: newPassword,
+      }),
+    });
+  },
 };
 
 // MRF API

@@ -68,6 +68,14 @@ const SupplyChainDashboard = () => {
     return mrf.signed_po_url || mrf.signedPOUrl;
   };
 
+  const getUnsignedPOShareUrl = (mrf: MRF) => {
+    return mrf.unsigned_po_share_url || mrf.unsignedPOShareUrl || getUnsignedPOUrl(mrf);
+  };
+
+  const getSignedPOShareUrl = (mrf: MRF) => {
+    return mrf.signed_po_share_url || mrf.signedPOShareUrl || getSignedPOUrl(mrf);
+  };
+
   const getPOVersion = (mrf: MRF) => {
     return mrf.po_version || mrf.poVersion || 1;
   };
@@ -308,9 +316,9 @@ const SupplyChainDashboard = () => {
                               <Download className="h-4 w-4 mr-2" />
                               Download PO
                             </Button>
-                            {getUnsignedPOUrl(mrf) && (
+                            {getUnsignedPOShareUrl(mrf) && (
                               <OneDriveLink 
-                                webUrl={getUnsignedPOUrl(mrf)} 
+                                webUrl={getUnsignedPOShareUrl(mrf)} 
                                 fileName={`PO-${getPONumber(mrf)}.pdf`}
                                 variant="badge"
                               />

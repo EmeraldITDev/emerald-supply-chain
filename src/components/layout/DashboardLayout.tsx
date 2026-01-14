@@ -6,6 +6,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { AIChatbot } from "@/components/AIChatbot";
+import { useNavigate } from "react-router-dom";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,11 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleUserClick = () => {
+    navigate('/settings');
+  };
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -34,14 +40,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <NotificationCenter />
                 <ThemeToggle />
                 
-                <div className="hidden lg:block text-right border-l pl-2 lg:pl-3 ml-1 lg:ml-2">
+                <button
+                  onClick={handleUserClick}
+                  className="hidden lg:block text-right border-l pl-2 lg:pl-3 ml-1 lg:ml-2 hover:bg-accent/50 rounded-md px-2 py-1 transition-colors cursor-pointer"
+                  title="Click to open profile settings"
+                >
                   <p className="text-xs lg:text-sm font-medium truncate max-w-[100px] lg:max-w-[160px]">
                     {user?.name}
                   </p>
                   <p className="text-xs text-muted-foreground truncate max-w-[100px] lg:max-w-[160px]">
-                    {user?.role && user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                    {user?.role && user.role.charAt(0).toUpperCase() + user.role.slice(1).replace('_', ' ')}
                   </p>
-                </div>
+                </button>
               </div>
             </div>
             
