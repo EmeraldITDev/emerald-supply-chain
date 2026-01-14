@@ -147,7 +147,7 @@ const Procurement = () => {
 
   // Helper to check if MRF is Executive-approved
   const isExecutiveApproved = (mrf: MRF): boolean => {
-    // Check explicit approval flag
+    // Check explicit approval flag (set by backend after executive approval)
     if (mrf.executive_approved === true) {
       return true;
     }
@@ -155,8 +155,7 @@ const Procurement = () => {
     // Check status string
     const status = (mrf.status || "").toLowerCase();
     if (status.includes("approved by executive") || 
-        status.includes("executive approved") ||
-        status === "procurement") { // After executive approval, status becomes "procurement"
+        status.includes("executive approved")) {
       return true;
     }
     
@@ -164,23 +163,29 @@ const Procurement = () => {
     const approvalHistory = mrf.approval_history || mrf.approvalHistory || [];
     const hasExecutiveApproval = approvalHistory.some((entry: any) => 
       entry.action === "approved" && 
-      (entry.role === "executive" || entry.approved_by_role === "executive")
+      (entry.role === "executive" || entry.approved_by_role === "executive" || entry.stage === "executive_review")
     );
     
     if (hasExecutiveApproval) {
       return true;
     }
     
-    // Check if stage is procurement AND has been through executive approval
-    // After executive approval (for items <= 1M), stage becomes "procurement"
+    // After executive approval (for items <= 1M), backend sets:
+    // - status = 'procurement' 
+    // - current_stage = 'procurement'
+    // - executive_approved = true
+    // So if stage is "procurement" and status is "procurement" (not "pending"), it's executive-approved
     const stage = getMRFStage(mrf);
-    if (stage === "procurement") {
-      // If status is "procurement" and not "pending", it's likely executive-approved
-      // (unless it's a rejected PO, which we check separately)
-      const statusLower = (mrf.status || "").toLowerCase();
-      if (statusLower !== "pending" && !statusLower.includes("rejected")) {
-        return true;
-      }
+    const statusLower = (mrf.status || "").toLowerCase();
+    
+    if (stage === "procurement" && statusLower === "procurement") {
+      // This means it's been approved and moved to procurement stage
+      return true;
+    }
+    
+    // Also check if status is "procurement" (backend sets this after executive approval for non-high-value items)
+    if (statusLower === "procurement" && stage === "procurement") {
+      return true;
     }
     
     return false;
