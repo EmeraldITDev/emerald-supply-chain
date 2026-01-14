@@ -1240,21 +1240,42 @@ const Procurement = () => {
                                   )}
                                 </>
                               )}
-                              {/* Allow delete for pending or rejected MRFs only */}
-                              {((request.status || "").toLowerCase() === "pending" || 
-                                (request.status || "").toLowerCase().includes("rejected")) && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-xs text-destructive hover:text-destructive"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteMRF(request.id);
-                                  }}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              )}
+                              {/* Allow delete for procurement managers - MRFs without PO and in early stages */}
+                              {(() => {
+                                const isProcurementManager = user?.role === 'procurement_manager' || user?.role === 'procurement' || user?.role === 'admin';
+                                if (!isProcurementManager) return null;
+                                
+                                const status = (request.status || "").toLowerCase();
+                                const currentStage = (request.currentStage || "").toLowerCase();
+                                const poNumber = getMRFPONumber(request as MRF);
+                                const hasPO = poNumber && poNumber !== "N/A";
+                                const isEarlyStage = !hasPO && (
+                                  status === "pending" || 
+                                  status.includes("rejected") ||
+                                  status === "procurement" ||
+                                  status === "executive_review" ||
+                                  status === "chairman_review" ||
+                                  currentStage === "pending" ||
+                                  currentStage === "procurement"
+                                );
+                                
+                                if (!isEarlyStage) return null;
+                                
+                                return (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-xs text-destructive hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteMRF(request.id);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                    Delete
+                                  </Button>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
