@@ -20,6 +20,7 @@ import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import type { MRFRequest } from "@/contexts/AppContext";
 import { dashboardApi, mrfApi } from "@/services/api";
 import type { VendorRegistration, MRF } from "@/types";
+import { OneDriveLink } from "@/components/OneDriveLink";
 import {
   Select,
   SelectContent,
@@ -123,20 +124,46 @@ const Procurement = () => {
     poVersion: getMRFPOVersion(mrf),
   });
 
-  // Procurement Manager can upload PO for Executive-approved MRFs (and Chairman-approved high-value MRFs)
+  // Helper to check if MRF is Executive-approved
+  const isExecutiveApproved = (mrf: MRF): boolean => {
+    // Check explicit approval flag
+    if (mrf.executive_approved === true) {
+      return true;
+    }
+    
+    // Check status string
+    const status = (mrf.status || "").toLowerCase();
+    if (status.includes("approved by executive") || 
+        status.includes("executive approved")) {
+      return true;
+    }
+    
+    // Check approval history for executive approval
+    const approvalHistory = mrf.approval_history || mrf.approvalHistory || [];
+    const hasExecutiveApproval = approvalHistory.some((entry: any) => 
+      entry.action === "approved" && 
+      (entry.role === "executive" || entry.approved_by_role === "executive")
+    );
+    
+    if (hasExecutiveApproval) {
+      return true;
+    }
+    
+    // Check if stage is procurement AND has been through executive approval
+    // Only allow if status explicitly shows executive approval
+    const stage = getMRFStage(mrf);
+    if (stage === "procurement" && status.includes("executive")) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Procurement Manager can ONLY upload PO for Executive-approved MRFs
   const executiveApprovedMRFs = useMemo(() => {
     return mrfRequests.filter(mrf => {
-      const status = (mrf.status || "").toLowerCase();
-      const stage = getMRFStage(mrf);
       const hasNoUnsignedPO = !getMRFPOUrl(mrf);
-      
-      return (
-        (status.includes("approved by executive") || 
-         status.includes("executive approved") ||
-         status.includes("chairman approved") ||
-         stage === "procurement") && 
-        hasNoUnsignedPO
-      );
+      return isExecutiveApproved(mrf as MRF) && hasNoUnsignedPO;
     });
   }, [mrfRequests]);
 
@@ -311,6 +338,16 @@ const Procurement = () => {
   };
 
   const handleGeneratePO = (mrf: MRFRequest | MRF) => {
+    // Validate that MRF is Executive-approved before allowing PO generation
+    if (!isExecutiveApproved(mrf as MRF)) {
+      toast({
+        title: "PO Generation Not Allowed",
+        description: "This MRF must be approved by Executive before a PO can be generated.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
     setPODialogOpen(true);
   };
@@ -343,6 +380,18 @@ const Procurement = () => {
     poFile: File | null;
   }) => {
     if (!selectedMRFForPO) return;
+
+    // Validate Executive approval before generating PO
+    const mrfData = mrfRequests.find(m => m.id === selectedMRFForPO.id);
+    if (!mrfData || !isExecutiveApproved(mrfData)) {
+      toast({
+        title: "PO Generation Not Allowed",
+        description: "This MRF must be approved by Executive before a PO can be generated.",
+        variant: "destructive",
+      });
+      setPODialogOpen(false);
+      return;
+    }
 
     // Validate file upload
     if (!poData.poFile) {
@@ -916,7 +965,7 @@ const Procurement = () => {
                                 {request.status}
                               </Badge>
                             </div>
-                            {getMRFStage(request as MRF) === "procurement" && (
+                            {getMRFStage(request as MRF) === "procurement" && isExecutiveApproved(request as MRF) && (
                               <Button
                                 size="sm"
                                 variant="default"
