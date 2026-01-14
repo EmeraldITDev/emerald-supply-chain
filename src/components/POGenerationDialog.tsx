@@ -132,25 +132,58 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, isGene
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* MRF Details (Read-only) */}
-          <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+          {/* MRF Details (Read-only) - Full Information Display */}
+          <div className="bg-muted/50 p-4 rounded-lg space-y-3 border">
+            <h3 className="font-semibold text-sm mb-3">MRF Request Details</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-muted-foreground">MRF ID:</span>
+                <span className="text-muted-foreground text-xs">MRF ID:</span>
                 <p className="font-medium">{mrf?.id}</p>
               </div>
               <div>
-                <span className="text-muted-foreground">Title:</span>
+                <span className="text-muted-foreground text-xs">Requester:</span>
+                <p className="font-medium">{mrf?.requester || 'N/A'}</p>
+              </div>
+              <div className="col-span-2">
+                <span className="text-muted-foreground text-xs">Title:</span>
                 <p className="font-medium">{mrf?.title}</p>
               </div>
               <div>
-                <span className="text-muted-foreground">Category:</span>
-                <p className="font-medium capitalize">{mrf?.category}</p>
+                <span className="text-muted-foreground text-xs">Category:</span>
+                <p className="font-medium capitalize">{mrf?.category?.replace('-', ' ') || 'N/A'}</p>
               </div>
               <div>
-                <span className="text-muted-foreground">Quantity:</span>
-                <p className="font-medium">{mrf?.quantity}</p>
+                <span className="text-muted-foreground text-xs">Urgency:</span>
+                <p className="font-medium capitalize">{mrf?.urgency || 'N/A'}</p>
               </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Quantity:</span>
+                <p className="font-medium">{mrf?.quantity || 'N/A'}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Estimated Cost:</span>
+                <p className="font-medium text-primary">₦{mrf?.estimatedCost ? parseFloat(String(mrf.estimatedCost)).toLocaleString() : 'N/A'}</p>
+              </div>
+              <div className="col-span-2">
+                <span className="text-muted-foreground text-xs">Description:</span>
+                <p className="font-medium text-sm mt-1">{mrf?.description || 'No description provided'}</p>
+              </div>
+              <div className="col-span-2">
+                <span className="text-muted-foreground text-xs">Justification:</span>
+                <p className="font-medium text-sm mt-1">{mrf?.justification || 'No justification provided'}</p>
+              </div>
+              {mrf?.department && (
+                <div>
+                  <span className="text-muted-foreground text-xs">Department:</span>
+                  <p className="font-medium">{mrf.department}</p>
+                </div>
+              )}
+              {mrf?.date && (
+                <div>
+                  <span className="text-muted-foreground text-xs">Request Date:</span>
+                  <p className="font-medium">{new Date(mrf.date).toLocaleDateString()}</p>
+                </div>
+              )}
             </div>
           </div>
 

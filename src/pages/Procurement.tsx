@@ -521,6 +521,26 @@ const Procurement = () => {
     fetchMRFs();
   };
 
+  const handleDownloadPO = (mrf: MRF) => {
+    const poUrl = getMRFPOShareUrl(mrf) || getMRFPOUrl(mrf);
+    if (poUrl) {
+      // If it's a OneDrive share URL or full URL, open it directly
+      if (poUrl.startsWith('http')) {
+        window.open(poUrl, '_blank');
+      } else {
+        // Assume it's a relative path from the backend
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
+        window.open(`${baseUrl.replace('/api', '')}/${poUrl}`, '_blank');
+      }
+    } else {
+      toast({
+        title: "PO Not Available",
+        description: "PO document is not available for download",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteMRF = (mrfId: string) => {
     setMrfToDelete(mrfId);
     setDeleteDialogOpen(true);
@@ -1075,6 +1095,21 @@ const Procurement = () => {
                                 Generate PO
                               </Button>
                             )}
+                              {/* Download PO if available */}
+                              {getMRFPOUrl(request as MRF) && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownloadPO(request as MRF);
+                                  }}
+                                >
+                                  <Download className="h-3 w-3 mr-1" />
+                                  Download PO
+                                </Button>
+                              )}
                               {/* Allow delete for pending or rejected MRFs only */}
                               {((request.status || "").toLowerCase() === "pending" || 
                                 (request.status || "").toLowerCase().includes("rejected")) && (
