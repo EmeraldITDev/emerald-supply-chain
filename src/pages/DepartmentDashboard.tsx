@@ -303,9 +303,19 @@ const DepartmentDashboard = () => {
                     mrfRequests
                       .filter(mrf => mrf.requesterId === user?.email || mrf.requester === user?.name)
                       .map((mrf) => {
-                        // Only allow delete for pending or rejected MRFs (not in workflow)
-                        const canDelete = (mrf.status || "").toLowerCase() === "pending" || 
-                                         (mrf.status || "").toLowerCase().includes("rejected");
+                        // Allow delete if:
+                        // 1. Status is pending or rejected (any user)
+                        // 2. OR requester's own MRF that hasn't progressed too far (no PO generated)
+                        const statusLower = (mrf.status || "").toLowerCase();
+                        const isPendingOrRejected = statusLower === "pending" || statusLower.includes("rejected");
+                        const noPOGenerated = !mrf.poNumber && !mrf.po_number && !mrf.unsignedPOUrl && !mrf.unsigned_po_url;
+                        const notTooFarInWorkflow = !statusLower.includes("supply_chain") && 
+                                                     !statusLower.includes("finance") && 
+                                                     !statusLower.includes("paid") && 
+                                                     !statusLower.includes("completed");
+                        
+                        const canDelete = isPendingOrRejected || (noPOGenerated && notTooFarInWorkflow);
+                        
                         return (
                           <Card key={mrf.id}>
                             <CardContent className="p-4">

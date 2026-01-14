@@ -153,7 +153,7 @@ const Procurement = () => {
     }
     
     // Check status string
-    const status = (mrf.status || "").toLowerCase();
+      const status = (mrf.status || "").toLowerCase();
     if (status.includes("approved by executive") || 
         status.includes("executive approved")) {
       return true;
@@ -848,10 +848,10 @@ const Procurement = () => {
                   </div>
                   {/* Only employees can create MRF */}
                   {user?.role === "employee" && (
-                    <Button onClick={() => navigate("/procurement/mrf/new")} size="sm">
-                      <Plus className="mr-2 h-4 w-4" />
-                      New MRF
-                    </Button>
+                  <Button onClick={() => navigate("/procurement/mrf/new")} size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    New MRF
+                  </Button>
                   )}
                 </div>
               </CardHeader>
@@ -1062,19 +1062,19 @@ const Procurement = () => {
                             </div>
                             <div className="flex items-center gap-2">
                               {getMRFStage(request as MRF) === "procurement" && isExecutiveApproved(request as MRF) && (
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  className="text-xs"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleGeneratePO(request);
-                                  }}
-                                >
-                                  <ShoppingCart className="h-3 w-3 mr-1" />
-                                  Generate PO
-                                </Button>
-                              )}
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGeneratePO(request);
+                                }}
+                              >
+                                <ShoppingCart className="h-3 w-3 mr-1" />
+                                Generate PO
+                              </Button>
+                            )}
                               {/* Allow delete for pending or rejected MRFs only */}
                               {((request.status || "").toLowerCase() === "pending" || 
                                 (request.status || "").toLowerCase().includes("rejected")) && (
@@ -1111,10 +1111,10 @@ const Procurement = () => {
                   </div>
                   {/* Only employees can create SRF */}
                   {user?.role === "employee" && (
-                    <Button onClick={() => navigate("/procurement/srf/new")} size="sm">
-                      <Plus className="mr-2 h-4 w-4" />
-                      New SRF
-                    </Button>
+                  <Button onClick={() => navigate("/procurement/srf/new")} size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    New SRF
+                  </Button>
                   )}
                 </div>
               </CardHeader>
