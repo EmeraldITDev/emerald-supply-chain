@@ -3,11 +3,11 @@ import { useToast } from "@/hooks/use-toast";
 import { userApi } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { User } from "@/types";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -246,15 +246,13 @@ const UserManagement = () => {
 
   if (!canManageUsers) {
     return (
-      <DashboardLayout>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
-              You do not have permission to manage users.
-            </p>
-          </CardContent>
-        </Card>
-      </DashboardLayout>
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-center text-muted-foreground">
+            You do not have permission to manage users.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -268,58 +266,53 @@ const UserManagement = () => {
   ];
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">User Management</h1>
-            <p className="text-muted-foreground mt-1">Manage system users and permissions</p>
-          </div>
-          <Button onClick={() => handleOpenDialog()}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add User
-          </Button>
-        </div>
-
-        {/* Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search users..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-full md:w-[200px]">
-                  <SelectValue placeholder="Filter by role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  {roleOptions.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>
-                      {role.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>Manage system users and permissions</CardDescription>
             </div>
-          </CardContent>
-        </Card>
+            <Button onClick={() => handleOpenDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add User
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search users..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-full md:w-[200px]">
+                <SelectValue placeholder="Filter by role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                {roleOptions.map((role) => (
+                  <SelectItem key={role.value} value={role.value}>
+                    {role.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        {/* Users List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Users ({users.length})</CardTitle>
-            <CardDescription>Manage user accounts and permissions</CardDescription>
-          </CardHeader>
-          <CardContent>
+          <Separator />
+
+          {/* Users List */}
+          <div>
             {loading ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -334,16 +327,16 @@ const UserManagement = () => {
                 {users.map((u) => (
                   <div
                     key={u.id}
-                    className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-5 border rounded-xl bg-card hover:shadow-md transition-smooth"
+                    className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-4 border rounded-lg bg-card hover:shadow-sm transition-shadow"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-lg">{u.name}</h3>
-                        <Badge variant="outline">{u.role}</Badge>
-                        {u.is_admin && <Badge variant="default">Admin</Badge>}
-                        {u.can_manage_users && <Badge variant="secondary">Can Manage Users</Badge>}
+                        <h3 className="font-semibold">{u.name}</h3>
+                        <Badge variant="outline" className="text-xs">{u.role.replace('_', ' ')}</Badge>
+                        {u.is_admin && <Badge variant="default" className="text-xs">Admin</Badge>}
+                        {u.can_manage_users && <Badge variant="secondary" className="text-xs">Can Manage Users</Badge>}
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                         <div>
                           <p className="text-muted-foreground text-xs">Email</p>
                           <p className="font-medium">{u.email}</p>
@@ -383,8 +376,9 @@ const UserManagement = () => {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
         {/* Create/Edit Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

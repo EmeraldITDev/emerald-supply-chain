@@ -528,6 +528,24 @@ export const srfApi = {
       body: JSON.stringify(data),
     });
   },
+  createWithInvoice: async (formData: FormData): Promise<ApiResponse<SRF>> => {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/srfs`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // Don't set Content-Type - browser will set it with boundary for FormData
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+    return {
+      success: response.ok,
+      data: data.data || data,
+      error: data.error || data.message,
+    };
+  },
 
   update: async (id: string, data: Partial<SRF>): Promise<ApiResponse<SRF>> => {
     return apiRequest<SRF>(`/srfs/${id}`, {
