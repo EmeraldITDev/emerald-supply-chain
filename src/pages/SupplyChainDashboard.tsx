@@ -144,18 +144,22 @@ const SupplyChainDashboard = () => {
   };
 
   const handleDownloadPO = (mrf: MRF) => {
+    // Download the unsigned PO uploaded by Procurement
+    const poShareUrl = getUnsignedPOShareUrl(mrf);
     const poUrl = getUnsignedPOUrl(mrf);
-    if (poUrl) {
-      // If it's a full URL, open it; otherwise construct the URL
-      if (poUrl.startsWith('http')) {
-        window.open(poUrl, '_blank');
+    const poUrlToUse = poShareUrl || poUrl;
+    
+    if (poUrlToUse) {
+      // If it's a full URL (OneDrive share URL or full URL), open it directly
+      if (poUrlToUse.startsWith('http')) {
+        window.open(poUrlToUse, '_blank');
       } else {
         // Assume it's a relative path from the backend
         const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
-        window.open(`${baseUrl.replace('/api', '')}/${poUrl}`, '_blank');
+        window.open(`${baseUrl.replace('/api', '')}/${poUrlToUse}`, '_blank');
       }
     } else {
-      toast.info("PO document not available for download");
+      toast.error("PO document not available for download");
     }
   };
 
