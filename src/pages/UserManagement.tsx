@@ -534,7 +534,7 @@ const UserManagement = () => {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </DashboardLayout>
+    </div>
   );
 };
 
