@@ -28,6 +28,7 @@ import Vendors from "./pages/Vendors";
 import VendorRegistrationReview from "./pages/VendorRegistrationReview";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import UserManagement from "./pages/UserManagement";
 import AccountsPayable from "./pages/AccountsPayable";
 import AccountsReceivable from "./pages/AccountsReceivable";
 import BudgetControl from "./pages/BudgetControl";

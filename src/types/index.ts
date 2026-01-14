@@ -3,9 +3,12 @@ export interface User {
   id: number;
   email: string;
   name: string;
-  role: 'employee' | 'procurement_manager' | 'procurement' | 'finance' | 'admin' | 'executive' | 'supply_chain_director' | 'chairman' | 'logistics_manager' | 'logistics';
+  role: 'employee' | 'procurement_manager' | 'procurement' | 'finance' | 'admin' | 'executive' | 'supply_chain_director' | 'chairman' | 'logistics_manager' | 'logistics' | 'finance_officer' | 'supply_chain' | 'regular_staff' | 'staff';
   department?: string | null;
+  phone?: string | null;
   employeeId?: number;
+  is_admin?: boolean;
+  can_manage_users?: boolean;
   createdAt: string;
 }
 
@@ -43,6 +46,8 @@ export interface MRF {
   status: string; // Flexible to match backend workflow statuses
   currentStage?: 'pending' | 'executive_review' | 'chairman_review' | 'procurement' | 'executive' | 'chairman' | 'supply_chain' | 'finance' | 'chairman_payment' | 'completed' | 'rejected';
   current_stage?: string; // Backend snake_case variant
+  workflowState?: 'mrf_created' | 'mrf_approved' | 'mrf_rejected' | 'po_generated' | 'po_reviewed' | 'po_signed' | 'po_rejected' | 'payment_processed' | 'grn_requested' | 'grn_completed';
+  workflow_state?: string; // Backend snake_case variant
   approvalHistory?: ApprovalHistoryEntry[];
   approval_history?: ApprovalHistoryEntry[]; // Backend snake_case variant
   rejectionReason?: string;
@@ -81,6 +86,28 @@ export interface MRF {
   payment_status?: 'pending' | 'processing' | 'approved' | 'paid' | 'rejected';
   payment_approved_at?: string;
   payment_approved_by?: string;
+  // PFI (Proforma Invoice) fields
+  pfiUrl?: string;
+  pfi_url?: string; // Backend snake_case variant
+  pfiShareUrl?: string;
+  pfi_share_url?: string; // Backend snake_case variant
+  // GRN (Goods Received Note) fields
+  grnRequested?: boolean;
+  grn_requested?: boolean; // Backend snake_case variant
+  grnRequestedAt?: string;
+  grn_requested_at?: string; // Backend snake_case variant
+  grnRequestedBy?: string;
+  grn_requested_by?: string; // Backend snake_case variant
+  grnCompleted?: boolean;
+  grn_completed?: boolean; // Backend snake_case variant
+  grnCompletedAt?: string;
+  grn_completed_at?: string; // Backend snake_case variant
+  grnCompletedBy?: string;
+  grn_completed_by?: string; // Backend snake_case variant
+  grnUrl?: string;
+  grn_url?: string; // Backend snake_case variant
+  grnShareUrl?: string;
+  grn_share_url?: string; // Backend snake_case variant
 }
 
 export interface CreateMRFData {

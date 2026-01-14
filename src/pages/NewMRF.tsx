@@ -31,6 +31,7 @@ const NewMRF = () => {
     urgency: "",
     justification: "",
   });
+  const [pfiFile, setPfiFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (rejectedMRF) {
@@ -111,8 +112,20 @@ const NewMRF = () => {
           justification: formData.justification,
         };
         
-        console.log('Creating MRF with payload:', payload);
-        const response = await mrfApi.create(payload);
+        console.log('Creating MRF with payload:', payload, 'PFI file:', pfiFile?.name);
+        
+        // Create FormData if PFI file is provided
+        let response;
+        if (pfiFile) {
+          const formDataObj = new FormData();
+          Object.entries(payload).forEach(([key, value]) => {
+            formDataObj.append(key, String(value));
+          });
+          formDataObj.append('pfi', pfiFile);
+          response = await mrfApi.createWithPFI(formDataObj);
+        } else {
+          response = await mrfApi.create(payload);
+        }
         
         if (response.success) {
       const estimatedCost = parseFloat(formData.estimatedCost) || 0;

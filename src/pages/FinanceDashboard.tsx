@@ -1,15 +1,16 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Download, Clock, Calendar, DollarSign, TrendingUp, Loader2 } from "lucide-react";
+import { CheckCircle, Download, Clock, Calendar, DollarSign, TrendingUp, Loader2, FileText } from "lucide-react";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { mrfApi } from "@/services/api";
+import { mrfApi, grnApi } from "@/services/api";
 import type { MRF } from "@/types";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
+import GRNRequestDialog from "@/components/GRNRequestDialog";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,8 @@ const FinanceDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [processedItems, setProcessedItems] = useState<Set<string>>(new Set());
+  const [grnRequestDialogOpen, setGrnRequestDialogOpen] = useState(false);
+  const [selectedMRF, setSelectedMRF] = useState<MRF | null>(null);
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -79,12 +82,28 @@ const FinanceDashboard = () => {
     return (mrf.current_stage || mrf.currentStage || "").toLowerCase();
   };
 
+  // Get workflow state helper
+  const getWorkflowState = (mrf: MRF) => {
+    return (mrf.workflow_state || mrf.workflowState || "").toLowerCase();
+  };
+
   // Filter for MRFs that have signed POs and are ready for payment
   const approvedMRFs = useMemo(() => {
     return mrfRequests.filter(mrf => {
       const stage = getCurrentStage(mrf);
       const status = (mrf.status || "").toLowerCase();
-      return stage === "finance" || status.includes("finance");
+      const workflowState = getWorkflowState(mrf);
+      return (stage === "finance" || status.includes("finance")) && 
+             (workflowState === "po_signed" || workflowState === "payment_processed");
+    });
+  }, [mrfRequests]);
+
+  // Filter for processed payments that can request GRN
+  const processedForGRN = useMemo(() => {
+    return mrfRequests.filter(mrf => {
+      const workflowState = getWorkflowState(mrf);
+      const grnRequested = mrf.grn_requested || mrf.grnRequested;
+      return workflowState === "payment_processed" && !grnRequested;
     });
   }, [mrfRequests]);
 
@@ -107,7 +126,14 @@ const FinanceDashboard = () => {
 
   // Filtered data
   const filteredRequests = useMemo(() => {
-    let filtered = statusFilter === "pending" ? pendingPayment : processed;
+    let filtered;
+    if (statusFilter === "pending") {
+      filtered = pendingPayment;
+    } else if (statusFilter === "grn_ready") {
+      filtered = processedForGRN;
+    } else {
+      filtered = processed;
+    }
 
     // Search filter
     if (searchQuery) {
@@ -143,7 +169,7 @@ const FinanceDashboard = () => {
     }
 
     return filtered;
-  }, [pendingPayment, processed, statusFilter, searchQuery, dateFilter, minAmount, maxAmount]);
+  }, [pendingPayment, processed, processedForGRN, statusFilter, searchQuery, dateFilter, minAmount, maxAmount]);
 
   const handleMarkProcessed = async (id: string) => {
     const mrf = mrfRequests.find(m => m.id === id);
@@ -183,9 +209,19 @@ const FinanceDashboard = () => {
     }
   };
 
+  const handleRequestGRN = (mrf: MRF) => {
+    setSelectedMRF(mrf);
+    setGrnRequestDialogOpen(true);
+  };
+
+  const handleGRNRequestSuccess = () => {
+    fetchMRFs();
+  };
+
   const statusOptions = [
     { label: "Pending Payment", value: "pending" },
     { label: "Processed", value: "processed" },
+    { label: "Ready for GRN", value: "grn_ready" },
   ];
 
   const activeFiltersCount = 
@@ -353,39 +389,58 @@ const FinanceDashboard = () => {
                         </div>
                         <p className="text-sm text-muted-foreground mt-2 line-clamp-1">{mrf.description}</p>
                       </div>
-                      {!isProcessed && (
-                        <div className="flex gap-2 self-start lg:self-center items-center flex-wrap">
-                          {(mrf.signed_po_share_url || mrf.signedPOShareUrl || mrf.signed_po_url || mrf.signedPOUrl) && (
-                            <OneDriveLink 
-                              webUrl={mrf.signed_po_share_url || mrf.signedPOShareUrl || mrf.signed_po_url || mrf.signedPOUrl} 
-                              fileName={`Signed PO-${mrf.po_number || mrf.poNumber || 'N/A'}.pdf`}
-                              variant="badge"
-                            />
-                          )}
-                          <Button size="sm" variant="outline">
-                            <Download className="h-4 w-4 mr-1" />
-                            Documents
-                          </Button>
+                      <div className="flex gap-2 self-start lg:self-center items-center flex-wrap">
+                        {(mrf.signed_po_share_url || mrf.signedPOShareUrl || mrf.signed_po_url || mrf.signedPOUrl) && (
+                          <OneDriveLink 
+                            webUrl={mrf.signed_po_share_url || mrf.signedPOShareUrl || mrf.signed_po_url || mrf.signedPOUrl} 
+                            fileName={`Signed PO-${mrf.po_number || mrf.poNumber || 'N/A'}.pdf`}
+                            variant="badge"
+                          />
+                        )}
+                        {!isProcessed && (
+                          <>
+                            <Button size="sm" variant="outline">
+                              <Download className="h-4 w-4 mr-1" />
+                              Documents
+                            </Button>
+                            <Button 
+                              size="sm"
+                              onClick={() => handleMarkProcessed(mrf.id)}
+                              className="gradient-primary hover:opacity-90"
+                              disabled={actionLoading === mrf.id}
+                            >
+                              {actionLoading === mrf.id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                  Processing...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Mark as Processed
+                                </>
+                              )}
+                            </Button>
+                          </>
+                        )}
+                        {statusFilter === "grn_ready" && !(mrf.grn_requested || mrf.grnRequested) && (
                           <Button 
                             size="sm"
-                            onClick={() => handleMarkProcessed(mrf.id)}
-                            className="gradient-primary hover:opacity-90"
-                            disabled={actionLoading === mrf.id}
+                            variant="outline"
+                            onClick={() => handleRequestGRN(mrf)}
                           >
-                            {actionLoading === mrf.id ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                Processing...
-                              </>
-                            ) : (
-                              <>
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Mark as Processed
-                              </>
-                            )}
+                            <FileText className="h-4 w-4 mr-1" />
+                            Request GRN
                           </Button>
-                        </div>
-                      )}
+                        )}
+                        {(mrf.grn_share_url || mrf.grnShareUrl) && (
+                          <OneDriveLink 
+                            webUrl={mrf.grn_share_url || mrf.grnShareUrl || mrf.grn_url || mrf.grnUrl} 
+                            fileName={`GRN-${mrf.po_number || mrf.poNumber || 'N/A'}.pdf`}
+                            variant="badge"
+                          />
+                        )}
+                      </div>
                     </div>
                   );
                 })
@@ -394,6 +449,16 @@ const FinanceDashboard = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* GRN Request Dialog */}
+      {selectedMRF && (
+        <GRNRequestDialog
+          open={grnRequestDialogOpen}
+          onOpenChange={setGrnRequestDialogOpen}
+          mrf={selectedMRF}
+          onSuccess={handleGRNRequestSuccess}
+        />
+      )}
     </div>
     </DashboardLayout>
   );

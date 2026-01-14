@@ -17,8 +17,9 @@ import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RFQManagement } from "@/components/RFQManagement";
 import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
+import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import type { MRFRequest } from "@/contexts/AppContext";
-import { dashboardApi, mrfApi } from "@/services/api";
+import { dashboardApi, mrfApi, grnApi } from "@/services/api";
 import type { VendorRegistration, MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import {
@@ -132,7 +133,7 @@ const Procurement = () => {
     }
     
     // Check status string
-    const status = (mrf.status || "").toLowerCase();
+      const status = (mrf.status || "").toLowerCase();
     if (status.includes("approved by executive") || 
         status.includes("executive approved")) {
       return true;
@@ -1078,6 +1079,81 @@ const Procurement = () => {
         onGenerate={handlePOGeneration}
         isGenerating={poGenerating}
       />
+
+      {/* GRN Completion Dialog */}
+      {selectedMRFForGRN && (
+        <GRNCompletionDialog
+          open={grnCompletionDialogOpen}
+          onOpenChange={setGrnCompletionDialogOpen}
+          mrf={selectedMRFForGRN}
+          onSuccess={handleGRNCompletionSuccess}
+        />
+      )}
+
+      {/* GRN Requested Section */}
+      {grnRequestedMRFs.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>GRN Requests</CardTitle>
+            <CardDescription>Complete Goods Received Notes for processed payments</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {grnRequestedMRFs.map((mrf) => (
+                <div
+                  key={mrf.id}
+                  className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-5 border rounded-xl bg-card hover:shadow-md transition-smooth"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="font-semibold text-lg">{mrf.title}</h3>
+                      <Badge variant="outline">{mrf.id}</Badge>
+                      {getMRFPONumber(mrf) && <Badge variant="outline">PO: {getMRFPONumber(mrf)}</Badge>}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                      <div>
+                        <p className="text-muted-foreground text-xs">Requester</p>
+                        <p className="font-medium">{getMRFRequester(mrf)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Amount</p>
+                        <p className="font-bold text-lg">₦{parseFloat(getMRFEstimatedCost(mrf)).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Requested At</p>
+                        <p className="font-medium">
+                          {mrf.grn_requested_at || mrf.grnRequestedAt 
+                            ? new Date(mrf.grn_requested_at || mrf.grnRequestedAt).toLocaleDateString()
+                            : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 self-start lg:self-center">
+                    <Button
+                      size="sm"
+                      onClick={() => handleCompleteGRN(mrf)}
+                      disabled={poGenerating}
+                    >
+                      {poGenerating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="h-4 w-4 mr-1" />
+                          Complete GRN
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </DashboardLayout>
   );
 };

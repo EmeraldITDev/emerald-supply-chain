@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Link } from "react-router-dom";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,12 @@ export default function Settings() {
               <Shield className="h-4 w-4" />
               Security
             </TabsTrigger>
+            {(user?.can_manage_users || user?.is_admin || ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain', 'admin'].includes(user?.role || '')) && (
+              <TabsTrigger value="users" className="gap-2">
+                <User className="h-4 w-4" />
+                User Management
+              </TabsTrigger>
+            )}
             {canViewAuditTrail && (
               <TabsTrigger value="audit" className="gap-2">
                 <Database className="h-4 w-4" />

@@ -186,6 +186,83 @@ export const authApi = {
   },
 };
 
+// GRN API
+export const grnApi = {
+  requestGRN: async (mrfId: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${mrfId}/request-grn`, {
+      method: 'POST',
+    });
+  },
+
+  completeGRN: async (mrfId: string, grnFile: File): Promise<ApiResponse<MRF>> => {
+    const formData = new FormData();
+    formData.append('grn', grnFile);
+    
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/mrfs/${mrfId}/complete-grn`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+    return {
+      success: response.ok,
+      data: data.data || data,
+      error: data.error || data.message,
+    };
+  },
+};
+
+// User Management API
+export const userApi = {
+  getAll: async (filters?: { role?: string; search?: string }): Promise<ApiResponse<User[]>> => {
+    const params = new URLSearchParams();
+    if (filters?.role) params.append('role', filters.role);
+    if (filters?.search) params.append('search', filters.search);
+    
+    return apiRequest<User[]>(`/users?${params.toString()}`);
+  },
+
+  create: async (userData: {
+    name: string;
+    email: string;
+    role: string;
+    department?: string;
+    password: string;
+    is_admin?: boolean;
+    can_manage_users?: boolean;
+  }): Promise<ApiResponse<User>> => {
+    return apiRequest<User>('/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  },
+
+  update: async (userId: number, userData: Partial<{
+    name: string;
+    email: string;
+    role: string;
+    department?: string;
+    password?: string;
+    is_admin?: boolean;
+    can_manage_users?: boolean;
+  }>): Promise<ApiResponse<User>> => {
+    return apiRequest<User>(`/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  },
+
+  delete: async (userId: number): Promise<ApiResponse<void>> => {
+    return apiRequest<void>(`/users/${userId}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 // MRF API
 export const mrfApi = {
   getAll: async (filters?: FilterOptions, sort?: SortOptions): Promise<ApiResponse<MRF[]>> => {
@@ -207,6 +284,25 @@ export const mrfApi = {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  },
+
+  createWithPFI: async (formData: FormData): Promise<ApiResponse<MRF>> => {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/mrfs`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // Don't set Content-Type - browser will set it with boundary for FormData
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+    return {
+      success: response.ok,
+      data: data.data || data,
+      error: data.error || data.message,
+    };
   },
 
   update: async (id: string, data: Partial<MRF>): Promise<ApiResponse<MRF>> => {
