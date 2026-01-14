@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar, AlertCircle, Upload, Send, Loader2, RefreshCw } from "lucide-react";
+import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar, AlertCircle, Upload, Send, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
@@ -29,6 +29,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const Procurement = () => {
   const navigate = useNavigate();
@@ -47,6 +57,9 @@ const Procurement = () => {
   const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(null);
   const [grnCompletionDialogOpen, setGrnCompletionDialogOpen] = useState(false);
   const [selectedMRFForGRN, setSelectedMRFForGRN] = useState<MRF | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [mrfToDelete, setMrfToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Vendor registrations from dashboard API
   const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
@@ -140,9 +153,10 @@ const Procurement = () => {
     }
     
     // Check status string
-      const status = (mrf.status || "").toLowerCase();
+    const status = (mrf.status || "").toLowerCase();
     if (status.includes("approved by executive") || 
-        status.includes("executive approved")) {
+        status.includes("executive approved") ||
+        status === "procurement") { // After executive approval, status becomes "procurement"
       return true;
     }
     
@@ -158,10 +172,15 @@ const Procurement = () => {
     }
     
     // Check if stage is procurement AND has been through executive approval
-    // Only allow if status explicitly shows executive approval
+    // After executive approval (for items <= 1M), stage becomes "procurement"
     const stage = getMRFStage(mrf);
-    if (stage === "procurement" && status.includes("executive")) {
-      return true;
+    if (stage === "procurement") {
+      // If status is "procurement" and not "pending", it's likely executive-approved
+      // (unless it's a rejected PO, which we check separately)
+      const statusLower = (mrf.status || "").toLowerCase();
+      if (statusLower !== "pending" && !statusLower.includes("rejected")) {
+        return true;
+      }
     }
     
     return false;
@@ -495,6 +514,43 @@ const Procurement = () => {
 
   const handleGRNCompletionSuccess = () => {
     fetchMRFs();
+  };
+
+  const handleDeleteMRF = (mrfId: string) => {
+    setMrfToDelete(mrfId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteMRF = async () => {
+    if (!mrfToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const response = await mrfApi.delete(mrfToDelete);
+      if (response.success) {
+        toast({
+          title: "MRF Deleted",
+          description: "The Material Request Form has been deleted successfully",
+        });
+        await fetchMRFs();
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to delete MRF",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to server",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setMrfToDelete(null);
+    }
   };
 
   const handleConvertMRNToMRF = (mrnId: string) => {
@@ -999,20 +1055,37 @@ const Procurement = () => {
                                 {request.status}
                               </Badge>
                             </div>
-                            {getMRFStage(request as MRF) === "procurement" && isExecutiveApproved(request as MRF) && (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                className="text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleGeneratePO(request);
-                                }}
-                              >
-                                <ShoppingCart className="h-3 w-3 mr-1" />
-                                Generate PO
-                              </Button>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {getMRFStage(request as MRF) === "procurement" && isExecutiveApproved(request as MRF) && (
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleGeneratePO(request);
+                                  }}
+                                >
+                                  <ShoppingCart className="h-3 w-3 mr-1" />
+                                  Generate PO
+                                </Button>
+                              )}
+                              {/* Allow delete for pending or rejected MRFs only */}
+                              {((request.status || "").toLowerCase() === "pending" || 
+                                (request.status || "").toLowerCase().includes("rejected")) && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-xs text-destructive hover:text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteMRF(request.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -1190,6 +1263,28 @@ const Procurement = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete MRF Request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this Material Request Form? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteMRF}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

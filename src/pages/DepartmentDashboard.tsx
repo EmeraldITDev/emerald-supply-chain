@@ -14,10 +14,14 @@ import { format } from "date-fns";
 
 const DepartmentDashboard = () => {
   const { user } = useAuth();
-  const { mrns, annualPlans, mrfRequests, srfRequests } = useApp();
+  const { mrns, annualPlans, mrfRequests, srfRequests, refreshMRFs } = useApp();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [mrfToDelete, setMrfToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter MRNs for current user only (employees see only their own requests)
   const departmentMRNs = useMemo(() => {
@@ -55,6 +59,45 @@ const DepartmentDashboard = () => {
     underReview: departmentMRNs.filter(m => m.status === "Under Review").length,
     converted: departmentMRNs.filter(m => m.status === "Converted to MRF").length,
     rejected: departmentMRNs.filter(m => m.status === "Rejected").length,
+  };
+
+  const handleDeleteMRF = async (mrfId: string) => {
+    setMrfToDelete(mrfId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteMRF = async () => {
+    if (!mrfToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const response = await mrfApi.delete(mrfToDelete);
+      if (response.success) {
+        toast({
+          title: "MRF Deleted",
+          description: "The Material Request Form has been deleted successfully",
+        });
+        if (refreshMRFs) {
+          await refreshMRFs();
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to delete MRF",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to server",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setMrfToDelete(null);
+    }
   };
 
   return (
@@ -247,20 +290,37 @@ const DepartmentDashboard = () => {
                   ) : (
                     mrfRequests
                       .filter(mrf => mrf.requesterId === user?.email || mrf.requester === user?.name)
-                      .map((mrf) => (
-                        <Card key={mrf.id}>
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h3 className="font-semibold">{mrf.title}</h3>
-                                <p className="text-sm text-muted-foreground">MRF ID: {mrf.id}</p>
-                                <p className="text-sm text-muted-foreground">Status: {mrf.status}</p>
+                      .map((mrf) => {
+                        // Only allow delete for pending or rejected MRFs (not in workflow)
+                        const canDelete = (mrf.status || "").toLowerCase() === "pending" || 
+                                         (mrf.status || "").toLowerCase().includes("rejected");
+                        return (
+                          <Card key={mrf.id}>
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h3 className="font-semibold">{mrf.title}</h3>
+                                  <p className="text-sm text-muted-foreground">MRF ID: {mrf.id}</p>
+                                  <p className="text-sm text-muted-foreground">Status: {mrf.status}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
+                                  {canDelete && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteMRF(mrf.id)}
+                                      className="text-destructive hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
-                              <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))
+                            </CardContent>
+                          </Card>
+                        );
+                      })
                   )}
                 </div>
               </CardContent>
@@ -373,6 +433,28 @@ const DepartmentDashboard = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete MRF Request?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this Material Request Form? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeleteMRF}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
