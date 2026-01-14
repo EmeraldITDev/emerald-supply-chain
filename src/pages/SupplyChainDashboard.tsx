@@ -15,6 +15,7 @@ import { ProcurementProgressTracker } from "@/components/ProcurementProgressTrac
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { mrfApi } from "@/services/api";
 import type { MRF } from "@/types";
+import { OneDriveLink } from "@/components/OneDriveLink";
 
 const SupplyChainDashboard = () => {
   const { user } = useAuth();
@@ -293,17 +294,28 @@ const SupplyChainDashboard = () => {
                         </div>
 
                         {/* Download unsigned PO */}
-                        <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="text-sm flex-1">PO uploaded by Procurement Manager</span>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleDownloadPO(mrf)}
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Download PO
-                          </Button>
+                        <div className="flex flex-col gap-2 p-3 bg-muted/50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <span className="text-sm flex-1">PO uploaded by Procurement Manager</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleDownloadPO(mrf)}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Download PO
+                            </Button>
+                            {getUnsignedPOUrl(mrf) && (
+                              <OneDriveLink 
+                                webUrl={getUnsignedPOUrl(mrf)} 
+                                fileName={`PO-${getPONumber(mrf)}.pdf`}
+                                variant="badge"
+                              />
+                            )}
+                          </div>
                         </div>
 
                         {/* Upload signed PO */}
