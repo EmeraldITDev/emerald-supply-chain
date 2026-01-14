@@ -114,6 +114,26 @@ const Procurement = () => {
   const getMRFPOVersion = (mrf: MRF) => mrf.po_version || mrf.poVersion || 1;
   const getMRFPOShareUrl = (mrf: MRF) => mrf.unsigned_po_share_url || mrf.unsignedPOShareUrl || getMRFPOUrl(mrf);
   const getMRFSignedPOShareUrl = (mrf: MRF) => mrf.signed_po_share_url || mrf.signedPOShareUrl || (mrf.signed_po_url || mrf.signedPOUrl);
+  const getMRFPFIUrl = (mrf: MRF) => mrf.pfi_share_url || mrf.pfiShareUrl || mrf.pfi_url || mrf.pfiUrl;
+
+  // Handle PFI/Invoice download
+  const handleDownloadPFI = (mrf: MRF) => {
+    const pfiUrl = getMRFPFIUrl(mrf);
+    if (pfiUrl) {
+      if (pfiUrl.startsWith('http')) {
+        window.open(pfiUrl, '_blank');
+      } else {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
+        window.open(`${baseUrl.replace('/api', '')}/${pfiUrl}`, '_blank');
+      }
+    } else {
+      toast({
+        title: "Invoice Not Available",
+        description: "Invoice/PFI document is not available",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Convert MRF (API type) to MRFRequest (UI component type)
   const convertToMRFRequest = (mrf: MRF): MRFRequest => ({
@@ -969,6 +989,34 @@ const Procurement = () => {
                                   </>
                                 )}
                               </div>
+
+                              {/* Invoice/PFI Access */}
+                              {getMRFPFIUrl(mrf as MRF) && (
+                                <div className="flex flex-col gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg mt-3">
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                    <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Invoice/PFI Submitted by Staff</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      onClick={() => handleDownloadPFI(mrf as MRF)}
+                                      className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
+                                    >
+                                      <Download className="h-4 w-4 mr-2" />
+                                      View Invoice
+                                    </Button>
+                                    {(mrf.pfi_share_url || mrf.pfiShareUrl) && (
+                                      <OneDriveLink 
+                                        webUrl={mrf.pfi_share_url || mrf.pfiShareUrl} 
+                                        fileName="Invoice"
+                                        variant="badge"
+                                      />
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
@@ -1108,6 +1156,31 @@ const Procurement = () => {
                                 <p className="text-xs text-muted-foreground">
                                   Stage: <span className="capitalize font-medium">{request.currentStage}</span>
                                 </p>
+                              )}
+                              {/* Invoice/PFI Access */}
+                              {getMRFPFIUrl(request as MRF) && (
+                                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownloadPFI(request as MRF);
+                                    }}
+                                  >
+                                    <FileText className="h-3 w-3 mr-1" />
+                                    View Invoice
+                                  </Button>
+                                  {(request.pfi_share_url || request.pfiShareUrl) && (
+                                    <OneDriveLink 
+                                      webUrl={request.pfi_share_url || request.pfiShareUrl} 
+                                      fileName="Invoice"
+                                      variant="badge"
+                                      size="sm"
+                                    />
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>

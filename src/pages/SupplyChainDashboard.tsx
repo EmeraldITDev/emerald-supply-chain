@@ -68,6 +68,23 @@ const SupplyChainDashboard = () => {
     return mrf.signed_po_url || mrf.signedPOUrl;
   };
 
+  const getPFIUrl = (mrf: MRF) => {
+    return mrf.pfi_share_url || mrf.pfiShareUrl || mrf.pfi_url || mrf.pfiUrl;
+  };
+
+  // Handle PFI download
+  const handleDownloadPFI = (mrf: MRF) => {
+    const pfiUrl = getPFIUrl(mrf);
+    if (pfiUrl) {
+      if (pfiUrl.startsWith('http')) {
+        window.open(pfiUrl, '_blank');
+      } else {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
+        window.open(`${baseUrl.replace('/api', '')}/${pfiUrl}`, '_blank');
+      }
+    }
+  };
+
   const getUnsignedPOShareUrl = (mrf: MRF) => {
     return mrf.unsigned_po_share_url || mrf.unsignedPOShareUrl || getUnsignedPOUrl(mrf);
   };
@@ -300,6 +317,34 @@ const SupplyChainDashboard = () => {
                             <p className="text-muted-foreground">{mrf.description}</p>
                           </div>
                         </div>
+
+                        {/* Invoice/PFI Access */}
+                        {getPFIUrl(mrf) && (
+                          <div className="flex flex-col gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Invoice/PFI Submitted by Staff</span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleDownloadPFI(mrf)}
+                                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                View Invoice
+                              </Button>
+                              {(mrf.pfi_share_url || mrf.pfiShareUrl) && (
+                                <OneDriveLink 
+                                  webUrl={mrf.pfi_share_url || mrf.pfiShareUrl} 
+                                  fileName="Invoice"
+                                  variant="badge"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Download unsigned PO */}
                         <div className="flex flex-col gap-2 p-3 bg-muted/50 rounded-lg">
