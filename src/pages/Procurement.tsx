@@ -127,6 +127,11 @@ const Procurement = () => {
     poVersion: getMRFPOVersion(mrf),
   });
 
+  // Get workflow state helper
+  const getWorkflowState = (mrf: MRF) => {
+    return (mrf.workflow_state || mrf.workflowState || "").toLowerCase();
+  };
+
   // Helper to check if MRF is Executive-approved
   const isExecutiveApproved = (mrf: MRF): boolean => {
     // Check explicit approval flag

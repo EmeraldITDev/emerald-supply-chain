@@ -33,6 +33,7 @@ export default function Settings() {
   const isRegularEmployee = user?.role === "employee";
   const canViewProfile = !isRegularEmployee;
   const canViewAuditTrail = ['admin', 'chairman', 'executive', 'supply_chain_director', 'procurement', 'finance', 'logistics'].includes(user?.role || '');
+  const canManageUsers = user?.can_manage_users || user?.is_admin || ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain', 'admin'].includes(user?.role || '');
 
   const handleSaveProfile = async () => {
     if (!name.trim()) {
