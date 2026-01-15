@@ -1213,20 +1213,34 @@ const Procurement = () => {
                               </Badge>
                             </div>
                             <div className="flex items-center gap-2">
-                              {getMRFStage(request as MRF) === "procurement" && isExecutiveApproved(request as MRF) && (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                className="text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleGeneratePO(request);
-                                }}
-                              >
-                                <ShoppingCart className="h-3 w-3 mr-1" />
-                                Generate PO
-                              </Button>
-                            )}
+                              {/* Generate PO button - Only shown when Supply Chain Director has approved vendor selection */}
+                              {/* The handleGeneratePO function checks canGeneratePO before proceeding */}
+                              {/* Button shown optimistically for procurement role when in right stage */}
+                              {(() => {
+                                const workflowState = getWorkflowState(request as MRF);
+                                const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager" || user?.role === "admin";
+                                const canShowPOButton = isProcurement && (
+                                  workflowState === "invoice_approved" || // After Supply Chain Director approval
+                                  (getMRFStage(request as MRF) === "procurement" && isExecutiveApproved(request as MRF)) // Optimistic for list view
+                                );
+                                
+                                if (!canShowPOButton) return null;
+                                
+                                return (
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleGeneratePO(request);
+                                    }}
+                                  >
+                                    <ShoppingCart className="h-3 w-3 mr-1" />
+                                    Generate PO
+                                  </Button>
+                                );
+                              })()}
                               {/* Download PO if available */}
                               {getMRFPOUrl(request as MRF) && (
                                 <>

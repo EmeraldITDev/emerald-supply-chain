@@ -17,6 +17,7 @@ import { mrfApi } from "@/services/api";
 import type { MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { SupplyChainActionButtons } from "@/components/SupplyChainActionButtons";
+import { SupplyChainVendorApprovalButtons } from "@/components/SupplyChainVendorApprovalButtons";
 
 const SupplyChainDashboard = () => {
   const { user } = useAuth();
@@ -98,15 +99,30 @@ const SupplyChainDashboard = () => {
     return mrf.po_version || mrf.poVersion || 1;
   };
 
-  // Filter MRFs at supply chain stage with PO uploaded by Procurement
+  // Get workflow state helper
+  const getWorkflowState = (mrf: MRF) => {
+    return (mrf.workflow_state || mrf.workflowState || "").toLowerCase();
+  };
+
+  // Filter MRFs with vendor selections pending Supply Chain Director approval
+  const pendingVendorApprovals = useMemo(() => {
+    return mrfRequests.filter(mrf => {
+      const workflowState = getWorkflowState(mrf);
+      // Vendor selected by Procurement, awaiting Supply Chain Director approval
+      return workflowState === "vendor_selected" || workflowState === "invoice_received";
+    });
+  }, [mrfRequests]);
+
+  // Filter MRFs at supply chain stage with PO uploaded by Procurement (for signing)
   const pendingPOs = useMemo(() => {
     return mrfRequests.filter(mrf => {
       const stage = (mrf.current_stage || mrf.currentStage || "").toLowerCase();
+      const workflowState = getWorkflowState(mrf);
       const unsignedUrl = getUnsignedPOUrl(mrf);
       const signedUrl = getSignedPOUrl(mrf);
       
       return (
-        stage === "supply_chain" && 
+        (stage === "supply_chain" || workflowState === "po_generated") &&
         unsignedUrl &&      // PO already uploaded by Procurement
         !signedUrl          // Not yet signed
       );
@@ -183,47 +199,44 @@ const SupplyChainDashboard = () => {
     }
   };
 
+  // Handle reject vendor selection or PO
   const handleRejectPO = async (reason: string, comments: string) => {
     if (!selectedMRFForRejection) return;
 
-    // Check available actions from backend before proceeding
-    try {
-      const response = await mrfApi.getAvailableActions(selectedMRFForRejection.id);
-      if (response.success && response.data) {
-        // Verify we can reject PO (check if unsigned PO exists)
-        if (!selectedMRFForRejection.unsigned_po_url && !selectedMRFForRejection.unsignedPOUrl) {
-          toast.error("PO document not available for rejection");
-          setRejectDialogOpen(false);
-          setSelectedMRFForRejection(null);
-          return;
-        }
-      } else {
-        toast.error("Could not verify permissions. Please try again.");
-        setRejectDialogOpen(false);
-        setSelectedMRFForRejection(null);
-        return;
-      }
-    } catch (error) {
-      toast.error("Failed to check permissions. Please try again.");
-      setRejectDialogOpen(false);
-      setSelectedMRFForRejection(null);
-      return;
-    }
+    const workflowState = getWorkflowState(selectedMRFForRejection);
+    const isVendorRejection = workflowState === "vendor_selected" || workflowState === "invoice_received";
+    const isPORejection = selectedMRFForRejection.unsigned_po_url || selectedMRFForRejection.unsignedPOUrl;
 
     setActionLoading(selectedMRFForRejection.id);
 
     try {
-      // Call the real backend API endpoint
-      const response = await mrfApi.rejectPO(selectedMRFForRejection.id, reason, comments);
-      
-      if (response.success) {
-        const poNumber = getPONumber(selectedMRFForRejection);
-        toast.error(`PO ${poNumber} rejected - Sent back to Procurement for revision`);
-        setRejectDialogOpen(false);
-        setSelectedMRFForRejection(null);
-        await fetchMRFs();
+      if (isVendorRejection) {
+        // Reject vendor selection
+        const response = await mrfApi.rejectVendorSelection(selectedMRFForRejection.id, reason, comments);
+        
+        if (response.success) {
+          toast.error(`Vendor selection rejected - Sent back to Procurement`);
+          setRejectDialogOpen(false);
+          setSelectedMRFForRejection(null);
+          await fetchMRFs();
+        } else {
+          toast.error(response.error || "Failed to reject vendor selection");
+        }
+      } else if (isPORejection) {
+        // Reject PO
+        const response = await mrfApi.rejectPO(selectedMRFForRejection.id, reason, comments);
+        
+        if (response.success) {
+          const poNumber = getPONumber(selectedMRFForRejection);
+          toast.error(`PO ${poNumber} rejected - Sent back to Procurement for revision`);
+          setRejectDialogOpen(false);
+          setSelectedMRFForRejection(null);
+          await fetchMRFs();
+        } else {
+          toast.error(response.error || "Failed to reject PO");
+        }
       } else {
-        toast.error(response.error || "Failed to reject PO");
+        toast.error("Cannot determine rejection type");
       }
     } catch (error) {
       toast.error("Failed to connect to server");
@@ -259,17 +272,30 @@ const SupplyChainDashboard = () => {
         {/* Dashboard Alerts */}
         <DashboardAlerts userRole="supply_chain" maxAlerts={5} />
 
-        {/* Summary Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending POs</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingPOs.length}</div>
-            <p className="text-xs text-muted-foreground">POs awaiting review and signature</p>
-          </CardContent>
-        </Card>
+        {/* Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Vendor Selections</CardTitle>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{pendingVendorApprovals.length}</div>
+              <p className="text-xs text-muted-foreground">Awaiting approval</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending POs</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{pendingPOs.length}</div>
+              <p className="text-xs text-muted-foreground">POs awaiting review and signature</p>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Vendor Registrations Section */}
         <VendorRegistrationsList 
@@ -277,6 +303,95 @@ const SupplyChainDashboard = () => {
           showTabs={false} 
           title="Pending Vendor Registrations"
         />
+
+        {/* Vendor Selections Pending Approval */}
+        {pendingVendorApprovals.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Vendor Selections Pending Approval</CardTitle>
+              <CardDescription>Review and approve Procurement's vendor selections before PO generation</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {pendingVendorApprovals.map((mrf) => {
+                  const estimatedCost = getEstimatedCost(mrf);
+                  const isActionLoading = actionLoading === mrf.id;
+
+                  return (
+                    <Card key={mrf.id} className="border-l-4 border-l-amber-500">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-lg">{mrf.title}</CardTitle>
+                            <CardDescription>
+                              {mrf.id} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
+                            </CardDescription>
+                          </div>
+                          <Badge>₦{estimatedCost.toLocaleString()}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid md:grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="font-semibold">Category:</p>
+                            <p className="text-muted-foreground">{mrf.category}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold">Quantity:</p>
+                            <p className="text-muted-foreground">{mrf.quantity}</p>
+                          </div>
+                          <div className="md:col-span-2">
+                            <p className="font-semibold">Description:</p>
+                            <p className="text-muted-foreground">{mrf.description}</p>
+                          </div>
+                        </div>
+
+                        {/* Vendor Selection Info */}
+                        <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                          <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                            Procurement has selected a vendor. Review and approve to proceed with PO generation.
+                          </p>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <SupplyChainVendorApprovalButtons
+                          mrf={mrf}
+                          onApprove={async () => {
+                            setActionLoading(mrf.id);
+                            try {
+                              const response = await mrfApi.getAvailableActions(mrf.id);
+                              if (!response.success || !response.data?.canApproveInvoice) {
+                                toast.error("You do not have permission to approve vendor selection at this time");
+                                setActionLoading(null);
+                                return;
+                              }
+                              const approveResponse = await mrfApi.approveVendorSelection(mrf.id);
+                              if (approveResponse.success) {
+                                toast.success("Vendor selection approved - Sent back to Procurement for PO generation");
+                                await fetchMRFs();
+                              } else {
+                                toast.error(approveResponse.error || "Failed to approve vendor selection");
+                              }
+                            } catch (error) {
+                              toast.error("Failed to connect to server");
+                            } finally {
+                              setActionLoading(null);
+                            }
+                          }}
+                          onReject={() => {
+                            setSelectedMRFForRejection(mrf);
+                            setRejectDialogOpen(true);
+                          }}
+                          isLoading={isActionLoading}
+                        />
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Progress Tracker */}
         <ProcurementProgressTracker mrfRequests={mrfRequests.map(mrf => ({

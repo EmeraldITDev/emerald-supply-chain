@@ -465,6 +465,30 @@ export const mrfApi = {
     }
   },
 
+  // Procurement sends selected vendor to Supply Chain Director for approval
+  sendVendorForApproval: async (id: string, vendorId: string, quotationId?: string, remarks?: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/send-vendor-for-approval`, {
+      method: 'POST',
+      body: JSON.stringify({ vendor_id: vendorId, quotation_id: quotationId, remarks }),
+    });
+  },
+
+  // Supply Chain Director approves vendor selection
+  approveVendorSelection: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/approve-vendor-selection`, {
+      method: 'POST',
+      body: JSON.stringify({ remarks }),
+    });
+  },
+
+  // Supply Chain Director rejects vendor selection
+  rejectVendorSelection: async (id: string, reason: string, comments?: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/reject-vendor-selection`, {
+      method: 'POST',
+      body: JSON.stringify({ reason, comments }),
+    });
+  },
+
   // Supply Chain Director uploads signed PO
   uploadSignedPO: async (id: string, signedPOFile: File): Promise<ApiResponse<MRF>> => {
     const token = getAuthToken();
