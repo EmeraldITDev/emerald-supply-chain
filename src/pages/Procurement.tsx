@@ -418,8 +418,8 @@ const Procurement = () => {
           return;
         }
         // Proceed with PO generation
-        setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
-        setPODialogOpen(true);
+    setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
+    setPODialogOpen(true);
       } else {
         toast({
           title: "Error",
@@ -799,10 +799,10 @@ const Procurement = () => {
           {/* RFQ Management Tab */}
           <TabsContent value="rfq" className="space-y-4">
             <RFQManagement onVendorSelected={(vendorId, rfqId) => {
-              toast({
-                title: "Vendor Selected",
-                description: "Proceed to generate Purchase Order",
-              });
+              // Vendor selection is now handled in RFQManagement component
+              // It automatically sends vendor to Supply Chain Director for approval
+              // Refresh MRF list to see updated workflow state
+              fetchMRFs();
               setTab("mrf");
             }} />
           </TabsContent>
@@ -955,8 +955,8 @@ const Procurement = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                {/* Rejected POs - Need Resubmission */}
-                {rejectedPOs.length > 0 && (
+                {/* Rejected POs - Need Resubmission - Only visible to Procurement Managers */}
+                {rejectedPOs.length > 0 && (user?.role === "procurement" || user?.role === "procurement_manager" || user?.role === "admin") && (
                   <div className="mb-6 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
                     <div className="flex items-center gap-2 mb-4">
                       <XCircle className="h-5 w-5 text-destructive" />
@@ -988,6 +988,8 @@ const Procurement = () => {
                                     <p>Amount: <span className="font-semibold">₦{parseInt(mrf.estimatedCost).toLocaleString()}</span></p>
                                   </div>
                                 </div>
+                              {/* Regenerate PO button - Only for Procurement Managers */}
+                              {(user?.role === "procurement" || user?.role === "procurement_manager" || user?.role === "admin") && (
                               <Button
                                 size="sm"
                                 onClick={() => handleGeneratePO(mrf)}
@@ -995,6 +997,7 @@ const Procurement = () => {
                                 <FileText className="h-4 w-4 mr-2" />
                                 Regenerate PO
                               </Button>
+                              )}
                               </div>
                               
                               {/* Rejection Details */}
@@ -1044,8 +1047,8 @@ const Procurement = () => {
                   </div>
                 )}
 
-                {/* Executive Approved MRFs - Awaiting PO Upload */}
-                {executiveApprovedMRFs.length > 0 && (
+                {/* Executive Approved MRFs - Awaiting PO Upload - Only visible to Procurement Managers */}
+                {executiveApprovedMRFs.length > 0 && (user?.role === "procurement" || user?.role === "procurement_manager" || user?.role === "admin") && (
                   <div className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-lg">
                     <div className="flex items-center gap-2 mb-4">
                       <AlertCircle className="h-5 w-5 text-primary" />
@@ -1074,6 +1077,8 @@ const Procurement = () => {
                                   <p className="text-xs italic">Quantity: {mrf.quantity}</p>
                                 </div>
                               </div>
+                              {/* Generate PO button - Only for Procurement Managers */}
+                              {(user?.role === "procurement" || user?.role === "procurement_manager" || user?.role === "admin") && (
                               <Button
                                 size="sm"
                                 onClick={() => handleGeneratePO(mrf)}
@@ -1081,6 +1086,7 @@ const Procurement = () => {
                                 <FileText className="h-4 w-4 mr-2" />
                                 Generate PO
                               </Button>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
@@ -1227,17 +1233,17 @@ const Procurement = () => {
                                 if (!canShowPOButton) return null;
                                 
                                 return (
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    className="text-xs"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleGeneratePO(request);
-                                    }}
-                                  >
-                                    <ShoppingCart className="h-3 w-3 mr-1" />
-                                    Generate PO
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGeneratePO(request);
+                                }}
+                              >
+                                <ShoppingCart className="h-3 w-3 mr-1" />
+                                Generate PO
                                   </Button>
                                 );
                               })()}
@@ -1269,8 +1275,8 @@ const Procurement = () => {
                                     >
                                       <Trash2 className="h-3 w-3 mr-1" />
                                       Delete PO
-                                    </Button>
-                                  )}
+                              </Button>
+                            )}
                                 </>
                               )}
                               {/* Allow delete for procurement managers - MRFs without PO and in early stages */}

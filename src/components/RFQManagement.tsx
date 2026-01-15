@@ -285,24 +285,52 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     setIsAwardingVendor(true);
     
     try {
-      // Select vendor via API
-      const response = await rfqApi.selectVendor(selectedRFQ.id, quotationId);
+      // Step 1: Select vendor via RFQ API (marks vendor as selected in RFQ)
+      const selectResponse = await rfqApi.selectVendor(selectedRFQ.id, quotationId);
 
-      if (response.success) {
-    toast({
-      title: "Vendor Awarded",
-      description: "The selected vendor has been awarded. Proceed to PO generation.",
-    });
-
-    onVendorSelected?.(vendorId, selectedRFQ.id);
-    setCompareDialogOpen(false);
-      } else {
+      if (!selectResponse.success) {
         toast({
           title: "Error",
-          description: response.error || "Failed to award vendor",
+          description: selectResponse.error || "Failed to award vendor",
           variant: "destructive",
         });
+        return;
       }
+
+      // Step 2: Send selected vendor to Supply Chain Director for approval
+      // This updates the MRF workflow state to vendor_selected
+      if (selectedRFQ.mrfId) {
+        const { mrfApi } = await import("@/services/api");
+        const sendResponse = await mrfApi.sendVendorForApproval(
+          selectedRFQ.mrfId,
+          vendorId,
+          quotationId
+        );
+
+        if (sendResponse.success) {
+          toast({
+            title: "Vendor Selection Sent for Approval",
+            description: "Vendor has been selected and sent to Supply Chain Director for approval. You'll be able to generate PO after approval.",
+          });
+        } else {
+          // RFQ vendor selection succeeded but sending for approval failed
+          toast({
+            title: "Vendor Selected",
+            description: "Vendor was awarded in RFQ, but failed to send for Supply Chain Director approval: " + (sendResponse.error || "Unknown error"),
+            variant: "destructive",
+          });
+        }
+      } else {
+        // No MRF ID in RFQ - fallback behavior
+        toast({
+          title: "Vendor Awarded",
+          description: "The selected vendor has been awarded. MRF ID not found - please contact support.",
+          variant: "default",
+        });
+      }
+
+      onVendorSelected?.(vendorId, selectedRFQ.id);
+      setCompareDialogOpen(false);
     } catch (error) {
       toast({
         title: "Error",
