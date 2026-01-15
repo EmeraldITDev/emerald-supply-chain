@@ -246,6 +246,23 @@ export interface ApprovalHistoryEntry {
   remarks?: string;
 }
 
+// Available Actions for MRF (based on role and state)
+export interface AvailableActions {
+  canEdit: boolean;
+  canApprove: boolean;
+  canReject: boolean;
+  canSelectVendors: boolean;
+  canViewInvoices: boolean;
+  canApproveInvoice: boolean;
+  canGeneratePO: boolean;
+  canSignPO: boolean;
+  canProcessPayment: boolean;
+  canRequestGRN: boolean;
+  canUploadGRN: boolean;
+  canViewGRN: boolean;
+  availableActions: string[]; // List of action keys: 'view', 'edit', 'approve', 'reject', etc.
+}
+
 // API Response Types
 export interface ApiResponse<T> {
   success: boolean;

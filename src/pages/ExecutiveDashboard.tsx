@@ -4,7 +4,6 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, AlertCircle, FileText, Loader2, RefreshCw, Download } from "lucide-react";
 import { toast } from "sonner";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -13,6 +12,7 @@ import { ProcurementProgressTracker } from "@/components/ProcurementProgressTrac
 import { mrfApi } from "@/services/api";
 import type { MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
+import { ExecutiveActionButtons } from "@/components/ExecutiveActionButtons";
 
 const ExecutiveDashboard = () => {
   const { user } = useAuth();
@@ -350,65 +350,33 @@ const ExecutiveDashboard = () => {
                           </div>
                         )}
 
-                        {selectedMRF === mrf.id && (
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Comments / Remarks:</label>
-                            <Textarea
-                              value={comments[mrf.id] || ""}
-                              onChange={(e) => setComments(prev => ({ ...prev, [mrf.id]: e.target.value }))}
-                              placeholder="Enter your comments or approval remarks..."
-                              rows={3}
-                              disabled={isActionLoading}
+                        {selectedMRF === mrf.id ? (
+                          <>
+                            <ExecutiveActionButtons
+                              mrf={mrf}
+                              onApprove={handleApprove}
+                              onReject={handleReject}
+                              comments={comments[mrf.id] || ""}
+                              onCommentsChange={(value) => setComments(prev => ({ ...prev, [mrf.id]: value }))}
+                              isLoading={isActionLoading}
                             />
-                          </div>
-                        )}
-
-                        <div className="flex gap-2">
-                          {selectedMRF === mrf.id ? (
-                            <>
-                              <Button 
-                                onClick={() => handleApprove(mrf.id)}
-                                className="flex-1"
-                                variant="default"
-                                disabled={isActionLoading}
-                              >
-                                {isActionLoading ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="mr-2 h-4 w-4" />
-                                )}
-                                Confirm Approval
-                              </Button>
-                              <Button 
-                                onClick={() => handleReject(mrf.id)}
-                                variant="destructive"
-                                className="flex-1"
-                                disabled={isActionLoading}
-                              >
-                                {isActionLoading ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                )}
-                                Reject
-                              </Button>
-                              <Button 
-                                onClick={() => setSelectedMRF(null)}
-                                variant="outline"
-                                disabled={isActionLoading}
-                              >
-                                Cancel
-                              </Button>
-                            </>
-                          ) : (
                             <Button 
-                              onClick={() => setSelectedMRF(mrf.id)}
-                              className="w-full"
+                              onClick={() => setSelectedMRF(null)}
+                              variant="outline"
+                              disabled={isActionLoading}
+                              className="mt-2"
                             >
-                              Review & Approve
+                              Cancel
                             </Button>
-                          )}
-                        </div>
+                          </>
+                        ) : (
+                          <Button 
+                            onClick={() => setSelectedMRF(mrf.id)}
+                            className="w-full"
+                          >
+                            Review & Approve
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   );

@@ -402,19 +402,38 @@ const Procurement = () => {
     });
   };
 
-  const handleGeneratePO = (mrf: MRFRequest | MRF) => {
-    // Validate that MRF is Executive-approved before allowing PO generation
-    if (!isExecutiveApproved(mrf as MRF)) {
+  const handleGeneratePO = async (mrf: MRFRequest | MRF) => {
+    // Check available actions from backend
+    try {
+      const response = await mrfApi.getAvailableActions(mrf.id);
+      if (response.success && response.data) {
+        if (!response.data.canGeneratePO) {
+          toast({
+            title: "PO Generation Not Allowed",
+            description: response.data.availableActions.includes('view') 
+              ? "You do not have permission to generate PO for this MRF at this time."
+              : "This MRF cannot have a PO generated at this stage.",
+            variant: "destructive",
+          });
+          return;
+        }
+        // Proceed with PO generation
+        setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
+        setPODialogOpen(true);
+      } else {
+        toast({
+          title: "Error",
+          description: "Could not verify permissions. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
       toast({
-        title: "PO Generation Not Allowed",
-        description: "This MRF must be approved by Executive before a PO can be generated.",
+        title: "Error",
+        description: "Failed to check permissions. Please try again.",
         variant: "destructive",
       });
-      return;
     }
-    
-    setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
-    setPODialogOpen(true);
   };
 
   // Procurement cannot approve/reject - only view

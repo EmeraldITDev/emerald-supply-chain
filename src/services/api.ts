@@ -279,6 +279,11 @@ export const mrfApi = {
     return apiRequest<MRF>(`/mrfs/${id}`);
   },
 
+  // Get available actions for current user on this MRF
+  getAvailableActions: async (id: string): Promise<ApiResponse<import('@/types').AvailableActions>> => {
+    return apiRequest<import('@/types').AvailableActions>(`/mrfs/${id}/available-actions`);
+  },
+
   create: async (data: CreateMRFData): Promise<ApiResponse<MRF>> => {
     return apiRequest<MRF>('/mrfs', {
       method: 'POST',
