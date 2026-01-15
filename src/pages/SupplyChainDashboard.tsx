@@ -16,6 +16,7 @@ import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { mrfApi } from "@/services/api";
 import type { MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
+import { SupplyChainActionButtons } from "@/components/SupplyChainActionButtons";
 
 const SupplyChainDashboard = () => {
   const { user } = useAuth();
@@ -119,6 +120,25 @@ const SupplyChainDashboard = () => {
       return;
     }
 
+    // Check available actions from backend before proceeding
+    try {
+      const response = await mrfApi.getAvailableActions(mrfId);
+      if (response.success && response.data) {
+        // Verify we can upload signed PO (check if unsigned PO exists)
+        const mrf = mrfRequests.find(m => m.id === mrfId);
+        if (!mrf || (!mrf.unsigned_po_url && !mrf.unsignedPOUrl)) {
+          toast.error("PO document not available for signing");
+          return;
+        }
+      } else {
+        toast.error("Could not verify permissions. Please try again.");
+        return;
+      }
+    } catch (error) {
+      toast.error("Failed to check permissions. Please try again.");
+      return;
+    }
+
     setActionLoading(mrfId);
 
     try {
@@ -165,6 +185,30 @@ const SupplyChainDashboard = () => {
 
   const handleRejectPO = async (reason: string, comments: string) => {
     if (!selectedMRFForRejection) return;
+
+    // Check available actions from backend before proceeding
+    try {
+      const response = await mrfApi.getAvailableActions(selectedMRFForRejection.id);
+      if (response.success && response.data) {
+        // Verify we can reject PO (check if unsigned PO exists)
+        if (!selectedMRFForRejection.unsigned_po_url && !selectedMRFForRejection.unsignedPOUrl) {
+          toast.error("PO document not available for rejection");
+          setRejectDialogOpen(false);
+          setSelectedMRFForRejection(null);
+          return;
+        }
+      } else {
+        toast.error("Could not verify permissions. Please try again.");
+        setRejectDialogOpen(false);
+        setSelectedMRFForRejection(null);
+        return;
+      }
+    } catch (error) {
+      toast.error("Failed to check permissions. Please try again.");
+      setRejectDialogOpen(false);
+      setSelectedMRFForRejection(null);
+      return;
+    }
 
     setActionLoading(selectedMRFForRejection.id);
 
@@ -375,46 +419,18 @@ const SupplyChainDashboard = () => {
                           </div>
                         </div>
 
-                        {/* Upload signed PO */}
-                        <div className="space-y-3">
-                          <Label>Upload Signed PO</Label>
-                          <Input
-                            type="file"
-                            accept=".pdf,.doc,.docx"
-                            onChange={(e) => handleFileChange(mrf.id, e.target.files?.[0] || null)}
-                            disabled={isActionLoading}
-                          />
-                          {signedPOs[mrf.id] && (
-                            <p className="text-xs text-muted-foreground">
-                              Selected: {signedPOs[mrf.id]?.name}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button 
-                            onClick={() => handleUploadSignedPO(mrf.id)} 
-                            className="flex-1"
-                            disabled={!signedPOs[mrf.id] || isActionLoading}
-                          >
-                            {isActionLoading ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Upload className="mr-2 h-4 w-4" />
-                            )}
-                            Upload & Forward to Finance
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            onClick={() => {
-                              setSelectedMRFForRejection(mrf);
-                              setRejectDialogOpen(true);
-                            }}
-                            disabled={isActionLoading}
-                          >
-                            Reject PO
-                          </Button>
-                        </div>
+                        {/* Upload signed PO - Uses available actions */}
+                        <SupplyChainActionButtons
+                          mrf={mrf}
+                          onUploadSignedPO={handleUploadSignedPO}
+                          onRejectPO={() => {
+                            setSelectedMRFForRejection(mrf);
+                            setRejectDialogOpen(true);
+                          }}
+                          signedPOFile={signedPOs[mrf.id] || null}
+                          onFileChange={(file) => handleFileChange(mrf.id, file)}
+                          isLoading={isActionLoading}
+                        />
                       </CardContent>
                     </Card>
                   );

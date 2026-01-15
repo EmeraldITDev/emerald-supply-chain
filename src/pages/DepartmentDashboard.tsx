@@ -81,6 +81,41 @@ const DepartmentDashboard = () => {
   const confirmDeleteMRF = async () => {
     if (!mrfToDelete) return;
     
+    // Check available actions from backend before proceeding
+    try {
+      const response = await mrfApi.getAvailableActions(mrfToDelete);
+      if (response.success && response.data) {
+        if (!response.data.canEdit) {
+          toast({
+            title: "Action Not Allowed",
+            description: "You do not have permission to delete this MRF. It may have already been processed or approved.",
+            variant: "destructive",
+          });
+          setDeleteDialogOpen(false);
+          setMrfToDelete(null);
+          return;
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: "Could not verify permissions. Please try again.",
+          variant: "destructive",
+        });
+        setDeleteDialogOpen(false);
+        setMrfToDelete(null);
+        return;
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to check permissions. Please try again.",
+        variant: "destructive",
+      });
+      setDeleteDialogOpen(false);
+      setMrfToDelete(null);
+      return;
+    }
+    
     setIsDeleting(true);
     try {
       const response = await mrfApi.delete(mrfToDelete);

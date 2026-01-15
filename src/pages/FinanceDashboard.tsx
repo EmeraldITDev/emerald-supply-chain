@@ -175,6 +175,35 @@ const FinanceDashboard = () => {
     const mrf = mrfRequests.find(m => m.id === id);
     if (!mrf) return;
     
+    // Check available actions from backend before proceeding
+    try {
+      const response = await mrfApi.getAvailableActions(id);
+      if (response.success && response.data) {
+        if (!response.data.canProcessPayment) {
+          toast({
+            title: "Action Not Allowed",
+            description: "You do not have permission to process payment for this MRF at this time.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: "Could not verify permissions. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to check permissions. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setActionLoading(id);
     
     try {
@@ -209,7 +238,36 @@ const FinanceDashboard = () => {
     }
   };
 
-  const handleRequestGRN = (mrf: MRF) => {
+  const handleRequestGRN = async (mrf: MRF) => {
+    // Check available actions from backend before proceeding
+    try {
+      const response = await mrfApi.getAvailableActions(mrf.id);
+      if (response.success && response.data) {
+        if (!response.data.canRequestGRN) {
+          toast({
+            title: "Action Not Allowed",
+            description: "You do not have permission to request GRN for this MRF at this time.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: "Could not verify permissions. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to check permissions. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSelectedMRF(mrf);
     setGrnRequestDialogOpen(true);
   };
