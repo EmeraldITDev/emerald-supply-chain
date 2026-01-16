@@ -95,16 +95,20 @@ const NewMRF = () => {
       
       if (isResubmission && rejectedMRF) {
         // Resubmission: update existing MRF
-        const response = await mrfApi.update(rejectedMRF.id, {
+        const updatePayload: any = {
           title: formData.title,
           description: formData.description,
           category: formData.category,
           quantity: formData.quantity,
-          estimatedCost: formData.estimatedCost,
           urgency: urgencyValue,
           justification: formData.justification,
           contractType: formData.contractType,
-      });
+        };
+        // Include estimatedCost - use 0 if not provided (backend expects a number)
+        updatePayload.estimatedCost = formData.estimatedCost && formData.estimatedCost.trim() !== '' 
+          ? formData.estimatedCost 
+          : '0';
+        const response = await mrfApi.update(rejectedMRF.id, updatePayload);
       
         if (response.success) {
       toast({
@@ -121,16 +125,19 @@ const NewMRF = () => {
         }
     } else {
         // New submission
-        const payload = {
+        const payload: any = {
           title: formData.title,
           description: formData.description,
           category: formData.category,
           quantity: formData.quantity,
-          estimatedCost: formData.estimatedCost,
           urgency: urgencyValue,
           justification: formData.justification,
           contractType: formData.contractType,
         };
+        // Include estimatedCost - use 0 if not provided (backend expects a number)
+        payload.estimatedCost = formData.estimatedCost && formData.estimatedCost.trim() !== '' 
+          ? formData.estimatedCost 
+          : '0';
         
         console.log('Creating MRF with payload:', payload, 'PFI file:', pfiFile?.name);
         
@@ -156,7 +163,9 @@ const NewMRF = () => {
         }
         
         if (response.success) {
-      const estimatedCost = parseFloat(formData.estimatedCost) || 0;
+      const estimatedCost = formData.estimatedCost && formData.estimatedCost.trim() !== '' 
+        ? parseFloat(formData.estimatedCost) 
+        : 0;
       const isHighValue = estimatedCost > 1000000;
       
       toast({
