@@ -403,36 +403,61 @@ const Procurement = () => {
   };
 
   const handleGeneratePO = async (mrf: MRFRequest | MRF) => {
-    // Check available actions from backend
+    // Check if MRF is Executive approved first (this is the main requirement)
+    const mrfData = mrfRequests.find(m => m.id === mrf.id);
+    const isApproved = isExecutiveApproved(mrfData || (mrf as MRF));
+    
+    if (!isApproved) {
+      toast({
+        title: "Request Not Ready",
+        description: "This MRF must be approved by Executive before sending request to vendors.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check available actions from backend (for additional validation)
     try {
       const response = await mrfApi.getAvailableActions(mrf.id);
       if (response.success && response.data) {
-        if (!response.data.canGeneratePO) {
+        // If backend says canGeneratePO is false but MRF is Executive approved, still allow
+        // (backend permission might be checking for later stages, but we allow after Executive approval)
+        if (!response.data.canGeneratePO && !isApproved) {
           toast({
-            title: "PO Generation Not Allowed",
-            description: response.data.availableActions.includes('view') 
-              ? "You do not have permission to generate PO for this MRF at this time."
-              : "This MRF cannot have a PO generated at this stage.",
+            title: "Request Not Ready",
+            description: "This MRF must be approved by Executive before sending request to vendors.",
             variant: "destructive",
           });
           return;
         }
-        // Proceed with PO generation
-    setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
-    setPODialogOpen(true);
+        // Proceed with opening PO generation dialog
+        setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
+        setPODialogOpen(true);
+      } else {
+        // Fallback: If Executive approved, allow proceeding
+        if (isApproved) {
+          setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
+          setPODialogOpen(true);
+        } else {
+          toast({
+            title: "Error",
+            description: "Could not verify permissions. Please try again.",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      // Fallback: If Executive approved, allow proceeding
+      if (isApproved) {
+        setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
+        setPODialogOpen(true);
       } else {
         toast({
           title: "Error",
-          description: "Could not verify permissions. Please try again.",
+          description: "Failed to check permissions. Please try again.",
           variant: "destructive",
         });
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to check permissions. Please try again.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -1100,14 +1125,14 @@ const Procurement = () => {
                                   <p className="text-xs italic">Quantity: {mrf.quantity}</p>
                                 </div>
                               </div>
-                              {/* Generate PO button - Only for Procurement Managers */}
+                              {/* Send Request to Vendors button - Only for Procurement Managers */}
                               {(user?.role === "procurement" || user?.role === "procurement_manager" || user?.role === "admin") && (
                               <Button
                                 size="sm"
                                 onClick={() => handleGeneratePO(mrf)}
                               >
                                 <FileText className="h-4 w-4 mr-2" />
-                                Generate PO
+                                Send Request to Vendors
                               </Button>
                               )}
                             </div>
@@ -1242,13 +1267,16 @@ const Procurement = () => {
                               </Badge>
                             </div>
                             <div className="flex items-center gap-2">
-                              {/* Generate PO button - Only shown when Supply Chain Director has approved vendor selection */}
+                              {/* Send Request to Vendors button - Shown after Executive approval */}
                               {/* The handleGeneratePO function checks canGeneratePO before proceeding */}
-                              {/* Button shown optimistically for procurement role when in right stage */}
+                              {/* Button shown for procurement role when MRF is approved by Executive */}
                               {(() => {
                                 const workflowState = getWorkflowState(request as MRF);
                                 const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager" || user?.role === "admin";
                                 const canShowPOButton = isProcurement && (
+                                  workflowState === "procurement_review" || // After Executive approval
+                                  workflowState === "vendor_selected" || // After vendor selection
+                                  workflowState === "invoice_received" || // After invoice received
                                   workflowState === "invoice_approved" || // After Supply Chain Director approval
                                   (getMRFStage(request as MRF) === "procurement" && isExecutiveApproved(request as MRF)) // Optimistic for list view
                                 );
@@ -1256,17 +1284,17 @@ const Procurement = () => {
                                 if (!canShowPOButton) return null;
                                 
                                 return (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                className="text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleGeneratePO(request);
-                                }}
-                              >
-                                <ShoppingCart className="h-3 w-3 mr-1" />
-                                Generate PO
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleGeneratePO(request);
+                                    }}
+                                  >
+                                    <ShoppingCart className="h-3 w-3 mr-1" />
+                                    Send Request to Vendors
                                   </Button>
                                 );
                               })()}
