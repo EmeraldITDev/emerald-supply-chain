@@ -121,7 +121,7 @@ const ExecutiveDashboard = () => {
         if (estimatedCost > 1000000) {
           toast.success("High-value MRF forwarded to Chairman for final approval");
         } else {
-          toast.success("MRF approved - Forwarded to Procurement Manager for PO generation");
+          toast.success("MRF approved - Forwarded to Procurement Manager to generate RFQ");
         }
         
         // Refresh the list from backend

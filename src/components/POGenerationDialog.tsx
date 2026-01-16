@@ -60,7 +60,6 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
   const [deliveryDate, setDeliveryDate] = useState<Date>();
   const [paymentTerms, setPaymentTerms] = useState("");
   const [notes, setNotes] = useState("");
-  const [poFile, setPOFile] = useState<File | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -113,7 +112,7 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
       deliveryDate: deliveryDate ? format(deliveryDate, "yyyy-MM-dd") : "",
       paymentTerms,
       notes,
-      poFile
+      poFile: null // PO documents are uploaded later, after RFQ approval
     };
 
     if (sendToVendors) {
@@ -126,7 +125,6 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
     setDeliveryDate(undefined);
     setPaymentTerms("");
     setNotes("");
-        setPOFile(null);
         onOpenChange(false);
       } catch (error) {
         console.error('PO Generation: Submit failed', error);
@@ -279,24 +277,6 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
                   No active vendors available. Please ensure vendors are registered and activated in the system.
                 </p>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="poFile">Upload PO Document (Optional)</Label>
-              <Input
-                id="poFile"
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={(e) => setPOFile(e.target.files?.[0] || null)}
-              />
-              {poFile && (
-                <p className="text-xs text-muted-foreground">
-                  Selected: {poFile.name} ({(poFile.size / 1024).toFixed(2)} KB)
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Supported formats: PDF, DOC, DOCX (Max 10MB)
-              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

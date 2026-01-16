@@ -309,7 +309,7 @@ const SupplyChainDashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle>Vendor Selections Pending Approval</CardTitle>
-              <CardDescription>Review and approve Procurement's vendor selections before PO generation</CardDescription>
+              <CardDescription>Review and approve Procurement's vendor selections from RFQ responses before PO generation</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -349,7 +349,7 @@ const SupplyChainDashboard = () => {
                         {/* Vendor Selection Info */}
                         <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                           <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                            Procurement has selected a vendor. Review and approve to proceed with PO generation.
+                            Procurement has selected a vendor from RFQ responses. Review and approve to allow PO generation.
                           </p>
                         </div>
 
@@ -367,7 +367,7 @@ const SupplyChainDashboard = () => {
                               }
                               const approveResponse = await mrfApi.approveVendorSelection(mrf.id);
                               if (approveResponse.success) {
-                                toast.success("Vendor selection approved - Sent back to Procurement for PO generation");
+                                toast.success("Vendor selection approved - Procurement can now generate PO based on the approved RFQ");
                                 await fetchMRFs();
                               } else {
                                 toast.error(approveResponse.error || "Failed to approve vendor selection");

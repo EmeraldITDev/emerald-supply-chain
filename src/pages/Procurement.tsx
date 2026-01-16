@@ -651,11 +651,11 @@ const Procurement = () => {
     notes: string;
     poFile: File | null;
   }) => {
-    // Save PO draft without sending to vendors
+    // Save RFQ draft without sending to vendors
     // This could save to localStorage or a backend draft endpoint
     toast({
-      title: "PO Draft Saved",
-      description: "Your PO has been saved. You can continue editing later.",
+      title: "RFQ Draft Saved",
+      description: "Your RFQ draft has been saved. You can continue editing and send it to vendors later.",
     });
     setPODialogOpen(false);
   };

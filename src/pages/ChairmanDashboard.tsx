@@ -93,7 +93,7 @@ const ChairmanDashboard = () => {
       const response = await mrfApi.chairmanApprove(mrfId, comments[mrfId] || "Approved");
       
       if (response.success) {
-        toast.success("High-value MRF approved - Forwarded to Procurement for PO generation");
+        toast.success("High-value MRF approved - Forwarded to Procurement to generate RFQ");
         await fetchMRFs();
         setComments(prev => ({ ...prev, [mrfId]: "" }));
         setSelectedMRF(null);
