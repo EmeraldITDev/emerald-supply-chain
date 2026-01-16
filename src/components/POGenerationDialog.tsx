@@ -93,14 +93,15 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
     e.preventDefault();
     
     if (sendToVendors) {
-      if (selectedVendorIds.length === 0 || !deliveryDate || !paymentTerms || !poFile) {
-        console.warn('PO Generation: Missing required fields', { vendors: selectedVendorIds.length, deliveryDate, paymentTerms, hasFile: !!poFile });
+      // For sending to vendors (RFQ creation), PO file is optional
+      if (selectedVendorIds.length === 0 || !deliveryDate || !paymentTerms) {
+        console.warn('RFQ Creation: Missing required fields', { vendors: selectedVendorIds.length, deliveryDate, paymentTerms });
         return;
       }
     } else {
       // For save only, we can save without all fields
       if (selectedVendorIds.length === 0) {
-        console.warn('PO Generation: At least one vendor must be selected');
+        console.warn('RFQ Creation: At least one vendor must be selected');
         return;
       }
     }
@@ -281,13 +282,12 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="poFile">Upload PO Document *</Label>
+              <Label htmlFor="poFile">Upload PO Document (Optional)</Label>
               <Input
                 id="poFile"
                 type="file"
                 accept=".pdf,.doc,.docx"
                 onChange={(e) => setPOFile(e.target.files?.[0] || null)}
-                required
               />
               {poFile && (
                 <p className="text-xs text-muted-foreground">
@@ -397,7 +397,7 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
             <Button 
               type="submit" 
               onClick={(e) => handleSubmit(e, true)}
-              disabled={selectedVendorIds.length === 0 || !deliveryDate || !paymentTerms || !poFile || isSubmitting || isGenerating || isSaving}
+              disabled={selectedVendorIds.length === 0 || !deliveryDate || !paymentTerms || isSubmitting || isGenerating || isSaving}
             >
               {isSubmitting || isGenerating ? (
                 <>

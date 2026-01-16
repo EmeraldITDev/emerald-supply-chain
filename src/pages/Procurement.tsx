@@ -19,7 +19,7 @@ import { ProcurementProgressTracker } from "@/components/ProcurementProgressTrac
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import type { MRFRequest } from "@/contexts/AppContext";
-import { dashboardApi, mrfApi, grnApi } from "@/services/api";
+import { dashboardApi, mrfApi, grnApi, rfqApi, quotationApi } from "@/services/api";
 import type { VendorRegistration, MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import {
@@ -52,6 +52,8 @@ const Procurement = () => {
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
   const [mrfLoading, setMrfLoading] = useState(true);
   const [poGenerating, setPoGenerating] = useState(false);
+  const [rfqs, setRfqs] = useState<any[]>([]);
+  const [quotations, setQuotations] = useState<any[]>([]);
   
   const [poDialogOpen, setPODialogOpen] = useState(false);
   const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(null);
@@ -99,9 +101,69 @@ const Procurement = () => {
     }
   }, [toast]);
 
+  // Fetch RFQs for tracking which MRFs have RFQs
+  const fetchRFQs = useCallback(async () => {
+    try {
+      const response = await rfqApi.getAll();
+      if (response.success && response.data) {
+        setRfqs(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch RFQs:", error);
+    }
+  }, []);
+
+  // Fetch quotations for MRFs
+  const fetchQuotations = useCallback(async () => {
+    try {
+      // Fetch quotations for all RFQs using the RFQ quotations endpoint
+      const allQuotations: any[] = [];
+      for (const rfq of rfqs) {
+        try {
+          const response = await rfqApi.getQuotations(rfq.id);
+          if (response.success && response.data && response.data.quotations) {
+            // The response includes quotations with vendor info
+            response.data.quotations.forEach((item: any) => {
+              allQuotations.push({
+                ...item.quotation,
+                vendorName: item.vendor?.name || item.vendor?.company_name,
+                vendorId: item.vendor?.id || item.vendor?.vendor_id,
+                rfqId: rfq.id,
+              });
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to fetch quotations for RFQ ${rfq.id}:`, error);
+        }
+      }
+      setQuotations(allQuotations);
+    } catch (error) {
+      console.error("Failed to fetch quotations:", error);
+    }
+  }, [rfqs]);
+
+  // Helper to check if MRF has an RFQ
+  const getRFQForMRF = (mrfId: string) => {
+    return rfqs.find(rfq => rfq.mrfId === mrfId || rfq.mrf_id === mrfId);
+  };
+
+  // Helper to get quotations for an MRF
+  const getQuotationsForMRF = (mrfId: string) => {
+    const rfq = getRFQForMRF(mrfId);
+    if (!rfq) return [];
+    return quotations.filter(q => q.rfqId === rfq.id);
+  };
+
   useEffect(() => {
     fetchMRFs();
-  }, [fetchMRFs]);
+    fetchRFQs();
+  }, [fetchMRFs, fetchRFQs]);
+
+  useEffect(() => {
+    if (rfqs.length > 0) {
+      fetchQuotations();
+    }
+  }, [rfqs]);
 
   // Helper functions for MRF field access (handles both camelCase and snake_case)
   const getMRFEstimatedCost = (mrf: MRF) => String(mrf.estimated_cost || mrf.estimatedCost || "0");
@@ -490,86 +552,82 @@ const Procurement = () => {
   }) => {
     if (!selectedMRFForPO) return;
 
-    // Validate Executive approval before generating PO
+    // Validate Executive approval before sending to vendors
     const mrfData = mrfRequests.find(m => m.id === selectedMRFForPO.id);
     if (!mrfData || !isExecutiveApproved(mrfData)) {
       toast({
-        title: "PO Generation Not Allowed",
-        description: "This MRF must be approved by Executive before a PO can be generated.",
+        title: "Request Not Ready",
+        description: "This MRF must be approved by Executive before sending request to vendors.",
         variant: "destructive",
       });
       setPODialogOpen(false);
       return;
     }
 
-    // Validate file upload
-    if (!poData.poFile) {
+    // Validate vendors selected
+    if (poData.vendors.length === 0) {
       toast({
         title: "Validation Error",
-        description: "Please upload a PO document before submitting.",
+        description: "Please select at least one vendor to send the request to.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate delivery date for RFQ deadline
+    if (!poData.deliveryDate) {
+      toast({
+        title: "Validation Error",
+        description: "Please select an expected delivery date (this will be used as RFQ deadline).",
         variant: "destructive",
       });
       return;
     }
 
     setPoGenerating(true);
-
-    // Generate PO number
-    const poNumber = selectedMRFForPO.poNumber || 
-      `PO-${new Date().getFullYear()}-${String(purchaseOrders.length + 1).padStart(3, "0")}`;
-    
-    console.log('Generating PO:', {
-      mrfId: selectedMRFForPO.id,
-      poNumber,
-      fileName: poData.poFile.name,
-      fileSize: poData.poFile.size,
-      vendors: poData.vendors,
-    });
     
     try {
-      // Call the real backend API endpoint with file upload
-      // Note: Backend may need to be updated to handle multiple vendors
-      const response = await mrfApi.generatePO(selectedMRFForPO.id, poNumber, poData.poFile);
+      // Create RFQ instead of generating PO
+      // Calculate deadline (7 days before delivery date, or 30 days from now if delivery date is too soon)
+      const deliveryDateObj = new Date(poData.deliveryDate);
+      const today = new Date();
+      const daysUntilDelivery = Math.ceil((deliveryDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const deadlineDays = Math.max(7, Math.floor(daysUntilDelivery * 0.7)); // 70% of delivery time, minimum 7 days
+      const deadlineDate = new Date(today);
+      deadlineDate.setDate(deadlineDate.getDate() + deadlineDays);
+      const deadline = deadlineDate.toISOString().split('T')[0];
       
-      console.log('PO Generation Response:', response);
+      const rfqResponse = await rfqApi.create({
+        mrfId: selectedMRFForPO.id,
+        description: poData.items || selectedMRFForPO.description || '',
+        quantity: selectedMRFForPO.quantity || '1',
+        estimatedCost: poData.amount || selectedMRFForPO.estimatedCost || '0',
+        deadline: deadline,
+        vendorIds: poData.vendors,
+      });
       
-      if (response.success) {
-        // Also add to local PO list for immediate UI feedback
-        // For multiple vendors, we might need to create multiple POs or update the structure
-        poData.vendors.forEach((vendorId) => {
-          addPO({
-            vendor: vendorId, // This should be vendor name, might need to fetch vendor name from ID
-            items: poData.items,
-            amount: poData.amount,
-            status: "Pending",
-            date: new Date().toISOString().split("T")[0],
-            deliveryDate: poData.deliveryDate,
-          });
-        });
-
-        const isResubmission = selectedMRFForPO.status?.toLowerCase().includes("rejected");
-        const vendorCount = poData.vendors.length;
-        
+      if (rfqResponse.success) {
         toast({
-          title: isResubmission ? "Purchase Order Resubmitted" : "Purchase Order Created",
-          description: `${poNumber} ${isResubmission ? 'resubmitted' : 'generated'} and sent to ${vendorCount} vendor${vendorCount > 1 ? 's' : ''}`,
+          title: "Request Sent to Vendors",
+          description: `RFQ sent to ${poData.vendors.length} vendor(s). They will see it in their portal and can submit quotations.`,
         });
 
         setPODialogOpen(false);
         setSelectedMRFForPO(null);
         
-        // Refresh MRFs from backend
+        // Refresh MRFs and RFQs from backend to get updated status
         await fetchMRFs();
+        await fetchRFQs();
       } else {
-        console.error('PO Generation Error:', response.error);
+        console.error('RFQ Creation Error:', rfqResponse.error);
         toast({
-          title: "PO Generation Failed",
-          description: response.error || "Failed to generate PO. Please try again.",
+          title: "Failed to Send Request",
+          description: rfqResponse.error || "Failed to send request to vendors. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('PO Generation Exception:', error);
+      console.error('RFQ Creation Exception:', error);
       toast({
         title: "Network Error",
         description: error instanceof Error ? error.message : "Failed to connect to server. Please check your connection.",
@@ -1255,6 +1313,91 @@ const Procurement = () => {
                                   )}
                                 </div>
                               )}
+                              {/* Quotations Section - Show if RFQ exists and has quotations */}
+                              {(() => {
+                                const mrfQuotations = getQuotationsForMRF(request.id);
+                                const rfq = getRFQForMRF(request.id);
+                                if (!rfq || mrfQuotations.length === 0) return null;
+                                
+                                return (
+                                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                        <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                                          Vendor Quotations ({mrfQuotations.length})
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      {mrfQuotations.map((quotation: any) => (
+                                        <div
+                                          key={quotation.id}
+                                          className="flex items-center justify-between p-2 bg-white dark:bg-gray-900 rounded border border-blue-200 dark:border-blue-700"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <div className="flex-1">
+                                            <p className="text-sm font-medium">{quotation.vendorName || quotation.vendor_name || 'Vendor'}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                              Price: ₦{parseFloat(quotation.price || quotation.total_amount || '0').toLocaleString()}
+                                              {quotation.deliveryDate && ` • Delivery: ${new Date(quotation.deliveryDate).toLocaleDateString()}`}
+                                            </p>
+                                          </div>
+                                          <Button
+                                            size="sm"
+                                            variant="default"
+                                            className="text-xs"
+                                            onClick={async (e) => {
+                                              e.stopPropagation();
+                                              // Select quotation and send to Supply Chain Director
+                                              try {
+                                                // First select vendor in RFQ
+                                                const selectResponse = await rfqApi.selectVendor(rfq.id, quotation.id);
+                                                if (selectResponse.success) {
+                                                  // Then send to Supply Chain Director
+                                                  const sendResponse = await mrfApi.sendVendorForApproval(
+                                                    request.id,
+                                                    quotation.vendorId || quotation.vendor_id,
+                                                    quotation.id
+                                                  );
+                                                  if (sendResponse.success) {
+                                                    toast({
+                                                      title: "Quotation Selected",
+                                                      description: "Vendor quotation has been selected and sent to Supply Chain Director for approval.",
+                                                    });
+                                                    await fetchMRFs();
+                                                    await fetchRFQs();
+                                                  } else {
+                                                    toast({
+                                                      title: "Error",
+                                                      description: sendResponse.error || "Failed to send quotation for approval",
+                                                      variant: "destructive",
+                                                    });
+                                                  }
+                                                } else {
+                                                  toast({
+                                                    title: "Error",
+                                                    description: selectResponse.error || "Failed to select quotation",
+                                                    variant: "destructive",
+                                                  });
+                                                }
+                                              } catch (error) {
+                                                toast({
+                                                  title: "Error",
+                                                  description: "Failed to process quotation selection",
+                                                  variant: "destructive",
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            Select & Send for Approval
+                                          </Button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-center">
@@ -1283,6 +1426,10 @@ const Procurement = () => {
                                 
                                 if (!canShowPOButton) return null;
                                 
+                                // Check if RFQ already exists for this MRF
+                                const existingRFQ = getRFQForMRF(request.id);
+                                const buttonText = existingRFQ ? "Send to Vendors Again" : "Send Request to Vendors";
+                                
                                 return (
                                   <Button
                                     size="sm"
@@ -1294,7 +1441,7 @@ const Procurement = () => {
                                     }}
                                   >
                                     <ShoppingCart className="h-3 w-3 mr-1" />
-                                    Send Request to Vendors
+                                    {buttonText}
                                   </Button>
                                 );
                               })()}
