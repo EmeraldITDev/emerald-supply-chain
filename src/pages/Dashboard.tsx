@@ -196,20 +196,8 @@ const Dashboard = () => {
     },
   ];
 
-  // Recent activities from dashboard data or fallback
-  const recentActivities = dashboardData?.pendingRegistrations?.slice(0, 4).map((reg: any, index: number) => ({
-    id: reg.id,
-    type: "Vendor Registration",
-    title: reg.companyName,
-    status: "Pending",
-    date: new Date(reg.createdAt).toLocaleDateString(),
-  })) || dashboardData?.pendingMRFs?.slice(0, 2).map((mrf: any, index: number) => ({
-    id: mrf.id,
-    type: "MRF",
-    title: mrf.title,
-    status: "Pending",
-    date: new Date(mrf.createdAt).toLocaleDateString(),
-  })) || [
+  // Fallback activities for the overview card (if no pending registrations)
+  const fallbackActivities = [
     { id: 1, type: "MRF", title: "Office Supplies Request", status: "Pending", date: "2 hours ago" },
     { id: 2, type: "PO", title: "IT Equipment Purchase", status: "Approved", date: "5 hours ago" },
     { id: 3, type: "SRF", title: "Maintenance Service", status: "In Review", date: "1 day ago" },
@@ -299,7 +287,7 @@ const Dashboard = () => {
                 </div>
               ) : (
                 <div className="space-y-3 sm:space-y-4">
-                  {recentActivities.map((activity) => (
+                  {fallbackActivities.map((activity) => (
                     <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{activity.title}</p>
