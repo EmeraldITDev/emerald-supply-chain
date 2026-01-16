@@ -20,9 +20,11 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import type { MRFRequest } from "@/contexts/AppContext";
 import { vendorApi } from "@/services/api";
 import type { Vendor } from "@/types";
@@ -32,7 +34,16 @@ interface POGenerationDialogProps {
   onOpenChange: (open: boolean) => void;
   mrf: MRFRequest | null;
   onGenerate: (poData: {
-    vendor: string;
+    vendors: string[];
+    items: string;
+    amount: string;
+    deliveryDate: string;
+    paymentTerms: string;
+    notes: string;
+    poFile: File | null;
+  }) => Promise<void>;
+  onSave?: (poData: {
+    vendors: string[];
     items: string;
     amount: string;
     deliveryDate: string;
@@ -43,8 +54,8 @@ interface POGenerationDialogProps {
   isGenerating?: boolean;
 }
 
-export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, isGenerating = false }: POGenerationDialogProps) {
-  const [vendor, setVendor] = useState("");
+export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave, isGenerating = false }: POGenerationDialogProps) {
+  const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
   const [amount, setAmount] = useState(mrf?.estimatedCost || "");
   const [deliveryDate, setDeliveryDate] = useState<Date>();
   const [paymentTerms, setPaymentTerms] = useState("");
@@ -53,6 +64,7 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, isGene
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Fetch vendors when dialog opens
   useEffect(() => {
@@ -77,47 +89,62 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, isGene
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, sendToVendors: boolean = true) => {
     e.preventDefault();
     
-    if (!vendor || !deliveryDate || !paymentTerms || !poFile) {
-      console.warn('PO Generation: Missing required fields', { vendor, deliveryDate, paymentTerms, hasFile: !!poFile });
-      return;
+    if (sendToVendors) {
+      if (selectedVendorIds.length === 0 || !deliveryDate || !paymentTerms || !poFile) {
+        console.warn('PO Generation: Missing required fields', { vendors: selectedVendorIds.length, deliveryDate, paymentTerms, hasFile: !!poFile });
+        return;
+      }
+    } else {
+      // For save only, we can save without all fields
+      if (selectedVendorIds.length === 0) {
+        console.warn('PO Generation: At least one vendor must be selected');
+        return;
+      }
     }
 
-    console.log('PO Generation: Submitting', {
-      vendor,
-      mrfId: mrf?.id,
-      amount,
-      deliveryDate: format(deliveryDate, "yyyy-MM-dd"),
+    const poData = {
+      vendors: selectedVendorIds,
+      items: mrf?.description || "",
+      amount: amount,
+      deliveryDate: deliveryDate ? format(deliveryDate, "yyyy-MM-dd") : "",
       paymentTerms,
-      fileName: poFile.name,
-      fileSize: poFile.size
-    });
+      notes,
+      poFile
+    };
 
-    setIsSubmitting(true);
-    try {
-      await onGenerate({
-        vendor,
-        items: mrf?.description || "",
-        amount: amount,
-        deliveryDate: format(deliveryDate, "yyyy-MM-dd"),
-        paymentTerms,
-        notes,
-        poFile
-      });
-
-      // Reset form only on success
-      setVendor("");
-      setAmount("");
-      setDeliveryDate(undefined);
-      setPaymentTerms("");
-      setNotes("");
-      setPOFile(null);
-    } catch (error) {
-      console.error('PO Generation: Submit failed', error);
-    } finally {
-      setIsSubmitting(false);
+    if (sendToVendors) {
+      setIsSubmitting(true);
+      try {
+        await onGenerate(poData);
+        // Reset form only on success
+        setSelectedVendorIds([]);
+        setAmount("");
+        setDeliveryDate(undefined);
+        setPaymentTerms("");
+        setNotes("");
+        setPOFile(null);
+        onOpenChange(false);
+      } catch (error) {
+        console.error('PO Generation: Submit failed', error);
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // Save without sending
+      if (onSave) {
+        setIsSaving(true);
+        try {
+          await onSave(poData);
+          onOpenChange(false);
+        } catch (error) {
+          console.error('PO Generation: Save failed', error);
+        } finally {
+          setIsSaving(false);
+        }
+      }
     }
   };
 
@@ -125,9 +152,9 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, isGene
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-card">
         <DialogHeader>
-          <DialogTitle>Generate Purchase Order</DialogTitle>
+          <DialogTitle>Generate PO</DialogTitle>
           <DialogDescription>
-            Create a PO for approved MRF: {mrf?.id}
+            Send request to vendors for approved MRF: {mrf?.id}
           </DialogDescription>
         </DialogHeader>
         
@@ -190,30 +217,62 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, isGene
           {/* PO Form */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="vendor">Vendor/Supplier *</Label>
-              <Select value={vendor} onValueChange={setVendor} required disabled={loadingVendors}>
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingVendors ? "Loading vendors..." : "Select vendor"} />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  {loadingVendors ? (
-                    <div className="flex items-center justify-center p-4">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      <span>Loading vendors...</span>
-                    </div>
-                  ) : vendors.length === 0 ? (
-                    <div className="p-4 text-sm text-muted-foreground text-center">
-                      No active vendors found
-                    </div>
-                  ) : (
-                    vendors.map((v) => (
-                      <SelectItem key={v.id} value={v.name}>
-                        {v.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="vendors">Select Vendors/Suppliers *</Label>
+              <div className="border rounded-lg p-4 max-h-[200px] overflow-y-auto">
+                {loadingVendors ? (
+                  <div className="flex items-center justify-center p-4">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span>Loading vendors...</span>
+                  </div>
+                ) : vendors.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground text-center">
+                    No active vendors found
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {vendors.map((v) => (
+                      <div key={v.id} className="flex items-center space-x-2 p-2 hover:bg-accent rounded-md">
+                        <Checkbox
+                          id={`vendor-${v.id}`}
+                          checked={selectedVendorIds.includes(v.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedVendorIds([...selectedVendorIds, v.id]);
+                            } else {
+                              setSelectedVendorIds(selectedVendorIds.filter(id => id !== v.id));
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`vendor-${v.id}`}
+                          className="flex-1 cursor-pointer text-sm font-medium"
+                        >
+                          {v.name}
+                          {v.category && (
+                            <span className="text-xs text-muted-foreground ml-2">({v.category})</span>
+                          )}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedVendorIds.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {selectedVendorIds.map((vendorId) => {
+                    const vendor = vendors.find(v => v.id === vendorId);
+                    return vendor ? (
+                      <Badge key={vendorId} variant="secondary" className="flex items-center gap-1">
+                        {vendor.name}
+                        <X
+                          className="h-3 w-3 cursor-pointer"
+                          onClick={() => setSelectedVendorIds(selectedVendorIds.filter(id => id !== vendorId))}
+                        />
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
               {!loadingVendors && vendors.length === 0 && (
                 <p className="text-xs text-muted-foreground">
                   No active vendors available. Please ensure vendors are registered and activated in the system.
@@ -309,26 +368,44 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, isGene
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button 
               type="button" 
               variant="outline" 
               onClick={() => onOpenChange(false)}
-              disabled={isSubmitting || isGenerating}
+              disabled={isSubmitting || isGenerating || isSaving}
             >
               Cancel
             </Button>
+            {onSave && (
+              <Button 
+                type="button"
+                variant="outline"
+                onClick={(e) => handleSubmit(e, false)}
+                disabled={selectedVendorIds.length === 0 || isSubmitting || isGenerating || isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save and Close'
+                )}
+              </Button>
+            )}
             <Button 
               type="submit" 
-              disabled={!vendor || !deliveryDate || !paymentTerms || !poFile || isSubmitting || isGenerating}
+              onClick={(e) => handleSubmit(e, true)}
+              disabled={selectedVendorIds.length === 0 || !deliveryDate || !paymentTerms || !poFile || isSubmitting || isGenerating || isSaving}
             >
               {isSubmitting || isGenerating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
+                  Sending...
                 </>
               ) : (
-                'Generate PO'
+                'Save and Send to Vendors'
               )}
             </Button>
           </DialogFooter>

@@ -1027,3 +1027,57 @@ export const dashboardApi = {
     return apiRequest<any>('/dashboard/vendor');
   },
 };
+
+// Notification API
+export const notificationApi = {
+  getAll: async (params?: { unread_only?: boolean; limit?: number }): Promise<ApiResponse<{
+    notifications: Array<{
+      id: string;
+      title: string;
+      message: string;
+      type: 'info' | 'success' | 'warning' | 'error';
+      entity_type?: string;
+      entity_id?: string;
+      action_url?: string;
+      read: boolean;
+      read_at?: string;
+      created_at: string;
+    }>;
+    unread_count: number;
+  }>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.unread_only) queryParams.append('unread_only', 'true');
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    const query = queryParams.toString();
+    const response = await apiRequest<any>(`/notifications${query ? `?${query}` : ''}`);
+    // Backend returns { success: true, notifications: [...], unread_count: ... }
+    if (response.success && response.data) {
+      return {
+        success: true,
+        data: {
+          notifications: response.data.notifications || response.notifications || [],
+          unread_count: response.data.unread_count || response.unread_count || 0,
+        },
+      };
+    }
+    return response;
+  },
+
+  markAsRead: async (id: string): Promise<ApiResponse<void>> => {
+    return apiRequest<void>(`/notifications/${id}/read`, {
+      method: 'PUT',
+    });
+  },
+
+  markAllAsRead: async (): Promise<ApiResponse<void>> => {
+    return apiRequest<void>('/notifications/read-all', {
+      method: 'PUT',
+    });
+  },
+
+  delete: async (id: string): Promise<ApiResponse<void>> => {
+    return apiRequest<void>(`/notifications/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};

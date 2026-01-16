@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
+import { notificationApi } from "@/services/api";
 import { 
   NotificationService, 
   type AppNotification, 
@@ -32,17 +33,54 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const loadedPreferences = NotificationService.loadPreferences();
     setPreferences(loadedPreferences);
-
-    // Load saved notifications from localStorage
-    const savedNotifications = localStorage.getItem("app_notifications");
-    if (savedNotifications) {
-      try {
-        setNotifications(JSON.parse(savedNotifications));
-      } catch (e) {
-        console.error("Failed to parse saved notifications", e);
-      }
-    }
   }, []);
+
+  // Fetch notifications from backend API
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchNotifications = async () => {
+      try {
+        const response = await notificationApi.getAll({ limit: 50 });
+        if (response.success && response.data && response.data.notifications) {
+          // Transform backend notifications to AppNotification format
+          const transformedNotifications: AppNotification[] = response.data.notifications.map((n: any) => ({
+            id: n.id,
+            type: n.type || 'info',
+            title: n.title,
+            message: n.message,
+            timestamp: n.created_at,
+            read: n.read || false,
+            actionUrl: n.action_url,
+            priority: 'normal',
+            event: 'system' as NotificationEvent,
+            data: {
+              entity_type: n.entity_type,
+              entity_id: n.entity_id,
+            },
+          }));
+          setNotifications(transformedNotifications);
+        }
+      } catch (error) {
+        console.error("Failed to fetch notifications from backend", error);
+        // Fallback to localStorage if backend fails
+        const savedNotifications = localStorage.getItem("app_notifications");
+        if (savedNotifications) {
+          try {
+            setNotifications(JSON.parse(savedNotifications));
+          } catch (e) {
+            console.error("Failed to parse saved notifications", e);
+          }
+        }
+      }
+    };
+
+    fetchNotifications();
+    
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   // Save notifications to localStorage whenever they change
   useEffect(() => {
@@ -69,14 +107,30 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const markAsRead = (id: string) => {
+  const markAsRead = async (id: string) => {
+    // Optimistically update UI
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    
+    // Update backend
+    try {
+      await notificationApi.markAsRead(id);
+    } catch (error) {
+      console.error("Failed to mark notification as read", error);
+    }
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    // Optimistically update UI
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    
+    // Update backend
+    try {
+      await notificationApi.markAllAsRead();
+    } catch (error) {
+      console.error("Failed to mark all notifications as read", error);
+    }
   };
 
   const clearNotification = (id: string) => {

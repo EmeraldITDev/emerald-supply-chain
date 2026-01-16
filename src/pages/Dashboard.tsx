@@ -1,16 +1,17 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, ShoppingCart, Truck, Warehouse, TrendingUp, AlertCircle, CheckCircle, Clock, Users } from "lucide-react";
+import { Package, ShoppingCart, Truck, Warehouse, TrendingUp, AlertCircle, CheckCircle, Clock, Users, FileText, Activity } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import DepartmentDashboard from "./DepartmentDashboard";
 import FinanceDashboard from "./FinanceDashboard";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { dashboardApi } from "@/services/api";
+import { dashboardApi, mrfApi } from "@/services/api";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -18,6 +19,8 @@ const Dashboard = () => {
   const { toast } = useToast();
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(true);
 
   // Route to role-specific dashboard
   if (user?.role === "employee") {
@@ -76,6 +79,48 @@ const Dashboard = () => {
 
     fetchDashboardData();
   }, [user?.role, toast]);
+
+  // Fetch recent activities
+  useEffect(() => {
+    const fetchRecentActivities = async () => {
+      setActivitiesLoading(true);
+      try {
+        // Fetch recent MRFs
+        const mrfResponse = await mrfApi.getAll();
+        if (mrfResponse.success && mrfResponse.data) {
+          const activities: any[] = [];
+          
+          // Add MRF activities
+          mrfResponse.data.slice(0, 10).forEach((mrf: any) => {
+            activities.push({
+              id: mrf.id,
+              type: "MRF",
+              title: mrf.title,
+              description: `MRF ${mrf.mrf_id || mrf.id} - ${mrf.status}`,
+              status: mrf.status,
+              date: mrf.created_at || mrf.date,
+              actionUrl: `/procurement?mrf=${mrf.id}`,
+            });
+          });
+
+          // Sort by date (most recent first)
+          activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          setRecentActivities(activities.slice(0, 20));
+        }
+      } catch (error) {
+        console.error("Failed to fetch recent activities", error);
+      } finally {
+        setActivitiesLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchRecentActivities();
+      // Refresh activities every 30 seconds
+      const interval = setInterval(fetchRecentActivities, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   const handleRefresh = async () => {
     if (user?.role === "procurement_manager") {
@@ -182,23 +227,30 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {stats.map((stat) => (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
-                <CardTitle className="text-xs sm:text-sm font-medium">{stat.title}</CardTitle>
-                <stat.icon className={`h-3 w-3 sm:h-4 sm:w-4 ${stat.color}`} />
-              </CardHeader>
-              <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-                <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground hidden sm:block">{stat.description}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 sm:mt-1 hidden lg:block">{stat.trend}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="activities">Recent Activities</TabsTrigger>
+          </TabsList>
 
-        <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              {stats.map((stat) => (
+                <Card key={stat.title}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
+                    <CardTitle className="text-xs sm:text-sm font-medium">{stat.title}</CardTitle>
+                    <stat.icon className={`h-3 w-3 sm:h-4 sm:w-4 ${stat.color}`} />
+                  </CardHeader>
+                  <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+                    <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stat.value}</div>
+                    <p className="text-xs text-muted-foreground hidden sm:block">{stat.description}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 sm:mt-1 hidden lg:block">{stat.trend}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader className="p-4 sm:p-6">
               <CardTitle className="text-base sm:text-lg">
@@ -311,6 +363,68 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+          </TabsContent>
+
+          <TabsContent value="activities" className="space-y-4">
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  <Activity className="h-4 w-4" />
+                  Recent Activities
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Latest MRF requests, PO generations, and workflow updates
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                {activitiesLoading ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">Loading activities...</div>
+                ) : recentActivities.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No recent activities</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentActivities.map((activity) => (
+                      <div
+                        key={activity.id}
+                        className="flex items-start gap-3 p-3 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                        onClick={() => {
+                          if (activity.actionUrl) {
+                            navigate(activity.actionUrl);
+                          }
+                        }}
+                      >
+                        <div className="mt-0.5">
+                          {activity.type === "MRF" ? (
+                            <FileText className="h-4 w-4 text-primary" />
+                          ) : activity.type === "PO" ? (
+                            <ShoppingCart className="h-4 w-4 text-success" />
+                          ) : (
+                            <Activity className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">{activity.title}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {activity.description || activity.type}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(activity.date).toLocaleString()}
+                          </p>
+                        </div>
+                        <Badge variant={activity.status === "Approved" || activity.status === "Completed" ? "default" : "secondary"}>
+                          {activity.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
         </div>
       </PullToRefresh>
     </DashboardLayout>

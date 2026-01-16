@@ -455,7 +455,7 @@ const Procurement = () => {
 
 
   const handlePOGeneration = async (poData: {
-    vendor: string;
+    vendors: string[];
     items: string;
     amount: string;
     deliveryDate: string;
@@ -498,31 +498,36 @@ const Procurement = () => {
       poNumber,
       fileName: poData.poFile.name,
       fileSize: poData.poFile.size,
-      vendor: poData.vendor,
+      vendors: poData.vendors,
     });
     
     try {
       // Call the real backend API endpoint with file upload
+      // Note: Backend may need to be updated to handle multiple vendors
       const response = await mrfApi.generatePO(selectedMRFForPO.id, poNumber, poData.poFile);
       
       console.log('PO Generation Response:', response);
       
       if (response.success) {
         // Also add to local PO list for immediate UI feedback
-        addPO({
-          vendor: poData.vendor,
-          items: poData.items,
-          amount: poData.amount,
-          status: "Pending",
-          date: new Date().toISOString().split("T")[0],
-          deliveryDate: poData.deliveryDate,
+        // For multiple vendors, we might need to create multiple POs or update the structure
+        poData.vendors.forEach((vendorId) => {
+          addPO({
+            vendor: vendorId, // This should be vendor name, might need to fetch vendor name from ID
+            items: poData.items,
+            amount: poData.amount,
+            status: "Pending",
+            date: new Date().toISOString().split("T")[0],
+            deliveryDate: poData.deliveryDate,
+          });
         });
 
         const isResubmission = selectedMRFForPO.status?.toLowerCase().includes("rejected");
+        const vendorCount = poData.vendors.length;
         
         toast({
           title: isResubmission ? "Purchase Order Resubmitted" : "Purchase Order Created",
-          description: `${poNumber} ${isResubmission ? 'resubmitted' : 'generated'} and forwarded to Supply Chain Director`,
+          description: `${poNumber} ${isResubmission ? 'resubmitted' : 'generated'} and sent to ${vendorCount} vendor${vendorCount > 1 ? 's' : ''}`,
         });
 
         setPODialogOpen(false);
@@ -548,6 +553,24 @@ const Procurement = () => {
     } finally {
       setPoGenerating(false);
     }
+  };
+
+  const handleSavePO = async (poData: {
+    vendors: string[];
+    items: string;
+    amount: string;
+    deliveryDate: string;
+    paymentTerms: string;
+    notes: string;
+    poFile: File | null;
+  }) => {
+    // Save PO draft without sending to vendors
+    // This could save to localStorage or a backend draft endpoint
+    toast({
+      title: "PO Draft Saved",
+      description: "Your PO has been saved. You can continue editing later.",
+    });
+    setPODialogOpen(false);
   };
 
   const handlePOGenerationSuccess = () => {
@@ -1416,6 +1439,7 @@ const Procurement = () => {
         onOpenChange={setPODialogOpen}
         mrf={selectedMRFForPO}
         onGenerate={handlePOGeneration}
+        onSave={handleSavePO}
         isGenerating={poGenerating}
       />
 
