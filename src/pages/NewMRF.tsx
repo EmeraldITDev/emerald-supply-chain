@@ -44,6 +44,7 @@ const NewMRF = () => {
     estimatedCost: "",
     urgency: "",
     justification: "",
+    contractType: "",
   });
   const [pfiFile, setPfiFile] = useState<File | null>(null);
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
@@ -59,6 +60,7 @@ const NewMRF = () => {
         estimatedCost: rejectedMRF.estimatedCost,
         urgency: rejectedMRF.urgency,
         justification: rejectedMRF.justification,
+        contractType: (rejectedMRF as any).contractType || "",
       });
     }
   }, [rejectedMRF]);
@@ -101,6 +103,7 @@ const NewMRF = () => {
           estimatedCost: formData.estimatedCost,
           urgency: urgencyValue,
           justification: formData.justification,
+          contractType: formData.contractType,
       });
       
         if (response.success) {
@@ -126,6 +129,7 @@ const NewMRF = () => {
           estimatedCost: formData.estimatedCost,
           urgency: urgencyValue,
           justification: formData.justification,
+          contractType: formData.contractType,
         };
         
         console.log('Creating MRF with payload:', payload, 'PFI file:', pfiFile?.name);
@@ -273,6 +277,28 @@ const NewMRF = () => {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contractType">Contract Type *</Label>
+                <Select
+                  value={formData.contractType}
+                  onValueChange={(value) => handleChange("contractType", value)}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select contract type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="emerald">Emerald Contract</SelectItem>
+                    <SelectItem value="oando">Oando Contract</SelectItem>
+                    <SelectItem value="dangote">Dangote Contract</SelectItem>
+                    <SelectItem value="heritage">Heritage Contract</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  The contract type will be included in the MRF reference for easy identification
+                </p>
               </div>
 
               <div className="space-y-2">

@@ -493,8 +493,8 @@ const Procurement = () => {
           return;
         }
         // Proceed with opening PO generation dialog
-        setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
-        setPODialogOpen(true);
+    setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
+    setPODialogOpen(true);
       } else {
         // Fallback: If Executive approved, allow proceeding
         if (isApproved) {
@@ -597,13 +597,17 @@ const Procurement = () => {
       deadlineDate.setDate(deadlineDate.getDate() + deadlineDays);
       const deadline = deadlineDate.toISOString().split('T')[0];
       
+      // Create RFQ with all relevant details
       const rfqResponse = await rfqApi.create({
         mrfId: selectedMRFForPO.id,
+        title: selectedMRFForPO.title || 'RFQ Request',
         description: poData.items || selectedMRFForPO.description || '',
         quantity: selectedMRFForPO.quantity || '1',
         estimatedCost: poData.amount || selectedMRFForPO.estimatedCost || '0',
         deadline: deadline,
         vendorIds: poData.vendors,
+        paymentTerms: poData.paymentTerms || '',
+        notes: poData.notes || '',
       });
       
       if (rfqResponse.success) {
@@ -1428,19 +1432,19 @@ const Procurement = () => {
                                 
                                 // Check if RFQ already exists for this MRF
                                 const existingRFQ = getRFQForMRF(request.id);
-                                const buttonText = existingRFQ ? "Send to Vendors Again" : "Send Request to Vendors";
+                                const buttonText = existingRFQ ? "Send RFQ to Vendors Again" : "Send RFQ to Vendors";
                                 
                                 return (
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    className="text-xs"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleGeneratePO(request);
-                                    }}
-                                  >
-                                    <ShoppingCart className="h-3 w-3 mr-1" />
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGeneratePO(request);
+                                }}
+                              >
+                                <ShoppingCart className="h-3 w-3 mr-1" />
                                     {buttonText}
                                   </Button>
                                 );

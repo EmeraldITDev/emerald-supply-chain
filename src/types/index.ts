@@ -167,6 +167,9 @@ export interface CreateRFQData {
   estimatedCost: string;
   deadline: string;
   vendorIds: string[];
+  title?: string;
+  paymentTerms?: string;
+  notes?: string;
 }
 
 // Quotation Types

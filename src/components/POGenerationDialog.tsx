@@ -102,7 +102,7 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
       // For save only, we can save without all fields
       if (selectedVendorIds.length === 0) {
         console.warn('RFQ Creation: At least one vendor must be selected');
-        return;
+      return;
       }
     }
 
@@ -122,10 +122,10 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
         await onGenerate(poData);
         // Reset form only on success
         setSelectedVendorIds([]);
-        setAmount("");
-        setDeliveryDate(undefined);
-        setPaymentTerms("");
-        setNotes("");
+    setAmount("");
+    setDeliveryDate(undefined);
+    setPaymentTerms("");
+    setNotes("");
         setPOFile(null);
         onOpenChange(false);
       } catch (error) {
@@ -153,9 +153,9 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-card">
         <DialogHeader>
-          <DialogTitle>Generate PO</DialogTitle>
+          <DialogTitle>Generate RFQ</DialogTitle>
           <DialogDescription>
-            Send request to vendors for approved MRF: {mrf?.id}
+            Create and send Request for Quotation to vendors for approved MRF: {mrf?.id}
           </DialogDescription>
         </DialogHeader>
         

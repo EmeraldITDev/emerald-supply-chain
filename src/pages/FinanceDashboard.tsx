@@ -289,7 +289,7 @@ const FinanceDashboard = () => {
 
   return (
     <DashboardLayout>
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Finance Dashboard</h1>
@@ -413,7 +413,7 @@ const FinanceDashboard = () => {
                   return (
                     <div
                       key={mrf.id}
-                      className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-5 border rounded-xl transition-smooth ${
+                      className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-5 border rounded-xl transition-smooth mb-4 ${
                         isProcessed ? "bg-muted/30" : "bg-card hover:shadow-md"
                       }`}
                     >
@@ -455,16 +455,16 @@ const FinanceDashboard = () => {
                             variant="badge"
                           />
                         )}
-                        {!isProcessed && (
+                      {!isProcessed && (
                           <>
-                            <Button size="sm" variant="outline">
-                              <Download className="h-4 w-4 mr-1" />
-                              Documents
-                            </Button>
-                            <Button 
-                              size="sm"
-                              onClick={() => handleMarkProcessed(mrf.id)}
-                              className="gradient-primary hover:opacity-90"
+                          <Button size="sm" variant="outline">
+                            <Download className="h-4 w-4 mr-1" />
+                            Documents
+                          </Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => handleMarkProcessed(mrf.id)}
+                            className="gradient-primary hover:opacity-90"
                               disabled={actionLoading === mrf.id}
                             >
                               {actionLoading === mrf.id ? (
@@ -498,7 +498,7 @@ const FinanceDashboard = () => {
                             variant="badge"
                           />
                         )}
-                      </div>
+                        </div>
                     </div>
                   );
                 })
