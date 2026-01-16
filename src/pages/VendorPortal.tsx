@@ -12,7 +12,7 @@ import { useNavigate } from "react-router-dom";
 import logo from "@/assets/emerald-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
-import { vendorApi, vendorAuthApi } from "@/services/api";
+import { vendorApi, vendorAuthApi, vendorPortalApi } from "@/services/api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -36,6 +36,25 @@ const VendorPortal = () => {
   const [currentVendor, setCurrentVendor] = useState<VendorData | null>(null);
   const [currentVendorId, setCurrentVendorId] = useState("");
   const [activeTab, setActiveTab] = useState("rfqs");
+  const [vendorRfqs, setVendorRfqs] = useState<Array<{
+    id: string;
+    title: string;
+    description: string;
+    deadline: string;
+    status: string;
+    items: Array<{
+      id: string;
+      item_name: string;
+      quantity: number;
+      unit: string;
+      specifications: string;
+    }>;
+    sent_at: string;
+    viewed_at: string | null;
+    responded: boolean;
+    has_submitted_quote: boolean;
+  }>>([]);
+  const [loadingVendorRfqs, setLoadingVendorRfqs] = useState(false);
   const [selectedRfqForDetails, setSelectedRfqForDetails] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isBottomBarCollapsed, setIsBottomBarCollapsed] = useState(false);
@@ -159,6 +178,33 @@ const VendorPortal = () => {
     }
   };
 
+  // Fetch vendor-specific RFQs
+  const fetchVendorRFQs = async () => {
+    if (!isLoggedIn || !currentVendorId) return;
+    
+    setLoadingVendorRfqs(true);
+    try {
+      const response = await vendorPortalApi.getAssignedRFQs();
+      if (response.success && response.data) {
+        setVendorRfqs(response.data);
+      } else {
+        console.error('Failed to fetch vendor RFQs:', response.error);
+        // Fallback: if API fails, try to use general rfqs (though vendorIds may be empty)
+        console.warn('Using fallback RFQ list - vendorIds may not be populated correctly');
+        setVendorRfqs([]);
+      }
+    } catch (error) {
+      console.error('Error fetching vendor RFQs:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load RFQs. Please refresh the page.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingVendorRfqs(false);
+    }
+  };
+
   // Check for existing session on mount
   useEffect(() => {
     const token = localStorage.getItem('vendorAuthToken');
@@ -202,6 +248,13 @@ const VendorPortal = () => {
       }
     }
   }, [quotations]);
+
+  // Fetch vendor RFQs when logged in
+  useEffect(() => {
+    if (isLoggedIn && currentVendorId) {
+      fetchVendorRFQs();
+    }
+  }, [isLoggedIn, currentVendorId]);
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -492,8 +545,9 @@ const VendorPortal = () => {
   };
 
   const vendorQuotations = quotations.filter(q => q.vendorId === currentVendorId);
-  const vendorRfqs = rfqs.filter(r => r.vendorIds.includes(currentVendorId) && r.status === "Open");
-  const newRfqCount = vendorRfqs.length;
+  // Use vendor-specific RFQs fetched from API, filter to only show Open ones
+  const openVendorRfqs = vendorRfqs.filter(r => r.status === "Open" || r.status === "open");
+  const newRfqCount = openVendorRfqs.length;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -838,13 +892,13 @@ const VendorPortal = () => {
                   <p className="text-sm text-muted-foreground">You have {newRfqCount} new RFQ{newRfqCount !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="max-h-[300px] overflow-y-auto">
-                  {vendorRfqs.length === 0 ? (
+                  {openVendorRfqs.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">
                       No new notifications
                     </div>
                   ) : (
                     <div className="divide-y">
-                      {vendorRfqs.map((rfq) => (
+                      {openVendorRfqs.map((rfq) => (
                         <div key={rfq.id} className="p-4 hover:bg-accent cursor-pointer transition-colors" onClick={() => {
                           setSelectedRfqForDetails(rfq.id);
                           setShowNotifications(false);
@@ -854,9 +908,9 @@ const VendorPortal = () => {
                               <FileText className="h-4 w-4 text-primary" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{rfq.mrfTitle}</p>
-                              <p className="text-xs text-muted-foreground">Deadline: {rfq.deadline}</p>
-                              <p className="text-xs text-muted-foreground mt-1">Budget: ₦{parseInt(rfq.estimatedCost).toLocaleString()}</p>
+                              <p className="text-sm font-medium truncate">{rfq.title}</p>
+                              <p className="text-xs text-muted-foreground">Deadline: {new Date(rfq.deadline).toLocaleDateString()}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{rfq.items?.length || 0} item(s)</p>
                             </div>
                           </div>
                         </div>
@@ -912,7 +966,7 @@ const VendorPortal = () => {
               <FileText className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{vendorRfqs.length}</div>
+              <div className="text-2xl font-bold">{openVendorRfqs.length}</div>
               <p className="text-xs text-muted-foreground">Awaiting quotation</p>
             </CardContent>
           </Card>
@@ -983,19 +1037,24 @@ const VendorPortal = () => {
                 <CardDescription>Review open RFQs and submit your quotations</CardDescription>
               </CardHeader>
               <CardContent>
-                {vendorRfqs.length === 0 ? (
+                {loadingVendorRfqs ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Loader2 className="h-12 w-12 mx-auto mb-3 animate-spin opacity-20" />
+                    <p>Loading RFQs...</p>
+                  </div>
+                ) : openVendorRfqs.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-3 opacity-20" />
                     <p>No open RFQs at the moment</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {vendorRfqs.map((rfq) => (
+                    {openVendorRfqs.map((rfq) => (
                       <div key={rfq.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between mb-3">
                           <div className="space-y-1 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold text-lg">{rfq.mrfTitle}</span>
+                              <span className="font-semibold text-lg">{rfq.title}</span>
                               <Badge className={getStatusColor(rfq.status)}>{rfq.status}</Badge>
                             </div>
                             <p className="text-sm text-muted-foreground">{rfq.description}</p>
@@ -1007,16 +1066,12 @@ const VendorPortal = () => {
                             <p className="font-medium">{rfq.id}</p>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Quantity:</span>
-                            <p className="font-medium">{rfq.quantity} units</p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Estimated Budget:</span>
-                            <p className="font-medium">₦{parseInt(rfq.estimatedCost).toLocaleString()}</p>
+                            <span className="text-muted-foreground">Items:</span>
+                            <p className="font-medium">{rfq.items?.length || 0} item(s)</p>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Deadline:</span>
-                            <p className="font-medium text-warning">{rfq.deadline}</p>
+                            <p className="font-medium text-warning">{new Date(rfq.deadline).toLocaleDateString()}</p>
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -1511,7 +1566,7 @@ const VendorPortal = () => {
             <DialogDescription>Complete information about this request</DialogDescription>
           </DialogHeader>
           {selectedRfqForDetails && (() => {
-            const rfq = rfqs.find(r => r.id === selectedRfqForDetails);
+            const rfq = vendorRfqs.find(r => r.id === selectedRfqForDetails);
             if (!rfq) return null;
             return (
               <div className="space-y-4">
@@ -1526,25 +1581,41 @@ const VendorPortal = () => {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Title</Label>
-                    <p className="font-medium">{rfq.mrfTitle}</p>
+                    <p className="font-medium">{rfq.title}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Quantity</Label>
-                    <p className="font-medium">{rfq.quantity} units</p>
+                    <Label className="text-muted-foreground">Items</Label>
+                    <p className="font-medium">{rfq.items?.length || 0} item(s)</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Estimated Budget</Label>
-                    <p className="font-medium">₦{parseInt(rfq.estimatedCost).toLocaleString()}</p>
+                    <Label className="text-muted-foreground">Sent At</Label>
+                    <p className="font-medium">{new Date(rfq.sent_at).toLocaleDateString()}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Deadline</Label>
-                    <p className="font-medium text-warning">{rfq.deadline}</p>
+                    <p className="font-medium text-warning">{new Date(rfq.deadline).toLocaleDateString()}</p>
                   </div>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Description</Label>
                   <p className="text-sm mt-1">{rfq.description}</p>
                 </div>
+                {rfq.items && rfq.items.length > 0 && (
+                  <div>
+                    <Label className="text-muted-foreground">Items</Label>
+                    <div className="mt-2 space-y-2">
+                      {rfq.items.map((item, idx) => (
+                        <div key={idx} className="p-2 border rounded">
+                          <p className="font-medium">{item.item_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Quantity: {item.quantity} {item.unit}
+                            {item.specifications && ` • ${item.specifications}`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })()}

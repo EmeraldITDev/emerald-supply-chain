@@ -327,7 +327,7 @@ const NewMRF = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="estimatedCost">Estimated Cost (₦)</Label>
+                  <Label htmlFor="estimatedCost">Estimated Cost (₦) <span className="text-muted-foreground text-xs font-normal">(Optional)</span></Label>
                   <Input
                     id="estimatedCost"
                     type="number"
