@@ -9,11 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Trash2, RefreshCw } from "lucide-react";
+import { FileText, Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { mrfApi } from "@/services/api";
-import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -151,28 +150,11 @@ const DepartmentDashboard = () => {
   return (
     <DashboardLayout>
       <div className="space-y-4 sm:space-y-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">My Requests</h1>
-            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">
-              Submit material requests and track your procurement activities
-            </p>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={async () => {
-              if (refreshMRFs) await refreshMRFs();
-              toast({
-                title: "Refreshed",
-                description: "All data has been refreshed",
-              });
-            }}
-            className="gap-2 self-start sm:self-center"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
+        <div>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">My Requests</h1>
+          <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">
+            Submit material requests and track your procurement activities
+          </p>
         </div>
 
         {/* Stats Cards */}
@@ -326,27 +308,12 @@ const DepartmentDashboard = () => {
 
           {/* MRF Tab - Only for employees */}
           <TabsContent value="mrf" className="space-y-3 sm:space-y-4">
-            {/* Progress Tracker for Submitted MRFs */}
-            {mrfRequests.filter(mrf => mrf.requesterId === user?.email || mrf.requester === user?.name).length > 0 && (
-              <Card>
-                <CardHeader className="p-4 sm:p-6">
-                  <CardTitle className="text-base sm:text-lg">MRF Progress Tracker</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Track the status of your submitted MRFs</CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0">
-                  <ProcurementProgressTracker 
-                    mrfRequests={mrfRequests.filter(mrf => mrf.requesterId === user?.email || mrf.requester === user?.name)}
-                  />
-                </CardContent>
-              </Card>
-            )}
-
             <Card>
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle className="text-base sm:text-lg">Submitted MRFs</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Track all your submitted Material Request Forms</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">Material Request Forms (MRF)</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Official material requisition forms</CardDescription>
                   </div>
                   {user?.role === "employee" && (
                     <Button onClick={() => navigate("/new-mrf")} size="sm" className="sm:size-default">

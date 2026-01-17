@@ -244,19 +244,8 @@ const VendorPortal = () => {
     try {
       // Try calling refresh endpoint first
       try {
-        let token = localStorage.getItem('vendorAuthToken');
-        let tokenExpiry = localStorage.getItem('vendorTokenExpiry');
-        let storage: Storage = localStorage;
-        
-        // If not in localStorage, check sessionStorage
-        if (!token) {
-          token = sessionStorage.getItem('vendorAuthToken');
-          tokenExpiry = sessionStorage.getItem('vendorTokenExpiry');
-          storage = sessionStorage;
-        }
-        
-        // Check if token is expired before making request
-        if (token && !isVendorTokenExpired(tokenExpiry)) {
+        const token = localStorage.getItem('vendorAuthToken');
+        if (token) {
           const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
           const response = await fetch(`${apiBaseUrl}/refresh`, {
             method: 'GET',
@@ -265,21 +254,6 @@ const VendorPortal = () => {
               'Accept': 'application/json',
             },
           });
-          
-          if (response.status === 401) {
-            // Token invalid, clear session
-            storage.removeItem('vendorAuthToken');
-            storage.removeItem('vendorData');
-            storage.removeItem('vendorTokenExpiry');
-            setIsLoggedIn(false);
-            toast({
-              title: "Session Expired",
-              description: "Please log in again",
-              variant: "destructive",
-            });
-            return;
-          }
-          
           if (response.ok) {
             // Refresh endpoint succeeded, data should be updated
             toast({
@@ -287,18 +261,6 @@ const VendorPortal = () => {
               description: "Data has been refreshed",
             });
           }
-        } else if (token && isVendorTokenExpired(tokenExpiry)) {
-          // Token expired, clear session
-          storage.removeItem('vendorAuthToken');
-          storage.removeItem('vendorData');
-          storage.removeItem('vendorTokenExpiry');
-          setIsLoggedIn(false);
-          toast({
-            title: "Session Expired",
-            description: "Please log in again",
-            variant: "destructive",
-          });
-          return;
         }
       } catch (refreshError) {
         // If refresh endpoint doesn't exist or fails, re-fetch current page data
@@ -328,43 +290,12 @@ const VendorPortal = () => {
     }
   };
 
-  // Helper function to check if vendor token is expired
-  const isVendorTokenExpired = (tokenExpiry: string | null): boolean => {
-    if (!tokenExpiry) return false; // If no expiry info, assume valid
-    try {
-      const expiryDate = new Date(tokenExpiry);
-      return expiryDate < new Date();
-    } catch {
-      return false; // If invalid date, assume valid
-    }
-  };
-
   // Check for existing session on mount
   useEffect(() => {
-    let token = localStorage.getItem('vendorAuthToken');
-    let tokenExpiry = localStorage.getItem('vendorTokenExpiry');
-    let storedVendor = localStorage.getItem('vendorData');
-    let storage: Storage = localStorage;
-    
-    // If not in localStorage, check sessionStorage
-    if (!token || !storedVendor) {
-      token = sessionStorage.getItem('vendorAuthToken');
-      tokenExpiry = sessionStorage.getItem('vendorTokenExpiry');
-      storedVendor = sessionStorage.getItem('vendorData');
-      storage = sessionStorage;
-    }
+    const token = localStorage.getItem('vendorAuthToken');
+    const storedVendor = localStorage.getItem('vendorData');
     
     if (token && storedVendor) {
-      // Check if token has expired
-      if (isVendorTokenExpired(tokenExpiry)) {
-        // Token expired, clear session
-        storage.removeItem('vendorAuthToken');
-        storage.removeItem('vendorData');
-        storage.removeItem('vendorTokenExpiry');
-        setIsLoggedIn(false);
-        return;
-      }
-      
       try {
         const vendorData = JSON.parse(storedVendor);
         setCurrentVendor(vendorData);
@@ -399,10 +330,6 @@ const VendorPortal = () => {
       } catch {
         localStorage.removeItem('vendorAuthToken');
         localStorage.removeItem('vendorData');
-        localStorage.removeItem('vendorTokenExpiry');
-        sessionStorage.removeItem('vendorAuthToken');
-        sessionStorage.removeItem('vendorData');
-        sessionStorage.removeItem('vendorTokenExpiry');
       }
     }
   }, [quotations]);
@@ -436,43 +363,15 @@ const VendorPortal = () => {
       const response = await vendorAuthApi.login(email, password);
       
       if (response.success && response.data) {
-        // Extract token from response - handle both nested and direct token fields
-        const responseData = response.data as any;
-        const token = responseData.token || responseData.data?.token || responseData.auth_token;
-        const vendor = responseData.vendor || responseData.data?.vendor;
-        const requiresPasswordChange = responseData.requiresPasswordChange || responseData.data?.requiresPasswordChange || false;
-        const expiresAt = responseData.expiresAt || responseData.data?.expiresAt;
+        const { vendor, token, requiresPasswordChange, expiresAt } = response.data;
         
-        // Validate that we have both token and vendor data
-        if (!token) {
-          toast({
-            title: "Login Error",
-            description: "Authentication token not received from server. Please try again.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        if (!vendor) {
-          toast({
-            title: "Login Error",
-            description: "Vendor data not received from server. Please try again.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        // Store token and vendor data in localStorage
+        // Store token and vendor data
         localStorage.setItem('vendorAuthToken', token);
         localStorage.setItem('vendorData', JSON.stringify(vendor));
         
         // Store token expiration if provided
         if (expiresAt) {
           localStorage.setItem('vendorTokenExpiry', expiresAt);
-        } else {
-          // If no expiry provided, set a default (e.g., 24 hours from now)
-          const defaultExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-          localStorage.setItem('vendorTokenExpiry', defaultExpiry);
         }
         
         setCurrentVendor(vendor);
@@ -586,10 +485,6 @@ const VendorPortal = () => {
     } finally {
       localStorage.removeItem('vendorAuthToken');
       localStorage.removeItem('vendorData');
-      localStorage.removeItem('vendorTokenExpiry');
-      sessionStorage.removeItem('vendorAuthToken');
-      sessionStorage.removeItem('vendorData');
-      sessionStorage.removeItem('vendorTokenExpiry');
       setIsLoggedIn(false);
       setCurrentVendor(null);
       setCurrentVendorId("");
