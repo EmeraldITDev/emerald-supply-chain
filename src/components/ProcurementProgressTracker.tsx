@@ -230,7 +230,7 @@ export const ProcurementProgressTracker = ({ mrfRequests, showTitle = true }: Pr
   const activeMRFs = mrfRequests.filter(mrf => {
     const stage = mrf.currentStage?.toLowerCase() || '';
     return stage !== 'completed' && stage !== 'rejected';
-  }).slice(0, 10); // Limit to 10 for display
+  }); // Don't slice here, we'll show 3 at a time with scrolling
 
   if (activeMRFs.length === 0) {
     return (
@@ -265,9 +265,9 @@ export const ProcurementProgressTracker = ({ mrfRequests, showTitle = true }: Pr
         </CardHeader>
       )}
       <CardContent>
-        <div className="overflow-x-auto">
-          <div className="space-y-6 min-w-[600px]">
-            {activeMRFs.map((mrf) => {
+        <div className="overflow-y-auto max-h-[600px]">
+          <div className="space-y-6">
+            {activeMRFs.slice(0, 3).map((mrf) => {
           const stages = getStagesForMRF(mrf);
           const progress = getProgressPercentage(stages);
           

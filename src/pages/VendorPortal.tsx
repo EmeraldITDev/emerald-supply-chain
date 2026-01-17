@@ -12,7 +12,7 @@ import { useNavigate } from "react-router-dom";
 import logo from "@/assets/emerald-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
-import { vendorApi, vendorAuthApi, vendorPortalApi } from "@/services/api";
+import { vendorApi, vendorAuthApi, vendorPortalApi, quotationApi } from "@/services/api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -55,6 +55,8 @@ const VendorPortal = () => {
     has_submitted_quote: boolean;
   }>>([]);
   const [loadingVendorRfqs, setLoadingVendorRfqs] = useState(false);
+  const [vendorQuotationsList, setVendorQuotationsList] = useState<any[]>([]);
+  const [loadingQuotations, setLoadingQuotations] = useState(false);
   const [selectedRfqForDetails, setSelectedRfqForDetails] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isBottomBarCollapsed, setIsBottomBarCollapsed] = useState(false);
@@ -206,6 +208,28 @@ const VendorPortal = () => {
     }
   };
 
+  // Fetch vendor quotations
+  const fetchVendorQuotations = async () => {
+    if (!isLoggedIn || !currentVendorId) return;
+    
+    setLoadingQuotations(true);
+    try {
+      const response = await quotationApi.getByVendor(currentVendorId);
+      if (response.success && response.data) {
+        setVendorQuotationsList(response.data);
+      } else {
+        console.error('Failed to fetch vendor quotations:', response.error);
+        setVendorQuotationsList([]);
+      }
+    } catch (error) {
+      console.error('Error fetching vendor quotations:', error);
+      // Fallback to context quotations if API fails
+      setVendorQuotationsList(quotations.filter(q => q.vendorId === currentVendorId));
+    } finally {
+      setLoadingQuotations(false);
+    }
+  };
+
   // Check for existing session on mount
   useEffect(() => {
     const token = localStorage.getItem('vendorAuthToken');
@@ -250,10 +274,11 @@ const VendorPortal = () => {
     }
   }, [quotations]);
 
-  // Fetch vendor RFQs when logged in
+  // Fetch vendor RFQs and quotations when logged in
   useEffect(() => {
     if (isLoggedIn && currentVendorId) {
       fetchVendorRFQs();
+      fetchVendorQuotations();
     }
   }, [isLoggedIn, currentVendorId]);
 
@@ -572,7 +597,10 @@ const VendorPortal = () => {
     setUploadedQuoteDocs(newDocs);
   };
 
-  const vendorQuotations = quotations.filter(q => q.vendorId === currentVendorId);
+  // Use fetched vendor quotations, fallback to context quotations if empty
+  const vendorQuotations = vendorQuotationsList.length > 0 
+    ? vendorQuotationsList 
+    : quotations.filter(q => q.vendorId === currentVendorId);
   // Use vendor-specific RFQs fetched from API, filter to only show Open ones
   const openVendorRfqs = vendorRfqs.filter(r => r.status === "Open" || r.status === "open");
   const newRfqCount = openVendorRfqs.length;

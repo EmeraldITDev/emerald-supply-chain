@@ -1158,53 +1158,6 @@ const Procurement = () => {
                   </div>
                 )}
 
-                {/* Executive Approved MRFs - Awaiting PO Upload - Only visible to Procurement Managers */}
-                {executiveApprovedMRFs.length > 0 && (user?.role === "procurement" || user?.role === "procurement_manager" || user?.role === "admin") && (
-                  <div className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                    <div className="flex items-center gap-2 mb-4">
-                      <AlertCircle className="h-5 w-5 text-primary" />
-                      <h3 className="font-semibold text-lg">Action Required: Upload Purchase Orders</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {executiveApprovedMRFs.length} MRF(s) approved by Executive awaiting PO upload
-                    </p>
-                    <div className="space-y-3">
-                      {executiveApprovedMRFs.map((mrf) => (
-                        <Card key={mrf.id} className="bg-card">
-                          <CardContent className="p-4">
-                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h4 className="font-semibold">{mrf.title}</h4>
-                                  <Badge variant="default">Exec Approved</Badge>
-                                  {parseFloat(mrf.estimatedCost) > 1000000 && (
-                                    <Badge variant="destructive">High Value</Badge>
-                                  )}
-                                </div>
-                                <div className="text-sm text-muted-foreground space-y-1">
-                                  <p>MRF ID: <span className="font-medium">{mrf.id}</span></p>
-                                  <p>Requester: {mrf.requester}</p>
-                                  <p>Amount: <span className="font-semibold">₦{parseInt(mrf.estimatedCost).toLocaleString()}</span></p>
-                                  <p className="text-xs italic">Quantity: {mrf.quantity}</p>
-                                </div>
-                              </div>
-                              {/* Send Request to Vendors button - Only for Procurement Managers */}
-                              {(user?.role === "procurement" || user?.role === "procurement_manager" || user?.role === "admin") && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleGeneratePO(mrf)}
-                              >
-                                <FileText className="h-4 w-4 mr-2" />
-                                Send Request to Vendors
-                              </Button>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 <div className="space-y-4">
                   <FilterBar
