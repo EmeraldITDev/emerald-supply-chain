@@ -48,14 +48,76 @@ if (typeof window !== 'undefined') {
   console.log('Current Origin:', window.location.origin);
 }
 
+// Helper function to check if token is expired
+const isTokenExpired = (tokenExpiry: string | null): boolean => {
+  if (!tokenExpiry) return false; // If no expiry info, assume valid
+  try {
+    const expiryDate = new Date(tokenExpiry);
+    return expiryDate < new Date();
+  } catch {
+    return false; // If invalid date, assume valid
+  }
+};
+
 // Helper function to get auth token (check localStorage first, then sessionStorage)
-const getAuthToken = (): string | null => {
-  return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+const getAuthToken = (): { token: string | null; expired: boolean } => {
+  let token = localStorage.getItem('authToken');
+  let tokenExpiry = localStorage.getItem('tokenExpiry');
+  let storage: Storage = localStorage;
+  
+  // If not in localStorage, check sessionStorage
+  if (!token) {
+    token = sessionStorage.getItem('authToken');
+    tokenExpiry = sessionStorage.getItem('tokenExpiry');
+    storage = sessionStorage;
+  }
+  
+  // Check if token is expired
+  const expired = token ? isTokenExpired(tokenExpiry) : false;
+  
+  // If expired, clear token and redirect to login
+  if (expired && token) {
+    console.warn('Token expired, clearing session');
+    storage.removeItem('authToken');
+    storage.removeItem('userData');
+    storage.removeItem('tokenExpiry');
+    storage.removeItem('isAuthenticated');
+    // Redirect to login if we're in a browser context
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+      window.location.href = '/auth';
+    }
+    return { token: null, expired: true };
+  }
+  
+  return { token, expired: false };
 };
 
 // Helper function to get vendor auth token
-const getVendorAuthToken = (): string | null => {
-  return localStorage.getItem('vendorAuthToken') || sessionStorage.getItem('vendorAuthToken');
+const getVendorAuthToken = (): { token: string | null; expired: boolean } => {
+  let token = localStorage.getItem('vendorAuthToken');
+  let tokenExpiry = localStorage.getItem('vendorTokenExpiry');
+  let storage: Storage = localStorage;
+  
+  // If not in localStorage, check sessionStorage
+  if (!token) {
+    token = sessionStorage.getItem('vendorAuthToken');
+    tokenExpiry = sessionStorage.getItem('vendorTokenExpiry');
+    storage = sessionStorage;
+  }
+  
+  // Check if token is expired
+  const expired = token ? isTokenExpired(tokenExpiry) : false;
+  
+  // If expired, clear token
+  if (expired && token) {
+    console.warn('Vendor token expired, clearing session');
+    storage.removeItem('vendorAuthToken');
+    storage.removeItem('vendorData');
+    storage.removeItem('vendorTokenExpiry');
+    return { token: null, expired: true };
+  }
+  
+  return { token, expired: false };
 };
 
 // Helper function for API requests
@@ -63,7 +125,15 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const token = getAuthToken();
+  const { token, expired } = getAuthToken();
+  
+  // If token is expired, return error immediately
+  if (expired) {
+    return {
+      success: false,
+      error: 'Authentication token has expired. Please log in again.',
+    };
+  }
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -71,6 +141,7 @@ async function apiRequest<T>(
     ...options.headers,
   };
 
+  // Always include Authorization header with Bearer token if available
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -113,6 +184,27 @@ async function apiRequest<T>(
       };
     }
 
+    // Handle 401 Unauthorized - token is invalid or expired
+    if (response.status === 401) {
+      // Clear invalid token
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      localStorage.removeItem('tokenExpiry');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('userData');
+      sessionStorage.removeItem('tokenExpiry');
+      
+      // Redirect to login if we're in a browser context
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+        window.location.href = '/auth';
+      }
+      
+      return {
+        success: false,
+        error: 'Authentication failed. Please log in again.',
+      };
+    }
+    
     if (!response.ok) {
       // Handle validation errors
       if (data.errors && typeof data.errors === 'object') {
@@ -200,10 +292,19 @@ export const grnApi = {
   },
 
   completeGRN: async (mrfId: string, grnFile: File): Promise<ApiResponse<MRF>> => {
+    const { token, expired } = getAuthToken();
+    
+    // If token is expired, return error immediately
+    if (expired || !token) {
+      return {
+        success: false,
+        error: 'Authentication token has expired. Please log in again.',
+      };
+    }
+    
     const formData = new FormData();
     formData.append('grn', grnFile);
     
-    const token = localStorage.getItem('authToken');
     const response = await fetch(`${API_BASE_URL}/mrfs/${mrfId}/complete-grn`, {
       method: 'POST',
       headers: {
@@ -211,6 +312,25 @@ export const grnApi = {
       },
       body: formData,
     });
+
+    // Handle 401 Unauthorized
+    if (response.status === 401) {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      localStorage.removeItem('tokenExpiry');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('userData');
+      sessionStorage.removeItem('tokenExpiry');
+      
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+        window.location.href = '/auth';
+      }
+      
+      return {
+        success: false,
+        error: 'Authentication failed. Please log in again.',
+      };
+    }
 
     const data = await response.json();
     return {
@@ -297,7 +417,14 @@ export const mrfApi = {
   },
 
   createWithPFI: async (formData: FormData): Promise<ApiResponse<MRF>> => {
-    const token = localStorage.getItem('authToken');
+    const { token, expired } = getAuthToken();
+    if (expired || !token) {
+      return {
+        success: false,
+        error: 'Authentication token has expired. Please log in again.',
+      };
+    }
+    
     const response = await fetch(`${API_BASE_URL}/mrfs`, {
       method: 'POST',
       headers: {
@@ -306,6 +433,26 @@ export const mrfApi = {
       },
       body: formData,
     });
+    
+    // Handle 401 Unauthorized
+    if (response.status === 401) {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      localStorage.removeItem('tokenExpiry');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('userData');
+      sessionStorage.removeItem('tokenExpiry');
+      
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+        window.location.href = '/auth';
+      }
+      
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: errorData.error || errorData.message || 'Authentication failed. Please log in again.',
+      };
+    }
 
     const data = await response.json();
     return {
@@ -570,7 +717,14 @@ export const srfApi = {
     });
   },
   createWithInvoice: async (formData: FormData): Promise<ApiResponse<SRF>> => {
-    const token = localStorage.getItem('authToken');
+    const { token, expired } = getAuthToken();
+    if (expired || !token) {
+      return {
+        success: false,
+        error: 'Authentication token has expired. Please log in again.',
+      };
+    }
+    
     const response = await fetch(`${API_BASE_URL}/srfs`, {
       method: 'POST',
       headers: {
@@ -579,6 +733,26 @@ export const srfApi = {
       },
       body: formData,
     });
+    
+    // Handle 401 Unauthorized
+    if (response.status === 401) {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      localStorage.removeItem('tokenExpiry');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('userData');
+      sessionStorage.removeItem('tokenExpiry');
+      
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+        window.location.href = '/auth';
+      }
+      
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: errorData.error || errorData.message || 'Authentication failed. Please log in again.',
+      };
+    }
 
     const data = await response.json();
     return {
@@ -752,7 +926,15 @@ async function vendorApiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const token = getVendorAuthToken();
+  const { token, expired } = getVendorAuthToken();
+  
+  // If token is expired, return error immediately
+  if (expired) {
+    return {
+      success: false,
+      error: 'Authentication token has expired. Please log in again.',
+    };
+  }
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -760,6 +942,7 @@ async function vendorApiRequest<T>(
     ...options.headers,
   };
 
+  // Always include Authorization header with Bearer token if available
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -802,7 +985,33 @@ async function vendorApiRequest<T>(
       };
     }
 
+    // Handle 401 Unauthorized - token is invalid or expired
+    if (response.status === 401) {
+      // Clear invalid vendor token
+      localStorage.removeItem('vendorAuthToken');
+      localStorage.removeItem('vendorData');
+      localStorage.removeItem('vendorTokenExpiry');
+      sessionStorage.removeItem('vendorAuthToken');
+      sessionStorage.removeItem('vendorData');
+      sessionStorage.removeItem('vendorTokenExpiry');
+      
+      return {
+        success: false,
+        error: 'Authentication failed. Please log in again.',
+      };
+    }
+
     if (!response.ok) {
+      // Handle validation errors
+      if (data.errors && typeof data.errors === 'object') {
+        const firstError = Object.values(data.errors)[0];
+        const errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+        return {
+          success: false,
+          error: errorMessage || data.message || 'An error occurred',
+        };
+      }
+      
       return {
         success: false,
         error: data.error || data.message || `HTTP ${response.status}: ${response.statusText}`,
