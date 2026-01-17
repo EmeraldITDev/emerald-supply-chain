@@ -168,6 +168,7 @@ export interface CreateRFQData {
   deadline: string;
   vendorIds: string[];
   title?: string;
+  category?: string;
   paymentTerms?: string;
   notes?: string;
 }

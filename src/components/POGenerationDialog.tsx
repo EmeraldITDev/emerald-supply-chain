@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2, X } from "lucide-react";
+import { CalendarIcon, Loader2, X, FileText, Upload as UploadIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,6 +41,7 @@ interface POGenerationDialogProps {
     paymentTerms: string;
     notes: string;
     poFile: File | null;
+    supportingDocuments?: File[];
   }) => Promise<void>;
   onSave?: (poData: {
     vendors: string[];
@@ -50,6 +51,7 @@ interface POGenerationDialogProps {
     paymentTerms: string;
     notes: string;
     poFile: File | null;
+    supportingDocuments?: File[];
   }) => Promise<void>;
   isGenerating?: boolean;
 }
@@ -64,6 +66,7 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [supportingDocuments, setSupportingDocuments] = useState<File[]>([]);
 
   // Fetch vendors when dialog opens
   useEffect(() => {
@@ -112,7 +115,8 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
       deliveryDate: deliveryDate ? format(deliveryDate, "yyyy-MM-dd") : "",
       paymentTerms,
       notes,
-      poFile: null // PO documents are uploaded later, after RFQ approval
+      poFile: null, // PO documents are uploaded later, after RFQ approval
+      supportingDocuments: supportingDocuments.length > 0 ? supportingDocuments : undefined
     };
 
     if (sendToVendors) {
@@ -121,10 +125,11 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
         await onGenerate(poData);
         // Reset form only on success
         setSelectedVendorIds([]);
-    setAmount("");
-    setDeliveryDate(undefined);
-    setPaymentTerms("");
-    setNotes("");
+        setAmount("");
+        setDeliveryDate(undefined);
+        setPaymentTerms("");
+        setNotes("");
+        setSupportingDocuments([]);
         onOpenChange(false);
       } catch (error) {
         console.error('PO Generation: Submit failed', error);
@@ -281,7 +286,7 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="amount">Order Amount (₦) *</Label>
+                <Label htmlFor="amount">Estimated Budget (₦) *</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -290,6 +295,7 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
                   placeholder="e.g., 50000"
                   required
                 />
+                <p className="text-xs text-muted-foreground">This budget will be shared with vendors for quotation purposes</p>
               </div>
 
               <div className="space-y-2">
@@ -345,6 +351,53 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
                 placeholder="Special instructions, shipping requirements, etc."
                 rows={3}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supporting-docs">Supporting Documents (Optional)</Label>
+              <p className="text-xs text-muted-foreground">
+                Upload specifications or supporting documents that vendors can use to provide better quotes
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  id="supporting-docs"
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    const validFiles = files.filter(file => {
+                      if (file.size > 10 * 1024 * 1024) {
+                        return false;
+                      }
+                      return true;
+                    });
+                    setSupportingDocuments(prev => [...prev, ...validFiles]);
+                  }}
+                  className="flex-1"
+                />
+              </div>
+              {supportingDocuments.length > 0 && (
+                <div className="space-y-2 mt-2">
+                  {supportingDocuments.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-muted rounded border">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{file.name}</span>
+                        <span className="text-xs text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSupportingDocuments(supportingDocuments.filter((_, i) => i !== index))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

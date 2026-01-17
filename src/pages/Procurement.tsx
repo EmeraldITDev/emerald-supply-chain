@@ -597,10 +597,11 @@ const Procurement = () => {
       deadlineDate.setDate(deadlineDate.getDate() + deadlineDays);
       const deadline = deadlineDate.toISOString().split('T')[0];
       
-      // Create RFQ with all relevant details
+      // Create RFQ with all relevant details (title, category, payment terms, estimated budget)
       const rfqResponse = await rfqApi.create({
         mrfId: selectedMRFForPO.id,
         title: selectedMRFForPO.title || 'RFQ Request',
+        category: selectedMRFForPO.category || '',
         description: poData.items || selectedMRFForPO.description || '',
         quantity: selectedMRFForPO.quantity || '1',
         estimatedCost: poData.amount || selectedMRFForPO.estimatedCost || '0',

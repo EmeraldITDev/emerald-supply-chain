@@ -1011,6 +1011,12 @@ export const vendorAuthApi = {
       body: JSON.stringify(data),
     });
   },
+
+  requestPasswordReset: async (): Promise<ApiResponse<{ success: boolean; message: string }>> => {
+    return apiRequest<{ success: boolean; message: string }>('/vendors/auth/request-password-reset', {
+      method: 'POST',
+    });
+  },
 };
 
 // Dashboard API

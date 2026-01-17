@@ -359,19 +359,19 @@ const NewMRF = () => {
                 />
               </div>
 
-              {/* Invoice Upload Section */}
+              {/* Supporting Document Upload Section */}
               <div className="space-y-3 pt-4 border-t">
-                <Label className="text-base font-semibold">Invoice / Supporting Document (Optional)</Label>
+                <Label className="text-base font-semibold">Supporting Document (Optional)</Label>
                 <p className="text-sm text-muted-foreground">
-                  Upload an invoice or supporting document from your computer or provide a OneDrive link
+                  Upload specifications or supporting documents for this material request from your computer or provide a OneDrive link
                 </p>
                 
                 {/* Local File Upload */}
                 <div className="space-y-2">
-                  <Label htmlFor="invoice-file">Upload from Computer</Label>
+                  <Label htmlFor="supporting-doc-file">Upload from Computer</Label>
                   <div className="flex gap-2">
                     <Input
-                      id="invoice-file"
+                      id="supporting-doc-file"
                       type="file"
                       accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
                       onChange={(e) => {
@@ -398,7 +398,7 @@ const NewMRF = () => {
                         size="sm"
                         onClick={() => {
                           setInvoiceFile(null);
-                          const input = document.getElementById("invoice-file") as HTMLInputElement;
+                          const input = document.getElementById("supporting-doc-file") as HTMLInputElement;
                           if (input) input.value = "";
                         }}
                       >
@@ -417,10 +417,10 @@ const NewMRF = () => {
 
                 {/* OneDrive URL Input */}
                 <div className="space-y-2">
-                  <Label htmlFor="invoice-onedrive">Or provide OneDrive link</Label>
+                  <Label htmlFor="supporting-doc-onedrive">Or provide OneDrive link</Label>
                   <div className="flex gap-2">
                     <Input
-                      id="invoice-onedrive"
+                      id="supporting-doc-onedrive"
                       type="url"
                       placeholder="https://onedrive.live.com/..."
                       value={invoiceOneDriveUrl}
@@ -428,7 +428,7 @@ const NewMRF = () => {
                         setInvoiceOneDriveUrl(e.target.value);
                         if (e.target.value) {
                           setInvoiceFile(null); // Clear file if OneDrive URL is provided
-                          const input = document.getElementById("invoice-file") as HTMLInputElement;
+                          const input = document.getElementById("supporting-doc-file") as HTMLInputElement;
                           if (input) input.value = "";
                         }
                       }}

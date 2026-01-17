@@ -76,6 +76,7 @@ const VendorPortal = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [currentPasswordForChange, setCurrentPasswordForChange] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isRequestingPasswordReset, setIsRequestingPasswordReset] = useState(false);
   
   // Registration form (legacy)
   const [companyName, setCompanyName] = useState("");
@@ -356,6 +357,33 @@ const VendorPortal = () => {
       });
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleRequestPasswordReset = async () => {
+    setIsRequestingPasswordReset(true);
+    try {
+      const response = await vendorAuthApi.requestPasswordReset();
+      if (response.success) {
+        toast({
+          title: "Password Reset Requested",
+          description: "Your password reset request has been sent to the Procurement Manager. They will contact you to help reset your password.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to request password reset",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to request password reset",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRequestingPasswordReset(false);
     }
   };
 
@@ -1518,6 +1546,45 @@ const VendorPortal = () => {
                       <p className="text-xs mt-1">Documents submitted during registration will appear here</p>
                     </div>
                   )}
+                </div>
+
+                {/* Account Settings */}
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Account Settings
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="p-4 border rounded-lg bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm">Password Reset Request</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Request assistance from Procurement Manager to reset your password
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRequestPasswordReset}
+                          disabled={isRequestingPasswordReset}
+                          className="gap-2"
+                        >
+                          {isRequestingPasswordReset ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Requesting...
+                            </>
+                          ) : (
+                            <>
+                              <Mail className="h-4 w-4" />
+                              Request Reset
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Performance Stats */}
