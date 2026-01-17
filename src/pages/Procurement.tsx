@@ -830,11 +830,26 @@ const Procurement = () => {
         });
       }}>
         <div className="space-y-6">
-        <div className="flex flex-col gap-2 sm:gap-4">
+        <div className="flex flex-col gap-2 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Procurement Dashboard</h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage material and service requests</p>
           </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={async () => {
+              await Promise.all([fetchMRFs(), fetchRFQs()]);
+              toast({
+                title: "Refreshed",
+                description: "All data has been refreshed",
+              });
+            }}
+            className="gap-2 self-start sm:self-center"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
         </div>
 
         {/* Stats */}

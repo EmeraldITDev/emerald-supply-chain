@@ -231,22 +231,19 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     setIsCreatingRFQ(true);
     
     try {
-      // Create RFQ via API
+      // Create RFQ via API with payment terms and all MRF details
       const response = await rfqApi.create({
-        mrf_id: selectedMRF.id,
+        mrfId: selectedMRF.id,
         title: selectedMRF.title,
         description: selectedMRF.description || '',
         category: selectedMRF.category || 'General',
         deadline: deadline,
-        items: [{
-          item_name: selectedMRF.title,
-      description: selectedMRF.description || '',
-          quantity: parseInt(selectedMRF.quantity) || 1,
-          unit: 'units',
-          specifications: selectedMRF.justification,
-        }],
-        vendor_ids: vendorIds,
-    });
+        quantity: selectedMRF.quantity || '1',
+        estimatedCost: selectedMRF.estimatedCost || '0',
+        vendorIds: vendorIds,
+        paymentTerms: paymentTerms || selectedMRF.paymentTerms || '',
+        notes: deliveryTerms || technicalReqs ? `${deliveryTerms || ''} ${technicalReqs || ''}`.trim() : '',
+      });
 
       if (response.success) {
     toast({
