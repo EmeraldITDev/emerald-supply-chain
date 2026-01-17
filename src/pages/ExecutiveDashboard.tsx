@@ -58,9 +58,17 @@ const ExecutiveDashboard = () => {
     return mrf.created_at || mrf.date || "";
   };
 
-  // Helper to get PFI URL
+  // Helper to get PFI/Supporting Document URL
   const getPFIUrl = (mrf: MRF) => {
-    return mrf.pfi_share_url || mrf.pfiShareUrl || mrf.pfi_url || mrf.pfiUrl;
+    // Check all possible document URL fields
+    return (mrf as any).invoice_onedrive_url || 
+           (mrf as any).invoiceOneDriveUrl ||
+           mrf.pfi_share_url || 
+           mrf.pfiShareUrl || 
+           mrf.pfi_url || 
+           mrf.pfiUrl ||
+           (mrf as any).invoice_url ||
+           (mrf as any).invoiceUrl;
   };
 
   // Handle PFI download
@@ -316,7 +324,7 @@ const ExecutiveDashboard = () => {
                           <div className="flex flex-col gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Invoice/PFI Submitted by Staff</span>
+                              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Supporting Document Submitted by Staff</span>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <Button 
@@ -328,13 +336,19 @@ const ExecutiveDashboard = () => {
                                 <Download className="h-4 w-4 mr-2" />
                                 View Invoice
                               </Button>
-                              {(mrf.pfi_share_url || mrf.pfiShareUrl) && (
-                                <OneDriveLink 
-                                  webUrl={mrf.pfi_share_url || mrf.pfiShareUrl} 
-                                  fileName="Invoice"
-                                  variant="badge"
-                                />
-                              )}
+                              {(() => {
+                                const shareUrl = (mrf as any).invoice_onedrive_url || 
+                                                (mrf as any).invoiceOneDriveUrl ||
+                                                mrf.pfi_share_url || 
+                                                mrf.pfiShareUrl;
+                                return shareUrl && (
+                                  <OneDriveLink 
+                                    webUrl={shareUrl} 
+                                    fileName="Supporting Document"
+                                    variant="badge"
+                                  />
+                                );
+                              })()}
                             </div>
                           </div>
                         )}

@@ -176,7 +176,17 @@ const Procurement = () => {
   const getMRFPOVersion = (mrf: MRF) => mrf.po_version || mrf.poVersion || 1;
   const getMRFPOShareUrl = (mrf: MRF) => mrf.unsigned_po_share_url || mrf.unsignedPOShareUrl || getMRFPOUrl(mrf);
   const getMRFSignedPOShareUrl = (mrf: MRF) => mrf.signed_po_share_url || mrf.signedPOShareUrl || (mrf.signed_po_url || mrf.signedPOUrl);
-  const getMRFPFIUrl = (mrf: MRF) => mrf.pfi_share_url || mrf.pfiShareUrl || mrf.pfi_url || mrf.pfiUrl;
+  const getMRFPFIUrl = (mrf: MRF) => {
+    // Check all possible document URL fields
+    return (mrf as any).invoice_onedrive_url || 
+           (mrf as any).invoiceOneDriveUrl ||
+           mrf.pfi_share_url || 
+           mrf.pfiShareUrl || 
+           mrf.pfi_url || 
+           mrf.pfiUrl ||
+           (mrf as any).invoice_url ||
+           (mrf as any).invoiceUrl;
+  };
 
   // Handle PFI/Invoice download
   const handleDownloadPFI = (mrf: MRF) => {
@@ -1128,7 +1138,7 @@ const Procurement = () => {
                                 <div className="flex flex-col gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg mt-3">
                                   <div className="flex items-center gap-2">
                                     <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                    <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Invoice/PFI Submitted by Staff</span>
+                                    <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Supporting Document Submitted by Staff</span>
                                   </div>
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <Button 
@@ -1140,13 +1150,20 @@ const Procurement = () => {
                                       <Download className="h-4 w-4 mr-2" />
                                       View Invoice
                                     </Button>
-                                    {(mrf.pfi_share_url || mrf.pfiShareUrl) && (
-                                      <OneDriveLink 
-                                        webUrl={mrf.pfi_share_url || mrf.pfiShareUrl} 
-                                        fileName="Invoice"
-                                        variant="badge"
-                                      />
-                                    )}
+                                    {(() => {
+                                      const docUrl = getMRFPFIUrl(mrf as MRF);
+                                      const shareUrl = (mrf as any).invoice_onedrive_url || 
+                                                      (mrf as any).invoiceOneDriveUrl ||
+                                                      mrf.pfi_share_url || 
+                                                      mrf.pfiShareUrl;
+                                      return shareUrl && (
+                                        <OneDriveLink 
+                                          webUrl={shareUrl} 
+                                          fileName="Supporting Document"
+                                          variant="badge"
+                                        />
+                                      );
+                                    })()}
                                   </div>
                                 </div>
                               )}
@@ -1261,14 +1278,20 @@ const Procurement = () => {
                                     <FileText className="h-3 w-3 mr-1" />
                                     View Invoice
                                   </Button>
-                                  {(request.pfi_share_url || request.pfiShareUrl) && (
-                                    <OneDriveLink 
-                                      webUrl={request.pfi_share_url || request.pfiShareUrl} 
-                                      fileName="Invoice"
-                                      variant="badge"
-                                      size="sm"
-                                    />
-                                  )}
+                                  {(() => {
+                                    const shareUrl = (request as any).invoice_onedrive_url || 
+                                                    (request as any).invoiceOneDriveUrl ||
+                                                    (request as MRF).pfi_share_url || 
+                                                    (request as MRF).pfiShareUrl;
+                                    return shareUrl && (
+                                      <OneDriveLink 
+                                        webUrl={shareUrl} 
+                                        fileName="Supporting Document"
+                                        variant="badge"
+                                        size="sm"
+                                      />
+                                    );
+                                  })()}
                                 </div>
                               )}
                               {/* Quotations Section - Show if RFQ exists and has quotations */}
