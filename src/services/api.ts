@@ -1316,6 +1316,7 @@ export const vendorApi = {
 
 // Vendor Authentication API (separate from internal user auth)
 export const vendorAuthApi = {
+  // Login doesn't require authentication, so uses regular apiRequest
   login: async (email: string, password: string): Promise<ApiResponse<{ vendor: Vendor; token: string; requiresPasswordChange: boolean }>> => {
     return apiRequest<{ vendor: Vendor; token: string; requiresPasswordChange: boolean }>('/vendors/auth/login', {
       method: 'POST',
@@ -1323,32 +1324,34 @@ export const vendorAuthApi = {
     });
   },
 
+  // All authenticated vendor endpoints must use vendorApiRequest (uses vendorAuthToken)
   changePassword: async (currentPassword: string, newPassword: string): Promise<ApiResponse<void>> => {
-    return apiRequest<void>('/vendors/auth/change-password', {
+    return vendorApiRequest<void>('/vendors/auth/change-password', {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
     });
   },
 
   logout: async (): Promise<ApiResponse<void>> => {
-    return apiRequest<void>('/vendors/auth/logout', {
+    return vendorApiRequest<void>('/vendors/auth/logout', {
       method: 'POST',
     });
   },
 
   getProfile: async (): Promise<ApiResponse<Vendor>> => {
-    return apiRequest<Vendor>('/vendors/auth/me');
+    return vendorApiRequest<Vendor>('/vendors/auth/me');
   },
 
   updateProfile: async (data: { contact_person?: string; phone?: string; address?: string }): Promise<ApiResponse<Vendor>> => {
-    return apiRequest<Vendor>('/vendors/auth/profile', {
+    return vendorApiRequest<Vendor>('/vendors/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   },
 
   requestPasswordReset: async (): Promise<ApiResponse<{ success: boolean; message: string }>> => {
-    return apiRequest<{ success: boolean; message: string }>('/vendors/auth/request-password-reset', {
+    // Request password reset might not require auth, but to be safe use vendorApiRequest
+    return vendorApiRequest<{ success: boolean; message: string }>('/vendors/auth/request-password-reset', {
       method: 'POST',
     });
   },

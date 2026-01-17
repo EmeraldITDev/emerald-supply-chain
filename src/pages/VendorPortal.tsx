@@ -436,16 +436,43 @@ const VendorPortal = () => {
       const response = await vendorAuthApi.login(email, password);
       
       if (response.success && response.data) {
-        const { vendor, token, requiresPasswordChange } = response.data;
-        const expiresAt = (response.data as any).expiresAt; // Type assertion for optional field
+        // Extract token from response - handle both nested and direct token fields
+        const responseData = response.data as any;
+        const token = responseData.token || responseData.data?.token || responseData.auth_token;
+        const vendor = responseData.vendor || responseData.data?.vendor;
+        const requiresPasswordChange = responseData.requiresPasswordChange || responseData.data?.requiresPasswordChange || false;
+        const expiresAt = responseData.expiresAt || responseData.data?.expiresAt;
         
-        // Store token and vendor data
+        // Validate that we have both token and vendor data
+        if (!token) {
+          toast({
+            title: "Login Error",
+            description: "Authentication token not received from server. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (!vendor) {
+          toast({
+            title: "Login Error",
+            description: "Vendor data not received from server. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Store token and vendor data in localStorage
         localStorage.setItem('vendorAuthToken', token);
         localStorage.setItem('vendorData', JSON.stringify(vendor));
         
         // Store token expiration if provided
         if (expiresAt) {
           localStorage.setItem('vendorTokenExpiry', expiresAt);
+        } else {
+          // If no expiry provided, set a default (e.g., 24 hours from now)
+          const defaultExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+          localStorage.setItem('vendorTokenExpiry', defaultExpiry);
         }
         
         setCurrentVendor(vendor);
