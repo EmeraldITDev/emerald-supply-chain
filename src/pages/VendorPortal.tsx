@@ -5,7 +5,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2, Building, Mail, Phone, MapPin, Globe, Calendar, Star, User, Download, AlertTriangle, Edit, Save } from "lucide-react";
+import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2, Building, Mail, Phone, MapPin, Globe, Calendar, Star, User, Download, AlertTriangle, Edit, Save, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -220,7 +220,8 @@ const VendorPortal = () => {
     
     setLoadingQuotations(true);
     try {
-      const response = await quotationApi.getByVendor(currentVendorId);
+      // Use vendor portal API for vendor's own quotations (uses vendorAuthToken)
+      const response = await vendorPortalApi.getMyQuotations();
       if (response.success && response.data) {
         setVendorQuotationsList(response.data);
       } else {
@@ -233,6 +234,59 @@ const VendorPortal = () => {
       setVendorQuotationsList(quotations.filter(q => q.vendorId === currentVendorId));
     } finally {
       setLoadingQuotations(false);
+    }
+  };
+
+  // Refresh function to reload all data
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Try calling refresh endpoint first
+      try {
+        const token = localStorage.getItem('vendorAuthToken');
+        if (token) {
+          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
+          const response = await fetch(`${apiBaseUrl}/refresh`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+            },
+          });
+          if (response.ok) {
+            // Refresh endpoint succeeded, data should be updated
+            toast({
+              title: "Refreshed",
+              description: "Data has been refreshed",
+            });
+          }
+        }
+      } catch (refreshError) {
+        // If refresh endpoint doesn't exist or fails, re-fetch current page data
+        console.log('Refresh endpoint not available, re-fetching data...');
+      }
+      
+      // Re-fetch all current page data
+      await Promise.all([
+        fetchVendorRFQs(),
+        fetchVendorQuotations(),
+        refreshRFQs(),
+      ]);
+      
+      toast({
+        title: "Refreshed",
+        description: "All data has been refreshed",
+      });
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast({
+        title: "Refresh Failed",
+        description: "Failed to refresh data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -996,6 +1050,16 @@ const VendorPortal = () => {
                 )}
               </PopoverContent>
             </Popover>
+            <Button 
+              variant="outline" 
+              onClick={handleRefresh} 
+              disabled={isRefreshing}
+              className="gap-2 transition-transform hover:scale-105"
+              title="Refresh data"
+            >
+              <RotateCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
             <Button variant="outline" onClick={handleLogout} className="gap-2 transition-transform hover:scale-105">
               <LogOut className="h-4 w-4" />
               Logout

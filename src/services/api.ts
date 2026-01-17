@@ -53,6 +53,11 @@ const getAuthToken = (): string | null => {
   return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
 };
 
+// Helper function to get vendor auth token
+const getVendorAuthToken = (): string | null => {
+  return localStorage.getItem('vendorAuthToken') || sessionStorage.getItem('vendorAuthToken');
+};
+
 // Helper function for API requests
 async function apiRequest<T>(
   endpoint: string,
@@ -742,6 +747,81 @@ export const quotationApi = {
   },
 };
 
+// Helper function for vendor API requests (uses vendorAuthToken)
+async function vendorApiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<ApiResponse<T>> {
+  const token = getVendorAuthToken();
+  
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...options.headers,
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    // Check if response is HTML (API not configured or unreachable)
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('text/html')) {
+      console.error('API returned HTML instead of JSON. Check VITE_API_BASE_URL configuration.');
+      return {
+        success: false,
+        error: 'API server unreachable. Please check your connection and ensure the backend is running.',
+      };
+    }
+
+    const text = await response.text();
+    
+    // Handle empty responses
+    if (!text) {
+      if (response.ok) {
+        return { success: true, data: undefined as T };
+      }
+      return { success: false, error: 'Empty response from server' };
+    }
+
+    // Try to parse as JSON
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error('Failed to parse API response as JSON:', text.substring(0, 100));
+      return {
+        success: false,
+        error: 'Invalid response from server. Please ensure the API is properly configured.',
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || data.message || `HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    return {
+      success: true,
+      data: data.data !== undefined ? data.data : data,
+    };
+  } catch (error) {
+    console.error('API request failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error. Please check your connection.',
+    };
+  }
+}
+
 // Vendor Portal API (for vendors to access their RFQs)
 export const vendorPortalApi = {
   // Get all RFQs assigned to the logged-in vendor
@@ -769,12 +849,12 @@ export const vendorPortalApi = {
     responded: boolean;
     has_submitted_quote: boolean;
   }>>> => {
-    return apiRequest('/vendors/rfqs');
+    return vendorApiRequest('/vendors/rfqs');
   },
 
   // Get vendor's submitted quotations
   getMyQuotations: async (): Promise<ApiResponse<Quotation[]>> => {
-    return apiRequest<Quotation[]>('/vendors/quotations');
+    return vendorApiRequest<Quotation[]>('/vendors/quotations');
   },
 };
 
