@@ -135,6 +135,7 @@ async function apiRequest<T>(
     };
   }
   
+  // Build headers, ensuring Authorization is always set when token exists
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -142,6 +143,7 @@ async function apiRequest<T>(
   };
 
   // Always include Authorization header with Bearer token if available
+  // Set AFTER spreading options.headers to prevent it from being overridden
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -520,7 +522,15 @@ export const mrfApi = {
 
   // Procurement Manager generates PO
   generatePO: async (id: string, poNumber: string, poFile?: File): Promise<ApiResponse<MRF>> => {
-    const token = getAuthToken();
+    const { token, expired } = getAuthToken();
+    
+    // If token is expired or missing, return error immediately
+    if (expired || !token) {
+      return {
+        success: false,
+        error: 'Authentication token has expired or is missing. Please log in again.',
+      };
+    }
     
     if (poFile) {
       // Validate file size (max 10MB)
@@ -547,10 +557,10 @@ export const mrfApi = {
       formData.append('po_number', poNumber);
       formData.append('unsigned_po', poFile);
 
-      const headers: HeadersInit = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      const headers: HeadersInit = {
+        // Always include Authorization header - token is guaranteed to exist here
+        'Authorization': `Bearer ${token}`,
+      };
 
       console.log('Sending PO generation request:', {
         mrfId: id,
@@ -643,14 +653,23 @@ export const mrfApi = {
 
   // Supply Chain Director uploads signed PO
   uploadSignedPO: async (id: string, signedPOFile: File): Promise<ApiResponse<MRF>> => {
-    const token = getAuthToken();
+    const { token, expired } = getAuthToken();
+    
+    // If token is expired or missing, return error immediately
+    if (expired || !token) {
+      return {
+        success: false,
+        error: 'Authentication token has expired or is missing. Please log in again.',
+      };
+    }
+    
     const formData = new FormData();
     formData.append('signed_po', signedPOFile);
 
-    const headers: HeadersInit = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+    const headers: HeadersInit = {
+      // Always include Authorization header - token is guaranteed to exist here
+      'Authorization': `Bearer ${token}`,
+    };
 
     try {
       const response = await fetch(`${API_BASE_URL}/mrfs/${id}/upload-signed-po`, {
@@ -659,9 +678,28 @@ export const mrfApi = {
         body: formData,
       });
 
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('tokenExpiry');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('userData');
+        sessionStorage.removeItem('tokenExpiry');
+        
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+          window.location.href = '/auth';
+        }
+        
+        return {
+          success: false,
+          error: 'Authentication failed. Please log in again.',
+        };
+      }
+
       const data = await response.json();
       if (!response.ok) {
-        return { success: false, error: data.message || 'Failed to upload signed PO' };
+        return { success: false, error: data.message || data.error || 'Failed to upload signed PO' };
       }
       return { success: true, data: data.data || data };
     } catch (error) {
@@ -932,10 +970,11 @@ async function vendorApiRequest<T>(
   if (expired) {
     return {
       success: false,
-      error: 'Authentication token has expired. Please log in again.',
+      error: 'Vendor authentication token has expired. Please log in again.',
     };
   }
   
+  // Build headers, ensuring Authorization is always set when token exists
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -943,6 +982,7 @@ async function vendorApiRequest<T>(
   };
 
   // Always include Authorization header with Bearer token if available
+  // Set AFTER spreading options.headers to prevent it from being overridden
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
