@@ -363,16 +363,11 @@ const VendorPortal = () => {
       const response = await vendorAuthApi.login(email, password);
       
       if (response.success && response.data) {
-        const { vendor, token, requiresPasswordChange, expiresAt } = response.data;
+        const { vendor, token, requiresPasswordChange } = response.data;
         
         // Store token and vendor data
         localStorage.setItem('vendorAuthToken', token);
         localStorage.setItem('vendorData', JSON.stringify(vendor));
-        
-        // Store token expiration if provided
-        if (expiresAt) {
-          localStorage.setItem('vendorTokenExpiry', expiresAt);
-        }
         
         setCurrentVendor(vendor);
         setCurrentVendorId(vendor.id);

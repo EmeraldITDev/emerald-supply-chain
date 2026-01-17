@@ -75,17 +75,14 @@ const getAuthToken = (): { token: string | null; expired: boolean } => {
   // Check if token is expired
   const expired = token ? isTokenExpired(tokenExpiry) : false;
   
-  // If expired, clear token and redirect to login
+  // If expired, clear token
   if (expired && token) {
     console.warn('Token expired, clearing session');
     storage.removeItem('authToken');
     storage.removeItem('userData');
     storage.removeItem('tokenExpiry');
     storage.removeItem('isAuthenticated');
-    // Redirect to login if we're in a browser context
-    if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
-      window.location.href = '/auth';
-    }
+    // Don't redirect here - let the API handle 401 responses
     return { token: null, expired: true };
   }
   
@@ -127,8 +124,9 @@ async function apiRequest<T>(
 ): Promise<ApiResponse<T>> {
   const { token, expired } = getAuthToken();
   
-  // If token is expired, return error immediately
-  if (expired) {
+  // If token is expired, return error immediately (unless this is a login/refresh request)
+  const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/refresh');
+  if (expired && !isAuthEndpoint) {
     return {
       success: false,
       error: 'Authentication token has expired. Please log in again.',
@@ -190,12 +188,14 @@ async function apiRequest<T>(
       localStorage.removeItem('authToken');
       localStorage.removeItem('userData');
       localStorage.removeItem('tokenExpiry');
+      localStorage.removeItem('isAuthenticated');
       sessionStorage.removeItem('authToken');
       sessionStorage.removeItem('userData');
       sessionStorage.removeItem('tokenExpiry');
+      sessionStorage.removeItem('isAuthenticated');
       
-      // Redirect to login if we're in a browser context
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+      // Redirect to login if we're in a browser context (only for non-auth endpoints)
+      if (typeof window !== 'undefined' && !isAuthEndpoint && !window.location.pathname.includes('/auth') && !window.location.pathname.includes('/vendor-portal')) {
         window.location.href = '/auth';
       }
       
@@ -204,7 +204,7 @@ async function apiRequest<T>(
         error: 'Authentication failed. Please log in again.',
       };
     }
-    
+
     if (!response.ok) {
       // Handle validation errors
       if (data.errors && typeof data.errors === 'object') {
@@ -294,7 +294,6 @@ export const grnApi = {
   completeGRN: async (mrfId: string, grnFile: File): Promise<ApiResponse<MRF>> => {
     const { token, expired } = getAuthToken();
     
-    // If token is expired, return error immediately
     if (expired || !token) {
       return {
         success: false,
@@ -305,39 +304,49 @@ export const grnApi = {
     const formData = new FormData();
     formData.append('grn', grnFile);
     
-    const response = await fetch(`${API_BASE_URL}/mrfs/${mrfId}/complete-grn`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/mrfs/${mrfId}/complete-grn`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
-    // Handle 401 Unauthorized
-    if (response.status === 401) {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userData');
-      localStorage.removeItem('tokenExpiry');
-      sessionStorage.removeItem('authToken');
-      sessionStorage.removeItem('userData');
-      sessionStorage.removeItem('tokenExpiry');
-      
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
-        window.location.href = '/auth';
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('tokenExpiry');
+        localStorage.removeItem('isAuthenticated');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('userData');
+        sessionStorage.removeItem('tokenExpiry');
+        sessionStorage.removeItem('isAuthenticated');
+        
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+          window.location.href = '/auth';
+        }
+        
+        return {
+          success: false,
+          error: 'Authentication failed. Please log in again.',
+        };
       }
-      
+
+      const data = await response.json();
+      return {
+        success: response.ok,
+        data: data.data || data,
+        error: data.error || data.message,
+      };
+    } catch (error) {
+      console.error('API request failed:', error);
       return {
         success: false,
-        error: 'Authentication failed. Please log in again.',
+        error: error instanceof Error ? error.message : 'Network error - please check your connection',
       };
     }
-
-    const data = await response.json();
-    return {
-      success: response.ok,
-      data: data.data || data,
-      error: data.error || data.message,
-    };
   },
 };
 
@@ -418,6 +427,7 @@ export const mrfApi = {
 
   createWithPFI: async (formData: FormData): Promise<ApiResponse<MRF>> => {
     const { token, expired } = getAuthToken();
+    
     if (expired || !token) {
       return {
         success: false,
@@ -425,41 +435,50 @@ export const mrfApi = {
       };
     }
     
-    const response = await fetch(`${API_BASE_URL}/mrfs`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        // Don't set Content-Type - browser will set it with boundary for FormData
-      },
-      body: formData,
-    });
-    
-    // Handle 401 Unauthorized
-    if (response.status === 401) {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userData');
-      localStorage.removeItem('tokenExpiry');
-      sessionStorage.removeItem('authToken');
-      sessionStorage.removeItem('userData');
-      sessionStorage.removeItem('tokenExpiry');
-      
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
-        window.location.href = '/auth';
+    try {
+      const response = await fetch(`${API_BASE_URL}/mrfs`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type - browser will set it with boundary for FormData
+        },
+        body: formData,
+      });
+
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('tokenExpiry');
+        localStorage.removeItem('isAuthenticated');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('userData');
+        sessionStorage.removeItem('tokenExpiry');
+        sessionStorage.removeItem('isAuthenticated');
+        
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+          window.location.href = '/auth';
+        }
+        
+        return {
+          success: false,
+          error: 'Authentication failed. Please log in again.',
+        };
       }
-      
-      const errorData = await response.json().catch(() => ({}));
+
+      const data = await response.json();
+      return {
+        success: response.ok,
+        data: data.data || data,
+        error: data.error || data.message,
+      };
+    } catch (error) {
+      console.error('API request failed:', error);
       return {
         success: false,
-        error: errorData.error || errorData.message || 'Authentication failed. Please log in again.',
+        error: error instanceof Error ? error.message : 'Network error - please check your connection',
       };
     }
-
-    const data = await response.json();
-    return {
-      success: response.ok,
-      data: data.data || data,
-      error: data.error || data.message,
-    };
   },
 
   update: async (id: string, data: Partial<MRF>): Promise<ApiResponse<MRF>> => {
@@ -574,6 +593,27 @@ export const mrfApi = {
           body: formData,
         });
 
+        // Handle 401 Unauthorized
+        if (response.status === 401) {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userData');
+          localStorage.removeItem('tokenExpiry');
+          localStorage.removeItem('isAuthenticated');
+          sessionStorage.removeItem('authToken');
+          sessionStorage.removeItem('userData');
+          sessionStorage.removeItem('tokenExpiry');
+          sessionStorage.removeItem('isAuthenticated');
+          
+          if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+            window.location.href = '/auth';
+          }
+          
+          return {
+            success: false,
+            error: 'Authentication failed. Please log in again.',
+          };
+        }
+
         let data;
         try {
           data = await response.json();
@@ -658,13 +698,13 @@ export const mrfApi = {
         error: 'Authentication token has expired. Please log in again.',
       };
     }
+    
     const formData = new FormData();
     formData.append('signed_po', signedPOFile);
 
-    const headers: HeadersInit = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+    const headers: HeadersInit = {
+      'Authorization': `Bearer ${token}`,
+    };
 
     try {
       const response = await fetch(`${API_BASE_URL}/mrfs/${id}/upload-signed-po`, {
@@ -672,6 +712,27 @@ export const mrfApi = {
         headers,
         body: formData,
       });
+
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('tokenExpiry');
+        localStorage.removeItem('isAuthenticated');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('userData');
+        sessionStorage.removeItem('tokenExpiry');
+        sessionStorage.removeItem('isAuthenticated');
+        
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+          window.location.href = '/auth';
+        }
+        
+        return {
+          success: false,
+          error: 'Authentication failed. Please log in again.',
+        };
+      }
 
       const data = await response.json();
       if (!response.ok) {
@@ -732,6 +793,7 @@ export const srfApi = {
   },
   createWithInvoice: async (formData: FormData): Promise<ApiResponse<SRF>> => {
     const { token, expired } = getAuthToken();
+    
     if (expired || !token) {
       return {
         success: false,
@@ -739,41 +801,50 @@ export const srfApi = {
       };
     }
     
-    const response = await fetch(`${API_BASE_URL}/srfs`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        // Don't set Content-Type - browser will set it with boundary for FormData
-      },
-      body: formData,
-    });
-    
-    // Handle 401 Unauthorized
-    if (response.status === 401) {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userData');
-      localStorage.removeItem('tokenExpiry');
-      sessionStorage.removeItem('authToken');
-      sessionStorage.removeItem('userData');
-      sessionStorage.removeItem('tokenExpiry');
-      
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
-        window.location.href = '/auth';
+    try {
+      const response = await fetch(`${API_BASE_URL}/srfs`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type - browser will set it with boundary for FormData
+        },
+        body: formData,
+      });
+
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('tokenExpiry');
+        localStorage.removeItem('isAuthenticated');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('userData');
+        sessionStorage.removeItem('tokenExpiry');
+        sessionStorage.removeItem('isAuthenticated');
+        
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+          window.location.href = '/auth';
+        }
+        
+        return {
+          success: false,
+          error: 'Authentication failed. Please log in again.',
+        };
       }
-      
-      const errorData = await response.json().catch(() => ({}));
+
+      const data = await response.json();
+      return {
+        success: response.ok,
+        data: data.data || data,
+        error: data.error || data.message,
+      };
+    } catch (error) {
+      console.error('API request failed:', error);
       return {
         success: false,
-        error: errorData.error || errorData.message || 'Authentication failed. Please log in again.',
+        error: error instanceof Error ? error.message : 'Network error - please check your connection',
       };
     }
-
-    const data = await response.json();
-    return {
-      success: response.ok,
-      data: data.data || data,
-      error: data.error || data.message,
-    };
   },
 
   update: async (id: string, data: Partial<SRF>): Promise<ApiResponse<SRF>> => {
@@ -942,8 +1013,9 @@ async function vendorApiRequest<T>(
 ): Promise<ApiResponse<T>> {
   const { token, expired } = getVendorAuthToken();
   
-  // If token is expired, return error immediately
-  if (expired) {
+  // If token is expired, return error immediately (unless this is a login request)
+  const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/refresh');
+  if (expired && !isAuthEndpoint) {
     return {
       success: false,
       error: 'Authentication token has expired. Please log in again.',
@@ -1009,6 +1081,12 @@ async function vendorApiRequest<T>(
       sessionStorage.removeItem('vendorData');
       sessionStorage.removeItem('vendorTokenExpiry');
       
+      // Redirect to vendor portal login if we're in a browser context
+      if (typeof window !== 'undefined' && !isAuthEndpoint && window.location.pathname.includes('/vendor-portal')) {
+        // Clear login state but stay on vendor portal page
+        window.location.reload();
+      }
+      
       return {
         success: false,
         error: 'Authentication failed. Please log in again.',
@@ -1016,16 +1094,6 @@ async function vendorApiRequest<T>(
     }
 
     if (!response.ok) {
-      // Handle validation errors
-      if (data.errors && typeof data.errors === 'object') {
-        const firstError = Object.values(data.errors)[0];
-        const errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
-        return {
-          success: false,
-          error: errorMessage || data.message || 'An error occurred',
-        };
-      }
-      
       return {
         success: false,
         error: data.error || data.message || `HTTP ${response.status}: ${response.statusText}`,
@@ -1177,6 +1245,8 @@ export const vendorApi = {
       }
     }
 
+    // Vendor registration doesn't require authentication (public endpoint)
+    // But if admin is registering, include token
     const { token } = getAuthToken();
     const headers: HeadersInit = {};
     if (token) {
@@ -1290,42 +1360,39 @@ export const vendorApi = {
 
 // Vendor Authentication API (separate from internal user auth)
 export const vendorAuthApi = {
-  // Login is public, doesn't require authentication
-  login: async (email: string, password: string): Promise<ApiResponse<{ vendor: Vendor; token: string; requiresPasswordChange: boolean; expiresAt?: string }>> => {
-    return apiRequest<{ vendor: Vendor; token: string; requiresPasswordChange: boolean; expiresAt?: string }>('/vendors/auth/login', {
+  login: async (email: string, password: string): Promise<ApiResponse<{ vendor: Vendor; token: string; requiresPasswordChange: boolean }>> => {
+    return apiRequest<{ vendor: Vendor; token: string; requiresPasswordChange: boolean }>('/vendors/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
   },
 
-  // All authenticated vendor endpoints must use vendorApiRequest (uses vendorAuthToken)
   changePassword: async (currentPassword: string, newPassword: string): Promise<ApiResponse<void>> => {
-    return vendorApiRequest<void>('/vendors/auth/change-password', {
+    return apiRequest<void>('/vendors/auth/change-password', {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
     });
   },
 
   logout: async (): Promise<ApiResponse<void>> => {
-    return vendorApiRequest<void>('/vendors/auth/logout', {
+    return apiRequest<void>('/vendors/auth/logout', {
       method: 'POST',
     });
   },
 
   getProfile: async (): Promise<ApiResponse<Vendor>> => {
-    return vendorApiRequest<Vendor>('/vendors/auth/me');
+    return apiRequest<Vendor>('/vendors/auth/me');
   },
 
   updateProfile: async (data: { contact_person?: string; phone?: string; address?: string }): Promise<ApiResponse<Vendor>> => {
-    return vendorApiRequest<Vendor>('/vendors/auth/profile', {
+    return apiRequest<Vendor>('/vendors/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   },
 
   requestPasswordReset: async (): Promise<ApiResponse<{ success: boolean; message: string }>> => {
-    // Request password reset should use vendorApiRequest to ensure vendor is authenticated
-    return vendorApiRequest<{ success: boolean; message: string }>('/vendors/auth/request-password-reset', {
+    return apiRequest<{ success: boolean; message: string }>('/vendors/auth/request-password-reset', {
       method: 'POST',
     });
   },
