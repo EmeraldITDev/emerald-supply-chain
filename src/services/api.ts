@@ -751,6 +751,12 @@ export const vendorPortalApi = {
     description: string;
     deadline: string;
     status: string;
+    estimated_cost?: string | number;
+    estimatedCost?: string | number;
+    budget?: string | number;
+    payment_terms?: string;
+    paymentTerms?: string;
+    category?: string;
     items: Array<{
       id: string;
       item_name: string;

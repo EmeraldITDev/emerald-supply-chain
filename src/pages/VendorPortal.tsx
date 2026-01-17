@@ -42,6 +42,12 @@ const VendorPortal = () => {
     description: string;
     deadline: string;
     status: string;
+    estimated_cost?: string | number;
+    estimatedCost?: string | number;
+    budget?: string | number;
+    payment_terms?: string;
+    paymentTerms?: string;
+    category?: string;
     items: Array<{
       id: string;
       item_name: string;
@@ -1160,9 +1166,22 @@ const VendorPortal = () => {
 
           <TabsContent value="submit" className="space-y-4">
             <VendorQuoteSubmission 
-              rfqs={rfqs}
+              rfqs={(() => {
+                // Merge vendorRfqs budget data into rfqs from AppContext
+                return rfqs.map(rfq => {
+                  const vendorRfq = vendorRfqs.find(vr => vr.id === rfq.id);
+                  if (vendorRfq && (vendorRfq.estimated_cost || vendorRfq.estimatedCost || vendorRfq.budget)) {
+                    const budget = vendorRfq.estimated_cost || vendorRfq.estimatedCost || vendorRfq.budget;
+                    return {
+                      ...rfq,
+                      estimatedCost: String(budget || rfq.estimatedCost || '0')
+                    };
+                  }
+                  return rfq;
+                });
+              })()}
               vendorId={currentVendorId}
-              vendorName="Steel Works Ltd"
+              vendorName={currentVendor?.name || "Vendor"}
               onSubmit={async (quote) => {
                 // TODO: VendorQuoteSubmission component should handle API submission internally
                 // For now, just refresh and switch tabs
