@@ -119,6 +119,10 @@ const VendorPortal = () => {
   });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
+  // Quote submission success state
+  const [showQuoteSuccess, setShowQuoteSuccess] = useState(false);
+  const [submittedQuote, setSubmittedQuote] = useState<any>(null);
+
   // Expiring documents calculation
   const getExpiringDocuments = () => {
     if (!currentVendor || !(currentVendor as any)?.documents) return [];
@@ -1275,12 +1279,48 @@ const VendorPortal = () => {
                     const data = await response.json();
                     
                     if (response.ok && data.success !== false) {
-                      await refreshRFQs();
-                      await fetchVendorQuotations();
-                setActiveTab("quotations");
+                      // Create quote object for immediate display
+                      const submittedQuoteData = {
+                        id: data.data?.id || `QUOTE-${Date.now()}`,
+                        rfqId: quote.rfqId,
+                        vendorId: currentVendorId,
+                        vendorName: currentVendor?.name || "Vendor",
+                        price: quote.price,
+                        deliveryDate: quote.deliveryDate,
+                        submittedDate: new Date().toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        }),
+                        status: "Pending",
+                        notes: quote.notes,
+                        paymentTerms: quote.paymentTerms,
+                        validityPeriod: quote.validityPeriod,
+                        warrantyPeriod: quote.warrantyPeriod,
+                        lineItems: quote.lineItems,
+                        ...(data.data || {})
+                      };
+                      
+                      // Add to quotations list immediately (optimistic update)
+                      setVendorQuotationsList(prev => [submittedQuoteData, ...prev]);
+                      
+                      // Show success dialog
+                      setSubmittedQuote(submittedQuoteData);
+                      setShowQuoteSuccess(true);
+                      
+                      // Switch to quotations tab
+                      setActiveTab("quotations");
+                      
+                      // Refresh data in background
+                      refreshRFQs();
+                      fetchVendorQuotations();
+                      
                       toast({
-                        title: "Quotation Submitted",
-                        description: "Your quotation has been sent to the Procurement Manager with all details including line items, payment terms, validity period, warranty, notes, and attachments.",
+                        title: "Quotation Submitted Successfully",
+                        description: "Your quotation has been sent to the Procurement Manager.",
                       });
                     } else {
                       toast({
@@ -1294,12 +1334,48 @@ const VendorPortal = () => {
                     const response = await quotationApi.submit(quote.rfqId, quotationData);
                     
                     if (response.success) {
-                      await refreshRFQs();
-                      await fetchVendorQuotations();
+                      // Create quote object for immediate display
+                      const submittedQuoteData = {
+                        id: response.data?.id || `QUOTE-${Date.now()}`,
+                        rfqId: quote.rfqId,
+                        vendorId: currentVendorId,
+                        vendorName: currentVendor?.name || "Vendor",
+                        price: quote.price,
+                        deliveryDate: quote.deliveryDate,
+                        submittedDate: new Date().toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        }),
+                        status: "Pending",
+                        notes: quote.notes,
+                        paymentTerms: quote.paymentTerms,
+                        validityPeriod: quote.validityPeriod,
+                        warrantyPeriod: quote.warrantyPeriod,
+                        lineItems: quote.lineItems,
+                        ...(response.data || {})
+                      };
+                      
+                      // Add to quotations list immediately (optimistic update)
+                      setVendorQuotationsList(prev => [submittedQuoteData, ...prev]);
+                      
+                      // Show success dialog
+                      setSubmittedQuote(submittedQuoteData);
+                      setShowQuoteSuccess(true);
+                      
+                      // Switch to quotations tab
                       setActiveTab("quotations");
+                      
+                      // Refresh data in background
+                      refreshRFQs();
+                      fetchVendorQuotations();
+                      
                       toast({
-                        title: "Quotation Submitted",
-                        description: "Your quotation has been sent to the Procurement Manager with all details including line items, payment terms, validity period, warranty, and notes.",
+                        title: "Quotation Submitted Successfully",
+                        description: "Your quotation has been sent to the Procurement Manager.",
                       });
                     } else {
                       toast({
@@ -1963,6 +2039,113 @@ const VendorPortal = () => {
               }
             }}>
               Submit Quotation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quote Submission Success Dialog */}
+      <Dialog open={showQuoteSuccess} onOpenChange={setShowQuoteSuccess}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="h-12 w-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl">Quote Submitted Successfully!</DialogTitle>
+                <DialogDescription className="text-base mt-1">
+                  Your quotation has been sent to the Procurement Manager
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          {submittedQuote && (
+            <div className="space-y-4 mt-4">
+              <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Quotation ID:</span>
+                    <p className="font-medium font-mono">{submittedQuote.id}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">RFQ ID:</span>
+                    <p className="font-medium font-mono">{submittedQuote.rfqId}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Total Amount:</span>
+                    <p className="font-medium text-lg text-primary">
+                      ₦{parseFloat(submittedQuote.price || '0').toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Delivery Date:</span>
+                    <p className="font-medium">{submittedQuote.deliveryDate}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Payment Terms:</span>
+                    <p className="font-medium">{submittedQuote.paymentTerms || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Status:</span>
+                    <Badge className={getStatusColor(submittedQuote.status)}>
+                      {submittedQuote.status}
+                    </Badge>
+                  </div>
+                </div>
+                
+                {submittedQuote.lineItems && submittedQuote.lineItems.length > 0 && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Label className="text-sm font-semibold mb-2 block">Line Items:</Label>
+                    <div className="space-y-2">
+                      {submittedQuote.lineItems.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between items-center text-sm p-2 bg-background rounded">
+                          <span>{item.description}</span>
+                          <span className="font-medium">
+                            {item.quantity} × ₦{item.unitPrice.toLocaleString()} = ₦{(item.quantity * item.unitPrice).toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {submittedQuote.notes && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Label className="text-sm font-semibold mb-2 block">Notes:</Label>
+                    <p className="text-sm text-muted-foreground">{submittedQuote.notes}</p>
+                  </div>
+                )}
+              </div>
+              
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Your quotation is now visible under "My Quotations" and has been forwarded to the Procurement Manager for review.
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+          
+          <DialogFooter className="mt-6">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowQuoteSuccess(false);
+                setSubmittedQuote(null);
+              }}
+            >
+              Close
+            </Button>
+            <Button 
+              onClick={() => {
+                setShowQuoteSuccess(false);
+                setSubmittedQuote(null);
+                setActiveTab("quotations");
+              }}
+            >
+              View My Quotations
             </Button>
           </DialogFooter>
         </DialogContent>
