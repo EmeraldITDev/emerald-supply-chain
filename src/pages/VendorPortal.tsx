@@ -1330,13 +1330,32 @@ const VendorPortal = () => {
                       });
                     }
                   } else {
-                    // No attachments, use regular JSON API
-                    const response = await quotationApi.submit(quote.rfqId, quotationData);
+                    // No attachments, use vendor authentication token directly
+                    // Use vendorApiRequest helper - it's not exported, so we'll make a direct call
+                    const token = localStorage.getItem('vendorAuthToken') || sessionStorage.getItem('vendorAuthToken');
+                    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
                     
-                    if (response.success) {
+                    const response = await fetch(`${apiBaseUrl}/rfqs/${quote.rfqId}/submit-quotation`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                      },
+                      body: JSON.stringify(quotationData),
+                    });
+                    
+                    const data = await response.json();
+                    const responseObj = {
+                      success: response.ok && data.success !== false,
+                      data: data.data || data,
+                      error: data.error || data.message || (!response.ok ? `HTTP ${response.status}: ${response.statusText}` : undefined),
+                    };
+                    
+                    if (responseObj.success) {
                       // Create quote object for immediate display
                       const submittedQuoteData = {
-                        id: response.data?.id || `QUOTE-${Date.now()}`,
+                        id: responseObj.data?.id || `QUOTE-${Date.now()}`,
                         rfqId: quote.rfqId,
                         vendorId: currentVendorId,
                         vendorName: currentVendor?.name || "Vendor",
@@ -1356,7 +1375,7 @@ const VendorPortal = () => {
                         validityPeriod: quote.validityPeriod,
                         warrantyPeriod: quote.warrantyPeriod,
                         lineItems: quote.lineItems,
-                        ...(response.data || {})
+                        ...(responseObj.data || {})
                       };
                       
                       // Add to quotations list immediately (optimistic update)
@@ -1380,7 +1399,7 @@ const VendorPortal = () => {
                     } else {
                       toast({
                         title: "Submission Failed",
-                        description: response.error || "Failed to submit quotation. Please try again.",
+                        description: responseObj.error || "Failed to submit quotation. Please try again.",
                         variant: "destructive",
                       });
                     }
