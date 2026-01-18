@@ -224,16 +224,16 @@ const SupplyChainDashboard = () => {
         }
       } else if (isPORejection) {
         // Reject PO
-        const response = await mrfApi.rejectPO(selectedMRFForRejection.id, reason, comments);
-        
-        if (response.success) {
-          const poNumber = getPONumber(selectedMRFForRejection);
-          toast.error(`PO ${poNumber} rejected - Sent back to Procurement for revision`);
-          setRejectDialogOpen(false);
-          setSelectedMRFForRejection(null);
-          await fetchMRFs();
-        } else {
-          toast.error(response.error || "Failed to reject PO");
+      const response = await mrfApi.rejectPO(selectedMRFForRejection.id, reason, comments);
+      
+      if (response.success) {
+        const poNumber = getPONumber(selectedMRFForRejection);
+        toast.error(`PO ${poNumber} rejected - Sent back to Procurement for revision`);
+        setRejectDialogOpen(false);
+        setSelectedMRFForRejection(null);
+        await fetchMRFs();
+      } else {
+        toast.error(response.error || "Failed to reject PO");
         }
       } else {
         toast.error("Cannot determine rejection type");
@@ -285,16 +285,16 @@ const SupplyChainDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending POs</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingPOs.length}</div>
-              <p className="text-xs text-muted-foreground">POs awaiting review and signature</p>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending POs</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pendingPOs.length}</div>
+            <p className="text-xs text-muted-foreground">POs awaiting review and signature</p>
+          </CardContent>
+        </Card>
         </div>
 
         {/* Vendor Registrations Section */}
@@ -512,18 +512,18 @@ const SupplyChainDashboard = () => {
                         {/* Download unsigned PO */}
                         <div className="flex flex-col gap-2 p-3 bg-muted/50 rounded-lg">
                           <div className="flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                            <span className="text-sm flex-1">PO uploaded by Procurement Manager</span>
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="text-sm flex-1">PO uploaded by Procurement Manager</span>
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleDownloadPO(mrf)}
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              Download PO
-                            </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleDownloadPO(mrf)}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Download PO
+                          </Button>
                             {getUnsignedPOShareUrl(mrf) && (
                               <OneDriveLink 
                                 webUrl={getUnsignedPOShareUrl(mrf)} 
@@ -539,9 +539,9 @@ const SupplyChainDashboard = () => {
                           mrf={mrf}
                           onUploadSignedPO={handleUploadSignedPO}
                           onRejectPO={() => {
-                            setSelectedMRFForRejection(mrf);
-                            setRejectDialogOpen(true);
-                          }}
+                              setSelectedMRFForRejection(mrf);
+                              setRejectDialogOpen(true);
+                            }}
                           signedPOFile={signedPOs[mrf.id] || null}
                           onFileChange={(file) => handleFileChange(mrf.id, file)}
                           isLoading={isActionLoading}

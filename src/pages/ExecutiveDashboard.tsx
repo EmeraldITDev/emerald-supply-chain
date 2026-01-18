@@ -374,23 +374,23 @@ const ExecutiveDashboard = () => {
                               onCommentsChange={(value) => setComments(prev => ({ ...prev, [mrf.id]: value }))}
                               isLoading={isActionLoading}
                             />
-                            <Button 
-                              onClick={() => setSelectedMRF(null)}
-                              variant="outline"
-                              disabled={isActionLoading}
+                              <Button 
+                                onClick={() => setSelectedMRF(null)}
+                                variant="outline"
+                                disabled={isActionLoading}
                               className="mt-2"
+                              >
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <Button 
+                              onClick={() => setSelectedMRF(mrf.id)}
+                              className="w-full"
                             >
-                              Cancel
+                              Review & Approve
                             </Button>
-                          </>
-                        ) : (
-                          <Button 
-                            onClick={() => setSelectedMRF(mrf.id)}
-                            className="w-full"
-                          >
-                            Review & Approve
-                          </Button>
-                        )}
+                          )}
                       </CardContent>
                     </Card>
                   );

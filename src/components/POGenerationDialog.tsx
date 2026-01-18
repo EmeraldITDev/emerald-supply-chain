@@ -125,10 +125,10 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
         await onGenerate(poData);
         // Reset form only on success
         setSelectedVendorIds([]);
-        setAmount("");
-        setDeliveryDate(undefined);
-        setPaymentTerms("");
-        setNotes("");
+    setAmount("");
+    setDeliveryDate(undefined);
+    setPaymentTerms("");
+    setNotes("");
         setSupportingDocuments([]);
         onOpenChange(false);
       } catch (error) {

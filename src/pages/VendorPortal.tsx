@@ -5,7 +5,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2, Building, Mail, Phone, MapPin, Globe, Calendar, Star, User, Download, AlertTriangle, Edit, Save, RotateCcw } from "lucide-react";
+import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2, Building, Mail, Phone, MapPin, Globe, Calendar, Star, User, Download, AlertTriangle, Edit, Save, RotateCcw, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -244,6 +244,59 @@ const VendorPortal = () => {
       setVendorQuotationsList(quotations.filter(q => q.vendorId === currentVendorId));
     } finally {
       setLoadingQuotations(false);
+    }
+  };
+
+  // Delete quotation function
+  const [deletingQuotationId, setDeletingQuotationId] = useState<string | null>(null);
+  const handleDeleteQuotation = async (quotationId: string) => {
+    // Confirm deletion
+    if (!confirm('Are you sure you want to delete this quotation? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingQuotationId(quotationId);
+    try {
+      const token = localStorage.getItem('vendorAuthToken') || sessionStorage.getItem('vendorAuthToken');
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
+      
+      const response = await fetch(`${apiBaseUrl}/quotations/${quotationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success !== false) {
+        // Remove from list immediately
+        setVendorQuotationsList(prev => prev.filter(q => q.id !== quotationId));
+        
+        toast({
+          title: "Quotation Deleted",
+          description: "The quotation has been successfully removed.",
+        });
+        
+        // Refresh quotations list from server
+        await fetchVendorQuotations();
+      } else {
+        toast({
+          title: "Delete Failed",
+          description: data.error || data.message || "Failed to delete quotation. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error deleting quotation:', error);
+      toast({
+        title: "Error",
+        description: error.message || "An error occurred while deleting the quotation.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingQuotationId(null);
     }
   };
 
@@ -1442,6 +1495,19 @@ const VendorPortal = () => {
                               </div>
                               <p className="text-sm text-muted-foreground">Quotation ID: {quotation.id}</p>
                             </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteQuotation(quotation.id)}
+                              disabled={deletingQuotationId === quotation.id}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              {deletingQuotationId === quotation.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div>

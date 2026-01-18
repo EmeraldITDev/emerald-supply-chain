@@ -322,15 +322,15 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
         }
       } else {
         // No MRF ID in RFQ - fallback behavior
-        toast({
-          title: "Vendor Awarded",
+    toast({
+      title: "Vendor Awarded",
           description: "The selected vendor has been awarded. MRF ID not found - please contact support.",
           variant: "default",
-        });
+    });
       }
 
-      onVendorSelected?.(vendorId, selectedRFQ.id);
-      setCompareDialogOpen(false);
+    onVendorSelected?.(vendorId, selectedRFQ.id);
+    setCompareDialogOpen(false);
     } catch (error) {
       toast({
         title: "Error",
