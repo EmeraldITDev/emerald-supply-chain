@@ -318,8 +318,8 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0">
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                {/* Only employees can create MRF/SRF */}
-                {user?.role === "employee" && (
+                {/* Only employees can create MRF/SRF - show for any non-manager roles */}
+                {!['logistics_manager', 'procurement_manager', 'executive', 'chairman', 'finance', 'supply_chain_director'].includes(user?.role || '') && (
                   <>
                     <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/procurement/mrf/new")}>
                       <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">

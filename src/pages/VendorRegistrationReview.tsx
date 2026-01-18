@@ -509,9 +509,9 @@ const VendorRegistrationReview = () => {
                             )}
                           </div>
                         </div>
-                        {(doc.file_share_url || doc.fileShareUrl) ? (
+                        {((doc as any).file_share_url || (doc as any).fileShareUrl) ? (
                           <OneDriveLink
-                            webUrl={doc.file_share_url || doc.fileShareUrl}
+                            webUrl={(doc as any).file_share_url || (doc as any).fileShareUrl}
                             fileName={doc.fileName || doc.name}
                             variant="button"
                             size="sm"

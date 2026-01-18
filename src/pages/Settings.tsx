@@ -32,8 +32,8 @@ export default function Settings() {
   // Role-based access control
   const isRegularEmployee = user?.role === "employee";
   const canViewProfile = !isRegularEmployee;
-  const canViewAuditTrail = ['admin', 'chairman', 'executive', 'supply_chain_director', 'procurement', 'finance', 'logistics'].includes(user?.role || '');
-  const canManageUsers = user?.can_manage_users || user?.is_admin || ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain', 'admin'].includes(user?.role || '');
+  const canViewAuditTrail = ['chairman', 'executive', 'supply_chain_director', 'procurement', 'finance', 'logistics'].includes(user?.role || '');
+  const canManageUsers = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain'].includes(user?.role || '');
 
   const handleSaveProfile = async () => {
     if (!name.trim()) {
@@ -126,7 +126,7 @@ export default function Settings() {
               <Shield className="h-4 w-4" />
               Security
             </TabsTrigger>
-            {(user?.can_manage_users || user?.is_admin || ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain', 'admin'].includes(user?.role || '')) && (
+            {canManageUsers && (
               <TabsTrigger value="users" className="gap-2">
                 <User className="h-4 w-4" />
                 User Management

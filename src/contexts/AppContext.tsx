@@ -371,7 +371,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const response = await srfApi.getAll();
       if (response.success && response.data) {
         // Convert API SRF type to AppContext SRFRequest type
-        const converted = response.data.map((srf: SRF) => ({
+        const converted = response.data.map((srf: any) => ({
           id: srf.id,
           title: srf.title,
           serviceType: srf.service_type || srf.serviceType || "",
@@ -397,16 +397,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const response = await rfqApi.getAll();
       if (response.success && response.data) {
         // Convert API RFQ type to AppContext RFQ type
-        const converted = response.data.map((rfq: RFQType) => ({
+        const converted = response.data.map((rfq: any) => ({
           id: rfq.id,
-          mrfId: rfq.mrf_id || "",
-          mrfTitle: rfq.title,
+          mrfId: rfq.mrf_id || rfq.mrfId || "",
+          mrfTitle: rfq.title || rfq.mrfTitle || "",
           description: rfq.description,
           quantity: String(rfq.quantity || ""),
-          estimatedCost: String(rfq.estimated_cost || 0),
+          estimatedCost: String(rfq.estimated_cost || rfq.estimatedCost || 0),
           deadline: rfq.deadline,
           status: rfq.status as "Open" | "Closed" | "Awarded",
-          createdDate: rfq.created_at || "",
+          createdDate: rfq.created_at || rfq.createdAt || "",
           vendorIds: [], // Will be populated from relationships if needed
         }));
         setRfqsState(converted);
