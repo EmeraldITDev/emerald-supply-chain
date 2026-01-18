@@ -1440,8 +1440,8 @@ export const notificationApi = {
       return {
         success: true,
         data: {
-          notifications: response.data.notifications || response.notifications || [],
-          unread_count: response.data.unread_count || response.unread_count || 0,
+          notifications: (response.data as any).notifications || [],
+          unread_count: (response.data as any).unread_count || 0,
         },
       };
     }

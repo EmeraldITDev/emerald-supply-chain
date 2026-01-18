@@ -326,7 +326,7 @@ const DepartmentDashboard = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 <div className="space-y-3">
-                  {mrfRequests.filter(mrf => mrf.requesterId === user?.email || mrf.requester === user?.name).length === 0 ? (
+                  {mrfRequests.filter(mrf => mrf.requester === user?.name || mrf.requester === user?.email).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No MRFs found.</p>
@@ -336,14 +336,14 @@ const DepartmentDashboard = () => {
                     </div>
                   ) : (
                     mrfRequests
-                      .filter(mrf => mrf.requesterId === user?.email || mrf.requester === user?.name)
+                      .filter(mrf => mrf.requester === user?.name || mrf.requester === user?.email)
                       .map((mrf) => {
                         // Allow delete if:
                         // 1. Status is pending or rejected (any user)
                         // 2. OR requester's own MRF that hasn't progressed too far (no PO generated)
                         const statusLower = (mrf.status || "").toLowerCase();
                         const isPendingOrRejected = statusLower === "pending" || statusLower.includes("rejected");
-                        const noPOGenerated = !mrf.poNumber && !mrf.po_number && !mrf.unsignedPOUrl && !mrf.unsigned_po_url;
+                        const noPOGenerated = !mrf.poNumber && !mrf.unsignedPOUrl;
                         const notTooFarInWorkflow = !statusLower.includes("supply_chain") && 
                                                      !statusLower.includes("finance") && 
                                                      !statusLower.includes("paid") && 
@@ -404,7 +404,7 @@ const DepartmentDashboard = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 <div className="space-y-3">
-                  {srfRequests.filter(srf => srf.requesterId === user?.email || srf.requester === user?.name).length === 0 ? (
+                  {srfRequests.filter(srf => srf.requester === user?.name || srf.requester === user?.email).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No SRFs found.</p>
@@ -414,7 +414,7 @@ const DepartmentDashboard = () => {
                     </div>
                   ) : (
                     srfRequests
-                      .filter(srf => srf.requesterId === user?.email || srf.requester === user?.name)
+                      .filter(srf => srf.requester === user?.name || srf.requester === user?.email)
                       .map((srf) => (
                         <Card key={srf.id}>
                           <CardContent className="p-4">

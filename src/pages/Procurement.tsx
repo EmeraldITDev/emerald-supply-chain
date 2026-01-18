@@ -1125,7 +1125,7 @@ const Procurement = () => {
               </CardHeader>
               <CardContent>
                 {/* Rejected POs - Need Resubmission - Only visible to Procurement Managers */}
-                {rejectedPOs.length > 0 && (user?.role === "procurement" || user?.role === "procurement_manager" || user?.role === "admin") && (
+                {rejectedPOs.length > 0 && (user?.role === "procurement" || user?.role === "procurement_manager") && (
                   <div className="mb-6 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
                     <div className="flex items-center gap-2 mb-4">
                       <XCircle className="h-5 w-5 text-destructive" />
@@ -1158,7 +1158,7 @@ const Procurement = () => {
                                   </div>
                                 </div>
                               {/* Regenerate PO button - Only for Procurement Managers */}
-                              {(user?.role === "procurement" || user?.role === "procurement_manager" || user?.role === "admin") && (
+                              {(user?.role === "procurement" || user?.role === "procurement_manager") && (
                               <Button
                                 size="sm"
                                 onClick={() => handleGeneratePO(mrf)}
@@ -1444,7 +1444,7 @@ const Procurement = () => {
                               {/* Button shown for procurement role when MRF is approved by Executive */}
                               {(() => {
                                 const workflowState = getWorkflowState(request as MRF);
-                                const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager" || user?.role === "admin";
+                                const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager";
                                 const canShowPOButton = isProcurement && (
                                   workflowState === "procurement_review" || // After Executive approval
                                   workflowState === "vendor_selected" || // After vendor selection
@@ -1490,7 +1490,7 @@ const Procurement = () => {
                                     Download PO
                                   </Button>
                                   {/* Delete PO button - only for procurement managers */}
-                                  {(user?.role === 'procurement_manager' || user?.role === 'procurement' || user?.role === 'admin') && (
+                                  {(user?.role === 'procurement_manager' || user?.role === 'procurement') && (
                                     <Button
                                       size="sm"
                                       variant="ghost"
@@ -1508,7 +1508,7 @@ const Procurement = () => {
                               )}
                               {/* Allow delete for procurement managers - MRFs without PO and in early stages */}
                               {(() => {
-                                const isProcurementManager = user?.role === 'procurement_manager' || user?.role === 'procurement' || user?.role === 'admin';
+                                const isProcurementManager = user?.role === 'procurement_manager' || user?.role === 'procurement';
                                 if (!isProcurementManager) return null;
                                 
                                 const status = (request.status || "").toLowerCase();

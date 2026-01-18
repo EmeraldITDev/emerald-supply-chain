@@ -52,7 +52,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             timestamp: n.created_at,
             read: n.read || false,
             actionUrl: n.action_url,
-            priority: 'normal',
+            priority: 'medium' as const,
             event: 'system' as NotificationEvent,
             data: {
               entity_type: n.entity_type,

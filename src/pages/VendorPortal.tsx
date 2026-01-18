@@ -260,11 +260,13 @@ const VendorPortal = () => {
       const token = localStorage.getItem('vendorAuthToken') || sessionStorage.getItem('vendorAuthToken');
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
       
-      const response = await fetch(`${apiBaseUrl}/quotations/${quotationId}`, {
+      // Use vendor-specific endpoint for quotation deletion
+      const response = await fetch(`${apiBaseUrl}/vendors/quotations/${quotationId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
+          'Content-Type': 'application/json',
         },
       });
 

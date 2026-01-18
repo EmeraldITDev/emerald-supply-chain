@@ -233,20 +233,15 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     try {
       // Create RFQ via API
       const response = await rfqApi.create({
-        mrf_id: selectedMRF.id,
+        mrfId: selectedMRF.id,
         title: selectedMRF.title,
         description: selectedMRF.description || '',
         category: selectedMRF.category || 'General',
         deadline: deadline,
-        items: [{
-          item_name: selectedMRF.title,
-      description: selectedMRF.description || '',
-          quantity: parseInt(selectedMRF.quantity) || 1,
-          unit: 'units',
-          specifications: selectedMRF.justification,
-        }],
-        vendor_ids: vendorIds,
-    });
+        quantity: selectedMRF.quantity || '1',
+        estimatedCost: selectedMRF.estimatedCost || '0',
+        vendorIds: vendorIds,
+      } as any);
 
       if (response.success) {
     toast({
