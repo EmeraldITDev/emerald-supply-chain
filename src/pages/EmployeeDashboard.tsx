@@ -246,13 +246,23 @@ const EmployeeDashboard = () => {
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
                           <span className="font-medium">{request.id}</span>
                           <span>•</span>
-                          <span>{new Date(request.date).toLocaleString('en-US', { 
-                            month: 'short', 
-                            day: 'numeric', 
-                            year: 'numeric',
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}</span>
+                          <span>{(() => {
+                            const dateStr = request.date || '';
+                            if (!dateStr) return 'N/A';
+                            try {
+                              const date = new Date(dateStr.includes('Z') || dateStr.match(/[+-]\d{2}:\d{2}$/) ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr));
+                              return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric',
+                                hour: '2-digit', 
+                                minute: '2-digit',
+                                hour12: true
+                              });
+                            } catch {
+                              return 'Invalid Date';
+                            }
+                          })()}</span>
                           {isMRF && mrf.estimatedCost && (
                             <>
                               <span>•</span>

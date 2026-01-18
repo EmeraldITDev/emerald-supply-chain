@@ -1144,13 +1144,22 @@ const VendorPortal = () => {
                           <div>
                             <span className="text-muted-foreground">Sent At:</span>
                             <p className="font-medium text-muted-foreground">
-                              {rfq.sent_at ? new Date(rfq.sent_at).toLocaleString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric', 
-                                year: 'numeric',
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                              }) : 'N/A'}
+                              {rfq.sent_at ? (() => {
+                                try {
+                                  const dateStr = rfq.sent_at;
+                                  const date = new Date(dateStr.includes('Z') || dateStr.match(/[+-]\d{2}:\d{2}$/) ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr));
+                                  return isNaN(date.getTime()) ? 'N/A' : date.toLocaleString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric', 
+                                    year: 'numeric',
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    hour12: true
+                                  });
+                                } catch {
+                                  return 'N/A';
+                                }
+                              })() : 'N/A'}
                             </p>
                           </div>
                           <div>
@@ -1881,13 +1890,22 @@ const VendorPortal = () => {
                   <div>
                     <Label className="text-muted-foreground">Sent At</Label>
                     <p className="font-medium">
-                      {rfq.sent_at ? new Date(rfq.sent_at).toLocaleString('en-US', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric', 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      }) : 'N/A'}
+                      {rfq.sent_at ? (() => {
+                        try {
+                          const dateStr = rfq.sent_at;
+                          const date = new Date(dateStr.includes('Z') || dateStr.match(/[+-]\d{2}:\d{2}$/) ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr));
+                          return isNaN(date.getTime()) ? 'N/A' : date.toLocaleString('en-US', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric', 
+                            hour: '2-digit', 
+                            minute: '2-digit',
+                            hour12: true
+                          });
+                        } catch {
+                          return 'N/A';
+                        }
+                      })() : 'N/A'}
                     </p>
                   </div>
                   {(rfq.payment_terms || rfq.paymentTerms) && (

@@ -442,13 +442,23 @@ const FinanceDashboard = () => {
                           </div>
                           <div>
                             <p className="text-muted-foreground text-xs">Date</p>
-                            <p className="font-medium">{new Date(mrf.date).toLocaleString('en-US', { 
-                              month: 'short', 
-                              day: 'numeric', 
-                              year: 'numeric',
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}</p>
+                            <p className="font-medium">{(() => {
+                              const dateStr = mrf.date || mrf.created_at || '';
+                              if (!dateStr) return 'N/A';
+                              try {
+                                const date = new Date(dateStr.includes('Z') || dateStr.match(/[+-]\d{2}:\d{2}$/) ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr));
+                                return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric', 
+                                  year: 'numeric',
+                                  hour: '2-digit', 
+                                  minute: '2-digit',
+                                  hour12: true
+                                });
+                              } catch {
+                                return 'Invalid Date';
+                              }
+                            })()}</p>
                           </div>
                         </div>
                         <p className="text-sm text-muted-foreground mt-2 line-clamp-1">{mrf.description}</p>
@@ -480,8 +490,8 @@ const FinanceDashboard = () => {
                                 </>
                               ) : (
                                 <>
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Mark as Processed
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Mark as Processed
                                 </>
                               )}
                             </Button>

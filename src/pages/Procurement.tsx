@@ -170,6 +170,50 @@ const Procurement = () => {
   const getMRFRequester = (mrf: MRF) => mrf.requester_name || mrf.requester || "Unknown";
   const getMRFDate = (mrf: MRF) => mrf.created_at || mrf.date || "";
   const getMRFStage = (mrf: MRF) => (mrf.current_stage || mrf.currentStage || "").toLowerCase();
+  
+  // Helper function to format date with proper timezone handling
+  const formatMRFDate = (dateString: string): string => {
+    if (!dateString) return 'N/A';
+    
+    try {
+      // Parse the date - if it's in ISO format with timezone, it will be handled correctly
+      // If it's without timezone, assume it's UTC and convert to local
+      let date: Date;
+      
+      // Check if the string has timezone info (ends with Z or has +/- offset)
+      if (dateString.includes('Z') || dateString.match(/[+-]\d{2}:\d{2}$/)) {
+        // Has timezone info, parse directly
+        date = new Date(dateString);
+      } else {
+        // No timezone info - assume UTC if it looks like ISO format, otherwise assume local
+        if (dateString.includes('T')) {
+          // ISO format without timezone - append Z to treat as UTC
+          date = new Date(dateString + (dateString.endsWith('Z') ? '' : 'Z'));
+        } else {
+          // Plain date string - parse as local time
+          date = new Date(dateString);
+        }
+      }
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return 'Invalid Date';
+      }
+      
+      // Format in local timezone
+      return date.toLocaleString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric',
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      console.error('Error formatting date:', dateString, error);
+      return 'Invalid Date';
+    }
+  };
   const getMRFPOUrl = (mrf: MRF) => mrf.unsigned_po_url || mrf.unsignedPOUrl;
   const getMRFRejectionReason = (mrf: MRF) => mrf.po_rejection_reason || mrf.poRejectionReason;
   const getMRFPONumber = (mrf: MRF) => mrf.po_number || mrf.poNumber;
@@ -1254,13 +1298,7 @@ const Procurement = () => {
                                 <span>•</span>
                                 <span>{request.requester}</span>
                                 <span>•</span>
-                                <span>{new Date(request.date).toLocaleString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric', 
-                                  year: 'numeric',
-                                  hour: '2-digit', 
-                                  minute: '2-digit' 
-                                })}</span>
+                                <span>{formatMRFDate(request.date)}</span>
                                 <span>•</span>
                                 <span className="font-semibold text-foreground">₦{parseInt(request.estimatedCost).toLocaleString()}</span>
                               </div>
