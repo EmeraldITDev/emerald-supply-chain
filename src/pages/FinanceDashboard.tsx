@@ -442,7 +442,13 @@ const FinanceDashboard = () => {
                           </div>
                           <div>
                             <p className="text-muted-foreground text-xs">Date</p>
-                            <p className="font-medium">{new Date(mrf.date).toLocaleDateString()}</p>
+                            <p className="font-medium">{new Date(mrf.date).toLocaleString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric', 
+                              year: 'numeric',
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}</p>
                           </div>
                         </div>
                         <p className="text-sm text-muted-foreground mt-2 line-clamp-1">{mrf.description}</p>

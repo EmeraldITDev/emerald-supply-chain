@@ -363,7 +363,7 @@ const VendorPortal = () => {
       const response = await vendorAuthApi.login(email, password);
       
       if (response.success && response.data) {
-        const { vendor, token, requiresPasswordChange } = response.data;
+        const { vendor, token } = response.data;
         
         // Store token and vendor data
         localStorage.setItem('vendorAuthToken', token);
@@ -374,16 +374,7 @@ const VendorPortal = () => {
         setIsLoggedIn(true);
         setFormErrors({});
         
-        if (requiresPasswordChange) {
-          setShowPasswordChange(true);
-          setCurrentPasswordForChange(password);
-          toast({
-            title: "Password Change Required",
-            description: "Please change your password to continue.",
-          });
-        } else {
           toast({ title: "Login Successful", description: "Welcome to Vendor Portal" });
-        }
       } else {
         setFormErrors({ general: response.error || "Invalid credentials" });
       }
@@ -928,52 +919,6 @@ const VendorPortal = () => {
           </CardContent>
         </Card>
 
-        {/* Password Change Dialog */}
-        <Dialog open={showPasswordChange} onOpenChange={() => {}}>
-          <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
-            <DialogHeader>
-              <DialogTitle>Change Your Password</DialogTitle>
-              <DialogDescription>
-                You must change your temporary password before continuing.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
-                <PasswordInput
-                  id="newPassword"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimum 8 characters"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                <PasswordInput
-                  id="confirmPassword"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter new password"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button 
-                onClick={handlePasswordChange}
-                disabled={isChangingPassword || !newPassword || !confirmPassword}
-              >
-                {isChangingPassword ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Changing...
-                  </>
-                ) : (
-                  "Change Password"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     );
   }
@@ -1154,6 +1099,7 @@ const VendorPortal = () => {
             <TabsTrigger value="quotations">My Quotations</TabsTrigger>
             <TabsTrigger value="documents">KYC Documents</TabsTrigger>
             <TabsTrigger value="profile">My Profile</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="rfqs" className="space-y-4">
@@ -1196,9 +1142,27 @@ const VendorPortal = () => {
                             <p className="font-medium">{rfq.items?.length || 0} item(s)</p>
                           </div>
                           <div>
+                            <span className="text-muted-foreground">Sent At:</span>
+                            <p className="font-medium text-muted-foreground">
+                              {rfq.sent_at ? new Date(rfq.sent_at).toLocaleString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric',
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              }) : 'N/A'}
+                            </p>
+                          </div>
+                          <div>
                             <span className="text-muted-foreground">Deadline:</span>
                             <p className="font-medium text-warning">{new Date(rfq.deadline).toLocaleDateString()}</p>
                           </div>
+                          {(rfq.payment_terms || rfq.paymentTerms) && (
+                            <div className="md:col-span-2">
+                              <span className="text-muted-foreground">Proposed Payment Terms:</span>
+                              <p className="font-medium">{rfq.payment_terms || rfq.paymentTerms}</p>
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-2">
                           <Button 
@@ -1247,14 +1211,94 @@ const VendorPortal = () => {
               vendorId={currentVendorId}
               vendorName={currentVendor?.name || "Vendor"}
               onSubmit={async (quote) => {
-                // TODO: VendorQuoteSubmission component should handle API submission internally
-                // For now, just refresh and switch tabs
-                await refreshRFQs();
-                setActiveTab("quotations");
-                toast({
-                  title: "Quotation Submitted",
-                  description: "Your quotation has been submitted successfully",
-                });
+                try {
+                  // Prepare quotation data with ALL fields from the form
+                  const quotationData = {
+                    total_amount: parseFloat(quote.price) || 0,
+                    delivery_date: quote.deliveryDate,
+                    payment_terms: quote.paymentTerms || '',
+                    validity_days: parseInt(quote.validityPeriod || '30'),
+                    warranty_period: quote.warrantyPeriod || '',
+                    notes: quote.notes || '',
+                    items: quote.lineItems && quote.lineItems.length > 0 ? quote.lineItems.map(item => ({
+                      item_name: item.description,
+                      quantity: item.quantity,
+                      unit: 'unit', // Default unit, should come from RFQ item if available
+                      unit_price: item.unitPrice,
+                      specifications: item.description // Use description as specifications if needed
+                    })) : []
+                  };
+                  
+                  // If there are attachments, use FormData to send both JSON data and files
+                  if (quote.attachments && quote.attachments.length > 0) {
+                    const formData = new FormData();
+                    
+                    // Append all quotation data as JSON string
+                    formData.append('quotation_data', JSON.stringify(quotationData));
+                    
+                    // Append each attachment file
+                    quote.attachments.forEach((file, index) => {
+                      formData.append(`attachments[]`, file);
+                    });
+                    
+                    // Use vendorApiRequest for authenticated FormData submission
+                    const token = localStorage.getItem('vendorAuthToken') || sessionStorage.getItem('vendorAuthToken');
+                    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
+                    
+                    const response = await fetch(`${apiBaseUrl}/rfqs/${quote.rfqId}/submit-quotation`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        // Don't set Content-Type - browser will set it with boundary for FormData
+                      },
+                      body: formData,
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok && data.success !== false) {
+                      await refreshRFQs();
+                      await fetchVendorQuotations();
+                      setActiveTab("quotations");
+                      toast({
+                        title: "Quotation Submitted",
+                        description: "Your quotation has been sent to the Procurement Manager with all details including line items, payment terms, validity period, warranty, notes, and attachments.",
+                      });
+                    } else {
+                      toast({
+                        title: "Submission Failed",
+                        description: data.error || data.message || "Failed to submit quotation. Please try again.",
+                        variant: "destructive",
+                      });
+                    }
+                  } else {
+                    // No attachments, use regular JSON API
+                    const response = await quotationApi.submit(quote.rfqId, quotationData);
+                    
+                    if (response.success) {
+                      await refreshRFQs();
+                      await fetchVendorQuotations();
+                      setActiveTab("quotations");
+                      toast({
+                        title: "Quotation Submitted",
+                        description: "Your quotation has been sent to the Procurement Manager with all details including line items, payment terms, validity period, warranty, and notes.",
+                      });
+                    } else {
+                      toast({
+                        title: "Submission Failed",
+                        description: response.error || "Failed to submit quotation. Please try again.",
+                        variant: "destructive",
+                      });
+                    }
+                  }
+                } catch (error: any) {
+                  console.error('Quotation submission error:', error);
+                  toast({
+                    title: "Error",
+                    description: error.message || "An error occurred while submitting your quotation.",
+                    variant: "destructive",
+                  });
+                }
               }}
             />
           </TabsContent>
@@ -1733,6 +1777,75 @@ const VendorPortal = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="settings" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Account Settings
+                </CardTitle>
+                <CardDescription>Manage your account preferences and security settings</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Password Reset Request */}
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-sm mb-1">Password Reset Request</h4>
+                      <p className="text-sm text-muted-foreground">
+                        If you need to reset your password, you can request assistance from the Procurement Manager. 
+                        They will help you set up a new password.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleRequestPasswordReset}
+                    disabled={isRequestingPasswordReset}
+                    className="gap-2 mt-4"
+                  >
+                    {isRequestingPasswordReset ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Requesting...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="h-4 w-4" />
+                        Request Password Reset
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Account Information */}
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold text-sm mb-3">Account Information</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Email</Label>
+                      <p className="font-medium">{(currentVendor as any)?.email || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Vendor ID</Label>
+                      <p className="font-medium">{(currentVendor as any)?.vendor_id || currentVendor?.id || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Company Name</Label>
+                      <p className="font-medium">{currentVendor?.name || (currentVendor as any)?.company_name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Account Status</Label>
+                      <Badge className={getStatusColor((currentVendor as any)?.status || 'Active')}>
+                        {(currentVendor as any)?.status || 'Active'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </main>
       
@@ -1767,8 +1880,22 @@ const VendorPortal = () => {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Sent At</Label>
-                    <p className="font-medium">{new Date(rfq.sent_at).toLocaleDateString()}</p>
+                    <p className="font-medium">
+                      {rfq.sent_at ? new Date(rfq.sent_at).toLocaleString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      }) : 'N/A'}
+                    </p>
                   </div>
+                  {(rfq.payment_terms || rfq.paymentTerms) && (
+                    <div>
+                      <Label className="text-muted-foreground">Proposed Payment Terms</Label>
+                      <p className="font-medium">{rfq.payment_terms || rfq.paymentTerms}</p>
+                    </div>
+                  )}
                   <div>
                     <Label className="text-muted-foreground">Deadline</Label>
                     <p className="font-medium text-warning">{new Date(rfq.deadline).toLocaleDateString()}</p>

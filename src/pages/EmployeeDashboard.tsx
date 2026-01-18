@@ -246,7 +246,13 @@ const EmployeeDashboard = () => {
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
                           <span className="font-medium">{request.id}</span>
                           <span>•</span>
-                          <span>{new Date(request.date).toLocaleDateString()}</span>
+                          <span>{new Date(request.date).toLocaleString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric',
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}</span>
                           {isMRF && mrf.estimatedCost && (
                             <>
                               <span>•</span>

@@ -1254,7 +1254,13 @@ const Procurement = () => {
                                 <span>•</span>
                                 <span>{request.requester}</span>
                                 <span>•</span>
-                                <span>{new Date(request.date).toLocaleDateString()}</span>
+                                <span>{new Date(request.date).toLocaleString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric', 
+                                  year: 'numeric',
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}</span>
                                 <span>•</span>
                                 <span className="font-semibold text-foreground">₦{parseInt(request.estimatedCost).toLocaleString()}</span>
                               </div>
