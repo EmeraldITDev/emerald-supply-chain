@@ -176,23 +176,26 @@ const Procurement = () => {
     if (!dateString) return 'N/A';
     
     try {
-      // Parse the date - if it's in ISO format with timezone, it will be handled correctly
-      // If it's without timezone, assume it's UTC and convert to local
       let date: Date;
       
       // Check if the string has timezone info (ends with Z or has +/- offset)
       if (dateString.includes('Z') || dateString.match(/[+-]\d{2}:\d{2}$/)) {
-        // Has timezone info, parse directly
+        // Has timezone info (UTC or with offset), parse directly
         date = new Date(dateString);
+      } else if (dateString.includes('T')) {
+        // ISO format without timezone (e.g., "2025-01-18T20:14:00")
+        // IMPORTANT: If backend is storing local server time without timezone,
+        // we need to parse it as local time, NOT UTC
+        // JavaScript will interpret this as local time by default
+        date = new Date(dateString);
+      } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        // Plain date string (e.g., "2025-01-18") - no time info
+        // This will default to midnight (00:00:00) in local timezone
+        // This is likely the issue - backend is not sending time
+        date = new Date(dateString + 'T00:00:00');
       } else {
-        // No timezone info - assume UTC if it looks like ISO format, otherwise assume local
-        if (dateString.includes('T')) {
-          // ISO format without timezone - append Z to treat as UTC
-          date = new Date(dateString + (dateString.endsWith('Z') ? '' : 'Z'));
-        } else {
-          // Plain date string - parse as local time
-          date = new Date(dateString);
-        }
+        // Fallback: try parsing as-is
+        date = new Date(dateString);
       }
       
       // Check if date is valid
@@ -200,14 +203,15 @@ const Procurement = () => {
         return 'Invalid Date';
       }
       
-      // Format in local timezone
+      // Format in local timezone - this should show the correct local time
       return date.toLocaleString('en-US', { 
         month: 'short', 
         day: 'numeric', 
         year: 'numeric',
         hour: '2-digit', 
         minute: '2-digit',
-        hour12: true
+        hour12: true,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
       });
     } catch (error) {
       console.error('Error formatting date:', dateString, error);
