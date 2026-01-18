@@ -242,13 +242,14 @@ const VendorPortal = () => {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Try calling refresh endpoint first
+      // Try calling refresh endpoint first (alias for /api/auth/refresh-token)
       try {
         const token = localStorage.getItem('vendorAuthToken');
         if (token) {
           const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
+          // Using /api/refresh alias which maps to /api/auth/refresh-token on the backend
           const response = await fetch(`${apiBaseUrl}/refresh`, {
-            method: 'GET',
+            method: 'GET', // Backend alias supports GET
             headers: {
               'Authorization': `Bearer ${token}`,
               'Accept': 'application/json',
@@ -264,7 +265,7 @@ const VendorPortal = () => {
         }
       } catch (refreshError) {
         // If refresh endpoint doesn't exist or fails, re-fetch current page data
-        console.log('Refresh endpoint not available, re-fetching data...');
+        console.log('Refresh endpoint not available, re-fetching data...', refreshError);
       }
       
       // Re-fetch all current page data
