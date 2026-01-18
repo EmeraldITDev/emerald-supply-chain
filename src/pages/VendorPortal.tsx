@@ -220,13 +220,19 @@ const VendorPortal = () => {
     
     setLoadingQuotations(true);
     try {
-      // Use vendor portal API for vendor's own quotations (uses vendorAuthToken)
+      // Try using vendor-specific endpoint /api/vendors/quotations
+      // Note: If backend hasn't implemented this endpoint yet, it will 404
       const response = await vendorPortalApi.getMyQuotations();
+      
       if (response.success && response.data) {
         setVendorQuotationsList(response.data);
       } else {
-        console.error('Failed to fetch vendor quotations:', response.error);
-        setVendorQuotationsList([]);
+        // If endpoint doesn't exist (404), use fallback to context quotations
+        // Backend needs to implement GET /api/vendors/quotations endpoint
+        // Check for 404 in error message or use fallback if error exists
+        console.warn('Vendor quotations endpoint issue:', response.error);
+        // Use fallback data from context if available
+        setVendorQuotationsList(quotations.filter(q => q.vendorId === currentVendorId));
       }
     } catch (error) {
       console.error('Error fetching vendor quotations:', error);
@@ -248,11 +254,13 @@ const VendorPortal = () => {
         if (token) {
           const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
           // Using /api/refresh alias which maps to /api/auth/refresh-token on the backend
+          // The backend alias expects POST method (same as /auth/refresh-token)
           const response = await fetch(`${apiBaseUrl}/refresh`, {
-            method: 'GET', // Backend alias supports GET
+            method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
               'Accept': 'application/json',
+              'Content-Type': 'application/json',
             },
           });
           if (response.ok) {
@@ -1269,7 +1277,7 @@ const VendorPortal = () => {
                     if (response.ok && data.success !== false) {
                       await refreshRFQs();
                       await fetchVendorQuotations();
-                      setActiveTab("quotations");
+                setActiveTab("quotations");
                       toast({
                         title: "Quotation Submitted",
                         description: "Your quotation has been sent to the Procurement Manager with all details including line items, payment terms, validity period, warranty, notes, and attachments.",
