@@ -1222,11 +1222,29 @@ export const vendorPortalApi = {
     }
 
     // Prepare the payload with all required fields
+    // Backend expects: price (not total_amount), delivery_fee (not delivery_days), and delivery_date
+    // Ensure all required fields are present
+    if (!quotationData.total_amount || quotationData.total_amount <= 0) {
+      return {
+        success: false,
+        error: 'Price field is required and must be greater than zero.',
+      };
+    }
+    
+    if (!quotationData.delivery_date) {
+      return {
+        success: false,
+        error: 'Delivery date is required.',
+      };
+    }
+
     const payload = {
       rfq_id: rfqId,
-      total_amount: quotationData.total_amount,
+      price: quotationData.total_amount, // Backend expects 'price' field (required)
+      total_amount: quotationData.total_amount, // Also include for compatibility
+      delivery_fee: 0, // Backend expects delivery_fee field (required, set to 0 if not provided)
       delivery_days: deliveryDays || 0,
-      delivery_date: quotationData.delivery_date,
+      delivery_date: quotationData.delivery_date, // Required
       payment_terms: quotationData.payment_terms,
       validity_days: quotationData.validity_days,
       warranty_period: quotationData.warranty_period || '',
@@ -1239,12 +1257,13 @@ export const vendorPortalApi = {
       const formData = new FormData();
       
       // Append each field individually for better backend compatibility
+      // Include both field names for maximum compatibility
       formData.append('rfq_id', rfqId);
-      formData.append('total_amount', payload.total_amount.toString());
+      formData.append('price', payload.price.toString()); // Backend expects 'price' (required)
+      formData.append('total_amount', payload.total_amount.toString()); // Also include for compatibility
+      formData.append('delivery_fee', payload.delivery_fee.toString()); // Backend expects 'delivery_fee' (required)
       formData.append('delivery_days', payload.delivery_days.toString());
-      if (payload.delivery_date) {
-        formData.append('delivery_date', payload.delivery_date);
-      }
+      formData.append('delivery_date', payload.delivery_date); // Required - always include
       formData.append('payment_terms', payload.payment_terms);
       formData.append('validity_days', payload.validity_days.toString());
       if (payload.warranty_period) {
@@ -1259,6 +1278,20 @@ export const vendorPortalApi = {
         formData.append('attachments[]', file);
       });
 
+      // Log FormData contents for debugging
+      console.log('Submitting quotation with FormData:', {
+        rfq_id: rfqId,
+        price: payload.price,
+        total_amount: payload.total_amount,
+        delivery_fee: payload.delivery_fee,
+        delivery_days: payload.delivery_days,
+        delivery_date: payload.delivery_date,
+        payment_terms: payload.payment_terms,
+        validity_days: payload.validity_days,
+        items_count: payload.items.length,
+        attachments_count: attachments.length,
+      });
+
       // Use vendorApiRequest with FormData
       return vendorApiRequest<Quotation>(`/rfqs/${rfqId}/submit-quotation`, {
         method: 'POST',
@@ -1270,6 +1303,8 @@ export const vendorPortalApi = {
       });
     } else {
       // No attachments, use JSON
+      console.log('Submitting quotation with JSON:', payload);
+      
       return vendorApiRequest<Quotation>(`/rfqs/${rfqId}/submit-quotation`, {
         method: 'POST',
         body: JSON.stringify(payload),
