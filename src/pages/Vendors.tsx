@@ -1195,8 +1195,8 @@ const Vendors = () => {
                             </div>
                             <span className="text-xs font-medium">
                               {typeof comment.createdBy === 'object' && comment.createdBy !== null
-                                ? comment.createdBy.name || comment.createdBy.email || 'Unknown'
-                                : comment.createdBy || 'Unknown'}
+                                ? (comment.createdBy as any).name || (comment.createdBy as any).email || 'Unknown'
+                                : String(comment.createdBy) || 'Unknown'}
                             </span>
                           </div>
                           <span className="text-xs text-muted-foreground">
