@@ -127,21 +127,33 @@ const Procurement = () => {
 
   // Fetch quotations for MRFs
   const fetchQuotations = useCallback(async () => {
+    if (rfqs.length === 0) {
+      setQuotations([]);
+      return;
+    }
+    
     try {
       // Fetch quotations for all RFQs using the RFQ quotations endpoint
       const allQuotations: any[] = [];
+      const quotationIds = new Set<string>(); // Track unique quotations by ID
+      
       for (const rfq of rfqs) {
         try {
           const response = await rfqApi.getQuotations(rfq.id);
           if (response.success && response.data && response.data.quotations) {
             // The response includes quotations with vendor info
             response.data.quotations.forEach((item: any) => {
-              allQuotations.push({
-                ...item.quotation,
-                vendorName: item.vendor?.name || item.vendor?.company_name,
-                vendorId: item.vendor?.id || item.vendor?.vendor_id,
-                rfqId: rfq.id,
-              });
+              const quotationId = item.quotation?.id || item.id;
+              // Only add if we haven't seen this quotation ID before (prevent duplicates)
+              if (quotationId && !quotationIds.has(quotationId)) {
+                quotationIds.add(quotationId);
+                allQuotations.push({
+                  ...item.quotation,
+                  vendorName: item.vendor?.name || item.vendor?.company_name,
+                  vendorId: item.vendor?.id || item.vendor?.vendor_id,
+                  rfqId: rfq.id,
+                });
+              }
             });
           }
         } catch (error) {
@@ -161,15 +173,31 @@ const Procurement = () => {
 
   // Helper to get quotations for an MRF
   const getQuotationsForMRF = (mrfId: string) => {
-    const rfq = getRFQForMRF(mrfId);
-    if (!rfq) return [];
-    return quotations.filter(q => q.rfqId === rfq.id);
+    // Get all RFQs for this MRF (in case there are multiple)
+    const mrfRfqs = rfqs.filter(rfq => rfq.mrfId === mrfId || rfq.mrf_id === mrfId);
+    if (mrfRfqs.length === 0) return [];
+    
+    // Get quotations for all RFQs associated with this MRF
+    const mrfQuotations: any[] = [];
+    mrfRfqs.forEach(rfq => {
+      const rfqQuotations = quotations.filter(q => q.rfqId === rfq.id);
+      mrfQuotations.push(...rfqQuotations);
+    });
+    
+    return mrfQuotations;
   };
 
   useEffect(() => {
     fetchMRFs();
     fetchRFQs();
   }, [fetchMRFs, fetchRFQs]);
+
+  // Fetch quotations whenever RFQs change
+  useEffect(() => {
+    if (rfqs.length > 0) {
+      fetchQuotations();
+    }
+  }, [rfqs, fetchQuotations]);
 
   useEffect(() => {
     if (rfqs.length > 0) {
@@ -706,6 +734,10 @@ const Procurement = () => {
         // Refresh MRFs and RFQs from backend to get updated status
         await fetchMRFs();
         await fetchRFQs();
+        // Wait a bit for RFQs to be set, then fetch quotations
+        setTimeout(() => {
+          fetchQuotations();
+        }, 500);
       } else {
         console.error('RFQ Creation Error:', rfqResponse.error);
         toast({
@@ -1433,6 +1465,7 @@ const Procurement = () => {
                                                     });
                                                     await fetchMRFs();
                                                     await fetchRFQs();
+                                                    await fetchQuotations();
                                                   } else {
                                                     // Enhanced error handling
                                                     let errorMessage = sendResponse.error || "Failed to send quotation for approval";
