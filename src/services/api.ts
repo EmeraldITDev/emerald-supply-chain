@@ -1273,7 +1273,15 @@ export const vendorPortalApi = {
     }));
 
     // Prepare the payload according to backend spec
-    // Backend expects: price (required), deliveryDate (required), delivery_days, payment_terms, etc.
+    // Backend expects: price (required), deliveryDate (required), delivery_days, payment_terms, validity_days (required), etc.
+    // Ensure validity_days is always provided (default to 30 if not specified, null, undefined, 0, or NaN)
+    let validityDays = quotationData.validity_days;
+    if (validityDays === null || validityDays === undefined || validityDays === 0 || isNaN(Number(validityDays))) {
+      validityDays = 30; // Default to 30 days
+    } else {
+      validityDays = Number(validityDays); // Ensure it's a number
+    }
+    
     const payload = {
       rfq_id: rfqId,
       price: quotationData.total_amount, // Backend requires 'price' field
@@ -1281,7 +1289,7 @@ export const vendorPortalApi = {
       items: items,
       delivery_days: deliveryDays || 0,
       payment_terms: quotationData.payment_terms,
-      validity_days: quotationData.validity_days,
+      validity_days: validityDays, // Required by database - always include with default of 30
       ...(quotationData.warranty_period && { warranty_period: quotationData.warranty_period }),
       ...(quotationData.notes && { notes: quotationData.notes }),
     };
@@ -1296,7 +1304,7 @@ export const vendorPortalApi = {
       formData.append('deliveryDate', payload.deliveryDate); // Required: 'deliveryDate' field (camelCase)
       formData.append('delivery_days', payload.delivery_days.toString());
       formData.append('payment_terms', payload.payment_terms);
-      formData.append('validity_days', payload.validity_days.toString());
+      formData.append('validity_days', payload.validity_days.toString()); // Required: always include (default 30)
       if (payload.warranty_period) {
         formData.append('warranty_period', payload.warranty_period);
       }
