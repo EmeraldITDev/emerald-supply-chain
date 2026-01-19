@@ -28,11 +28,7 @@ const Dashboard = () => {
   }
 
   if (user?.role === "finance") {
-    return (
-      <DashboardLayout>
-        <FinanceDashboard />
-      </DashboardLayout>
-    );
+    return <FinanceDashboard />;
   }
 
   if (user?.role === "executive") {
