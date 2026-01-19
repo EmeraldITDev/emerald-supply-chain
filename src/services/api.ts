@@ -1243,6 +1243,13 @@ export const vendorPortalApi = {
       };
     }
     
+    if (!quotationData.delivery_date) {
+      return {
+        success: false,
+        error: 'Delivery date is required.',
+      };
+    }
+    
     if (!deliveryDays && deliveryDays !== 0) {
       return {
         success: false,
@@ -1266,9 +1273,11 @@ export const vendorPortalApi = {
     }));
 
     // Prepare the payload according to backend spec
-    // Try both endpoint formats: /rfqs/:id/submit-quotation and /quotations
+    // Backend expects: price (required), deliveryDate (required), delivery_days, payment_terms, etc.
     const payload = {
       rfq_id: rfqId,
+      price: quotationData.total_amount, // Backend requires 'price' field
+      deliveryDate: quotationData.delivery_date, // Backend requires 'deliveryDate' field (camelCase)
       items: items,
       delivery_days: deliveryDays || 0,
       payment_terms: quotationData.payment_terms,
@@ -1281,8 +1290,10 @@ export const vendorPortalApi = {
     if (attachments && attachments.length > 0) {
       const formData = new FormData();
       
-      // Append each field individually
+      // Append each field individually - backend expects specific field names
       formData.append('rfq_id', rfqId);
+      formData.append('price', payload.price.toString()); // Required: 'price' field
+      formData.append('deliveryDate', payload.deliveryDate); // Required: 'deliveryDate' field (camelCase)
       formData.append('delivery_days', payload.delivery_days.toString());
       formData.append('payment_terms', payload.payment_terms);
       formData.append('validity_days', payload.validity_days.toString());
@@ -1302,6 +1313,8 @@ export const vendorPortalApi = {
       // Log FormData contents for debugging
       console.log('Submitting quotation with FormData to /rfqs/:id/submit-quotation:', {
         rfq_id: rfqId,
+        price: payload.price,
+        deliveryDate: payload.deliveryDate,
         delivery_days: payload.delivery_days,
         payment_terms: payload.payment_terms,
         validity_days: payload.validity_days,
