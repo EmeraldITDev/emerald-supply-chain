@@ -202,6 +202,8 @@ const Procurement = () => {
         // Plain date string (e.g., "2025-01-18") - no time info
         // This will default to midnight (00:00:00) in local timezone
         // This is likely the issue - backend is not sending time
+        // For date-only strings, we should check if there's a time component in the original data
+        // If backend sends date without time, we can't display time accurately
         date = new Date(dateString + 'T00:00:00');
       } else {
         // Fallback: try parsing as-is
@@ -212,19 +214,6 @@ const Procurement = () => {
       if (isNaN(date.getTime())) {
         console.warn('Invalid date string for formatting:', dateString);
         return 'Invalid Date';
-      }
-      
-      // If the date shows midnight (00:00:00) and the original string didn't have time info,
-      // it's likely the backend didn't send time. In this case, we should still format it,
-      // but log a warning for debugging
-      const hours = date.getHours();
-      const minutes = date.getMinutes();
-      const seconds = date.getSeconds();
-      if (hours === 0 && minutes === 0 && seconds === 0 && !dateString.includes('T')) {
-        // Date without time - format as date only, or use the date as-is if it's a date-only string
-        // But if it's supposed to have time, we need to handle it differently
-        // For now, format it with time to show it's at midnight
-        console.warn('Date string appears to be missing time information:', dateString);
       }
       
       // Format in local timezone - this should show the correct local time
@@ -239,7 +228,14 @@ const Procurement = () => {
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
       };
       
-      return date.toLocaleString('en-US', options);
+      // If the date shows midnight (00:00:00) and the original string didn't have time info,
+      // it's likely the backend didn't send time. In this case, we should still format it,
+      // but the time will show as 12:00 AM which is expected for date-only strings
+      const formatted = date.toLocaleString('en-US', options);
+      
+      // If backend sent a date without time (just date string), the time will be 12:00 AM
+      // This is expected behavior. If backend should send time, it needs to include it in the response.
+      return formatted;
     } catch (error) {
       console.error('Error formatting date:', dateString, error);
       return 'Invalid Date';
@@ -1329,7 +1325,7 @@ const Procurement = () => {
                                 <span>•</span>
                                 <span>{request.requester}</span>
                                 <span>•</span>
-                                <span>{formatMRFDate(request.date)}</span>
+                                <span>{formatMRFDate(getMRFDate(request))}</span>
                                 <span>•</span>
                                 <span className="font-semibold text-foreground">₦{parseInt(request.estimatedCost).toLocaleString()}</span>
                               </div>
@@ -1922,19 +1918,53 @@ const Procurement = () => {
               )}
 
               {/* Approval History */}
-              {(selectedMRFForDetails as any).executiveApprovalDate && (
-                <div>
-                  <Label className="text-muted-foreground">Executive Approval</Label>
-                  <p className="text-sm mt-1">
-                    Approved on {formatMRFDate((selectedMRFForDetails as any).executiveApprovalDate)}
-                    {(selectedMRFForDetails as any).executiveRemarks && (
-                      <span className="block mt-1 text-muted-foreground">
-                        Remarks: {(selectedMRFForDetails as any).executiveRemarks}
-                      </span>
-                    )}
-                  </p>
-                </div>
-              )}
+              {(() => {
+                const approvalHistory = (selectedMRFForDetails as any).approval_history || (selectedMRFForDetails as any).approvalHistory || [];
+                const executiveApproval = approvalHistory.find((a: any) => a.stage === 'executive' || a.stage === 'executive_review');
+                const executiveApprovalDate = (selectedMRFForDetails as any).executiveApprovalDate || executiveApproval?.timestamp;
+                const executiveRemarks = (selectedMRFForDetails as any).executive_remarks || (selectedMRFForDetails as any).executiveRemarks || executiveApproval?.remarks;
+                
+                if (executiveApprovalDate || executiveRemarks) {
+                  return (
+                    <div>
+                      <Label className="text-muted-foreground">Executive Approval</Label>
+                      <p className="text-sm mt-1">
+                        {executiveApprovalDate && `Approved on ${formatMRFDate(executiveApprovalDate)}`}
+                        {executiveRemarks && (
+                          <span className="block mt-1 text-muted-foreground">
+                            Remarks: {executiveRemarks}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              
+              {/* Full Approval History */}
+              {(() => {
+                const approvalHistory = (selectedMRFForDetails as any).approval_history || (selectedMRFForDetails as any).approvalHistory || [];
+                if (approvalHistory.length > 0) {
+                  return (
+                    <div>
+                      <Label className="text-muted-foreground">Approval History</Label>
+                      <div className="mt-2 space-y-2">
+                        {approvalHistory.map((entry: any, index: number) => (
+                          <div key={index} className="p-2 border rounded-md">
+                            <p className="text-sm font-medium capitalize">{entry.stage || entry.action || 'Unknown'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {entry.timestamp ? formatMRFDate(entry.timestamp) : 'N/A'}
+                              {entry.remarks && ` • ${entry.remarks}`}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* RFQ Information */}
               {(() => {

@@ -693,8 +693,15 @@ const VendorPortal = () => {
     ? vendorQuotationsList 
     : quotations.filter(q => q.vendorId === currentVendorId);
   // Use vendor-specific RFQs fetched from API, filter to only show Open ones
-  const openVendorRfqs = vendorRfqs.filter(r => r.status === "Open" || r.status === "open");
-  const newRfqCount = openVendorRfqs.length;
+  // Also include RFQs that don't have a status set (assume they're open)
+  const openVendorRfqs = vendorRfqs.filter(r => 
+    !r.status || 
+    r.status === "Open" || 
+    r.status === "open" || 
+    r.status.toLowerCase() === "open" ||
+    (!r.has_submitted_quote && !r.responded) // If vendor hasn't responded, it's still open
+  );
+  const newRfqCount = openVendorRfqs.filter(r => !r.viewed_at || !r.responded).length;
 
   const getStatusColor = (status: string) => {
     switch (status) {
