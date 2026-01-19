@@ -1108,14 +1108,24 @@ async function vendorApiRequest<T>(
       // Extract validation errors from response
       let errorMessage = 'Validation failed. Please check your input.';
       
+      // Log the full error response for debugging
+      console.error('422 Validation Error Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: data,
+        errors: data.errors,
+        message: data.message,
+        error: data.error,
+      });
+      
       if (data.errors && typeof data.errors === 'object') {
         // Laravel-style validation errors
         const errorMessages: string[] = [];
         Object.entries(data.errors).forEach(([field, messages]) => {
           if (Array.isArray(messages)) {
-            errorMessages.push(...messages);
+            errorMessages.push(...messages.map((msg: string) => `${field}: ${msg}`));
           } else if (typeof messages === 'string') {
-            errorMessages.push(messages);
+            errorMessages.push(`${field}: ${messages}`);
           }
         });
         if (errorMessages.length > 0) {
@@ -1189,6 +1199,9 @@ export const vendorPortalApi = {
   },
 
   // Submit quotation as a vendor (with proper vendor authentication)
+  // Backend endpoint: POST /api/rfqs/:id/submit-quotation
+  // Backend expects: rfq_id, items (with rfq_item_id, item_name, quantity, unit_price), 
+  //                  delivery_days, payment_terms, validity_days, warranty_period, notes
   submitQuotation: async (
     rfqId: string,
     quotationData: {
@@ -1205,6 +1218,7 @@ export const vendorPortalApi = {
         unit: string;
         unit_price: number;
         specifications?: string;
+        rfq_item_id?: string; // Add rfq_item_id if available
       }>;
     },
     attachments?: File[]
@@ -1221,49 +1235,55 @@ export const vendorPortalApi = {
       if (deliveryDays < 0) deliveryDays = 0;
     }
 
-    // Prepare the payload with all required fields
-    // Backend expects: price (not total_amount), delivery_fee (not delivery_days), and delivery_date
-    // Ensure all required fields are present
+    // Validate required fields
     if (!quotationData.total_amount || quotationData.total_amount <= 0) {
       return {
         success: false,
-        error: 'Price field is required and must be greater than zero.',
+        error: 'Total amount is required and must be greater than zero.',
       };
     }
     
-    if (!quotationData.delivery_date) {
+    if (!deliveryDays && deliveryDays !== 0) {
       return {
         success: false,
-        error: 'Delivery date is required.',
+        error: 'Delivery days is required. Please provide a delivery date.',
       };
     }
 
+    if (!quotationData.items || quotationData.items.length === 0) {
+      return {
+        success: false,
+        error: 'At least one item is required.',
+      };
+    }
+
+    // Prepare items array - backend expects rfq_item_id, item_name, quantity, unit_price
+    const items = quotationData.items.map(item => ({
+      item_name: item.item_name,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      ...(item.rfq_item_id && { rfq_item_id: item.rfq_item_id }),
+    }));
+
+    // Prepare the payload according to backend spec
+    // Try both endpoint formats: /rfqs/:id/submit-quotation and /quotations
     const payload = {
       rfq_id: rfqId,
-      price: quotationData.total_amount, // Backend expects 'price' field (required)
-      total_amount: quotationData.total_amount, // Also include for compatibility
-      delivery_fee: 0, // Backend expects delivery_fee field (required, set to 0 if not provided)
+      items: items,
       delivery_days: deliveryDays || 0,
-      delivery_date: quotationData.delivery_date, // Required
       payment_terms: quotationData.payment_terms,
       validity_days: quotationData.validity_days,
-      warranty_period: quotationData.warranty_period || '',
-      notes: quotationData.notes || '',
-      items: quotationData.items,
+      ...(quotationData.warranty_period && { warranty_period: quotationData.warranty_period }),
+      ...(quotationData.notes && { notes: quotationData.notes }),
     };
 
     // If there are attachments, use FormData
     if (attachments && attachments.length > 0) {
       const formData = new FormData();
       
-      // Append each field individually for better backend compatibility
-      // Include both field names for maximum compatibility
+      // Append each field individually
       formData.append('rfq_id', rfqId);
-      formData.append('price', payload.price.toString()); // Backend expects 'price' (required)
-      formData.append('total_amount', payload.total_amount.toString()); // Also include for compatibility
-      formData.append('delivery_fee', payload.delivery_fee.toString()); // Backend expects 'delivery_fee' (required)
       formData.append('delivery_days', payload.delivery_days.toString());
-      formData.append('delivery_date', payload.delivery_date); // Required - always include
       formData.append('payment_terms', payload.payment_terms);
       formData.append('validity_days', payload.validity_days.toString());
       if (payload.warranty_period) {
@@ -1272,6 +1292,7 @@ export const vendorPortalApi = {
       if (payload.notes) {
         formData.append('notes', payload.notes);
       }
+      // Items must be sent as JSON string
       formData.append('items', JSON.stringify(payload.items));
       
       attachments.forEach((file) => {
@@ -1279,15 +1300,12 @@ export const vendorPortalApi = {
       });
 
       // Log FormData contents for debugging
-      console.log('Submitting quotation with FormData:', {
+      console.log('Submitting quotation with FormData to /rfqs/:id/submit-quotation:', {
         rfq_id: rfqId,
-        price: payload.price,
-        total_amount: payload.total_amount,
-        delivery_fee: payload.delivery_fee,
         delivery_days: payload.delivery_days,
-        delivery_date: payload.delivery_date,
         payment_terms: payload.payment_terms,
         validity_days: payload.validity_days,
+        items: payload.items,
         items_count: payload.items.length,
         attachments_count: attachments.length,
       });
@@ -1297,13 +1315,11 @@ export const vendorPortalApi = {
         method: 'POST',
         body: formData,
         // Don't set Content-Type - browser will set it with boundary for FormData
-        headers: {
-          // Remove Content-Type to let browser set it with boundary
-        },
+        headers: {},
       });
     } else {
       // No attachments, use JSON
-      console.log('Submitting quotation with JSON:', payload);
+      console.log('Submitting quotation with JSON to /rfqs/:id/submit-quotation:', payload);
       
       return vendorApiRequest<Quotation>(`/rfqs/${rfqId}/submit-quotation`, {
         method: 'POST',
