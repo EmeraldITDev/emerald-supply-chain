@@ -15,7 +15,6 @@ import { POGenerationDialog } from "@/components/POGenerationDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RFQManagement } from "@/components/RFQManagement";
-import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
