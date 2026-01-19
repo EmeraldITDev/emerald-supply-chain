@@ -957,8 +957,6 @@ const Procurement = () => {
           externalLoading={vendorRegistrationsLoading}
         />
 
-        {/* Progress Tracker */}
-        <ProcurementProgressTracker mrfRequests={mrfRequests.map(convertToMRFRequest)} />
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-5 h-auto gap-1">
