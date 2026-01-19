@@ -1247,6 +1247,13 @@ export const vendorPortalApi = {
     return vendorApiRequest<Quotation[]>('/vendors/quotations');
   },
 
+  // Delete a quotation
+  deleteQuotation: async (quotationId: string): Promise<ApiResponse<void>> => {
+    return vendorApiRequest<void>(`/vendors/quotations/${quotationId}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Submit quotation as a vendor (with proper vendor authentication)
   // Backend endpoint: POST /api/rfqs/:id/submit-quotation
   // Backend expects: rfq_id, items (with rfq_item_id, item_name, quantity, unit_price), 

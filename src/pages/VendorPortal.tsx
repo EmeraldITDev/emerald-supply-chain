@@ -323,24 +323,19 @@ const VendorPortal = () => {
 
     setDeletingQuotationId(quotationId);
     try {
-      const token = localStorage.getItem('vendorAuthToken') || sessionStorage.getItem('vendorAuthToken');
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
-      
-      // Use vendor-specific endpoint for quotation deletion
-      const response = await fetch(`${apiBaseUrl}/vendors/quotations/${quotationId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
+      // Use vendorPortalApi.deleteQuotation which handles authentication properly
+      const response = await vendorPortalApi.deleteQuotation(quotationId);
 
-      const data = await response.json();
-
-      if (response.ok && data.success !== false) {
-        // Remove from list immediately
+      if (response.success) {
+        // Remove from list immediately (both drafts and server quotations)
         setVendorQuotationsList(prev => prev.filter(q => q.id !== quotationId));
+        
+        // Also remove from local storage if it's a draft
+        const drafts = loadDrafts();
+        const updatedDrafts = drafts.filter((d: any) => d.id !== quotationId);
+        if (updatedDrafts.length !== drafts.length) {
+          localStorage.setItem(`vendor_quotations_drafts_${currentVendorId}`, JSON.stringify(updatedDrafts));
+        }
         
         toast({
           title: "Quotation Deleted",
@@ -352,7 +347,7 @@ const VendorPortal = () => {
       } else {
         toast({
           title: "Delete Failed",
-          description: data.error || data.message || "Failed to delete quotation. Please try again.",
+          description: response.error || "Failed to delete quotation. Please try again.",
           variant: "destructive",
         });
       }
