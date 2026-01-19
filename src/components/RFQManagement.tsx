@@ -343,9 +343,21 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       const selectResponse = await rfqApi.selectVendor(selectedRFQ.id, quotationId);
 
       if (!selectResponse.success) {
+        // Enhanced error handling for workflow states
+        let errorMessage = selectResponse.error || "Failed to award vendor";
+        
+        // Check for specific workflow state errors
+        if (errorMessage.includes("not in procurement review") || errorMessage.includes("workflow state")) {
+          errorMessage = "This MRF is not in the correct workflow state for vendor selection. Please ensure the MRF has been approved by the Executive and is ready for procurement review.";
+        } else if (errorMessage.includes("executive approval") || errorMessage.includes("not approved")) {
+          errorMessage = "Executive approval is required before selecting a vendor. Please wait for Executive approval.";
+        } else if (errorMessage.includes("already selected") || errorMessage.includes("vendor already")) {
+          errorMessage = "A vendor has already been selected for this RFQ.";
+        }
+        
         toast({
-          title: "Error",
-          description: selectResponse.error || "Failed to award vendor",
+          title: "Vendor Selection Failed",
+          description: errorMessage,
           variant: "destructive",
         });
         return;
@@ -367,10 +379,18 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
             description: "Vendor has been selected and sent to Supply Chain Director for approval. You'll be able to generate PO after approval.",
           });
         } else {
-          // RFQ vendor selection succeeded but sending for approval failed
+          // Enhanced error handling for sending vendor for approval
+          let errorMessage = sendResponse.error || "Unknown error";
+          
+          if (errorMessage.includes("workflow state") || errorMessage.includes("not in")) {
+            errorMessage = "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
+          } else if (errorMessage.includes("executive approval")) {
+            errorMessage = "Executive approval is required before sending vendor for Supply Chain Director approval.";
+          }
+          
           toast({
-            title: "Vendor Selected",
-            description: "Vendor was awarded in RFQ, but failed to send for Supply Chain Director approval: " + (sendResponse.error || "Unknown error"),
+            title: "Partial Success",
+            description: `Vendor was selected in RFQ, but failed to send for Supply Chain Director approval: ${errorMessage}`,
             variant: "destructive",
           });
         }

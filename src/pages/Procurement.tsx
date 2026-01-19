@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar, AlertCircle, Upload, Send, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar, AlertCircle, Upload, Send, Loader2, RefreshCw, Trash2, Star } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
@@ -16,6 +16,7 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RFQManagement } from "@/components/RFQManagement";
 import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
+import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import type { MRFRequest } from "@/contexts/AppContext";
@@ -75,6 +76,10 @@ const Procurement = () => {
   const [isDeletingPO, setIsDeletingPO] = useState(false);
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
+  const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
+  const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+  const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
+  const [loadingFullDetails, setLoadingFullDetails] = useState(false);
   
   // Vendor registrations from dashboard API
   const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
@@ -1434,9 +1439,18 @@ const Procurement = () => {
                                                     await fetchMRFs();
                                                     await fetchRFQs();
                                                   } else {
+                                                    // Enhanced error handling
+                                                    let errorMessage = sendResponse.error || "Failed to send quotation for approval";
+                                                    
+                                                    if (errorMessage.includes("workflow state") || errorMessage.includes("not in")) {
+                                                      errorMessage = "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
+                                                    } else if (errorMessage.includes("executive approval")) {
+                                                      errorMessage = "Executive approval is required before sending vendor for Supply Chain Director approval.";
+                                                    }
+                                                    
                                                     toast({
-                                                      title: "Error",
-                                                      description: sendResponse.error || "Failed to send quotation for approval",
+                                                      title: "Approval Request Failed",
+                                                      description: errorMessage,
                                                       variant: "destructive",
                                                     });
                                                   }
@@ -1488,10 +1502,23 @@ const Procurement = () => {
                                       size="sm"
                                       variant="outline"
                                       className="text-xs"
-                                      onClick={(e) => {
+                                      onClick={async (e) => {
                                         e.stopPropagation();
                                         setSelectedMRFForDetails(request as MRF);
                                         setMrfDetailsDialogOpen(true);
+                                        
+                                        // Fetch full details
+                                        setLoadingFullDetails(true);
+                                        try {
+                                          const response = await mrfApi.getFullDetails(request.id);
+                                          if (response.success && response.data) {
+                                            setMrfFullDetails(response.data);
+                                          }
+                                        } catch (error) {
+                                          console.error('Failed to fetch full details:', error);
+                                        } finally {
+                                          setLoadingFullDetails(false);
+                                        }
                                       }}
                                     >
                                       <FileText className="h-3 w-3 mr-1" />
@@ -1838,14 +1865,27 @@ const Procurement = () => {
       </AlertDialog>
 
       {/* MRF Details Dialog */}
-      <Dialog open={mrfDetailsDialogOpen} onOpenChange={setMrfDetailsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={mrfDetailsDialogOpen} onOpenChange={(open) => {
+        setMrfDetailsDialogOpen(open);
+        if (!open) {
+          setMrfFullDetails(null);
+          setSelectedMRFForDetails(null);
+        }
+      }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>MRF Details</DialogTitle>
-            <DialogDescription>Complete information about this Material Request Form</DialogDescription>
+            <DialogTitle>MRF Full Details</DialogTitle>
+            <DialogDescription>Complete information about this Material Request Form with all quotations and progress</DialogDescription>
           </DialogHeader>
-          {selectedMRFForDetails && (
+          {loadingFullDetails ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : selectedMRFForDetails && (
             <div className="space-y-6 mt-4">
+              {/* Progress Tracker */}
+              <MRFProgressTracker mrfId={selectedMRFForDetails.id} showTitle={true} />
+              
               {/* Basic Information */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1998,61 +2038,206 @@ const Procurement = () => {
                 return null;
               })()}
 
-              {/* RFQ Information */}
-              {(() => {
-                const rfq = getRFQForMRF(selectedMRFForDetails.id);
-                if (rfq) {
-                  return (
+              {/* RFQs and Quotations from Full Details API */}
+              {mrfFullDetails ? (
+                <>
+                  {/* RFQs Section */}
+                  {mrfFullDetails.rfqs && mrfFullDetails.rfqs.length > 0 && (
                     <div>
-                      <Label className="text-muted-foreground">Related RFQ</Label>
-                      <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
-                        <p className="font-medium">RFQ ID: {rfq.id}</p>
-                        <p className="text-sm text-muted-foreground">Status: {rfq.status}</p>
-                        {rfq.deadline && (
-                          <p className="text-sm text-muted-foreground">
-                            Deadline: {new Date(rfq.deadline).toLocaleDateString()}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-
-              {/* Quotations */}
-              {(() => {
-                const mrfQuotations = getQuotationsForMRF(selectedMRFForDetails.id);
-                if (mrfQuotations.length > 0) {
-                  return (
-                    <div>
-                      <Label className="text-muted-foreground">Vendor Quotations ({mrfQuotations.length})</Label>
-                      <div className="mt-2 space-y-2">
-                        {mrfQuotations.map((quotation: any) => (
-                          <div key={quotation.id} className="p-3 border rounded-md">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-medium">{quotation.vendorName || quotation.vendor_name || 'Vendor'}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  Price: ₦{parseFloat(quotation.price || quotation.total_amount || '0').toLocaleString()}
-                                  {quotation.deliveryDate && ` • Delivery: ${new Date(quotation.deliveryDate).toLocaleDateString()}`}
-                                </p>
-                                {quotation.notes && (
-                                  <p className="text-xs text-muted-foreground mt-1">{quotation.notes}</p>
-                                )}
-                              </div>
-                              <Badge className={getStatusColor(quotation.status || 'Pending')}>
-                                {quotation.status || 'Pending'}
-                              </Badge>
+                      <Label className="text-muted-foreground mb-2 block">Related RFQs ({mrfFullDetails.rfqs.length})</Label>
+                      <div className="space-y-3">
+                        {mrfFullDetails.rfqs.map((rfq: any) => (
+                          <div key={rfq.id} className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="font-medium">RFQ ID: {rfq.id}</p>
+                              <Badge className={getStatusColor(rfq.status)}>{rfq.status}</Badge>
                             </div>
+                            <p className="text-sm font-medium mb-1">{rfq.title}</p>
+                            {rfq.deadline && (
+                              <p className="text-xs text-muted-foreground">
+                                Deadline: {new Date(rfq.deadline).toLocaleDateString()}
+                              </p>
+                            )}
+                            {rfq.vendors && rfq.vendors.length > 0 && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Sent to {rfq.vendors.length} vendor(s)
+                              </p>
+                            )}
                           </div>
                         ))}
                       </div>
                     </div>
-                  );
-                }
-                return null;
-              })()}
+                  )}
+
+                  {/* Statistics */}
+                  {mrfFullDetails.statistics && (
+                    <div>
+                      <Label className="text-muted-foreground mb-2 block">Quotation Statistics</Label>
+                      <div className="grid grid-cols-4 gap-4">
+                        <Card>
+                          <CardContent className="pt-4">
+                            <p className="text-sm text-muted-foreground">Total Quotations</p>
+                            <p className="text-xl font-bold">{mrfFullDetails.statistics.totalQuotations || 0}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-4">
+                            <p className="text-sm text-muted-foreground">Lowest Bid</p>
+                            <p className="text-xl font-bold text-success">₦{mrfFullDetails.statistics.lowestBid?.toLocaleString() || 'N/A'}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-4">
+                            <p className="text-sm text-muted-foreground">Highest Bid</p>
+                            <p className="text-xl font-bold">₦{mrfFullDetails.statistics.highestBid?.toLocaleString() || 'N/A'}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-4">
+                            <p className="text-sm text-muted-foreground">Average Bid</p>
+                            <p className="text-xl font-bold text-primary">₦{Math.round(mrfFullDetails.statistics.averageBid || 0).toLocaleString()}</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* All Quotations */}
+                  {mrfFullDetails.quotations && mrfFullDetails.quotations.length > 0 && (
+                    <div>
+                      <Label className="text-muted-foreground mb-2 block">All Vendor Quotations ({mrfFullDetails.quotations.length})</Label>
+                      <div className="space-y-3">
+                        {mrfFullDetails.quotations.map((item: any) => {
+                          const quotation = item.quotation || item;
+                          const vendor = item.vendor || {};
+                          return (
+                            <div key={quotation.id || item.id} className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <p className="font-semibold">{vendor.name || vendor.company_name || 'Unknown Vendor'}</p>
+                                    {vendor.rating && (
+                                      <div className="flex items-center gap-1">
+                                        <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                                        <span className="text-xs">{vendor.rating}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mb-2">
+                                    Quotation ID: {quotation.id || item.id} • RFQ: {quotation.rfqId || item.rfqId}
+                                  </p>
+                                  {quotation.rfqTitle && (
+                                    <p className="text-sm font-medium text-primary mb-2">{quotation.rfqTitle}</p>
+                                  )}
+                                </div>
+                                <Badge className={getStatusColor(quotation.status || 'Pending')}>
+                                  {quotation.status || 'Pending'}
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Total Amount</p>
+                                  <p className="font-semibold text-lg">₦{parseFloat(quotation.totalAmount || quotation.total_amount || quotation.price || '0').toLocaleString()}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Delivery Days</p>
+                                  <p className="font-medium">{quotation.deliveryDays || quotation.delivery_days || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Payment Terms</p>
+                                  <p className="font-medium">{quotation.payment_terms || quotation.paymentTerms || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Validity</p>
+                                  <p className="font-medium">{quotation.validity_days || quotation.validityDays || 'N/A'} days</p>
+                                </div>
+                              </div>
+                              {quotation.notes && (
+                                <div className="mt-3 p-2 bg-muted rounded text-sm">
+                                  <p className="font-medium mb-1">Notes:</p>
+                                  <p className="text-muted-foreground">{quotation.notes}</p>
+                                </div>
+                              )}
+                              {quotation.attachments && quotation.attachments.length > 0 && (
+                                <div className="mt-3">
+                                  <p className="text-xs font-medium mb-1">Attachments ({quotation.attachments.length})</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {quotation.attachments.map((att: any, idx: number) => (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        <FileText className="h-3 w-3 mr-1" />
+                                        {att.fileName || att.name || `Attachment ${idx + 1}`}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Fallback to local data if full details not loaded */}
+                  {/* RFQ Information */}
+                  {(() => {
+                    const rfq = getRFQForMRF(selectedMRFForDetails.id);
+                    if (rfq) {
+                      return (
+                        <div>
+                          <Label className="text-muted-foreground">Related RFQ</Label>
+                          <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
+                            <p className="font-medium">RFQ ID: {rfq.id}</p>
+                            <p className="text-sm text-muted-foreground">Status: {rfq.status}</p>
+                            {rfq.deadline && (
+                              <p className="text-sm text-muted-foreground">
+                                Deadline: {new Date(rfq.deadline).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {/* Quotations */}
+                  {(() => {
+                    const mrfQuotations = getQuotationsForMRF(selectedMRFForDetails.id);
+                    if (mrfQuotations.length > 0) {
+                      return (
+                        <div>
+                          <Label className="text-muted-foreground">Vendor Quotations ({mrfQuotations.length})</Label>
+                          <div className="mt-2 space-y-2">
+                            {mrfQuotations.map((quotation: any) => (
+                              <div key={quotation.id} className="p-3 border rounded-md">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-medium">{quotation.vendorName || quotation.vendor_name || 'Vendor'}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      Price: ₦{parseFloat(quotation.price || quotation.total_amount || '0').toLocaleString()}
+                                      {quotation.deliveryDate && ` • Delivery: ${new Date(quotation.deliveryDate).toLocaleDateString()}`}
+                                    </p>
+                                    {quotation.notes && (
+                                      <p className="text-xs text-muted-foreground mt-1">{quotation.notes}</p>
+                                    )}
+                                  </div>
+                                  <Badge className={getStatusColor(quotation.status || 'Pending')}>
+                                    {quotation.status || 'Pending'}
+                                  </Badge>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </>
+              )}
             </div>
           )}
         </DialogContent>
