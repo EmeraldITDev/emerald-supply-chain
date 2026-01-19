@@ -322,38 +322,40 @@ const FinanceDashboard = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Finance MRFs"
-          value={stats?.totalFinanceMRFs ?? financeMRFs.length}
-          description="All MRFs in finance stage"
-          icon={FileText}
-          iconColor="text-primary"
-        />
-        <StatCard
-          title="Pending Payments"
-          value={stats?.pendingPayments ?? pendingPayment.length}
-          description={`₦${(stats?.totalPendingAmount ?? totalPending).toLocaleString()} total`}
-          icon={Clock}
-          iconColor="text-warning"
-          onClick={() => setStatusFilter("pending")}
-        />
-        <StatCard
-          title="Processed Payments"
-          value={stats?.processedPayments ?? processed.length}
-          description={`₦${(stats?.totalProcessedAmount ?? totalProcessed).toLocaleString()} total`}
-          icon={CheckCircle}
-          iconColor="text-success"
-          onClick={() => setStatusFilter("processed")}
-        />
-        <StatCard
-          title="Approved Payments"
-          value={stats?.approvedPayments ?? 0}
-          description={`₦${(stats?.totalApprovedAmount ?? 0).toLocaleString()} total`}
-          icon={TrendingUp}
-          iconColor="text-primary"
-        />
-      </div>
+      {stats && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Total Finance MRFs"
+            value={stats.totalFinanceMRFs || financeMRFs.length || 0}
+            description="All MRFs in finance stage"
+            icon={FileText}
+            iconColor="text-primary"
+          />
+          <StatCard
+            title="Pending Payments"
+            value={stats.pendingPayments || pendingPayment.length || 0}
+            description={stats.totalPendingAmount ? `₦${stats.totalPendingAmount.toLocaleString()} total` : "No pending payments"}
+            icon={Clock}
+            iconColor="text-warning"
+            onClick={() => setStatusFilter("pending")}
+          />
+          <StatCard
+            title="Processed Payments"
+            value={stats.processedPayments || processed.length || 0}
+            description={stats.totalProcessedAmount ? `₦${stats.totalProcessedAmount.toLocaleString()} total` : "No processed payments"}
+            icon={CheckCircle}
+            iconColor="text-success"
+            onClick={() => setStatusFilter("processed")}
+          />
+          <StatCard
+            title="Approved Payments"
+            value={stats.approvedPayments || 0}
+            description={stats.totalApprovedAmount ? `₦${stats.totalApprovedAmount.toLocaleString()} total` : "No approved payments"}
+            icon={TrendingUp}
+            iconColor="text-primary"
+          />
+        </div>
+      )}
 
       {/* Main Content */}
       <Card>
@@ -501,18 +503,22 @@ const FinanceDashboard = () => {
                         </div>
 
                         {/* Vendor Information */}
-                        {vendor && Object.keys(vendor).length > 0 && (
+                        {vendor && Object.keys(vendor).length > 0 && vendor.name && (
                           <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
                             <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">Vendor Information</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                              <div>
-                                <span className="text-muted-foreground">Name: </span>
-                                <span className="font-medium">{vendor.name || "N/A"}</span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Email: </span>
-                                <span className="font-medium">{vendor.email || "N/A"}</span>
-                              </div>
+                              {vendor.name && (
+                                <div>
+                                  <span className="text-muted-foreground">Name: </span>
+                                  <span className="font-medium">{vendor.name}</span>
+                                </div>
+                              )}
+                              {vendor.email && (
+                                <div>
+                                  <span className="text-muted-foreground">Email: </span>
+                                  <span className="font-medium">{vendor.email}</span>
+                                </div>
+                              )}
                               {vendor.phone && (
                                 <div>
                                   <span className="text-muted-foreground">Phone: </span>
