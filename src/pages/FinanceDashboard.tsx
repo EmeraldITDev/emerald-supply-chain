@@ -530,14 +530,16 @@ const FinanceDashboard = () => {
                         )}
 
                         {/* Quotation Details */}
-                        {quotation && Object.keys(quotation).length > 0 && (
+                        {quotation && Object.keys(quotation).length > 0 && (quotation.price || quotation.total_amount) && (
                           <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-4">
                             <p className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2">Quotation Details</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm">
-                              <div>
-                                <span className="text-muted-foreground">Total Amount: </span>
-                                <span className="font-bold text-lg">₦{typeof quotationAmount === 'number' ? quotationAmount.toLocaleString() : parseFloat(String(quotationAmount)).toLocaleString()}</span>
-                              </div>
+                              {(quotation.price || quotation.total_amount) && (
+                                <div>
+                                  <span className="text-muted-foreground">Total Amount: </span>
+                                  <span className="font-bold text-lg">₦{typeof quotationAmount === 'number' ? quotationAmount.toLocaleString() : parseFloat(String(quotationAmount)).toLocaleString()}</span>
+                                </div>
+                              )}
                               {quotation.payment_terms && (
                                 <div>
                                   <span className="text-muted-foreground">Payment Terms: </span>
@@ -561,7 +563,7 @@ const FinanceDashboard = () => {
                         )}
 
                         {/* PO Information */}
-                        {po && Object.keys(po).length > 0 && (
+                        {po && Object.keys(po).length > 0 && (po.po_number || po.signed_po_url) && (
                           <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded-lg p-3 mb-4">
                             <p className="text-sm font-semibold text-purple-900 dark:text-purple-100 mb-2">Purchase Order</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
@@ -571,7 +573,7 @@ const FinanceDashboard = () => {
                                   <span className="font-mono font-medium">{po.po_number}</span>
                                 </div>
                               )}
-                              {po.signed_po_url && (
+                              {(po.signed_po_url || po.signed_po_share_url) && (
                                 <div>
                                   <span className="text-muted-foreground">Signed PO: </span>
                                   <OneDriveLink 
