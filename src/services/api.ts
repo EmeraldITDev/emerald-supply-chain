@@ -1671,6 +1671,10 @@ export const dashboardApi = {
   getVendorDashboard: async (): Promise<ApiResponse<any>> => {
     return apiRequest<any>('/dashboard/vendor');
   },
+
+  getFinanceDashboard: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/dashboard/finance');
+  },
 };
 
 // Notification API

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Download, Clock, Calendar, DollarSign, TrendingUp, Loader2, FileText } from "lucide-react";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { mrfApi, grnApi } from "@/services/api";
+import { mrfApi, grnApi, dashboardApi } from "@/services/api";
 import type { MRF } from "@/types";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { OneDriveLink } from "@/components/OneDriveLink";
@@ -22,7 +22,8 @@ import { Input } from "@/components/ui/input";
 
 const FinanceDashboard = () => {
   const { toast } = useToast();
-  const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
+  const [financeMRFs, setFinanceMRFs] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [processedItems, setProcessedItems] = useState<Set<string>>(new Set());
@@ -36,17 +37,18 @@ const FinanceDashboard = () => {
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
 
-  // Fetch MRFs from backend API
-  const fetchMRFs = useCallback(async () => {
+  // Fetch Finance Dashboard data from backend API
+  const fetchFinanceData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await mrfApi.getAll();
+      const response = await dashboardApi.getFinanceDashboard();
       if (response.success && response.data) {
-        setMrfRequests(response.data);
+        setFinanceMRFs(response.data.financeMRFs || []);
+        setStats(response.data.stats || null);
       } else {
         toast({
           title: "Error",
-          description: response.error || "Failed to load MRFs",
+          description: response.error || "Failed to load finance data",
           variant: "destructive",
         });
       }
@@ -62,8 +64,8 @@ const FinanceDashboard = () => {
   }, [toast]);
 
   useEffect(() => {
-    fetchMRFs();
-  }, [fetchMRFs]);
+    fetchFinanceData();
+  }, [fetchFinanceData]);
 
   // Helper functions
   const getEstimatedCost = (mrf: MRF) => {
@@ -87,42 +89,52 @@ const FinanceDashboard = () => {
     return (mrf.workflow_state || mrf.workflowState || "").toLowerCase();
   };
 
-  // Filter for MRFs that have signed POs and are ready for payment
-  const approvedMRFs = useMemo(() => {
-    return mrfRequests.filter(mrf => {
-      const stage = getCurrentStage(mrf);
-      const status = (mrf.status || "").toLowerCase();
+  // Filter finance MRFs based on status
+  const pendingPayment = useMemo(() => {
+    return financeMRFs.filter((item: any) => {
+      const mrf = item.mrf || item;
       const workflowState = getWorkflowState(mrf);
-      return (stage === "finance" || status.includes("finance")) && 
-             (workflowState === "po_signed" || workflowState === "payment_processed");
+      return (workflowState === "po_signed" || workflowState === "payment_pending") && 
+             !processedItems.has(mrf.id);
     });
-  }, [mrfRequests]);
+  }, [financeMRFs, processedItems]);
 
-  // Filter for processed payments that can request GRN
+  const processed = useMemo(() => {
+    return financeMRFs.filter((item: any) => {
+      const mrf = item.mrf || item;
+      return processedItems.has(mrf.id);
+    });
+  }, [financeMRFs, processedItems]);
+
   const processedForGRN = useMemo(() => {
-    return mrfRequests.filter(mrf => {
+    return financeMRFs.filter((item: any) => {
+      const mrf = item.mrf || item;
       const workflowState = getWorkflowState(mrf);
       const grnRequested = mrf.grn_requested || mrf.grnRequested;
       return workflowState === "payment_processed" && !grnRequested;
     });
-  }, [mrfRequests]);
+  }, [financeMRFs]);
 
-  const pendingPayment = useMemo(() => {
-    return approvedMRFs.filter(mrf => !processedItems.has(mrf.id));
-  }, [approvedMRFs, processedItems]);
-
-  const processed = useMemo(() => {
-    return approvedMRFs.filter(mrf => processedItems.has(mrf.id));
-  }, [approvedMRFs, processedItems]);
-
-  // Calculate totals
+  // Use stats from API if available, otherwise calculate
   const totalPending = useMemo(() => {
-    return pendingPayment.reduce((sum, mrf) => sum + getEstimatedCost(mrf), 0);
-  }, [pendingPayment]);
+    if (stats?.totalPendingAmount) return stats.totalPendingAmount;
+    return pendingPayment.reduce((sum, item: any) => {
+      const mrf = item.mrf || item;
+      const quotation = item.quotation;
+      const amount = quotation?.price || quotation?.total_amount || getEstimatedCost(mrf);
+      return sum + (typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0);
+    }, 0);
+  }, [stats, pendingPayment]);
 
   const totalProcessed = useMemo(() => {
-    return processed.reduce((sum, mrf) => sum + getEstimatedCost(mrf), 0);
-  }, [processed]);
+    if (stats?.totalProcessedAmount) return stats.totalProcessedAmount;
+    return processed.reduce((sum, item: any) => {
+      const mrf = item.mrf || item;
+      const quotation = item.quotation;
+      const amount = quotation?.price || quotation?.total_amount || getEstimatedCost(mrf);
+      return sum + (typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0);
+    }, 0);
+  }, [stats, processed]);
 
   // Filtered data
   const filteredRequests = useMemo(() => {
@@ -137,18 +149,24 @@ const FinanceDashboard = () => {
 
     // Search filter
     if (searchQuery) {
-      filtered = filtered.filter(mrf =>
-        mrf.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        mrf.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        mrf.requester.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      filtered = filtered.filter((item: any) => {
+        const mrf = item.mrf || item;
+        const vendor = item.vendor || {};
+        return (
+          mrf.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          mrf.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          getRequesterName(mrf).toLowerCase().includes(searchQuery.toLowerCase()) ||
+          vendor.name?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      });
     }
 
     // Date filter
     if (dateFilter !== "all") {
       const now = new Date();
-      filtered = filtered.filter(mrf => {
-        const mrfDate = new Date(mrf.date);
+      filtered = filtered.filter((item: any) => {
+        const mrf = item.mrf || item;
+        const mrfDate = new Date(getDate(mrf));
         const daysDiff = (now.getTime() - mrfDate.getTime()) / (1000 * 60 * 60 * 24);
         
         if (dateFilter === "today") return daysDiff < 1;
@@ -160,11 +178,13 @@ const FinanceDashboard = () => {
 
     // Amount filter
     if (minAmount || maxAmount) {
-      filtered = filtered.filter(mrf => {
-        const amount = parseInt(mrf.estimatedCost);
-        const min = minAmount ? parseInt(minAmount) : 0;
-        const max = maxAmount ? parseInt(maxAmount) : Infinity;
-        return amount >= min && amount <= max;
+      filtered = filtered.filter((item: any) => {
+        const quotation = item.quotation;
+        const amount = quotation?.price || quotation?.total_amount || 0;
+        const numAmount = typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0;
+        const min = minAmount ? parseFloat(minAmount) : 0;
+        const max = maxAmount ? parseFloat(maxAmount) : Infinity;
+        return numAmount >= min && numAmount <= max;
       });
     }
 
@@ -172,8 +192,12 @@ const FinanceDashboard = () => {
   }, [pendingPayment, processed, processedForGRN, statusFilter, searchQuery, dateFilter, minAmount, maxAmount]);
 
   const handleMarkProcessed = async (id: string) => {
-    const mrf = mrfRequests.find(m => m.id === id);
-    if (!mrf) return;
+    const item = financeMRFs.find((item: any) => {
+      const mrf = item.mrf || item;
+      return mrf.id === id;
+    });
+    if (!item) return;
+    const mrf = item.mrf || item;
     
     // Check available actions from backend before proceeding
     try {
@@ -219,7 +243,7 @@ const FinanceDashboard = () => {
     });
         
         // Refresh the list from backend
-        await fetchMRFs();
+        await fetchFinanceData();
       } else {
         toast({
           title: "Error",
@@ -273,7 +297,7 @@ const FinanceDashboard = () => {
   };
 
   const handleGRNRequestSuccess = () => {
-    fetchMRFs();
+    fetchFinanceData();
   };
 
   const statusOptions = [
@@ -289,7 +313,7 @@ const FinanceDashboard = () => {
 
   return (
     <DashboardLayout>
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Finance Dashboard</h1>
@@ -298,34 +322,34 @@ const FinanceDashboard = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Awaiting Processing"
-          value={pendingPayment.length}
-          description="Approved requests pending payment"
+          title="Total Finance MRFs"
+          value={stats?.totalFinanceMRFs ?? financeMRFs.length}
+          description="All MRFs in finance stage"
+          icon={FileText}
+          iconColor="text-primary"
+        />
+        <StatCard
+          title="Pending Payments"
+          value={stats?.pendingPayments ?? pendingPayment.length}
+          description={`₦${(stats?.totalPendingAmount ?? totalPending).toLocaleString()} total`}
           icon={Clock}
           iconColor="text-warning"
           onClick={() => setStatusFilter("pending")}
         />
         <StatCard
-          title="Total Pending Amount"
-          value={`₦${totalPending.toLocaleString()}`}
-          description="Total value to be processed"
-          icon={DollarSign}
-          iconColor="text-info"
-        />
-        <StatCard
           title="Processed Payments"
-          value={processed.length}
-          description="Payments completed"
+          value={stats?.processedPayments ?? processed.length}
+          description={`₦${(stats?.totalProcessedAmount ?? totalProcessed).toLocaleString()} total`}
           icon={CheckCircle}
           iconColor="text-success"
           onClick={() => setStatusFilter("processed")}
         />
         <StatCard
-          title="Total Processed"
-          value={`₦${totalProcessed.toLocaleString()}`}
-          description="Total value processed"
+          title="Approved Payments"
+          value={stats?.approvedPayments ?? 0}
+          description={`₦${(stats?.totalApprovedAmount ?? 0).toLocaleString()} total`}
           icon={TrendingUp}
           iconColor="text-primary"
         />
@@ -407,43 +431,57 @@ const FinanceDashboard = () => {
                   </p>
                 </div>
               ) : (
-                filteredRequests.map((mrf) => {
+                filteredRequests.map((item: any) => {
+                  const mrf = item.mrf || item;
+                  const vendor = item.vendor || {};
+                  const quotation = item.quotation || {};
+                  const po = item.po || {};
                   const isProcessed = processedItems.has(mrf.id);
+                  const quotationAmount = quotation?.price || quotation?.total_amount || getEstimatedCost(mrf);
+                  const executiveApproved = mrf.executive_approved || mrf.executiveApproved;
                   
                   return (
                     <div
                       key={mrf.id}
-                      className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-5 border rounded-xl transition-smooth mb-4 ${
+                      className={`flex flex-col gap-4 p-5 border rounded-xl transition-smooth mb-4 ${
                         isProcessed ? "bg-muted/30" : "bg-card hover:shadow-md"
                       }`}
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center gap-3 mb-3 flex-wrap">
                           <h3 className="font-semibold text-lg">{mrf.title}</h3>
                           <Badge variant="outline">{mrf.id}</Badge>
+                          {executiveApproved && (
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Executive Approved
+                            </Badge>
+                          )}
                           {isProcessed && (
                             <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
                               Processed
                             </Badge>
                           )}
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                        
+                        {/* MRF Details */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm mb-4">
                           <div>
-                            <p className="text-muted-foreground text-xs">Requester</p>
-                            <p className="font-medium">{mrf.requester}</p>
+                            <p className="text-muted-foreground text-xs mb-1">Category</p>
+                            <p className="font-medium capitalize">{mrf.category?.replace("-", " ") || "N/A"}</p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground text-xs">Category</p>
-                            <p className="font-medium capitalize">{mrf.category.replace("-", " ")}</p>
+                            <p className="text-muted-foreground text-xs mb-1">Contract Type</p>
+                            <p className="font-medium">{mrf.contract_type || mrf.contractType || "N/A"}</p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground text-xs">Amount</p>
-                            <p className="font-bold text-lg">₦{parseInt(mrf.estimatedCost).toLocaleString()}</p>
+                            <p className="text-muted-foreground text-xs mb-1">Estimated Cost</p>
+                            <p className="font-medium">₦{getEstimatedCost(mrf).toLocaleString()}</p>
                           </div>
                           <div>
-                            <p className="text-muted-foreground text-xs">Date</p>
+                            <p className="text-muted-foreground text-xs mb-1">Date</p>
                             <p className="font-medium">{(() => {
-                              const dateStr = mrf.date || mrf.created_at || '';
+                              const dateStr = getDate(mrf);
                               if (!dateStr) return 'N/A';
                               try {
                                 const date = new Date(dateStr.includes('Z') || dateStr.match(/[+-]\d{2}:\d{2}$/) ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr));
@@ -461,26 +499,113 @@ const FinanceDashboard = () => {
                             })()}</p>
                           </div>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-2 line-clamp-1">{mrf.description}</p>
+
+                        {/* Vendor Information */}
+                        {vendor && Object.keys(vendor).length > 0 && (
+                          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
+                            <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">Vendor Information</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Name: </span>
+                                <span className="font-medium">{vendor.name || "N/A"}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Email: </span>
+                                <span className="font-medium">{vendor.email || "N/A"}</span>
+                              </div>
+                              {vendor.phone && (
+                                <div>
+                                  <span className="text-muted-foreground">Phone: </span>
+                                  <span className="font-medium">{vendor.phone}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Quotation Details */}
+                        {quotation && Object.keys(quotation).length > 0 && (
+                          <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-4">
+                            <p className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2">Quotation Details</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Total Amount: </span>
+                                <span className="font-bold text-lg">₦{typeof quotationAmount === 'number' ? quotationAmount.toLocaleString() : parseFloat(String(quotationAmount)).toLocaleString()}</span>
+                              </div>
+                              {quotation.payment_terms && (
+                                <div>
+                                  <span className="text-muted-foreground">Payment Terms: </span>
+                                  <span className="font-medium">{quotation.payment_terms}</span>
+                                </div>
+                              )}
+                              {quotation.delivery_date && (
+                                <div>
+                                  <span className="text-muted-foreground">Delivery Date: </span>
+                                  <span className="font-medium">{quotation.delivery_date}</span>
+                                </div>
+                              )}
+                              {quotation.validity_days && (
+                                <div>
+                                  <span className="text-muted-foreground">Validity: </span>
+                                  <span className="font-medium">{quotation.validity_days} days</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* PO Information */}
+                        {po && Object.keys(po).length > 0 && (
+                          <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded-lg p-3 mb-4">
+                            <p className="text-sm font-semibold text-purple-900 dark:text-purple-100 mb-2">Purchase Order</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                              {po.po_number && (
+                                <div>
+                                  <span className="text-muted-foreground">PO Number: </span>
+                                  <span className="font-mono font-medium">{po.po_number}</span>
+                                </div>
+                              )}
+                              {po.signed_po_url && (
+                                <div>
+                                  <span className="text-muted-foreground">Signed PO: </span>
+                                  <OneDriveLink 
+                                    webUrl={po.signed_po_url || po.signed_po_share_url} 
+                                    fileName={`Signed PO-${po.po_number || 'N/A'}.pdf`}
+                                    variant="badge"
+                                  />
+                                </div>
+                              )}
+                              {po.po_signed_date && (
+                                <div>
+                                  <span className="text-muted-foreground">PO Signed Date: </span>
+                                  <span className="font-medium">{new Date(po.po_signed_date).toLocaleDateString()}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="text-sm text-muted-foreground mt-2">{mrf.description}</p>
                       </div>
-                      <div className="flex gap-2 self-start lg:self-center items-center flex-wrap">
-                        {(mrf.signed_po_share_url || mrf.signedPOShareUrl || mrf.signed_po_url || mrf.signedPOUrl) && (
+                      
+                      <div className="flex gap-2 items-center flex-wrap border-t pt-4">
+                        {(mrf.signed_po_share_url || mrf.signedPOShareUrl || mrf.signed_po_url || mrf.signedPOUrl || po?.signed_po_url) && (
                           <OneDriveLink 
-                            webUrl={mrf.signed_po_share_url || mrf.signedPOShareUrl || mrf.signed_po_url || mrf.signedPOUrl} 
-                            fileName={`Signed PO-${mrf.po_number || mrf.poNumber || 'N/A'}.pdf`}
+                            webUrl={mrf.signed_po_share_url || mrf.signedPOShareUrl || mrf.signed_po_url || mrf.signedPOUrl || po?.signed_po_url} 
+                            fileName={`Signed PO-${mrf.po_number || mrf.poNumber || po?.po_number || 'N/A'}.pdf`}
                             variant="badge"
                           />
                         )}
-                      {!isProcessed && (
+                        {!isProcessed && (
                           <>
-                          <Button size="sm" variant="outline">
-                            <Download className="h-4 w-4 mr-1" />
-                            Documents
-                          </Button>
-                          <Button 
-                            size="sm"
-                            onClick={() => handleMarkProcessed(mrf.id)}
-                            className="gradient-primary hover:opacity-90"
+                            <Button size="sm" variant="outline">
+                              <Download className="h-4 w-4 mr-1" />
+                              Documents
+                            </Button>
+                            <Button 
+                              size="sm"
+                              onClick={() => handleMarkProcessed(mrf.id)}
+                              className="gradient-primary hover:opacity-90"
                               disabled={actionLoading === mrf.id}
                             >
                               {actionLoading === mrf.id ? (
@@ -490,8 +615,8 @@ const FinanceDashboard = () => {
                                 </>
                               ) : (
                                 <>
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Mark as Processed
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Mark as Processed
                                 </>
                               )}
                             </Button>
@@ -514,7 +639,7 @@ const FinanceDashboard = () => {
                             variant="badge"
                           />
                         )}
-                        </div>
+                      </div>
                     </div>
                   );
                 })

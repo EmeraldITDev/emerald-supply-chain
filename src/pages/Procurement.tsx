@@ -1526,13 +1526,39 @@ const Procurement = () => {
                                 }
                                 return null;
                               })()}
+                              {/* Upload PO button - Shown when status is pending_po_upload */}
+                              {(() => {
+                                const workflowState = getWorkflowState(request as MRF);
+                                const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager";
+                                const isPendingPOUpload = workflowState === "pending_po_upload";
+                                
+                                if (isProcurement && isPendingPOUpload) {
+                                  return (
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      className="text-xs bg-primary hover:bg-primary/90"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedMRFForPO(convertToMRFRequest(request as MRF));
+                                        setPODialogOpen(true);
+                                      }}
+                                    >
+                                      <Upload className="h-3 w-3 mr-1" />
+                                      Upload PO
+                                    </Button>
+                                  );
+                                }
+                                return null;
+                              })()}
                               {/* Send Request to Vendors button - Shown after Executive approval */}
                               {/* The handleGeneratePO function checks canGeneratePO before proceeding */}
                               {/* Button shown for procurement role when MRF is approved by Executive */}
                               {(() => {
                                 const workflowState = getWorkflowState(request as MRF);
                                 const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager";
-                                const canShowPOButton = isProcurement && (
+                                const isPendingPOUpload = workflowState === "pending_po_upload";
+                                const canShowPOButton = isProcurement && !isPendingPOUpload && (
                                   workflowState === "procurement_review" || // After Executive approval
                                   workflowState === "vendor_selected" || // After vendor selection
                                   workflowState === "invoice_received" || // After invoice received

@@ -7,6 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileText, Upload, Download, CheckCircle, Loader2, RefreshCw } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { PORejectionDialog } from "@/components/PORejectionDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -27,6 +34,10 @@ const SupplyChainDashboard = () => {
   const [selectedMRFForRejection, setSelectedMRFForRejection] = useState<MRF | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [signedPOs, setSignedPOs] = useState<{ [key: string]: File | null }>({});
+  const [quotationDetailsDialogOpen, setQuotationDetailsDialogOpen] = useState(false);
+  const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
+  const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
+  const [loadingFullDetails, setLoadingFullDetails] = useState(false);
 
   // Fetch MRFs from backend API
   const fetchMRFs = useCallback(async () => {
@@ -353,6 +364,32 @@ const SupplyChainDashboard = () => {
                           </p>
                         </div>
 
+                        {/* View Complete Quotation Details Button */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            setSelectedMRFForDetails(mrf);
+                            setQuotationDetailsDialogOpen(true);
+                            setLoadingFullDetails(true);
+                            try {
+                              const response = await mrfApi.getFullDetails(mrf.id);
+                              if (response.success && response.data) {
+                                setMrfFullDetails(response.data);
+                              } else {
+                                toast.error(response.error || "Failed to load quotation details");
+                              }
+                            } catch (error) {
+                              toast.error("Failed to load quotation details");
+                            } finally {
+                              setLoadingFullDetails(false);
+                            }
+                          }}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          View Complete Quotation Details
+                        </Button>
+
                         {/* Action Buttons */}
                         <SupplyChainVendorApprovalButtons
                           mrf={mrf}
@@ -565,6 +602,131 @@ const SupplyChainDashboard = () => {
         poNumber={getPONumber(selectedMRFForRejection || {} as MRF)}
         onReject={handleRejectPO}
       />
+
+      {/* Complete Quotation Details Dialog */}
+      <Dialog open={quotationDetailsDialogOpen} onOpenChange={(open) => {
+        setQuotationDetailsDialogOpen(open);
+        if (!open) {
+          setMrfFullDetails(null);
+          setSelectedMRFForDetails(null);
+        }
+      }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Complete Quotation Details</DialogTitle>
+            <DialogDescription>Full quotation information for review and approval</DialogDescription>
+          </DialogHeader>
+          {loadingFullDetails ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : mrfFullDetails?.selectedQuotation && selectedMRFForDetails ? (
+            <div className="space-y-6 mt-4">
+              {/* MRF Details */}
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h3 className="font-semibold text-lg mb-3 text-blue-900 dark:text-blue-100">MRF Information</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <Label className="text-muted-foreground">MRF ID</Label>
+                    <p className="font-medium font-mono">{selectedMRFForDetails.id}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Title</Label>
+                    <p className="font-medium">{selectedMRFForDetails.title}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Category</Label>
+                    <p className="font-medium">{selectedMRFForDetails.category}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Contract Type</Label>
+                    <p className="font-medium">{(selectedMRFForDetails as any).contract_type || (selectedMRFForDetails as any).contractType || "N/A"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Executive Approval</Label>
+                    <Badge className={((selectedMRFForDetails as any).executive_approved || (selectedMRFForDetails as any).executiveApproved) ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : ""}>
+                      {((selectedMRFForDetails as any).executive_approved || (selectedMRFForDetails as any).executiveApproved) ? "✓ Approved" : "Pending"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Selected Quotation */}
+              {mrfFullDetails.selectedQuotation.vendor && (
+                <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <h4 className="font-semibold mb-3 text-green-900 dark:text-green-100">Vendor Information</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div><Label className="text-muted-foreground">Name</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.vendor.name || mrfFullDetails.selectedQuotation.vendor.company_name || "N/A"}</p></div>
+                    <div><Label className="text-muted-foreground">Email</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.vendor.email || "N/A"}</p></div>
+                    <div><Label className="text-muted-foreground">Phone</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.vendor.phone || "N/A"}</p></div>
+                    <div><Label className="text-muted-foreground">Rating</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.vendor.rating || "N/A"}</p></div>
+                    {mrfFullDetails.selectedQuotation.vendor.address && <div className="col-span-2"><Label className="text-muted-foreground">Address</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.vendor.address}</p></div>}
+                    {mrfFullDetails.selectedQuotation.vendor.contact_person && <div><Label className="text-muted-foreground">Contact Person</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.vendor.contact_person}</p></div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Quotation Details */}
+              <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                <h4 className="font-semibold mb-3 text-purple-900 dark:text-purple-100">Quotation Details</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><Label className="text-muted-foreground">Total Amount</Label><p className="font-bold text-lg">₦{parseFloat(mrfFullDetails.selectedQuotation.price || mrfFullDetails.selectedQuotation.total_amount || "0").toLocaleString()}</p></div>
+                  <div><Label className="text-muted-foreground">Payment Terms</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.payment_terms || "N/A"}</p></div>
+                  <div><Label className="text-muted-foreground">Delivery Date</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.delivery_date || "N/A"}</p></div>
+                  <div><Label className="text-muted-foreground">Validity Days</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.validity_days || "N/A"} days</p></div>
+                  {mrfFullDetails.selectedQuotation.warranty_period && <div><Label className="text-muted-foreground">Warranty Period</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.warranty_period}</p></div>}
+                  {mrfFullDetails.selectedQuotation.scopeOfWork && <div className="col-span-2"><Label className="text-muted-foreground">Scope of Work</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.scopeOfWork}</p></div>}
+                  {mrfFullDetails.selectedQuotation.specifications && <div className="col-span-2"><Label className="text-muted-foreground">Specifications</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.specifications}</p></div>}
+                  {mrfFullDetails.selectedQuotation.notes && <div className="col-span-2"><Label className="text-muted-foreground">Notes</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.notes}</p></div>}
+                </div>
+              </div>
+
+              {/* Quotation Items */}
+              {mrfFullDetails.selectedQuotation.quotationItems && mrfFullDetails.selectedQuotation.quotationItems.length > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+                  <h4 className="font-semibold mb-3">Quotation Items</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead><tr className="border-b"><th className="text-left p-2">Item</th><th className="text-right p-2">Qty</th><th className="text-right p-2">Unit Price</th><th className="text-right p-2">Total</th></tr></thead>
+                      <tbody>
+                        {mrfFullDetails.selectedQuotation.quotationItems.map((item: any, idx: number) => (
+                          <tr key={idx} className="border-b">
+                            <td className="p-2">{item.item_name || item.name || "N/A"}</td>
+                            <td className="text-right p-2">{item.quantity || "N/A"}</td>
+                            <td className="text-right p-2">₦{parseFloat(item.unit_price || "0").toLocaleString()}</td>
+                            <td className="text-right p-2 font-medium">₦{parseFloat((item.quantity || 0) * (item.unit_price || 0)).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Attachments */}
+              {mrfFullDetails.selectedQuotation.attachments && mrfFullDetails.selectedQuotation.attachments.length > 0 && (
+                <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                  <h4 className="font-semibold mb-3 text-yellow-900 dark:text-yellow-100">Attachments</h4>
+                  <div className="space-y-2">
+                    {mrfFullDetails.selectedQuotation.attachments.map((att: any, idx: number) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <a href={att.url || att.path} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                          {att.name || att.filename || `Attachment ${idx + 1}`}
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>No quotation details available</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
