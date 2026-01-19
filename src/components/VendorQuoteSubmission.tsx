@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,15 @@ interface VendorQuoteSubmissionProps {
     warrantyPeriod: string;
   }) => void;
   onIgnore?: (rfqId: string) => void;
+  draftToLoad?: {
+    rfqId: string;
+    lineItems: QuoteLineItem[];
+    deliveryDate: string;
+    notes: string;
+    validityPeriod: string;
+    paymentTerms: string;
+    warrantyPeriod: string;
+  } | null;
 }
 
 interface QuoteLineItem {
@@ -59,22 +68,37 @@ interface QuoteLineItem {
   total: number;
 }
 
-export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, onSave, onIgnore }: VendorQuoteSubmissionProps) => {
+export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, onSave, onIgnore, draftToLoad }: VendorQuoteSubmissionProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [selectedRfqId, setSelectedRfqId] = useState("");
-  const [lineItems, setLineItems] = useState<QuoteLineItem[]>([
-    { description: "", quantity: 1, unitPrice: 0, total: 0 }
-  ]);
-  const [deliveryDate, setDeliveryDate] = useState("");
-  const [notes, setNotes] = useState("");
+  const [selectedRfqId, setSelectedRfqId] = useState(draftToLoad?.rfqId || "");
+  const [lineItems, setLineItems] = useState<QuoteLineItem[]>(
+    draftToLoad?.lineItems && draftToLoad.lineItems.length > 0 
+      ? draftToLoad.lineItems 
+      : [{ description: "", quantity: 1, unitPrice: 0, total: 0 }]
+  );
+  const [deliveryDate, setDeliveryDate] = useState(draftToLoad?.deliveryDate || "");
+  const [notes, setNotes] = useState(draftToLoad?.notes || "");
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [validityPeriod, setValidityPeriod] = useState("30");
-  const [paymentTerms, setPaymentTerms] = useState("");
-  const [warrantyPeriod, setWarrantyPeriod] = useState("");
+  const [validityPeriod, setValidityPeriod] = useState(draftToLoad?.validityPeriod || "30");
+  const [paymentTerms, setPaymentTerms] = useState(draftToLoad?.paymentTerms || "");
+  const [warrantyPeriod, setWarrantyPeriod] = useState(draftToLoad?.warrantyPeriod || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Load draft when draftToLoad changes
+  useEffect(() => {
+    if (draftToLoad) {
+      setSelectedRfqId(draftToLoad.rfqId);
+      setLineItems(draftToLoad.lineItems.length > 0 ? draftToLoad.lineItems : [{ description: "", quantity: 1, unitPrice: 0, total: 0 }]);
+      setDeliveryDate(draftToLoad.deliveryDate);
+      setNotes(draftToLoad.notes);
+      setValidityPeriod(draftToLoad.validityPeriod);
+      setPaymentTerms(draftToLoad.paymentTerms);
+      setWarrantyPeriod(draftToLoad.warrantyPeriod);
+    }
+  }, [draftToLoad]);
 
   const openRfqs = rfqs.filter(r => r.status === "Open");
   const selectedRfq = rfqs.find(r => r.id === selectedRfqId);

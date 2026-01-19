@@ -1193,7 +1193,8 @@ export const vendorPortalApi = {
     rfqId: string,
     quotationData: {
       total_amount: number;
-      delivery_date: string;
+      delivery_date?: string;
+      delivery_days?: number;
       payment_terms: string;
       validity_days: number;
       warranty_period?: string;
@@ -1208,10 +1209,52 @@ export const vendorPortalApi = {
     },
     attachments?: File[]
   ): Promise<ApiResponse<Quotation>> => {
+    // Calculate delivery_days from delivery_date if provided
+    let deliveryDays = quotationData.delivery_days;
+    if (quotationData.delivery_date && !deliveryDays) {
+      const deliveryDate = new Date(quotationData.delivery_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      deliveryDate.setHours(0, 0, 0, 0);
+      const diffTime = deliveryDate.getTime() - today.getTime();
+      deliveryDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (deliveryDays < 0) deliveryDays = 0;
+    }
+
+    // Prepare the payload with all required fields
+    const payload = {
+      rfq_id: rfqId,
+      total_amount: quotationData.total_amount,
+      delivery_days: deliveryDays || 0,
+      delivery_date: quotationData.delivery_date,
+      payment_terms: quotationData.payment_terms,
+      validity_days: quotationData.validity_days,
+      warranty_period: quotationData.warranty_period || '',
+      notes: quotationData.notes || '',
+      items: quotationData.items,
+    };
+
     // If there are attachments, use FormData
     if (attachments && attachments.length > 0) {
       const formData = new FormData();
-      formData.append('quotation_data', JSON.stringify(quotationData));
+      
+      // Append each field individually for better backend compatibility
+      formData.append('rfq_id', rfqId);
+      formData.append('total_amount', payload.total_amount.toString());
+      formData.append('delivery_days', payload.delivery_days.toString());
+      if (payload.delivery_date) {
+        formData.append('delivery_date', payload.delivery_date);
+      }
+      formData.append('payment_terms', payload.payment_terms);
+      formData.append('validity_days', payload.validity_days.toString());
+      if (payload.warranty_period) {
+        formData.append('warranty_period', payload.warranty_period);
+      }
+      if (payload.notes) {
+        formData.append('notes', payload.notes);
+      }
+      formData.append('items', JSON.stringify(payload.items));
+      
       attachments.forEach((file) => {
         formData.append('attachments[]', file);
       });
@@ -1229,7 +1272,7 @@ export const vendorPortalApi = {
       // No attachments, use JSON
       return vendorApiRequest<Quotation>(`/rfqs/${rfqId}/submit-quotation`, {
         method: 'POST',
-        body: JSON.stringify(quotationData),
+        body: JSON.stringify(payload),
         headers: {
           'Content-Type': 'application/json',
         },

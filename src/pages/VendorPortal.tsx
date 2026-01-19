@@ -63,6 +63,7 @@ const VendorPortal = () => {
   const [loadingVendorRfqs, setLoadingVendorRfqs] = useState(false);
   const [vendorQuotationsList, setVendorQuotationsList] = useState<any[]>([]);
   const [loadingQuotations, setLoadingQuotations] = useState(false);
+  const [selectedDraft, setSelectedDraft] = useState<any | null>(null);
   const [selectedRfqForDetails, setSelectedRfqForDetails] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isBottomBarCollapsed, setIsBottomBarCollapsed] = useState(false);
@@ -218,6 +219,55 @@ const VendorPortal = () => {
     }
   };
 
+  // Load drafts from localStorage
+  const loadDrafts = () => {
+    if (!currentVendorId) return [];
+    
+    const drafts: any[] = [];
+    try {
+      // Get all localStorage keys for this vendor's drafts
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(`rfq_draft_`) && key.includes(`_${currentVendorId}`)) {
+          const draftData = JSON.parse(localStorage.getItem(key) || '{}');
+          if (draftData.rfqId) {
+            // Calculate total price from line items
+            const totalPrice = draftData.lineItems?.reduce((sum: number, item: any) => 
+              sum + (item.quantity * item.unitPrice), 0) || 0;
+            
+            drafts.push({
+              id: `DRAFT-${draftData.rfqId}-${currentVendorId}`,
+              rfqId: draftData.rfqId,
+              vendorId: currentVendorId,
+              vendorName: currentVendor?.name || "Vendor",
+              price: totalPrice.toString(),
+              deliveryDate: draftData.deliveryDate || '',
+              submittedDate: draftData.savedAt ? new Date(draftData.savedAt).toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              }) : 'Draft',
+              status: "Draft",
+              notes: draftData.notes || '',
+              paymentTerms: draftData.paymentTerms || '',
+              validityPeriod: draftData.validityPeriod || '30',
+              warrantyPeriod: draftData.warrantyPeriod || '',
+              lineItems: draftData.lineItems || [],
+              isDraft: true,
+              savedAt: draftData.savedAt,
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading drafts:', error);
+    }
+    return drafts;
+  };
+
   // Fetch vendor quotations
   const fetchVendorQuotations = async () => {
     if (!isLoggedIn || !currentVendorId) return;
@@ -228,20 +278,36 @@ const VendorPortal = () => {
       // Note: If backend hasn't implemented this endpoint yet, it will 404
       const response = await vendorPortalApi.getMyQuotations();
       
+      let serverQuotations: any[] = [];
       if (response.success && response.data) {
-        setVendorQuotationsList(response.data);
+        serverQuotations = response.data;
       } else {
         // If endpoint doesn't exist (404), use fallback to context quotations
         // Backend needs to implement GET /api/vendors/quotations endpoint
         // Check for 404 in error message or use fallback if error exists
         console.warn('Vendor quotations endpoint issue:', response.error);
         // Use fallback data from context if available
-        setVendorQuotationsList(quotations.filter(q => q.vendorId === currentVendorId));
+        serverQuotations = quotations.filter(q => q.vendorId === currentVendorId);
       }
+      
+      // Load drafts and combine with server quotations
+      const drafts = loadDrafts();
+      const allQuotations = [...serverQuotations, ...drafts];
+      
+      // Remove duplicates (in case a draft was submitted and now exists on server)
+      const uniqueQuotations = allQuotations.filter((q, index, self) =>
+        index === self.findIndex((t) => (
+          t.id === q.id || 
+          (t.isDraft && q.isDraft && t.rfqId === q.rfqId)
+        ))
+      );
+      
+      setVendorQuotationsList(uniqueQuotations);
     } catch (error) {
       console.error('Error fetching vendor quotations:', error);
-      // Fallback to context quotations if API fails
-      setVendorQuotationsList(quotations.filter(q => q.vendorId === currentVendorId));
+      // Fallback to context quotations + drafts if API fails
+      const drafts = loadDrafts();
+      setVendorQuotationsList([...quotations.filter(q => q.vendorId === currentVendorId), ...drafts]);
     } finally {
       setLoadingQuotations(false);
     }
@@ -1250,6 +1316,7 @@ const VendorPortal = () => {
 
           <TabsContent value="submit" className="space-y-4">
             <VendorQuoteSubmission 
+              draftToLoad={selectedDraft}
               rfqs={(() => {
                 // Use vendorRfqs as the source of truth for vendor-specific RFQs
                 // Convert vendorRfqs format to RFQ format expected by VendorQuoteSubmission
@@ -1273,7 +1340,7 @@ const VendorPortal = () => {
               vendorId={currentVendorId}
               vendorName={currentVendor?.name || "Vendor"}
               onSave={async (draft) => {
-                // Save draft to localStorage for later retrieval
+                // Save draft to localStorage and add to quotations list
                 try {
                   const draftKey = `rfq_draft_${draft.rfqId}_${currentVendorId}`;
                   const draftData = {
@@ -1281,9 +1348,46 @@ const VendorPortal = () => {
                     savedAt: new Date().toISOString(),
                   };
                   localStorage.setItem(draftKey, JSON.stringify(draftData));
+                  
+                  // Calculate total price from line items
+                  const totalPrice = draft.lineItems?.reduce((sum, item) => 
+                    sum + (item.quantity * item.unitPrice), 0) || 0;
+                  
+                  // Create draft quotation object
+                  const draftQuotation = {
+                    id: `DRAFT-${draft.rfqId}-${currentVendorId}`,
+                    rfqId: draft.rfqId,
+                    vendorId: currentVendorId,
+                    vendorName: currentVendor?.name || "Vendor",
+                    price: totalPrice.toString(),
+                    deliveryDate: draft.deliveryDate || '',
+                    submittedDate: new Date().toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric', 
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    }),
+                    status: "Draft",
+                    notes: draft.notes || '',
+                    paymentTerms: draft.paymentTerms || '',
+                    validityPeriod: draft.validityPeriod || '30',
+                    warrantyPeriod: draft.warrantyPeriod || '',
+                    lineItems: draft.lineItems || [],
+                    isDraft: true,
+                    savedAt: draftData.savedAt,
+                  };
+                  
+                  // Update quotations list - remove existing draft for this RFQ if any, then add new one
+                  setVendorQuotationsList(prev => {
+                    const filtered = prev.filter(q => !(q.isDraft && q.rfqId === draft.rfqId));
+                    return [draftQuotation, ...filtered];
+                  });
+                  
                   toast({
                     title: "Draft Saved",
-                    description: "Your quotation draft has been saved. You can continue later.",
+                    description: "Your quotation draft has been saved. You can continue later from My Quotations.",
                   });
                 } catch (error) {
                   console.error('Error saving draft:', error);
@@ -1406,6 +1510,10 @@ const VendorPortal = () => {
                   );
                   
                   if (response.success && response.data) {
+                    // Remove draft from localStorage if it was a draft
+                    const draftKey = `rfq_draft_${quote.rfqId}_${currentVendorId}`;
+                    localStorage.removeItem(draftKey);
+                    
                     // Create quote object for immediate display
                     const submittedQuoteData = {
                       id: response.data.id || `QUOTE-${Date.now()}`,
@@ -1431,8 +1539,16 @@ const VendorPortal = () => {
                       ...(response.data || {})
                     };
                     
-                    // Add to quotations list immediately (optimistic update)
-                    setVendorQuotationsList(prev => [submittedQuoteData, ...prev]);
+                    // Remove draft from list and add submitted quotation
+                    setVendorQuotationsList(prev => {
+                      const filtered = prev.filter(q => !(q.isDraft && q.rfqId === quote.rfqId));
+                      return [submittedQuoteData, ...filtered];
+                    });
+                    
+                    // Clear selected draft if it matches the submitted quote
+                    if (selectedDraft && selectedDraft.rfqId === quote.rfqId) {
+                      setSelectedDraft(null);
+                    }
                     
                     // Show success dialog
                     setSubmittedQuote(submittedQuoteData);
@@ -1524,19 +1640,43 @@ const VendorPortal = () => {
                               </div>
                               <p className="text-sm text-muted-foreground">Quotation ID: {quotation.id}</p>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteQuotation(quotation.id)}
-                              disabled={deletingQuotationId === quotation.id}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              {deletingQuotationId === quotation.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
+                            <div className="flex gap-2">
+                              {quotation.isDraft && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    // Load draft and switch to submit tab
+                                    setSelectedDraft({
+                                      rfqId: quotation.rfqId,
+                                      lineItems: quotation.lineItems || [],
+                                      deliveryDate: quotation.deliveryDate || '',
+                                      notes: quotation.notes || '',
+                                      validityPeriod: quotation.validityPeriod || '30',
+                                      paymentTerms: quotation.paymentTerms || '',
+                                      warrantyPeriod: quotation.warrantyPeriod || '',
+                                    });
+                                    setActiveTab("submit");
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Continue Editing
+                                </Button>
                               )}
-                            </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteQuotation(quotation.id)}
+                                disabled={deletingQuotationId === quotation.id}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                {deletingQuotationId === quotation.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div>
