@@ -18,7 +18,6 @@ import { toast } from "sonner";
 import { PORejectionDialog } from "@/components/PORejectionDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
-import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { mrfApi } from "@/services/api";
 import type { MRF } from "@/types";
@@ -433,24 +432,6 @@ const SupplyChainDashboard = () => {
           </Card>
         )}
 
-        {/* Progress Tracker */}
-        <ProcurementProgressTracker mrfRequests={mrfRequests.map(mrf => ({
-          id: mrf.id,
-          title: mrf.title,
-          category: mrf.category || "",
-          description: mrf.description || "",
-          quantity: String(mrf.quantity || ""),
-          estimatedCost: String(mrf.estimated_cost || mrf.estimatedCost || ""),
-          urgency: mrf.urgency || "medium",
-          justification: mrf.justification || "",
-          status: mrf.status,
-          date: mrf.created_at || mrf.date || "",
-          requester: mrf.requester_name || mrf.requester || "",
-          currentStage: (mrf.current_stage || mrf.currentStage) as any,
-          poNumber: mrf.po_number || mrf.poNumber,
-          unsignedPOUrl: mrf.unsigned_po_url || mrf.unsignedPOUrl,
-          signedPOUrl: mrf.signed_po_url || mrf.signedPOUrl,
-        }))} />
 
         {/* PO Management */}
         <Card>
@@ -640,12 +621,6 @@ const SupplyChainDashboard = () => {
                   <div>
                     <Label className="text-muted-foreground">Contract Type</Label>
                     <p className="font-medium">{(selectedMRFForDetails as any).contract_type || (selectedMRFForDetails as any).contractType || "N/A"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Executive Approval</Label>
-                    <Badge className={((selectedMRFForDetails as any).executive_approved || (selectedMRFForDetails as any).executiveApproved) ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : ""}>
-                      {((selectedMRFForDetails as any).executive_approved || (selectedMRFForDetails as any).executiveApproved) ? "✓ Approved" : "Pending"}
-                    </Badge>
                   </div>
                 </div>
               </div>
