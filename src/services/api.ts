@@ -413,6 +413,55 @@ export const mrfApi = {
     return apiRequest<MRF>(`/mrfs/${id}`);
   },
 
+  // Get full MRF details with all quotations
+  getFullDetails: async (id: string): Promise<ApiResponse<{
+    mrf: MRF;
+    rfqs: Array<{
+      id: string;
+      title: string;
+      status: string;
+      vendors: any[];
+    }>;
+    quotations: Array<{
+      id: string;
+      rfqId: string;
+      rfqTitle: string;
+      vendor: any;
+      totalAmount: number;
+      status: string;
+      attachments: any[];
+    }>;
+    statistics: {
+      totalQuotations: number;
+      totalRfqs: number;
+      lowestBid: number;
+      highestBid: number;
+      averageBid: number;
+    };
+  }>> => {
+    return apiRequest(`/mrfs/${id}/full-details`);
+  },
+
+  // Get MRF progress tracker
+  getProgressTracker: async (id: string): Promise<ApiResponse<{
+    mrfId: string;
+    title: string;
+    currentStep: number;
+    steps: Array<{
+      step: number;
+      name: string;
+      status: 'completed' | 'pending' | 'not_started';
+      completedAt?: string;
+      completedBy?: {
+        id: number;
+        name: string;
+      };
+      remarks?: string;
+    }>;
+  }>> => {
+    return apiRequest(`/mrfs/${id}/progress-tracker`);
+  },
+
   // Get available actions for current user on this MRF
   getAvailableActions: async (id: string): Promise<ApiResponse<import('@/types').AvailableActions>> => {
     return apiRequest<import('@/types').AvailableActions>(`/mrfs/${id}/available-actions`);

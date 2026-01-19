@@ -77,8 +77,12 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
+  const [quotationDetailsDialogOpen, setQuotationDetailsDialogOpen] = useState(false);
+  const [selectedQuotation, setSelectedQuotation] = useState<any | null>(null);
   const [selectedRFQ, setSelectedRFQ] = useState<RFQ | null>(null);
   const [selectedMRF, setSelectedMRF] = useState<MRFRequest | null>(null);
+  const [enhancedQuotationData, setEnhancedQuotationData] = useState<any | null>(null);
+  const [loadingQuotationDetails, setLoadingQuotationDetails] = useState(false);
 
   // RFQ Creation form state
   const [selectionMethod, setSelectionMethod] = useState<'all_category' | 'manual' | 'preferred'>('manual');
@@ -126,10 +130,48 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     return filtered;
   }, [activeVendors, selectedCategory, minRating]);
 
-  // Get quotations for comparison
+  // Fetch enhanced quotation data from API
+  const fetchEnhancedQuotations = async (rfqId: string) => {
+    try {
+      const response = await rfqApi.getQuotations(rfqId);
+      if (response.success && response.data) {
+        return response.data;
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to fetch enhanced quotations:', error);
+      return null;
+    }
+  };
+
+  // Get quotations for comparison - use enhanced data if available
   const rfqQuotations = useMemo(() => {
     if (!selectedRFQ) return [];
     
+    // If we have enhanced data, use it
+    if (enhancedQuotationData && enhancedQuotationData.quotations) {
+      return enhancedQuotationData.quotations.map((item: any) => {
+        const q = item.quotation;
+        const vendor = item.vendor;
+        const deliveryDays = q.delivery_days || Math.ceil(
+          (new Date(q.delivery_date || q.deliveryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+        );
+        
+        return {
+          ...q,
+          vendorName: vendor?.name || vendor?.company_name || 'Unknown Vendor',
+          vendorId: vendor?.id || vendor?.vendor_id,
+          vendorRating: vendor?.rating || 0,
+          vendorOrders: vendor?.total_orders || vendor?.orders || 0,
+          vendorEmail: vendor?.email,
+          deliveryDays,
+          items: item.items || [],
+          fullData: item, // Store full data for details view
+        };
+      }).sort((a: any, b: any) => parseFloat(a.price || a.total_amount || '0') - parseFloat(b.price || b.total_amount || '0'));
+    }
+    
+    // Fallback to context quotations
     return quotations
       .filter(q => q.rfqId === selectedRFQ.id)
       .map(q => {
@@ -146,7 +188,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
         };
       })
       .sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
-  }, [selectedRFQ, quotations, vendors]);
+  }, [selectedRFQ, quotations, vendors, enhancedQuotationData]);
 
   // Calculate comparison metrics
   const comparisonMetrics = useMemo(() => {
@@ -273,6 +315,23 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       setIsCreatingRFQ(false);
     }
   };
+
+  // Handle viewing quotation details
+  const handleViewQuotationDetails = async (quotation: any) => {
+    setSelectedQuotation(quotation);
+    setQuotationDetailsDialogOpen(true);
+  };
+
+  // Load enhanced quotation data when dialog opens
+  useEffect(() => {
+    if (compareDialogOpen && selectedRFQ) {
+      fetchEnhancedQuotations(selectedRFQ.id).then(data => {
+        if (data) {
+          setEnhancedQuotationData(data);
+        }
+      });
+    }
+  }, [compareDialogOpen, selectedRFQ]);
 
   const handleAwardVendor = async (quotationId: string, vendorId: string) => {
     if (!selectedRFQ) return;
@@ -825,7 +884,15 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                             )}
                           </div>
 
-                          <div className="ml-4">
+                          <div className="ml-4 flex flex-col gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => handleViewQuotationDetails(quote)}
+                              className="w-full"
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              View Details
+                            </Button>
                             <Button
                               onClick={() => handleAwardVendor(quote.id, quote.vendorId)}
                               className={idx === 0 ? 'bg-success hover:bg-success/90' : ''}
@@ -857,6 +924,191 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
             <div className="text-center py-12">
               <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-muted-foreground">No quotations received yet</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Quotation Details Dialog */}
+      <Dialog open={quotationDetailsDialogOpen} onOpenChange={setQuotationDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Quotation Details</DialogTitle>
+            <DialogDescription>Complete quotation information</DialogDescription>
+          </DialogHeader>
+          {selectedQuotation && (
+            <div className="space-y-6 mt-4">
+              {/* Vendor Information */}
+              <div className="p-4 bg-muted rounded-lg">
+                <h3 className="font-semibold mb-3">Vendor Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Vendor Name</Label>
+                    <p className="font-medium">{selectedQuotation.vendorName || selectedQuotation.vendor?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Rating</Label>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                      <p className="font-medium">{selectedQuotation.vendorRating || selectedQuotation.vendor?.rating || 'N/A'}</p>
+                    </div>
+                  </div>
+                  {selectedQuotation.vendorEmail && (
+                    <div>
+                      <Label className="text-muted-foreground">Email</Label>
+                      <p className="font-medium">{selectedQuotation.vendorEmail}</p>
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-muted-foreground">Total Orders</Label>
+                    <p className="font-medium">{selectedQuotation.vendorOrders || selectedQuotation.vendor?.total_orders || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pricing Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Total Amount</Label>
+                  <p className="font-semibold text-lg">₦{parseFloat(selectedQuotation.price || selectedQuotation.total_amount || '0').toLocaleString()}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Currency</Label>
+                  <p className="font-medium">{selectedQuotation.currency || 'NGN'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Delivery Days</Label>
+                  <p className="font-medium">{selectedQuotation.deliveryDays || selectedQuotation.delivery_days || 'N/A'} days</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Delivery Date</Label>
+                  <p className="font-medium">
+                    {selectedQuotation.deliveryDate || selectedQuotation.delivery_date 
+                      ? new Date(selectedQuotation.deliveryDate || selectedQuotation.delivery_date).toLocaleDateString()
+                      : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Payment Terms</Label>
+                  <p className="font-medium">{selectedQuotation.payment_terms || selectedQuotation.paymentTerms || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Validity Period</Label>
+                  <p className="font-medium">{selectedQuotation.validity_days || selectedQuotation.validityDays || 'N/A'} days</p>
+                </div>
+                {selectedQuotation.warranty_period && (
+                  <div>
+                    <Label className="text-muted-foreground">Warranty Period</Label>
+                    <p className="font-medium">{selectedQuotation.warranty_period}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Items */}
+              {(selectedQuotation.items && selectedQuotation.items.length > 0) && (
+                <div>
+                  <Label className="text-muted-foreground mb-2 block">Quotation Items</Label>
+                  <div className="space-y-2">
+                    {selectedQuotation.items.map((item: any, idx: number) => (
+                      <div key={idx} className="p-3 border rounded-md">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-medium">{item.item_name || item.name || `Item ${idx + 1}`}</p>
+                            <div className="grid grid-cols-3 gap-4 mt-2 text-sm text-muted-foreground">
+                              <span>Quantity: {item.quantity || 'N/A'}</span>
+                              <span>Unit Price: ₦{parseFloat(item.unit_price || item.unitPrice || '0').toLocaleString()}</span>
+                              <span>Total: ₦{parseFloat(item.total_price || (item.quantity * item.unit_price) || '0').toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {selectedQuotation.notes && (
+                <div>
+                  <Label className="text-muted-foreground">Notes</Label>
+                  <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedQuotation.notes}</p>
+                </div>
+              )}
+
+              {/* Attachments */}
+              {selectedQuotation.attachments && selectedQuotation.attachments.length > 0 && (
+                <div>
+                  <Label className="text-muted-foreground mb-2 block">Attachments</Label>
+                  <div className="space-y-2">
+                    {selectedQuotation.attachments.map((attachment: any, idx: number) => (
+                      <div key={idx} className="p-2 border rounded-md flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <span className="text-sm">{attachment.fileName || attachment.name || `Attachment ${idx + 1}`}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* MRF Information (if available from enhanced data) */}
+              {enhancedQuotationData?.mrf && (
+                <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <h3 className="font-semibold mb-2">Related MRF</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <Label className="text-muted-foreground">MRF ID</Label>
+                      <p className="font-medium">{enhancedQuotationData.mrf.id}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Contract Type</Label>
+                      <p className="font-medium">{enhancedQuotationData.mrf.contractType || 'N/A'}</p>
+                    </div>
+                    {enhancedQuotationData.mrf.executiveApproved && (
+                      <div className="col-span-2">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <Label className="text-muted-foreground">Executive Approved</Label>
+                          {enhancedQuotationData.mrf.executiveApprovedAt && (
+                            <p className="text-sm text-muted-foreground">
+                              on {new Date(enhancedQuotationData.mrf.executiveApprovedAt).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Statistics (if available) */}
+              {enhancedQuotationData?.statistics && (
+                <div className="grid grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-sm text-muted-foreground">Total Quotations</p>
+                      <p className="text-xl font-bold">{enhancedQuotationData.statistics.total_quotations}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-sm text-muted-foreground">Lowest Bid</p>
+                      <p className="text-xl font-bold">₦{enhancedQuotationData.statistics.lowest_bid?.toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-sm text-muted-foreground">Highest Bid</p>
+                      <p className="text-xl font-bold">₦{enhancedQuotationData.statistics.highest_bid?.toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <p className="text-sm text-muted-foreground">Average Bid</p>
+                      <p className="text-xl font-bold">₦{Math.round(enhancedQuotationData.statistics.average_bid || 0).toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

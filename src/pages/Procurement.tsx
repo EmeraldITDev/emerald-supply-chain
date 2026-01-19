@@ -1319,6 +1319,20 @@ const Procurement = () => {
                                     Resubmission
                                   </Badge>
                                 )}
+                                {/* Executive Approval Indicator */}
+                                {(() => {
+                                  const executiveApproved = (request as any).executiveApproved || 
+                                                           (request as any).executive_approved;
+                                  if (executiveApproved) {
+                                    return (
+                                      <Badge className="bg-green-500 text-white hover:bg-green-600">
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Executive Approved
+                                      </Badge>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                               </div>
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
                                 <span className="font-medium">{request.id}</span>
@@ -1917,25 +1931,41 @@ const Procurement = () => {
                 </div>
               )}
 
-              {/* Approval History */}
+              {/* Executive Approval Section - Highlighted in Green */}
               {(() => {
-                const approvalHistory = (selectedMRFForDetails as any).approval_history || (selectedMRFForDetails as any).approvalHistory || [];
-                const executiveApproval = approvalHistory.find((a: any) => a.stage === 'executive' || a.stage === 'executive_review');
-                const executiveApprovalDate = (selectedMRFForDetails as any).executiveApprovalDate || executiveApproval?.timestamp;
-                const executiveRemarks = (selectedMRFForDetails as any).executive_remarks || (selectedMRFForDetails as any).executiveRemarks || executiveApproval?.remarks;
+                const executiveApproved = (selectedMRFForDetails as any).executiveApproved || 
+                                         (selectedMRFForDetails as any).executive_approved;
+                const executiveApprovedAt = (selectedMRFForDetails as any).executiveApprovedAt || 
+                                           (selectedMRFForDetails as any).executive_approved_at;
+                const executiveApprovedBy = (selectedMRFForDetails as any).executiveApprovedBy || 
+                                           (selectedMRFForDetails as any).executive_approved_by;
+                const executiveRemarks = (selectedMRFForDetails as any).executiveRemarks || 
+                                       (selectedMRFForDetails as any).executive_remarks;
                 
-                if (executiveApprovalDate || executiveRemarks) {
+                if (executiveApproved) {
                   return (
-                    <div>
-                      <Label className="text-muted-foreground">Executive Approval</Label>
-                      <p className="text-sm mt-1">
-                        {executiveApprovalDate && `Approved on ${formatMRFDate(executiveApprovalDate)}`}
-                        {executiveRemarks && (
-                          <span className="block mt-1 text-muted-foreground">
-                            Remarks: {executiveRemarks}
-                          </span>
-                        )}
-                      </p>
+                    <div className="p-4 bg-green-50 dark:bg-green-950 border-2 border-green-500 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        <Label className="text-green-900 dark:text-green-100 font-semibold">Executive Approval</Label>
+                        <Badge className="bg-green-500 text-white">Approved</Badge>
+                      </div>
+                      {executiveApprovedAt && (
+                        <p className="text-sm text-green-800 dark:text-green-200">
+                          Approved on: {formatMRFDate(executiveApprovedAt)}
+                        </p>
+                      )}
+                      {executiveApprovedBy && (
+                        <p className="text-sm text-green-800 dark:text-green-200">
+                          Approved by: {executiveApprovedBy.name || executiveApprovedBy}
+                          {executiveApprovedBy.email && ` (${executiveApprovedBy.email})`}
+                        </p>
+                      )}
+                      {executiveRemarks && (
+                        <p className="text-sm text-green-800 dark:text-green-200 mt-2">
+                          <span className="font-semibold">Remarks:</span> {executiveRemarks}
+                        </p>
+                      )}
                     </div>
                   );
                 }

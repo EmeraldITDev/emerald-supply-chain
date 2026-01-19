@@ -1630,12 +1630,14 @@ const VendorPortal = () => {
                   <div className="space-y-4">
                     {vendorQuotations.map((quotation) => {
                       const rfq = rfqs.find(r => r.id === quotation.rfqId);
+                      // Use rfqTitle from quotation object if available (from backend), otherwise fallback to rfq.mrfTitle or "Unknown RFQ"
+                      const rfqTitle = quotation.rfqTitle || rfq?.mrfTitle || rfq?.title || "Unknown RFQ";
                       return (
                         <div key={quotation.id} className="p-4 border rounded-lg">
                           <div className="flex items-start justify-between mb-3">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold">{rfq?.mrfTitle || "Unknown RFQ"}</span>
+                                <span className="font-semibold">{rfqTitle}</span>
                                 <Badge className={getStatusColor(quotation.status)}>{quotation.status}</Badge>
                               </div>
                               <p className="text-sm text-muted-foreground">Quotation ID: {quotation.id}</p>
