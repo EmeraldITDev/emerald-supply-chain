@@ -78,8 +78,6 @@ const Procurement = () => {
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
-  const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
-  const [loadingFullDetails, setLoadingFullDetails] = useState(false);
   
   // Vendor registrations from dashboard API
   const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
