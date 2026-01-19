@@ -377,10 +377,13 @@ const SupplyChainDashboard = () => {
                               if (response.success && response.data) {
                                 setMrfFullDetails(response.data);
                               } else {
-                                toast.error(response.error || "Failed to load quotation details");
+                                toast.error(response.error || "Failed to load quotation details. Please try again.");
+                                setQuotationDetailsDialogOpen(false);
                               }
-                            } catch (error) {
-                              toast.error("Failed to load quotation details");
+                            } catch (error: any) {
+                              console.error("Error loading quotation details:", error);
+                              toast.error(error?.message || "Failed to load quotation details. Please try again.");
+                              setQuotationDetailsDialogOpen(false);
                             } finally {
                               setLoadingFullDetails(false);
                             }
@@ -652,7 +655,7 @@ const SupplyChainDashboard = () => {
               </div>
 
               {/* Selected Quotation */}
-              {mrfFullDetails.selectedQuotation.vendor && (
+              {mrfFullDetails?.selectedQuotation?.vendor && (
                 <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
                   <h4 className="font-semibold mb-3 text-green-900 dark:text-green-100">Vendor Information</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
@@ -682,7 +685,7 @@ const SupplyChainDashboard = () => {
               </div>
 
               {/* Quotation Items */}
-              {mrfFullDetails.selectedQuotation.quotationItems && mrfFullDetails.selectedQuotation.quotationItems.length > 0 && (
+              {mrfFullDetails?.selectedQuotation?.quotationItems && Array.isArray(mrfFullDetails.selectedQuotation.quotationItems) && mrfFullDetails.selectedQuotation.quotationItems.length > 0 && (
                 <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
                   <h4 className="font-semibold mb-3">Quotation Items</h4>
                   <div className="overflow-x-auto">
@@ -711,7 +714,7 @@ const SupplyChainDashboard = () => {
               )}
 
               {/* Attachments */}
-              {mrfFullDetails.selectedQuotation.attachments && mrfFullDetails.selectedQuotation.attachments.length > 0 && (
+              {mrfFullDetails?.selectedQuotation?.attachments && Array.isArray(mrfFullDetails.selectedQuotation.attachments) && mrfFullDetails.selectedQuotation.attachments.length > 0 && (
                 <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                   <h4 className="font-semibold mb-3 text-yellow-900 dark:text-yellow-100">Attachments</h4>
                   <div className="space-y-2">
