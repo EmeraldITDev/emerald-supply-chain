@@ -61,7 +61,7 @@ const Vendors = () => {
   const [isDeletingVendor, setIsDeletingVendor] = useState(false);
   
   // Rating and comments state
-  const [vendorComments, setVendorComments] = useState<Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string }>>([]);
+  const [vendorComments, setVendorComments] = useState<Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string | { id: number; name: string; email: string } }>>([]);
   const [newRating, setNewRating] = useState(0);
   const [newComment, setNewComment] = useState("");
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
@@ -1193,7 +1193,11 @@ const Vendors = () => {
                                 />
                               ))}
                             </div>
-                            <span className="text-xs font-medium">{comment.createdBy}</span>
+                            <span className="text-xs font-medium">
+                              {typeof comment.createdBy === 'object' && comment.createdBy !== null
+                                ? comment.createdBy.name || comment.createdBy.email || 'Unknown'
+                                : comment.createdBy || 'Unknown'}
+                            </span>
                           </div>
                           <span className="text-xs text-muted-foreground">
                             {new Date(comment.createdAt).toLocaleDateString()}

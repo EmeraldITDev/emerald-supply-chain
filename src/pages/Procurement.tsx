@@ -1957,8 +1957,10 @@ const Procurement = () => {
                       )}
                       {executiveApprovedBy && (
                         <p className="text-sm text-green-800 dark:text-green-200">
-                          Approved by: {executiveApprovedBy.name || executiveApprovedBy}
-                          {executiveApprovedBy.email && ` (${executiveApprovedBy.email})`}
+                          Approved by: {typeof executiveApprovedBy === 'object' && executiveApprovedBy !== null
+                            ? executiveApprovedBy.name || executiveApprovedBy.email || 'Unknown'
+                            : executiveApprovedBy}
+                          {typeof executiveApprovedBy === 'object' && executiveApprovedBy !== null && executiveApprovedBy.email && ` (${executiveApprovedBy.email})`}
                         </p>
                       )}
                       {executiveRemarks && (
