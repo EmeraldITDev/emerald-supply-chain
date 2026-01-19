@@ -687,14 +687,21 @@ const SupplyChainDashboard = () => {
                   <h4 className="font-semibold mb-3">Quotation Items</h4>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead><tr className="border-b"><th className="text-left p-2">Item</th><th className="text-right p-2">Qty</th><th className="text-right p-2">Unit Price</th><th className="text-right p-2">Total</th></tr></thead>
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-2">Item</th>
+                          <th className="text-right p-2">Qty</th>
+                          <th className="text-right p-2">Unit Price</th>
+                          <th className="text-right p-2">Total</th>
+                        </tr>
+                      </thead>
                       <tbody>
                         {mrfFullDetails.selectedQuotation.quotationItems.map((item: any, idx: number) => (
                           <tr key={idx} className="border-b">
                             <td className="p-2">{item.item_name || item.name || "N/A"}</td>
                             <td className="text-right p-2">{item.quantity || "N/A"}</td>
-                            <td className="text-right p-2">₦{parseFloat(item.unit_price || "0").toLocaleString()}</td>
-                            <td className="text-right p-2 font-medium">₦{parseFloat((item.quantity || 0) * (item.unit_price || 0)).toLocaleString()}</td>
+                            <td className="text-right p-2">₦{parseFloat(String(item.unit_price || "0")).toLocaleString()}</td>
+                            <td className="text-right p-2 font-medium">₦{parseFloat(String((item.quantity || 0) * (item.unit_price || 0))).toLocaleString()}</td>
                           </tr>
                         ))}
                       </tbody>
