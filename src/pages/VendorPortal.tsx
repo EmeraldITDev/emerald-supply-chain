@@ -302,44 +302,16 @@ const VendorPortal = () => {
     }
   };
 
-  // Refresh function to reload all data
+  // Refresh function to reload all data - preserves vendor session
   const [isRefreshing, setIsRefreshing] = useState(false);
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Try calling refresh endpoint first (alias for /api/auth/refresh-token)
-      try {
-        const token = localStorage.getItem('vendorAuthToken');
-        if (token) {
-          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
-          // Using /api/refresh alias which maps to /api/auth/refresh-token on the backend
-          // The backend alias expects POST method (same as /auth/refresh-token)
-          const response = await fetch(`${apiBaseUrl}/refresh`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-            },
-          });
-          if (response.ok) {
-            // Refresh endpoint succeeded, data should be updated
-            toast({
-              title: "Refreshed",
-              description: "Data has been refreshed",
-            });
-          }
-        }
-      } catch (refreshError) {
-        // If refresh endpoint doesn't exist or fails, re-fetch current page data
-        console.log('Refresh endpoint not available, re-fetching data...', refreshError);
-      }
-      
-      // Re-fetch all current page data
+      // Only refresh vendor-specific data - do NOT call refreshRFQs() as it uses regular auth
+      // and might interfere with vendor session
       await Promise.all([
         fetchVendorRFQs(),
         fetchVendorQuotations(),
-        refreshRFQs(),
       ]);
       
       toast({
@@ -1272,18 +1244,24 @@ const VendorPortal = () => {
           <TabsContent value="submit" className="space-y-4">
             <VendorQuoteSubmission 
               rfqs={(() => {
-                // Merge vendorRfqs budget data into rfqs from AppContext
-                return rfqs.map(rfq => {
-                  const vendorRfq = vendorRfqs.find(vr => vr.id === rfq.id);
-                  if (vendorRfq && (vendorRfq.estimated_cost || vendorRfq.estimatedCost || vendorRfq.budget)) {
-                    const budget = vendorRfq.estimated_cost || vendorRfq.estimatedCost || vendorRfq.budget;
-                    return {
-                      ...rfq,
-                      estimatedCost: String(budget || rfq.estimatedCost || '0')
-                    };
-                  }
-                  return rfq;
-                });
+                // Use vendorRfqs as the source of truth for vendor-specific RFQs
+                // Convert vendorRfqs format to RFQ format expected by VendorQuoteSubmission
+                return vendorRfqs
+                  .filter(rfq => rfq.status === "Open" || rfq.status === "open")
+                  .map(vendorRfq => ({
+                    id: vendorRfq.id,
+                    mrfId: vendorRfq.id, // Use RFQ ID as MRF ID if not available
+                    mrfTitle: vendorRfq.title,
+                    description: vendorRfq.description,
+                    quantity: '1', // Default if not available
+                    estimatedCost: String(vendorRfq.estimated_cost || vendorRfq.estimatedCost || vendorRfq.budget || '0'),
+                    deadline: vendorRfq.deadline,
+                    status: vendorRfq.status,
+                    category: vendorRfq.category || '',
+                    paymentTerms: vendorRfq.payment_terms || vendorRfq.paymentTerms || '',
+                    createdDate: vendorRfq.sent_at || new Date().toISOString(),
+                    vendorIds: [], // Not needed for vendor quote submission
+                  } as any)); // Type assertion to avoid strict type checking
               })()}
               vendorId={currentVendorId}
               vendorName={currentVendor?.name || "Vendor"}

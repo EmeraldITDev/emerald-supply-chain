@@ -39,6 +39,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 const Procurement = () => {
   const navigate = useNavigate();
@@ -65,6 +73,8 @@ const Procurement = () => {
   const [deletePODialogOpen, setDeletePODialogOpen] = useState(false);
   const [selectedMRFForPODelete, setSelectedMRFForPODelete] = useState<MRF | null>(null);
   const [isDeletingPO, setIsDeletingPO] = useState(false);
+  const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
+  const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   
   // Vendor registrations from dashboard API
   const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
@@ -200,11 +210,26 @@ const Procurement = () => {
       
       // Check if date is valid
       if (isNaN(date.getTime())) {
+        console.warn('Invalid date string for formatting:', dateString);
         return 'Invalid Date';
       }
       
+      // If the date shows midnight (00:00:00) and the original string didn't have time info,
+      // it's likely the backend didn't send time. In this case, we should still format it,
+      // but log a warning for debugging
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      const seconds = date.getSeconds();
+      if (hours === 0 && minutes === 0 && seconds === 0 && !dateString.includes('T')) {
+        // Date without time - format as date only, or use the date as-is if it's a date-only string
+        // But if it's supposed to have time, we need to handle it differently
+        // For now, format it with time to show it's at midnight
+        console.warn('Date string appears to be missing time information:', dateString);
+      }
+      
       // Format in local timezone - this should show the correct local time
-      return date.toLocaleString('en-US', { 
+      // Use the user's local timezone explicitly
+      const options: Intl.DateTimeFormatOptions = {
         month: 'short', 
         day: 'numeric', 
         year: 'numeric',
@@ -212,7 +237,9 @@ const Procurement = () => {
         minute: '2-digit',
         hour12: true,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      });
+      };
+      
+      return date.toLocaleString('en-US', options);
     } catch (error) {
       console.error('Error formatting date:', dateString, error);
       return 'Invalid Date';
@@ -1187,17 +1214,17 @@ const Procurement = () => {
                                   <div className="flex items-center gap-2">
                                     <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                     <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Supporting Document Submitted by Staff</span>
-                                  </div>
+                    </div>
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <Button 
+                              <Button
                                       variant="outline" 
-                                      size="sm" 
+                                size="sm"
                                       onClick={() => handleDownloadPFI(mrf as MRF)}
                                       className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
-                                    >
+                              >
                                       <Download className="h-4 w-4 mr-2" />
                                       View Invoice
-                                    </Button>
+                              </Button>
                                     {(() => {
                                       const docUrl = getMRFPFIUrl(mrf as MRF);
                                       const shareUrl = (mrf as any).invoice_onedrive_url || 
@@ -1439,6 +1466,31 @@ const Procurement = () => {
                               </Badge>
                             </div>
                             <div className="flex items-center gap-2">
+                              {/* View Details button - Shown for procurement after Executive approval */}
+                              {(() => {
+                                const workflowState = getWorkflowState(request as MRF);
+                                const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager";
+                                const canViewDetails = isProcurement && isExecutiveApproved(request as MRF);
+                                
+                                if (canViewDetails) {
+                                  return (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-xs"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedMRFForDetails(request as MRF);
+                                        setMrfDetailsDialogOpen(true);
+                                      }}
+                                    >
+                                      <FileText className="h-3 w-3 mr-1" />
+                                      View Details
+                                    </Button>
+                                  );
+                                }
+                                return null;
+                              })()}
                               {/* Send Request to Vendors button - Shown after Executive approval */}
                               {/* The handleGeneratePO function checks canGeneratePO before proceeding */}
                               {/* Button shown for procurement role when MRF is approved by Executive */}
@@ -1774,6 +1826,175 @@ const Procurement = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* MRF Details Dialog */}
+      <Dialog open={mrfDetailsDialogOpen} onOpenChange={setMrfDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>MRF Details</DialogTitle>
+            <DialogDescription>Complete information about this Material Request Form</DialogDescription>
+          </DialogHeader>
+          {selectedMRFForDetails && (
+            <div className="space-y-6 mt-4">
+              {/* Basic Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">MRF ID</Label>
+                  <p className="font-medium font-mono">{selectedMRFForDetails.id}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge className={getStatusColor(selectedMRFForDetails.status)}>
+                    {selectedMRFForDetails.status}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Title</Label>
+                  <p className="font-medium">{selectedMRFForDetails.title}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Category</Label>
+                  <p className="font-medium">{selectedMRFForDetails.category || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Requester</Label>
+                  <p className="font-medium">{selectedMRFForDetails.requester || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Department</Label>
+                  <p className="font-medium">{selectedMRFForDetails.department || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Date Created</Label>
+                  <p className="font-medium">{formatMRFDate(getMRFDate(selectedMRFForDetails))}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Estimated Cost</Label>
+                  <p className="font-medium text-lg">₦{parseInt(selectedMRFForDetails.estimatedCost || '0').toLocaleString()}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Quantity</Label>
+                  <p className="font-medium">{selectedMRFForDetails.quantity || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Current Stage</Label>
+                  <p className="font-medium capitalize">{getMRFStage(selectedMRFForDetails) || 'N/A'}</p>
+                </div>
+              </div>
+
+              {/* Description */}
+              {selectedMRFForDetails.description && (
+                <div>
+                  <Label className="text-muted-foreground">Description</Label>
+                  <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedMRFForDetails.description}</p>
+                </div>
+              )}
+
+              {/* Supporting Document */}
+              {getMRFPFIUrl(selectedMRFForDetails) && (
+                <div>
+                  <Label className="text-muted-foreground">Supporting Document</Label>
+                  <div className="mt-2 flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleDownloadPFI(selectedMRFForDetails)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Document
+                    </Button>
+                    {(() => {
+                      const shareUrl = (selectedMRFForDetails as any).invoice_onedrive_url || 
+                                      (selectedMRFForDetails as any).invoiceOneDriveUrl ||
+                                      selectedMRFForDetails.pfi_share_url || 
+                                      selectedMRFForDetails.pfiShareUrl;
+                      return shareUrl && (
+                        <OneDriveLink 
+                          webUrl={shareUrl} 
+                          fileName="Supporting Document"
+                          variant="button"
+                          size="sm"
+                        />
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Approval History */}
+              {(selectedMRFForDetails as any).executiveApprovalDate && (
+                <div>
+                  <Label className="text-muted-foreground">Executive Approval</Label>
+                  <p className="text-sm mt-1">
+                    Approved on {formatMRFDate((selectedMRFForDetails as any).executiveApprovalDate)}
+                    {(selectedMRFForDetails as any).executiveRemarks && (
+                      <span className="block mt-1 text-muted-foreground">
+                        Remarks: {(selectedMRFForDetails as any).executiveRemarks}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {/* RFQ Information */}
+              {(() => {
+                const rfq = getRFQForMRF(selectedMRFForDetails.id);
+                if (rfq) {
+                  return (
+                    <div>
+                      <Label className="text-muted-foreground">Related RFQ</Label>
+                      <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
+                        <p className="font-medium">RFQ ID: {rfq.id}</p>
+                        <p className="text-sm text-muted-foreground">Status: {rfq.status}</p>
+                        {rfq.deadline && (
+                          <p className="text-sm text-muted-foreground">
+                            Deadline: {new Date(rfq.deadline).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Quotations */}
+              {(() => {
+                const mrfQuotations = getQuotationsForMRF(selectedMRFForDetails.id);
+                if (mrfQuotations.length > 0) {
+                  return (
+                    <div>
+                      <Label className="text-muted-foreground">Vendor Quotations ({mrfQuotations.length})</Label>
+                      <div className="mt-2 space-y-2">
+                        {mrfQuotations.map((quotation: any) => (
+                          <div key={quotation.id} className="p-3 border rounded-md">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium">{quotation.vendorName || quotation.vendor_name || 'Vendor'}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Price: ₦{parseFloat(quotation.price || quotation.total_amount || '0').toLocaleString()}
+                                  {quotation.deliveryDate && ` • Delivery: ${new Date(quotation.deliveryDate).toLocaleDateString()}`}
+                                </p>
+                                {quotation.notes && (
+                                  <p className="text-xs text-muted-foreground mt-1">{quotation.notes}</p>
+                                )}
+                              </div>
+                              <Badge className={getStatusColor(quotation.status || 'Pending')}>
+                                {quotation.status || 'Pending'}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
