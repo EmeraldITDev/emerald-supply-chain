@@ -511,10 +511,6 @@ const SupplyChainDashboard = () => {
                               )}
                             </p>
                           </div>
-                          <div>
-                            <p className="font-semibold">Status:</p>
-                            <Badge variant="outline">{mrf.status}</Badge>
-                          </div>
                           <div className="md:col-span-2">
                             <p className="font-semibold">Description:</p>
                             <p className="text-muted-foreground">{mrf.description}</p>
