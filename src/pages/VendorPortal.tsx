@@ -1272,183 +1272,225 @@ const VendorPortal = () => {
               })()}
               vendorId={currentVendorId}
               vendorName={currentVendor?.name || "Vendor"}
+              onSave={async (draft) => {
+                // Save draft to localStorage for later retrieval
+                try {
+                  const draftKey = `rfq_draft_${draft.rfqId}_${currentVendorId}`;
+                  const draftData = {
+                    ...draft,
+                    savedAt: new Date().toISOString(),
+                  };
+                  localStorage.setItem(draftKey, JSON.stringify(draftData));
+                  toast({
+                    title: "Draft Saved",
+                    description: "Your quotation draft has been saved. You can continue later.",
+                  });
+                } catch (error) {
+                  console.error('Error saving draft:', error);
+                  toast({
+                    title: "Save Failed",
+                    description: "Failed to save draft. Please try again.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              onIgnore={async (rfqId) => {
+                // Mark RFQ as ignored (optional - could be stored locally or sent to backend)
+                try {
+                  const ignoredKey = `ignored_rfqs_${currentVendorId}`;
+                  const ignored = JSON.parse(localStorage.getItem(ignoredKey) || '[]');
+                  if (!ignored.includes(rfqId)) {
+                    ignored.push(rfqId);
+                    localStorage.setItem(ignoredKey, JSON.stringify(ignored));
+                  }
+                  // Optionally call backend to mark as ignored
+                  // await vendorPortalApi.ignoreRFQ(rfqId);
+                } catch (error) {
+                  console.error('Error ignoring RFQ:', error);
+                }
+              }}
               onSubmit={async (quote) => {
                 try {
+                  // Check authentication token before submission
+                  const token = localStorage.getItem('vendorAuthToken') || sessionStorage.getItem('vendorAuthToken');
+                  if (!token) {
+                    toast({
+                      title: "Authentication Required",
+                      description: "Your session has expired. Please log in again.",
+                      variant: "destructive",
+                    });
+                    // Optionally redirect to login
+                    handleLogout();
+                    return;
+                  }
+                  
+                  // Validate required fields before submission
+                  if (!quote.rfqId) {
+                    toast({
+                      title: "Validation Error",
+                      description: "Please select an RFQ to quote.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  
+                  if (!quote.deliveryDate) {
+                    toast({
+                      title: "Validation Error",
+                      description: "Please provide a delivery date.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  
+                  if (!quote.lineItems || quote.lineItems.length === 0) {
+                    toast({
+                      title: "Validation Error",
+                      description: "Please add at least one line item to your quotation.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  
+                  if (quote.lineItems.some(item => !item.description.trim() || item.unitPrice <= 0)) {
+                    toast({
+                      title: "Validation Error",
+                      description: "All line items must have a description and valid unit price.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  
+                  if (!quote.paymentTerms) {
+                    toast({
+                      title: "Validation Error",
+                      description: "Please select payment terms.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  
+                  // Validate total amount
+                  const totalAmount = parseFloat(quote.price) || 0;
+                  if (totalAmount <= 0) {
+                    toast({
+                      title: "Validation Error",
+                      description: "Total quotation amount must be greater than zero.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  
                   // Prepare quotation data with ALL fields from the form
                   const quotationData = {
-                    total_amount: parseFloat(quote.price) || 0,
+                    total_amount: totalAmount,
                     delivery_date: quote.deliveryDate,
                     payment_terms: quote.paymentTerms || '',
                     validity_days: parseInt(quote.validityPeriod || '30'),
                     warranty_period: quote.warrantyPeriod || '',
                     notes: quote.notes || '',
-                    items: quote.lineItems && quote.lineItems.length > 0 ? quote.lineItems.map(item => ({
-                      item_name: item.description,
+                    items: quote.lineItems.map(item => ({
+                      item_name: item.description.trim(),
                       quantity: item.quantity,
                       unit: 'unit', // Default unit, should come from RFQ item if available
                       unit_price: item.unitPrice,
-                      specifications: item.description // Use description as specifications if needed
-                    })) : []
+                      specifications: item.description.trim() // Use description as specifications if needed
+                    }))
                   };
                   
-                  // If there are attachments, use FormData to send both JSON data and files
-                  if (quote.attachments && quote.attachments.length > 0) {
-                    const formData = new FormData();
-                    
-                    // Append all quotation data as JSON string
-                    formData.append('quotation_data', JSON.stringify(quotationData));
-                    
-                    // Append each attachment file
-                    quote.attachments.forEach((file, index) => {
-                      formData.append(`attachments[]`, file);
-                    });
-                    
-                    // Use vendorApiRequest for authenticated FormData submission
-                    const token = localStorage.getItem('vendorAuthToken') || sessionStorage.getItem('vendorAuthToken');
-                    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
-                    
-                    const response = await fetch(`${apiBaseUrl}/rfqs/${quote.rfqId}/submit-quotation`, {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${token}`,
-                        // Don't set Content-Type - browser will set it with boundary for FormData
-                      },
-                      body: formData,
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (response.ok && data.success !== false) {
-                      // Create quote object for immediate display
-                      const submittedQuoteData = {
-                        id: data.data?.id || `QUOTE-${Date.now()}`,
-                        rfqId: quote.rfqId,
-                        vendorId: currentVendorId,
-                        vendorName: currentVendor?.name || "Vendor",
-                        price: quote.price,
-                        deliveryDate: quote.deliveryDate,
-                        submittedDate: new Date().toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric', 
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: true
-                        }),
-                        status: "Pending",
-                        notes: quote.notes,
-                        paymentTerms: quote.paymentTerms,
-                        validityPeriod: quote.validityPeriod,
-                        warrantyPeriod: quote.warrantyPeriod,
-                        lineItems: quote.lineItems,
-                        ...(data.data || {})
-                      };
-                      
-                      // Add to quotations list immediately (optimistic update)
-                      setVendorQuotationsList(prev => [submittedQuoteData, ...prev]);
-                      
-                      // Show success dialog
-                      setSubmittedQuote(submittedQuoteData);
-                      setShowQuoteSuccess(true);
-                      
-                      // Switch to quotations tab
-                      setActiveTab("quotations");
-                      
-                      // Refresh data in background
-                      refreshRFQs();
-                      fetchVendorQuotations();
-                      
-                      toast({
-                        title: "Quotation Submitted Successfully",
-                        description: "Your quotation has been sent to the Procurement Manager.",
-                      });
-                    } else {
-                      toast({
-                        title: "Submission Failed",
-                        description: data.error || data.message || "Failed to submit quotation. Please try again.",
-                        variant: "destructive",
-                      });
-                    }
-                  } else {
-                    // No attachments, use vendor authentication token directly
-                    // Use vendorApiRequest helper - it's not exported, so we'll make a direct call
-                    const token = localStorage.getItem('vendorAuthToken') || sessionStorage.getItem('vendorAuthToken');
-                    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
-                    
-                    const response = await fetch(`${apiBaseUrl}/rfqs/${quote.rfqId}/submit-quotation`, {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                      },
-                      body: JSON.stringify(quotationData),
-                    });
-                    
-                    const data = await response.json();
-                    const responseObj = {
-                      success: response.ok && data.success !== false,
-                      data: data.data || data,
-                      error: data.error || data.message || (!response.ok ? `HTTP ${response.status}: ${response.statusText}` : undefined),
+                  // Use vendorPortalApi.submitQuotation which handles authentication properly
+                  const response = await vendorPortalApi.submitQuotation(
+                    quote.rfqId,
+                    quotationData,
+                    quote.attachments && quote.attachments.length > 0 ? quote.attachments : undefined
+                  );
+                  
+                  if (response.success && response.data) {
+                    // Create quote object for immediate display
+                    const submittedQuoteData = {
+                      id: response.data.id || `QUOTE-${Date.now()}`,
+                  rfqId: quote.rfqId,
+                      vendorId: currentVendorId,
+                      vendorName: currentVendor?.name || "Vendor",
+                  price: quote.price,
+                  deliveryDate: quote.deliveryDate,
+                      submittedDate: new Date().toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      }),
+                  status: "Pending",
+                      notes: quote.notes,
+                      paymentTerms: quote.paymentTerms,
+                      validityPeriod: quote.validityPeriod,
+                      warrantyPeriod: quote.warrantyPeriod,
+                      lineItems: quote.lineItems,
+                      ...(response.data || {})
                     };
                     
-                    if (responseObj.success) {
-                      // Create quote object for immediate display
-                      const submittedQuoteData = {
-                        id: responseObj.data?.id || `QUOTE-${Date.now()}`,
-                        rfqId: quote.rfqId,
-                        vendorId: currentVendorId,
-                        vendorName: currentVendor?.name || "Vendor",
-                        price: quote.price,
-                        deliveryDate: quote.deliveryDate,
-                        submittedDate: new Date().toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric', 
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: true
-                        }),
-                        status: "Pending",
-                        notes: quote.notes,
-                        paymentTerms: quote.paymentTerms,
-                        validityPeriod: quote.validityPeriod,
-                        warrantyPeriod: quote.warrantyPeriod,
-                        lineItems: quote.lineItems,
-                        ...(responseObj.data || {})
-                      };
-                      
-                      // Add to quotations list immediately (optimistic update)
-                      setVendorQuotationsList(prev => [submittedQuoteData, ...prev]);
-                      
-                      // Show success dialog
-                      setSubmittedQuote(submittedQuoteData);
-                      setShowQuoteSuccess(true);
-                      
-                      // Switch to quotations tab
-                      setActiveTab("quotations");
-                      
-                      // Refresh data in background
-                      refreshRFQs();
-                      fetchVendorQuotations();
-                      
-                      toast({
-                        title: "Quotation Submitted Successfully",
-                        description: "Your quotation has been sent to the Procurement Manager.",
-                      });
-                    } else {
-                      toast({
-                        title: "Submission Failed",
-                        description: responseObj.error || "Failed to submit quotation. Please try again.",
-                        variant: "destructive",
-                      });
+                    // Add to quotations list immediately (optimistic update)
+                    setVendorQuotationsList(prev => [submittedQuoteData, ...prev]);
+                    
+                    // Show success dialog
+                    setSubmittedQuote(submittedQuoteData);
+                    setShowQuoteSuccess(true);
+                    
+                    // Switch to quotations tab
+                setActiveTab("quotations");
+                    
+                    // Refresh data in background
+                    await fetchVendorQuotations();
+                    await fetchVendorRFQs();
+                    
+                    toast({
+                      title: "Quotation Submitted Successfully",
+                      description: "Your quotation has been sent to the Procurement Manager.",
+                    });
+                  } else {
+                    // Handle specific error types
+                    let errorTitle = "Submission Failed";
+                    let errorDescription = response.error || "Failed to submit quotation. Please check all required fields and try again.";
+                    
+                    // Check if it's an authentication error
+                    if (response.error && (response.error.includes('Authentication') || response.error.includes('401') || response.error.includes('Unauthorized'))) {
+                      errorTitle = "Authentication Error";
+                      errorDescription = "Your session has expired. Please log in again.";
+                      // Clear tokens and redirect to login
+                      setTimeout(() => {
+                        handleLogout();
+                      }, 2000);
+                    } else if (response.error && (response.error.includes('422') || response.error.includes('Validation'))) {
+                      errorTitle = "Validation Error";
+                      // Error description already contains validation details
                     }
+                    
+                    toast({
+                      title: errorTitle,
+                      description: errorDescription,
+                      variant: "destructive",
+                    });
                   }
                 } catch (error: any) {
-                  console.error('Quotation submission error:', error);
+                  console.error('Error submitting quotation:', error);
+                  
+                  // Check if it's a network error or authentication error
+                  let errorTitle = "Submission Error";
+                  let errorDescription = error.message || "An error occurred while submitting your quotation. Please try again.";
+                  
+                  if (error.message && (error.message.includes('401') || error.message.includes('Unauthorized'))) {
+                    errorTitle = "Authentication Error";
+                    errorDescription = "Your session has expired. Please log in again.";
+                    setTimeout(() => {
+                      handleLogout();
+                    }, 2000);
+                  }
+                  
                   toast({
-                    title: "Error",
-                    description: error.message || "An error occurred while submitting your quotation.",
+                    title: errorTitle,
+                    description: errorDescription,
                     variant: "destructive",
                   });
                 }

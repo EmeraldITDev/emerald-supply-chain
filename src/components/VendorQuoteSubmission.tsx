@@ -39,6 +39,17 @@ interface VendorQuoteSubmissionProps {
     paymentTerms: string;
     warrantyPeriod: string;
   }) => void;
+  onSave?: (quote: {
+    rfqId: string;
+    lineItems: QuoteLineItem[];
+    deliveryDate: string;
+    notes: string;
+    attachments: File[];
+    validityPeriod: string;
+    paymentTerms: string;
+    warrantyPeriod: string;
+  }) => void;
+  onIgnore?: (rfqId: string) => void;
 }
 
 interface QuoteLineItem {
@@ -48,7 +59,7 @@ interface QuoteLineItem {
   total: number;
 }
 
-export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit }: VendorQuoteSubmissionProps) => {
+export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, onSave, onIgnore }: VendorQuoteSubmissionProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -477,25 +488,129 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit }: 
             />
           </div>
 
-          {/* Submit Button */}
-          <Button 
-            onClick={handleSubmit} 
-            className="w-full" 
-            size="lg"
-            disabled={isSubmitting || !selectedRfqId}
-          >
-            {isSubmitting ? (
-              <>
-                <Clock className="h-4 w-4 mr-2 animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              <>
-                <Send className="h-4 w-4 mr-2" />
-                Submit Quotation
-              </>
-            )}
-          </Button>
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button 
+              onClick={handleSubmit} 
+              className="flex-1" 
+              size="lg"
+              disabled={isSubmitting || !selectedRfqId}
+            >
+              {isSubmitting ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Submit Quotation
+                </>
+              )}
+            </Button>
+            
+            <Button 
+              onClick={() => {
+                if (!selectedRfqId) {
+                  toast({
+                    title: "No RFQ Selected",
+                    description: "Please select an RFQ to save",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                
+                if (onSave) {
+                  onSave({
+                    rfqId: selectedRfqId,
+                    lineItems,
+                    deliveryDate,
+                    notes,
+                    attachments,
+                    validityPeriod,
+                    paymentTerms,
+                    warrantyPeriod,
+                  });
+                } else {
+                  // Fallback: save to localStorage if onSave not provided
+                  const draftKey = `rfq_draft_${selectedRfqId}_${vendorId}`;
+                  const draftData = {
+                    rfqId: selectedRfqId,
+                    lineItems,
+                    deliveryDate,
+                    notes,
+                    validityPeriod,
+                    paymentTerms,
+                    warrantyPeriod,
+                    savedAt: new Date().toISOString(),
+                  };
+                  localStorage.setItem(draftKey, JSON.stringify(draftData));
+                }
+                
+                toast({
+                  title: "Draft Saved",
+                  description: "Your quotation draft has been saved. You can continue later.",
+                });
+              }}
+              variant="outline"
+              className="flex-1"
+              size="lg"
+              disabled={!selectedRfqId}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Save & Close
+            </Button>
+            
+            <Button 
+              onClick={() => {
+                if (!selectedRfqId) {
+                  toast({
+                    title: "No RFQ Selected",
+                    description: "Please select an RFQ to ignore",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                
+                if (confirm('Are you sure you want to ignore this RFQ? You can still access it later from the RFQs tab.')) {
+                  if (onIgnore) {
+                    onIgnore(selectedRfqId);
+                  } else {
+                    // Fallback: mark as ignored in localStorage if onIgnore not provided
+                    const ignoredKey = `ignored_rfqs_${vendorId}`;
+                    const ignored = JSON.parse(localStorage.getItem(ignoredKey) || '[]');
+                    if (!ignored.includes(selectedRfqId)) {
+                      ignored.push(selectedRfqId);
+                      localStorage.setItem(ignoredKey, JSON.stringify(ignored));
+                    }
+                  }
+                  
+                  // Reset form
+                  setSelectedRfqId("");
+                  setLineItems([{ description: "", quantity: 1, unitPrice: 0, total: 0 }]);
+                  setDeliveryDate("");
+                  setNotes("");
+                  setAttachments([]);
+                  setValidityPeriod("30");
+                  setPaymentTerms("");
+                  setWarrantyPeriod("");
+                  setFormErrors({});
+                  
+                  toast({
+                    title: "RFQ Ignored",
+                    description: "You can access this RFQ later from the RFQs tab.",
+                  });
+                }
+              }}
+              variant="outline"
+              size="lg"
+              className="border-muted-foreground/50 text-muted-foreground hover:text-foreground"
+              disabled={!selectedRfqId}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Ignore RFQ
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

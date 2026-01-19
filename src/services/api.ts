@@ -1022,15 +1022,28 @@ async function vendorApiRequest<T>(
     };
   }
   
+  // Check if body is FormData - if so, don't set Content-Type (browser will set it with boundary)
+  const isFormData = options.body instanceof FormData;
+  
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     'Accept': 'application/json',
     ...options.headers,
   };
+  
+  // Only set Content-Type for non-FormData requests
+  if (!isFormData && !options.headers?.['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   // Always include Authorization header with Bearer token if available
+  // Override any existing Authorization header to ensure we use the correct token
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    // If no token and not an auth endpoint, log a warning
+    if (!isAuthEndpoint) {
+      console.warn('No vendor authentication token available for request:', endpoint);
+    }
   }
 
   try {
@@ -1081,15 +1094,42 @@ async function vendorApiRequest<T>(
       sessionStorage.removeItem('vendorData');
       sessionStorage.removeItem('vendorTokenExpiry');
       
-      // Redirect to vendor portal login if we're in a browser context
-      if (typeof window !== 'undefined' && !isAuthEndpoint && window.location.pathname.includes('/vendor-portal')) {
-        // Clear login state but stay on vendor portal page
-        window.location.reload();
+      // Don't reload the page - let the user see the error and handle it
+      const errorMessage = data.error || data.message || 'Authentication failed. Please log in again.';
+      
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+
+    // Handle 422 Unprocessable Entity - validation errors
+    if (response.status === 422) {
+      // Extract validation errors from response
+      let errorMessage = 'Validation failed. Please check your input.';
+      
+      if (data.errors && typeof data.errors === 'object') {
+        // Laravel-style validation errors
+        const errorMessages: string[] = [];
+        Object.entries(data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            errorMessages.push(...messages);
+          } else if (typeof messages === 'string') {
+            errorMessages.push(messages);
+          }
+        });
+        if (errorMessages.length > 0) {
+          errorMessage = errorMessages.join(', ');
+        }
+      } else if (data.message) {
+        errorMessage = data.message;
+      } else if (data.error) {
+        errorMessage = data.error;
       }
       
       return {
         success: false,
-        error: 'Authentication failed. Please log in again.',
+        error: errorMessage,
       };
     }
 
@@ -1146,6 +1186,55 @@ export const vendorPortalApi = {
   // Get vendor's submitted quotations
   getMyQuotations: async (): Promise<ApiResponse<Quotation[]>> => {
     return vendorApiRequest<Quotation[]>('/vendors/quotations');
+  },
+
+  // Submit quotation as a vendor (with proper vendor authentication)
+  submitQuotation: async (
+    rfqId: string,
+    quotationData: {
+      total_amount: number;
+      delivery_date: string;
+      payment_terms: string;
+      validity_days: number;
+      warranty_period?: string;
+      notes?: string;
+      items: Array<{
+        item_name: string;
+        quantity: number;
+        unit: string;
+        unit_price: number;
+        specifications?: string;
+      }>;
+    },
+    attachments?: File[]
+  ): Promise<ApiResponse<Quotation>> => {
+    // If there are attachments, use FormData
+    if (attachments && attachments.length > 0) {
+      const formData = new FormData();
+      formData.append('quotation_data', JSON.stringify(quotationData));
+      attachments.forEach((file) => {
+        formData.append('attachments[]', file);
+      });
+
+      // Use vendorApiRequest with FormData
+      return vendorApiRequest<Quotation>(`/rfqs/${rfqId}/submit-quotation`, {
+        method: 'POST',
+        body: formData,
+        // Don't set Content-Type - browser will set it with boundary for FormData
+        headers: {
+          // Remove Content-Type to let browser set it with boundary
+        },
+      });
+    } else {
+      // No attachments, use JSON
+      return vendorApiRequest<Quotation>(`/rfqs/${rfqId}/submit-quotation`, {
+        method: 'POST',
+        body: JSON.stringify(quotationData),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    }
   },
 };
 
