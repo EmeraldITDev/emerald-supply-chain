@@ -77,6 +77,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
+  const [rfqDetailsDialogOpen, setRfqDetailsDialogOpen] = useState(false);
   const [quotationDetailsDialogOpen, setQuotationDetailsDialogOpen] = useState(false);
   const [selectedQuotation, setSelectedQuotation] = useState<any | null>(null);
   const [selectedRFQ, setSelectedRFQ] = useState<RFQ | null>(null);
@@ -275,9 +276,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     try {
       // Create RFQ via API
       const response = await rfqApi.create({
-        mrfId: selectedMRF.id,
+      mrfId: selectedMRF.id,
         title: selectedMRF.title,
-        description: selectedMRF.description || '',
+      description: selectedMRF.description || '',
         category: selectedMRF.category || 'General',
         deadline: deadline,
         quantity: selectedMRF.quantity || '1',
@@ -527,18 +528,31 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                   </div>
                 </div>
 
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline"
+                    className="flex-1" 
+                    onClick={() => {
+                      setSelectedRFQ(rfq);
+                      setRfqDetailsDialogOpen(true);
+                    }}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Details
+                  </Button>
                 {pendingQuotes > 0 && rfq.status === 'Open' && (
                   <Button 
-                    className="w-full" 
+                      className="flex-1" 
                     onClick={() => {
                       setSelectedRFQ(rfq);
                       setCompareDialogOpen(true);
                     }}
                   >
                     <TrendingUp className="h-4 w-4 mr-2" />
-                    Compare {pendingQuotes} Quote(s)
+                      Compare {pendingQuotes}
                   </Button>
                 )}
+                </div>
               </CardContent>
             </Card>
           );
@@ -1131,6 +1145,236 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* RFQ Details Dialog */}
+      <Dialog open={rfqDetailsDialogOpen} onOpenChange={setRfqDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>RFQ Details - {selectedRFQ?.id}</DialogTitle>
+            <DialogDescription>{selectedRFQ?.mrfTitle}</DialogDescription>
+          </DialogHeader>
+          {selectedRFQ && (() => {
+            const rfqQuotations = quotations.filter(q => q.rfqId === selectedRFQ.id);
+            // Get delivery days and payment terms from quotations (not RFQ)
+            const firstQuotation = rfqQuotations.length > 0 ? rfqQuotations[0] : null;
+            const deliveryDays = firstQuotation?.deliveryDays || firstQuotation?.delivery_days || null;
+            const paymentTerms = firstQuotation?.payment_terms || firstQuotation?.paymentTerms || null;
+            // Get RFQ sent/dispatched timestamp
+            const sentAt = selectedRFQ.created_at || selectedRFQ.createdAt || selectedRFQ.created_date || null;
+            
+            return (
+              <div className="space-y-6 mt-4">
+                {/* RFQ Basic Information */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">RFQ ID</Label>
+                    <p className="font-medium">{selectedRFQ.id}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Status</Label>
+                    <Badge 
+                      className={
+                        selectedRFQ.status === 'Open' ? 'bg-info/10 text-info' :
+                        selectedRFQ.status === 'Awarded' ? 'bg-success/10 text-success' :
+                        'bg-muted text-muted-foreground'
+                      }
+                    >
+                      {selectedRFQ.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">MRF Title</Label>
+                    <p className="font-medium">{selectedRFQ.mrfTitle}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Budget</Label>
+                    <p className="font-medium">₦{parseInt(selectedRFQ.estimatedCost || '0').toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Deadline</Label>
+                    <p className="font-medium">
+                      {selectedRFQ.deadline ? new Date(selectedRFQ.deadline).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Sent At</Label>
+                    <p className="font-medium">
+                      {sentAt ? new Date(sentAt).toLocaleString() : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Vendors Invited</Label>
+                    <p className="font-medium">{selectedRFQ.vendorIds?.length || 0}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Quotations Received</Label>
+                    <p className="font-medium">{rfqQuotations.length}</p>
+                  </div>
+                </div>
+
+                {/* Quotation Data (from vendor quotations) */}
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold mb-3">Quotation Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-muted-foreground">Delivery Days</Label>
+                      <p className="font-medium">
+                        {deliveryDays !== null ? `${deliveryDays} days` : rfqQuotations.length > 0 ? 'See individual quotations' : 'N/A'}
+                      </p>
+                      {rfqQuotations.length > 1 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {rfqQuotations.length} quotations received with varying delivery timelines
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Payment Terms</Label>
+                      <p className="font-medium">
+                        {paymentTerms || (rfqQuotations.length > 0 ? 'See individual quotations' : 'N/A')}
+                      </p>
+                      {rfqQuotations.length > 1 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Terms vary by quotation
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quotations List */}
+                {rfqQuotations.length > 0 && (
+                  <div className="border-t pt-4">
+                    <h3 className="font-semibold mb-3">Received Quotations</h3>
+                    <div className="space-y-3">
+                      {rfqQuotations.map((quotation: any) => (
+                        <Card key={quotation.id}>
+                          <CardContent className="pt-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <p className="font-medium">{quotation.vendorName || quotation.vendor?.name || 'Vendor'}</p>
+                                  <Badge variant={quotation.status === 'approved' ? 'default' : quotation.status === 'closed' ? 'secondary' : 'outline'}>
+                                    {quotation.status || 'submitted'}
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4 text-sm">
+                                  <div>
+                                    <p className="text-muted-foreground">Amount</p>
+                                    <p className="font-medium">₦{parseFloat(quotation.price || quotation.total_amount || '0').toLocaleString()}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground">Delivery Days</p>
+                                    <p className="font-medium">{quotation.deliveryDays || quotation.delivery_days || 'N/A'} days</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground">Payment Terms</p>
+                                    <p className="font-medium">{quotation.payment_terms || quotation.paymentTerms || 'N/A'}</p>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-2 ml-4">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedQuotation(quotation);
+                                    handleViewQuotationDetails(quotation);
+                                  }}
+                                >
+                                  <FileText className="h-4 w-4 mr-2" />
+                                  View
+                                </Button>
+                                {quotation.status === 'submitted' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      try {
+                                        const response = await quotationApi.closeQuotation(quotation.id);
+                                        if (response.success) {
+                                          toast({
+                                            title: "Quotation Closed",
+                                            description: "The quotation has been closed.",
+                                          });
+                                          // Refresh quotations
+                                          const rfqResponse = await rfqApi.getQuotations(selectedRFQ.id);
+                                          if (rfqResponse.success && rfqResponse.data?.quotations) {
+                                            // Update local quotations state
+                                            setQuotations(prev => prev.map(q => 
+                                              q.id === quotation.id ? { ...q, status: 'closed' } : q
+                                            ));
+                                          }
+                                        } else {
+                                          toast({
+                                            title: "Error",
+                                            description: response.error || "Failed to close quotation",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      } catch (error) {
+                                        toast({
+                                          title: "Error",
+                                          description: "Failed to close quotation",
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    Close
+                                  </Button>
+                                )}
+                                {quotation.status === 'closed' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      try {
+                                        const response = await quotationApi.reopenQuotation(quotation.id);
+                                        if (response.success) {
+                                          toast({
+                                            title: "Quotation Reopened",
+                                            description: "The quotation has been reopened.",
+                                          });
+                                          // Refresh quotations
+                                          const rfqResponse = await rfqApi.getQuotations(selectedRFQ.id);
+                                          if (rfqResponse.success && rfqResponse.data?.quotations) {
+                                            // Update local quotations state
+                                            setQuotations(prev => prev.map(q => 
+                                              q.id === quotation.id ? { ...q, status: 'submitted' } : q
+                                            ));
+                                          }
+                                        } else {
+                                          toast({
+                                            title: "Error",
+                                            description: response.error || "Failed to reopen quotation",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      } catch (error) {
+                                        toast({
+                                          title: "Error",
+                                          description: "Failed to reopen quotation",
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    Reopen
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

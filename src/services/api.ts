@@ -1048,8 +1048,23 @@ export const quotationApi = {
     });
   },
 
-  reject: async (id: string): Promise<ApiResponse<Quotation>> => {
+  reject: async (id: string, reason?: string, comments?: string): Promise<ApiResponse<Quotation>> => {
     return apiRequest<Quotation>(`/quotations/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason, comments }),
+    });
+  },
+
+  // Close quotation (Procurement Manager)
+  closeQuotation: async (id: string): Promise<ApiResponse<Quotation>> => {
+    return apiRequest<Quotation>(`/quotations/${id}/close`, {
+      method: 'POST',
+    });
+  },
+
+  // Reopen quotation (Procurement Manager)
+  reopenQuotation: async (id: string): Promise<ApiResponse<Quotation>> => {
+    return apiRequest<Quotation>(`/quotations/${id}/reopen`, {
       method: 'POST',
     });
   },
