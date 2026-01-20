@@ -192,13 +192,25 @@ const Dashboard = () => {
     },
   ];
 
-  // Fallback activities for the overview card (if no pending registrations)
-  const fallbackActivities = [
-    { id: 1, type: "MRF", title: "Office Supplies Request", status: "Pending", date: "2 hours ago" },
-    { id: 2, type: "PO", title: "IT Equipment Purchase", status: "Approved", date: "5 hours ago" },
-    { id: 3, type: "SRF", title: "Maintenance Service", status: "In Review", date: "1 day ago" },
-    { id: 4, type: "MRF", title: "Raw Materials Restock", status: "Completed", date: "2 days ago" },
-  ];
+  // Format relative time for activities
+  const formatRelativeTime = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+      
+      if (diffMins < 60) return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
+      if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+      if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+      return date.toLocaleDateString();
+    } catch {
+      return '';
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -281,20 +293,28 @@ const Dashboard = () => {
                     </Button>
                   )}
                 </div>
-              ) : (
+              ) : activitiesLoading ? (
+                <div className="text-center py-4 text-sm text-muted-foreground">Loading activities...</div>
+              ) : recentActivities.length > 0 ? (
                 <div className="space-y-3 sm:space-y-4">
-                  {fallbackActivities.map((activity) => (
-                    <div key={activity.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0">
+                  {recentActivities.slice(0, 5).map((activity) => (
+                    <div 
+                      key={activity.id} 
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0 cursor-pointer hover:bg-accent/50 p-2 rounded transition-colors"
+                      onClick={() => activity.actionUrl && navigate(activity.actionUrl)}
+                    >
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{activity.title}</p>
-                        <p className="text-xs sm:text-sm text-muted-foreground">{activity.type} • {activity.date}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{activity.type} • {formatRelativeTime(activity.date)}</p>
                       </div>
                       <span
                         className={`text-xs px-2 py-1 rounded-full self-start sm:self-center whitespace-nowrap ${
-                          activity.status === "Completed"
+                          activity.status?.toLowerCase().includes("completed") || activity.status?.toLowerCase().includes("paid")
                             ? "bg-accent text-accent-foreground"
-                            : activity.status === "Approved"
+                            : activity.status?.toLowerCase().includes("approved")
                             ? "bg-primary/10 text-primary"
+                            : activity.status?.toLowerCase().includes("rejected")
+                            ? "bg-destructive/10 text-destructive"
                             : "bg-secondary text-secondary-foreground"
                         }`}
                       >
@@ -302,6 +322,12 @@ const Dashboard = () => {
                       </span>
                     </div>
                   ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No recent activities</p>
+                  <p className="text-sm mt-1">New activities will appear here</p>
                 </div>
               )}
             </CardContent>

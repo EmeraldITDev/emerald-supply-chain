@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Trash2 } from "lucide-react";
+import { FileText, Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Trash2, Eye, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { mrfApi } from "@/services/api";
+import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,10 +24,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import type { MRF } from "@/types";
 
 const DepartmentDashboard = () => {
   const { user } = useAuth();
-  const { mrns, annualPlans, mrfRequests, srfRequests, refreshMRFs } = useApp();
+  const { mrns, annualPlans, srfRequests, refreshMRFs } = useApp();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -34,6 +43,42 @@ const DepartmentDashboard = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [mrfToDelete, setMrfToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // MRF state - fetched from backend
+  const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
+  const [mrfLoading, setMrfLoading] = useState(true);
+  
+  // MRF details dialog state
+  const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
+  const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
+  const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
+  const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+
+  // Fetch MRFs from backend
+  const fetchMRFs = useCallback(async () => {
+    setMrfLoading(true);
+    try {
+      const response = await mrfApi.getAll();
+      if (response.success && response.data) {
+        // Filter to show only user's own MRFs
+        const userMRFs = response.data.filter((mrf: MRF) => 
+          mrf.requester === user?.name || 
+          mrf.requester === user?.email ||
+          mrf.requester_name === user?.name ||
+          mrf.requester_name === user?.email
+        );
+        setMrfRequests(userMRFs);
+      }
+    } catch (error) {
+      console.error("Failed to fetch MRFs:", error);
+    } finally {
+      setMrfLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchMRFs();
+  }, [fetchMRFs]);
 
   // Filter MRNs for current user only (employees see only their own requests)
   const departmentMRNs = useMemo(() => {
@@ -306,14 +351,14 @@ const DepartmentDashboard = () => {
             </Card>
           </TabsContent>
 
-          {/* MRF Tab - Only for employees */}
+          {/* MRF Tab - Available to all users in MRF workflow */}
           <TabsContent value="mrf" className="space-y-3 sm:space-y-4">
             <Card>
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <CardTitle className="text-base sm:text-lg">Material Request Forms (MRF)</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Official material requisition forms</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">Track your material requisition forms and their progress</CardDescription>
                   </div>
                   {user?.role === "employee" && (
                     <Button onClick={() => navigate("/new-mrf")} size="sm" className="sm:size-default">
@@ -326,7 +371,11 @@ const DepartmentDashboard = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 <div className="space-y-3">
-                  {mrfRequests.filter(mrf => mrf.requester === user?.name || mrf.requester === user?.email).length === 0 ? (
+                  {mrfLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : mrfRequests.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No MRFs found.</p>
@@ -335,49 +384,81 @@ const DepartmentDashboard = () => {
                       )}
                     </div>
                   ) : (
-                    mrfRequests
-                      .filter(mrf => mrf.requester === user?.name || mrf.requester === user?.email)
-                      .map((mrf) => {
-                        // Allow delete if:
-                        // 1. Status is pending or rejected (any user)
-                        // 2. OR requester's own MRF that hasn't progressed too far (no PO generated)
-                        const statusLower = (mrf.status || "").toLowerCase();
-                        const isPendingOrRejected = statusLower === "pending" || statusLower.includes("rejected");
-                        const noPOGenerated = !mrf.poNumber && !mrf.unsignedPOUrl;
-                        const notTooFarInWorkflow = !statusLower.includes("supply_chain") && 
-                                                     !statusLower.includes("finance") && 
-                                                     !statusLower.includes("paid") && 
-                                                     !statusLower.includes("completed");
-                        
-                        const canDelete = isPendingOrRejected || (noPOGenerated && notTooFarInWorkflow);
-                        
-                        return (
-                          <Card key={mrf.id}>
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <h3 className="font-semibold">{mrf.title}</h3>
-                                  <p className="text-sm text-muted-foreground">MRF ID: {mrf.id}</p>
-                                  <p className="text-sm text-muted-foreground">Status: {mrf.status}</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
-                                  {canDelete && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDeleteMRF(mrf.id)}
-                                      className="text-destructive hover:text-destructive"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  )}
+                    mrfRequests.map((mrf) => {
+                      // Allow delete if:
+                      // 1. Status is pending or rejected (any user)
+                      // 2. OR requester's own MRF that hasn't progressed too far (no PO generated)
+                      const statusLower = (mrf.status || "").toLowerCase();
+                      const isPendingOrRejected = statusLower === "pending" || statusLower.includes("rejected");
+                      const noPOGenerated = !mrf.poNumber && !mrf.unsignedPOUrl;
+                      const notTooFarInWorkflow = !statusLower.includes("supply_chain") && 
+                                                   !statusLower.includes("finance") && 
+                                                   !statusLower.includes("paid") && 
+                                                   !statusLower.includes("completed");
+                      
+                      const canDelete = isPendingOrRejected || (noPOGenerated && notTooFarInWorkflow);
+                      
+                      return (
+                        <Card key={mrf.id} className="hover:shadow-md transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold truncate">{mrf.title}</h3>
+                                <p className="text-sm text-muted-foreground">MRF ID: {mrf.id}</p>
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    {mrf.created_at ? format(new Date(mrf.created_at), "MMM dd, yyyy") : ""}
+                                  </span>
+                                  {mrf.estimatedCost || mrf.estimated_cost ? (
+                                    <span className="text-xs font-medium">
+                                      ₦{parseFloat(String(mrf.estimatedCost || mrf.estimated_cost || 0)).toLocaleString()}
+                                    </span>
+                                  ) : null}
                                 </div>
                               </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={async () => {
+                                    setSelectedMRFForDetails(mrf);
+                                    setMrfDetailsDialogOpen(true);
+                                    
+                                    // Fetch full details
+                                    setLoadingFullDetails(true);
+                                    try {
+                                      const response = await mrfApi.getFullDetails(mrf.id);
+                                      if (response.success && response.data) {
+                                        setMrfFullDetails(response.data);
+                                      }
+                                    } catch (error) {
+                                      console.error('Failed to fetch full details:', error);
+                                    } finally {
+                                      setLoadingFullDetails(false);
+                                    }
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  <span className="hidden sm:inline">View Details</span>
+                                  <span className="sm:hidden">View</span>
+                                </Button>
+                                {canDelete && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteMRF(mrf.id)}
+                                    className="text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
                   )}
                 </div>
               </CardContent>
@@ -490,6 +571,95 @@ const DepartmentDashboard = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* MRF Details Dialog with Progress Tracker */}
+        <Dialog open={mrfDetailsDialogOpen} onOpenChange={setMrfDetailsDialogOpen}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>MRF Details</DialogTitle>
+              <DialogDescription>
+                {selectedMRFForDetails?.title} - {selectedMRFForDetails?.id}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {loadingFullDetails ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : selectedMRFForDetails && (
+              <div className="space-y-6">
+                {/* MRF Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Request Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Title</p>
+                      <p className="text-sm">{selectedMRFForDetails.title}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Status</p>
+                      <Badge className={getStatusColor(selectedMRFForDetails.status)}>
+                        {selectedMRFForDetails.status}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Category</p>
+                      <p className="text-sm">{selectedMRFForDetails.category || "N/A"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Estimated Cost</p>
+                      <p className="text-sm font-semibold">
+                        ₦{parseFloat(String(selectedMRFForDetails.estimatedCost || selectedMRFForDetails.estimated_cost || 0)).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <p className="text-sm font-medium text-muted-foreground">Description</p>
+                      <p className="text-sm">{selectedMRFForDetails.description || "No description"}</p>
+                    </div>
+                    {selectedMRFForDetails.justification && (
+                      <div className="md:col-span-2">
+                        <p className="text-sm font-medium text-muted-foreground">Justification</p>
+                        <p className="text-sm">{selectedMRFForDetails.justification}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Progress Tracker */}
+                <MRFProgressTracker mrfId={selectedMRFForDetails.id} />
+
+                {/* Timeline/History from full details */}
+                {mrfFullDetails?.timeline && mrfFullDetails.timeline.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Activity Timeline</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {mrfFullDetails.timeline.map((event: any, index: number) => (
+                          <div key={index} className="flex items-start gap-3 text-sm">
+                            <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
+                            <div>
+                              <p className="font-medium">{event.action}</p>
+                              <p className="text-muted-foreground text-xs">
+                                {event.user} • {new Date(event.timestamp).toLocaleString()}
+                              </p>
+                              {event.remarks && (
+                                <p className="text-xs italic mt-1">"{event.remarks}"</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
