@@ -419,9 +419,7 @@ const ExecutiveDashboard = () => {
         </Card>
 
         {/* Recent Activities */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <RecentActivities limit={10} />
-        </div>
+        <RecentActivities limit={10} />
       </div>
       </PullToRefresh>
 

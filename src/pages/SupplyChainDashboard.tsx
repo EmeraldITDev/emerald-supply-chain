@@ -580,7 +580,7 @@ const SupplyChainDashboard = () => {
 
                         {/* View Details Button */}
                         <div className="flex gap-2 pt-2">
-                          <Button
+                          <Button 
                             variant="outline"
                             size="sm"
                             onClick={async () => {
@@ -626,13 +626,7 @@ const SupplyChainDashboard = () => {
         </Card>
 
         {/* Recent Activities */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <RecentActivities limit={10} />
-        </div>
-        {/* Recent Activities */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <RecentActivities limit={10} />
-        </div>
+        <RecentActivities limit={10} />
       </div>
       </PullToRefresh>
 
