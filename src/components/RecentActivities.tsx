@@ -71,15 +71,18 @@ export const RecentActivities = ({ limit = 10 }: RecentActivitiesProps) => {
         if (response.success && response.data) {
           setActivities(response.data.slice(0, limit));
         } else {
-          console.error('Failed to fetch activities:', response.error);
+          // Silently fail if endpoint doesn't exist yet (backend not implemented)
+          console.warn('Recent activities endpoint not available:', response.error);
+          setActivities([]);
         }
-      } catch (error) {
-        console.error('Failed to fetch activities:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load recent activities",
-          variant: "destructive",
-        });
+      } catch (error: any) {
+        // Handle 404 or class not found errors gracefully
+        if (error?.message?.includes('Activity') || error?.message?.includes('404') || error?.message?.includes('not found')) {
+          console.warn('Recent activities endpoint not implemented yet');
+          setActivities([]);
+        } else {
+          console.error('Failed to fetch activities:', error);
+        }
       } finally {
         setLoading(false);
       }

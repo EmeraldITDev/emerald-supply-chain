@@ -25,6 +25,7 @@ import type { MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { SupplyChainActionButtons } from "@/components/SupplyChainActionButtons";
 import { SupplyChainVendorApprovalButtons } from "@/components/SupplyChainVendorApprovalButtons";
+import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 
 const SupplyChainDashboard = () => {
   const { user } = useAuth();
@@ -35,6 +36,7 @@ const SupplyChainDashboard = () => {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [signedPOs, setSignedPOs] = useState<{ [key: string]: File | null }>({});
   const [quotationDetailsDialogOpen, setQuotationDetailsDialogOpen] = useState(false);
+  const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
@@ -364,34 +366,58 @@ const SupplyChainDashboard = () => {
                           </p>
                         </div>
 
-                        {/* View Complete Quotation Details Button */}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={async () => {
-                            setSelectedMRFForDetails(mrf);
-                            setQuotationDetailsDialogOpen(true);
-                            setLoadingFullDetails(true);
-                            try {
-                              const response = await mrfApi.getFullDetails(mrf.id);
-                              if (response.success && response.data) {
-                                setMrfFullDetails(response.data);
-                              } else {
-                                toast.error(response.error || "Failed to load quotation details. Please try again.");
-                                setQuotationDetailsDialogOpen(false);
+                        {/* View Details and Quotation Details Buttons */}
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              setSelectedMRFForDetails(mrf);
+                              setMrfDetailsDialogOpen(true);
+                              setLoadingFullDetails(true);
+                              try {
+                                const response = await mrfApi.getFullDetails(mrf.id);
+                                if (response.success && response.data) {
+                                  setMrfFullDetails(response.data);
+                                }
+                              } catch (error) {
+                                toast.error("Failed to load MRF details");
+                              } finally {
+                                setLoadingFullDetails(false);
                               }
-                            } catch (error: any) {
-                              console.error("Error loading quotation details:", error);
-                              toast.error(error?.message || "Failed to load quotation details. Please try again.");
-                              setQuotationDetailsDialogOpen(false);
-                            } finally {
-                              setLoadingFullDetails(false);
-                            }
-                          }}
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          View Complete Quotation Details
-                        </Button>
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            View Details
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              setSelectedMRFForDetails(mrf);
+                              setQuotationDetailsDialogOpen(true);
+                              setLoadingFullDetails(true);
+                              try {
+                                const response = await mrfApi.getFullDetails(mrf.id);
+                                if (response.success && response.data) {
+                                  setMrfFullDetails(response.data);
+                                } else {
+                                  toast.error(response.error || "Failed to load quotation details. Please try again.");
+                                  setQuotationDetailsDialogOpen(false);
+                                }
+                              } catch (error: any) {
+                                console.error("Error loading quotation details:", error);
+                                toast.error(error?.message || "Failed to load quotation details. Please try again.");
+                                setQuotationDetailsDialogOpen(false);
+                              } finally {
+                                setLoadingFullDetails(false);
+                              }
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            View Quotation Details
+                          </Button>
+                        </div>
 
                         {/* Action Buttons */}
                         <SupplyChainVendorApprovalButtons
@@ -552,6 +578,32 @@ const SupplyChainDashboard = () => {
                           </div>
                         </div>
 
+                        {/* View Details Button */}
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              setSelectedMRFForDetails(mrf);
+                              setMrfDetailsDialogOpen(true);
+                              setLoadingFullDetails(true);
+                              try {
+                                const response = await mrfApi.getFullDetails(mrf.id);
+                                if (response.success && response.data) {
+                                  setMrfFullDetails(response.data);
+                                }
+                              } catch (error) {
+                                toast.error("Failed to load MRF details");
+                              } finally {
+                                setLoadingFullDetails(false);
+                              }
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            View Details
+                          </Button>
+                        </div>
+
                         {/* Upload signed PO - Uses available actions */}
                         <SupplyChainActionButtons
                           mrf={mrf}
@@ -572,6 +624,15 @@ const SupplyChainDashboard = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Recent Activities */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <RecentActivities limit={10} />
+        </div>
+        {/* Recent Activities */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <RecentActivities limit={10} />
+        </div>
       </div>
       </PullToRefresh>
 
@@ -705,6 +766,64 @@ const SupplyChainDashboard = () => {
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <p>No quotation details available</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MRF Details Dialog */}
+      <Dialog open={mrfDetailsDialogOpen} onOpenChange={setMrfDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>MRF Details - {selectedMRFForDetails?.id}</DialogTitle>
+            <DialogDescription>{selectedMRFForDetails?.title}</DialogDescription>
+          </DialogHeader>
+          {loadingFullDetails ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : selectedMRFForDetails && (
+            <div className="space-y-6 mt-4">
+              {/* Progress Tracker */}
+              {mrfFullDetails && (
+                <MRFProgressTracker mrfId={selectedMRFForDetails.id} />
+              )}
+
+              {/* MRF Basic Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">MRF ID</Label>
+                  <p className="font-medium">{selectedMRFForDetails.id}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge>{selectedMRFForDetails.status}</Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Category</Label>
+                  <p className="font-medium">{selectedMRFForDetails.category}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Urgency</Label>
+                  <p className="font-medium">{selectedMRFForDetails.urgency}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Quantity</Label>
+                  <p className="font-medium">{selectedMRFForDetails.quantity}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Estimated Cost</Label>
+                  <p className="font-medium">₦{getEstimatedCost(selectedMRFForDetails).toLocaleString()}</p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Description</Label>
+                  <p className="font-medium">{selectedMRFForDetails.description}</p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Justification</Label>
+                  <p className="font-medium">{selectedMRFForDetails.justification}</p>
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>
