@@ -1690,6 +1690,20 @@ export const dashboardApi = {
   getFinanceDashboard: async (): Promise<ApiResponse<any>> => {
     return apiRequest<any>('/dashboard/finance');
   },
+
+  getRecentActivities: async (role: string): Promise<ApiResponse<Array<{
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    timestamp: string;
+    user?: string;
+    entityId?: string;
+    entityType?: string;
+    status?: string;
+  }>>> => {
+    return apiRequest(`/dashboard/recent-activities?role=${role}`);
+  },
 };
 
 // Notification API

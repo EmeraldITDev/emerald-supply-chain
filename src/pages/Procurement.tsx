@@ -18,6 +18,7 @@ import { RFQManagement } from "@/components/RFQManagement";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
+import { RecentActivities } from "@/components/RecentActivities";
 import type { MRFRequest } from "@/contexts/AppContext";
 import { dashboardApi, mrfApi, grnApi, rfqApi, quotationApi } from "@/services/api";
 import type { VendorRegistration, MRF } from "@/types";
@@ -943,7 +944,7 @@ const Procurement = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Pending PO Upload"
             value={pendingPOUpload}
@@ -989,6 +990,10 @@ const Procurement = () => {
           externalLoading={vendorRegistrationsLoading}
         />
 
+        {/* Recent Activities */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <RecentActivities userRole={user?.role || 'procurement'} maxItems={10} />
+        </div>
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-5 h-auto gap-1">

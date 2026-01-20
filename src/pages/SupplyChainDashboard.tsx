@@ -19,6 +19,7 @@ import { PORejectionDialog } from "@/components/PORejectionDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
+import { RecentActivities } from "@/components/RecentActivities";
 import { mrfApi } from "@/services/api";
 import type { MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";

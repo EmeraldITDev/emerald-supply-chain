@@ -84,6 +84,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   const [selectedMRF, setSelectedMRF] = useState<MRFRequest | null>(null);
   const [enhancedQuotationData, setEnhancedQuotationData] = useState<any | null>(null);
   const [loadingQuotationDetails, setLoadingQuotationDetails] = useState(false);
+  const [rfqDetailsQuotations, setRfqDetailsQuotations] = useState<any[]>([]);
+  const [loadingRfqDetails, setLoadingRfqDetails] = useState(false);
 
   // RFQ Creation form state
   const [selectionMethod, setSelectionMethod] = useState<'all_category' | 'manual' | 'preferred'>('manual');
@@ -532,9 +534,39 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                   <Button 
                     variant="outline"
                     className="flex-1" 
-                    onClick={() => {
+                    onClick={async () => {
                       setSelectedRFQ(rfq);
                       setRfqDetailsDialogOpen(true);
+                      // Fetch fresh quotation data from API
+                      setLoadingRfqDetails(true);
+                      try {
+                        const response = await rfqApi.getQuotations(rfq.id);
+                        if (response.success && response.data?.quotations) {
+                          const formattedQuotations = response.data.quotations.map((item: any) => ({
+                            ...item.quotation,
+                            vendorName: item.vendor?.name || item.vendor?.company_name || 'Unknown Vendor',
+                            vendorId: item.vendor?.id || item.vendor?.vendor_id,
+                            vendorRating: item.vendor?.rating || 0,
+                            vendorOrders: item.vendor?.total_orders || item.vendor?.orders || 0,
+                            vendorEmail: item.vendor?.email,
+                            items: item.items || [],
+                            // Ensure delivery_days and payment_terms are available
+                            deliveryDays: item.quotation?.delivery_days || item.quotation?.deliveryDays,
+                            delivery_days: item.quotation?.delivery_days || item.quotation?.deliveryDays,
+                            payment_terms: item.quotation?.payment_terms || item.quotation?.paymentTerms,
+                            paymentTerms: item.quotation?.payment_terms || item.quotation?.paymentTerms,
+                            status: item.quotation?.status || 'submitted',
+                          }));
+                          setRfqDetailsQuotations(formattedQuotations);
+                        } else {
+                          setRfqDetailsQuotations([]);
+                        }
+                      } catch (error) {
+                        console.error('Failed to fetch RFQ quotations:', error);
+                        setRfqDetailsQuotations([]);
+                      } finally {
+                        setLoadingRfqDetails(false);
+                      }
                     }}
                   >
                     <FileText className="h-4 w-4 mr-2" />
@@ -1155,14 +1187,32 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
             <DialogTitle>RFQ Details - {selectedRFQ?.id}</DialogTitle>
             <DialogDescription>{selectedRFQ?.mrfTitle}</DialogDescription>
           </DialogHeader>
-          {selectedRFQ && (() => {
-            const rfqQuotations = quotations.filter(q => q.rfqId === selectedRFQ.id);
+          {loadingRfqDetails ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="ml-2 text-muted-foreground">Loading RFQ details...</span>
+            </div>
+          ) : selectedRFQ && (() => {
+            // Use fetched quotations from API, fallback to context if empty
+            const rfqQuotations = rfqDetailsQuotations.length > 0 
+              ? rfqDetailsQuotations 
+              : quotations.filter(q => q.rfqId === selectedRFQ.id);
+            
             // Get delivery days and payment terms from quotations (not RFQ)
             const firstQuotation = rfqQuotations.length > 0 ? rfqQuotations[0] : null;
             const deliveryDays = firstQuotation?.deliveryDays || firstQuotation?.delivery_days || null;
             const paymentTerms = firstQuotation?.payment_terms || firstQuotation?.paymentTerms || null;
-            // Get RFQ sent/dispatched timestamp
-            const sentAt = selectedRFQ.created_at || selectedRFQ.createdAt || selectedRFQ.created_date || null;
+            
+            // Get RFQ sent/dispatched timestamp - check multiple possible fields
+            const sentAt = selectedRFQ.createdDate || 
+                          selectedRFQ.created_at || 
+                          selectedRFQ.createdAt || 
+                          selectedRFQ.created_date || 
+                          selectedRFQ.dispatched_at ||
+                          selectedRFQ.dispatchedAt ||
+                          selectedRFQ.sent_at ||
+                          selectedRFQ.sentAt ||
+                          null;
             
             return (
               <div className="space-y-6 mt-4">
@@ -1201,7 +1251,15 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                   <div>
                     <Label className="text-muted-foreground">Sent At</Label>
                     <p className="font-medium">
-                      {sentAt ? new Date(sentAt).toLocaleString() : 'N/A'}
+                      {sentAt 
+                        ? new Date(sentAt).toLocaleString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })
+                        : 'N/A'}
                     </p>
                   </div>
                   <div>
@@ -1221,9 +1279,15 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                     <div>
                       <Label className="text-muted-foreground">Delivery Days</Label>
                       <p className="font-medium">
-                        {deliveryDays !== null ? `${deliveryDays} days` : rfqQuotations.length > 0 ? 'See individual quotations' : 'N/A'}
+                        {deliveryDays !== null && deliveryDays !== undefined 
+                          ? `${deliveryDays} days` 
+                          : loadingRfqDetails
+                            ? 'Loading...'
+                            : rfqQuotations.length > 0 
+                              ? `See individual quotations (${rfqQuotations.length} received)` 
+                              : 'No quotations received yet'}
                       </p>
-                      {rfqQuotations.length > 1 && (
+                      {rfqQuotations.length > 1 && deliveryDays !== null && (
                         <p className="text-xs text-muted-foreground mt-1">
                           {rfqQuotations.length} quotations received with varying delivery timelines
                         </p>
@@ -1232,9 +1296,15 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                     <div>
                       <Label className="text-muted-foreground">Payment Terms</Label>
                       <p className="font-medium">
-                        {paymentTerms || (rfqQuotations.length > 0 ? 'See individual quotations' : 'N/A')}
+                        {paymentTerms && paymentTerms.trim() !== '' 
+                          ? paymentTerms 
+                          : loadingRfqDetails
+                            ? 'Loading...'
+                            : rfqQuotations.length > 0 
+                              ? `See individual quotations (${rfqQuotations.length} received)` 
+                              : 'No quotations received yet'}
                       </p>
-                      {rfqQuotations.length > 1 && (
+                      {rfqQuotations.length > 1 && paymentTerms && (
                         <p className="text-xs text-muted-foreground mt-1">
                           Terms vary by quotation
                         </p>
