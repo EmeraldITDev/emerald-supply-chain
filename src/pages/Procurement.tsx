@@ -282,6 +282,31 @@ const Procurement = () => {
     return (mrf.workflow_state || mrf.workflowState || "").toLowerCase();
   };
 
+  // Helper to check if Supply Chain Director has approved vendor selection
+  const isSupplyChainApproved = (mrf: MRF): boolean => {
+    const workflowState = getWorkflowState(mrf);
+      const status = (mrf.status || "").toLowerCase();
+    
+    // Check if workflow state indicates SCD approval
+    if (workflowState === "pending_po_upload" || workflowState === "vendor_approved") {
+      return true;
+    }
+    
+    // Check status for SCD approval indicators
+    if (status.includes("vendor approved") || status.includes("supply chain approved") || status.includes("pending po upload")) {
+      return true;
+    }
+    
+    // Check approval history for Supply Chain Director approval
+    const approvalHistory = mrf.approval_history || mrf.approvalHistory || [];
+    const hasSCDApproval = approvalHistory.some((entry: any) => 
+      entry.action === "approved" && 
+      (entry.role === "supply_chain" || entry.approved_by_role === "supply_chain" || entry.stage === "supply_chain")
+    );
+    
+    return hasSCDApproval;
+  };
+
   // Helper to check if MRF is Executive-approved
   const isExecutiveApproved = (mrf: MRF): boolean => {
     // Check explicit approval flag (set by backend after executive approval)
@@ -1392,65 +1417,115 @@ const Procurement = () => {
                                               {(quotation.deliveryDate || quotation.delivery_date) && ` • Delivery: ${new Date(quotation.deliveryDate || quotation.delivery_date).toLocaleDateString()}`}
                                             </p>
                                           </div>
-                                          <Button
-                                            size="sm"
-                                            variant="default"
-                                            className="text-xs"
-                                            onClick={async (e) => {
-                                              e.stopPropagation();
-                                              // Select quotation and send to Supply Chain Director
-                                              try {
-                                                // First select vendor in RFQ
-                                                const selectResponse = await rfqApi.selectVendor(rfq.id, quotation.id);
-                                                if (selectResponse.success) {
-                                                  // Then send to Supply Chain Director
-                                                  const sendResponse = await mrfApi.sendVendorForApproval(
-                                                    request.id,
-                                                    quotation.vendorId || quotation.vendor_id,
-                                                    quotation.id
-                                                  );
-                                                  if (sendResponse.success) {
-                                                    toast({
-                                                      title: "Quotation Selected",
-                                                      description: "Vendor quotation has been selected and sent to Supply Chain Director for approval.",
-                                                    });
-                                                    await fetchMRFs();
-                                                    await fetchRFQs();
-                                                    await fetchQuotations();
-                                                  } else {
-                                                    // Enhanced error handling
-                                                    let errorMessage = sendResponse.error || "Failed to send quotation for approval";
-                                                    
-                                                    if (errorMessage.includes("workflow state") || errorMessage.includes("not in")) {
-                                                      errorMessage = "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
-                                                    } else if (errorMessage.includes("executive approval")) {
-                                                      errorMessage = "Executive approval is required before sending vendor for Supply Chain Director approval.";
+                                          {(() => {
+                                            // Check if Supply Chain Director has approved
+                                            const scdApproved = isSupplyChainApproved(request as MRF);
+                                            
+                                            if (scdApproved) {
+                                              // Show "Generate PO" button after SCD approval
+                                              return (
+                                                <Button
+                                                  size="sm"
+                                                  variant="default"
+                                                  className="text-xs"
+                                                  onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    // Automatically generate PO and forward to Finance
+                                                    try {
+                                                      // Generate PO automatically
+                                                      const poResponse = await mrfApi.generatePO(request.id, '');
+                                                      if (poResponse.success) {
+                                                        toast({
+                                                          title: "PO Generated",
+                                                          description: "Purchase Order has been generated and forwarded to Finance for review.",
+                                                        });
+                                                        await fetchMRFs();
+                                                        await fetchRFQs();
+                                                        await fetchQuotations();
+                                                      } else {
+                                                        toast({
+                                                          title: "Error",
+                                                          description: poResponse.error || "Failed to generate PO",
+                                                          variant: "destructive",
+                                                        });
+                                                      }
+                                                    } catch (error) {
+                                                      toast({
+                                                        title: "Error",
+                                                        description: "Failed to generate PO",
+                                                        variant: "destructive",
+                                                      });
                                                     }
-                                                    
-                                                    toast({
-                                                      title: "Approval Request Failed",
-                                                      description: errorMessage,
-                                                      variant: "destructive",
-                                                    });
-                                                  }
-                                                } else {
-                                                  toast({
-                                                    title: "Error",
-                                                    description: selectResponse.error || "Failed to select quotation",
-                                                    variant: "destructive",
-                                                  });
-                                                }
-                                              } catch (error) {
-                                                toast({
-                                                  title: "Error",
-                                                  description: "Failed to process quotation selection",
-                                                  variant: "destructive",
-                                                });
-                                              }
-                                            }}
-                                          >
-                                            Select & Send for Approval
-                                          </Button>
+                                                  }}
+                                                >
+                                                  Generate PO
+                                                </Button>
+                                              );
+                                            } else {
+                                              // Show "Select & Send for Approval" button before SCD approval
+                                              return (
+                                                <Button
+                                                  size="sm"
+                                                  variant="default"
+                                                  className="text-xs"
+                                                  onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    // Select quotation and send to Supply Chain Director
+                                                    try {
+                                                      // First select vendor in RFQ
+                                                      const selectResponse = await rfqApi.selectVendor(rfq.id, quotation.id);
+                                                      if (selectResponse.success) {
+                                                        // Then send to Supply Chain Director
+                                                        const sendResponse = await mrfApi.sendVendorForApproval(
+                                                          request.id,
+                                                          quotation.vendorId || quotation.vendor_id,
+                                                          quotation.id
+                                                        );
+                                                        if (sendResponse.success) {
+                                                          toast({
+                                                            title: "Quotation Selected",
+                                                            description: "Vendor quotation has been selected and sent to Supply Chain Director for approval.",
+                                                          });
+                                                          await fetchMRFs();
+                                                          await fetchRFQs();
+                                                          await fetchQuotations();
+                                                        } else {
+                                                          // Enhanced error handling
+                                                          let errorMessage = sendResponse.error || "Failed to send quotation for approval";
+                                                          
+                                                          if (errorMessage.includes("workflow state") || errorMessage.includes("not in")) {
+                                                            errorMessage = "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
+                                                          } else if (errorMessage.includes("executive approval")) {
+                                                            errorMessage = "Executive approval is required before sending vendor for Supply Chain Director approval.";
+                                                          }
+                                                          
+                                                          toast({
+                                                            title: "Approval Request Failed",
+                                                            description: errorMessage,
+                                                            variant: "destructive",
+                                                          });
+                                                        }
+                                                      } else {
+                                                        toast({
+                                                          title: "Error",
+                                                          description: selectResponse.error || "Failed to select quotation",
+                                                          variant: "destructive",
+                                                        });
+                                                      }
+                                                    } catch (error) {
+                                                      toast({
+                                                        title: "Error",
+                                                        description: "Failed to process quotation selection",
+                                                        variant: "destructive",
+                                                      });
+                                                    }
+                                                  }}
+                                                >
+                                                  Select & Send for Approval
+                                                </Button>
+                                              );
+                                            }
+                                          })()}
                                         </div>
                                       ))}
                                     </div>
@@ -1700,30 +1775,46 @@ const Procurement = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {filteredPOs.map((po) => (
-                    <div
-                      key={po.id}
-                      className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                          <ShoppingCart className="h-6 w-6 text-primary" />
+                  {mrfRequests.filter(mrf => {
+                    // Show MRFs that have PO numbers (POs have been generated)
+                    return getMRFPONumber(mrf as MRF);
+                  }).map((mrf) => {
+                    const poNumber = getMRFPONumber(mrf as MRF);
+                    const vendorName = (mrf as any).selectedVendorName || (mrf as any).vendor_name || 'N/A';
+                    const quotation = getQuotationsForMRF(mrf.id).find((q: any) => q.status === 'Approved' || q.status === 'approved');
+                    const amount = quotation ? (quotation.total_amount || quotation.totalAmount || quotation.price || '0') : getMRFEstimatedCost(mrf as MRF);
+                    
+                    return (
+                      <div
+                        key={mrf.id}
+                        className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                            <ShoppingCart className="h-6 w-6 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-lg">{mrf.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              PO: {poNumber} • {mrf.id} • {vendorName} • {formatMRFDate(getMRFDate(mrf as MRF))}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Amount: ₦{parseFloat(amount).toLocaleString()} • Status: {mrf.status}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-lg">{po.items}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {po.id} • {po.vendor} • {po.date}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Delivery: {po.deliveryDate} • {po.amount}
-                          </p>
-                        </div>
+                        <Badge className={getStatusColor(mrf.status)}>
+                          {mrf.status}
+                        </Badge>
                       </div>
-                      <Badge className={getStatusColor(po.status)}>
-                        {po.status}
-                      </Badge>
+                    );
+                  })}
+                  {mrfRequests.filter(mrf => getMRFPONumber(mrf as MRF)).length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No purchase orders generated yet</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
