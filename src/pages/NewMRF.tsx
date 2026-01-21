@@ -45,10 +45,21 @@ const NewMRF = () => {
     urgency: "",
     justification: "",
     contractType: "",
+    department: "",
   });
   const [pfiFile, setPfiFile] = useState<File | null>(null);
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [invoiceOneDriveUrl, setInvoiceOneDriveUrl] = useState<string>("");
+
+  useEffect(() => {
+    // Initialize department from user's department if available
+    if (user?.department) {
+      setFormData(prev => ({
+        ...prev,
+        department: user.department || "",
+      }));
+    }
+  }, [user]);
 
   useEffect(() => {
     if (rejectedMRF) {
@@ -61,9 +72,10 @@ const NewMRF = () => {
         urgency: rejectedMRF.urgency,
         justification: rejectedMRF.justification,
         contractType: (rejectedMRF as any).contractType || "",
+        department: rejectedMRF.department || user?.department || "",
       });
     }
-  }, [rejectedMRF]);
+  }, [rejectedMRF, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +115,7 @@ const NewMRF = () => {
           urgency: urgencyValue,
           justification: formData.justification,
           contractType: formData.contractType,
+          department: formData.department || user?.department || "",
         };
         // Include estimatedCost - use 0 if not provided (backend expects a number)
         updatePayload.estimatedCost = formData.estimatedCost && formData.estimatedCost.trim() !== '' 

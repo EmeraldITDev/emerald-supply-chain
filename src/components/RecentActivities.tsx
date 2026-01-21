@@ -67,9 +67,10 @@ export const RecentActivities = ({ limit = 10 }: RecentActivitiesProps) => {
     const fetchActivities = async () => {
       setLoading(true);
       try {
-        const response = await dashboardApi.getRecentActivities(user?.role || 'employee');
+        // Pass limit parameter - endpoint automatically filters by authenticated user's role
+        const response = await dashboardApi.getRecentActivities(limit);
         if (response.success && response.data) {
-          setActivities(response.data.slice(0, limit));
+          setActivities(response.data);
         } else {
           // Silently fail if endpoint doesn't exist yet (backend not implemented)
           console.warn('Recent activities endpoint not available:', response.error);
@@ -88,13 +89,16 @@ export const RecentActivities = ({ limit = 10 }: RecentActivitiesProps) => {
       }
     };
 
-    if (user?.role) {
+    // Only fetch if user is authenticated (token will be used automatically)
+    if (user) {
       fetchActivities();
       // Refresh every 30 seconds
       const interval = setInterval(fetchActivities, 30000);
       return () => clearInterval(interval);
+    } else {
+      setLoading(false);
     }
-  }, [user?.role, limit, toast]);
+  }, [user, limit]);
 
   if (loading) {
     return (

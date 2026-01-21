@@ -1691,7 +1691,7 @@ export const dashboardApi = {
     return apiRequest<any>('/dashboard/finance');
   },
 
-  getRecentActivities: async (role: string): Promise<ApiResponse<Array<{
+  getRecentActivities: async (limit: number = 20): Promise<ApiResponse<Array<{
     id: string;
     type: string;
     title: string;
@@ -1702,7 +1702,9 @@ export const dashboardApi = {
     entityType?: string;
     status?: string;
   }>>> => {
-    return apiRequest(`/dashboard/recent-activities?role=${role}`);
+    // The endpoint automatically determines activities based on authenticated user's role
+    // No role parameter needed - backend handles filtering automatically
+    return apiRequest(`/dashboard/recent-activities?limit=${limit}`);
   },
 };
 
