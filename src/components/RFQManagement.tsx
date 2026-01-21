@@ -34,7 +34,7 @@ interface RFQManagementProps {
 
 export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   const { toast } = useToast();
-  const { mrfRequests, rfqs, quotations } = useApp();
+  const { mrfRequests, rfqs, quotations, refreshRFQs, refreshQuotations } = useApp();
   
   // Fetch vendors from API instead of context
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -308,6 +308,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     setDeadline('');
     setSelectionMethod('manual');
     setSelectedCategory('');
+    
+    // Refresh RFQs after creation
+    await refreshRFQs();
       } else {
         toast({
           title: "Error",
@@ -1432,9 +1435,31 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                             title: "Quotation Closed",
                                             description: "The quotation has been closed.",
                                           });
-                                          // Refresh quotations
-                                          // Refresh RFQ details to update quotations
-                                          await rfqApi.getQuotations(selectedRFQ.id);
+                                          // Refresh quotations from context
+                                          await refreshQuotations();
+                                          // Re-fetch RFQ details to update quotations list
+                                          const rfqDetailsResponse = await rfqApi.getById(selectedRFQ.id);
+                                          if (rfqDetailsResponse.success && rfqDetailsResponse.data) {
+                                            setRfqDetailsData(rfqDetailsResponse.data);
+                                          }
+                                          const quotationsResponse = await rfqApi.getQuotations(selectedRFQ.id);
+                                          if (quotationsResponse.success && quotationsResponse.data?.quotations) {
+                                            const formattedQuotations = quotationsResponse.data.quotations.map((item: any) => ({
+                                              ...item.quotation,
+                                              vendorName: item.vendor?.name || item.vendor?.company_name || 'Unknown Vendor',
+                                              vendorId: item.vendor?.id || item.vendor?.vendor_id,
+                                              vendorRating: item.vendor?.rating || 0,
+                                              vendorOrders: item.vendor?.total_orders || item.vendor?.orders || 0,
+                                              vendorEmail: item.vendor?.email,
+                                              items: item.items || [],
+                                              deliveryDays: item.quotation?.delivery_days || item.quotation?.deliveryDays,
+                                              delivery_days: item.quotation?.delivery_days || item.quotation?.deliveryDays,
+                                              payment_terms: item.quotation?.payment_terms || item.quotation?.paymentTerms || item.quotation?.payment_terms_text,
+                                              paymentTerms: item.quotation?.payment_terms || item.quotation?.paymentTerms || item.quotation?.payment_terms_text,
+                                              status: item.quotation?.status || 'submitted',
+                                            }));
+                                            setRfqDetailsQuotations(formattedQuotations);
+                                          }
                                         } else {
                                           toast({
                                             title: "Error",
@@ -1466,9 +1491,31 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                             title: "Quotation Reopened",
                                             description: "The quotation has been reopened.",
                                           });
-                                          // Refresh quotations
-                                          // Refresh RFQ details to update quotations
-                                          await rfqApi.getQuotations(selectedRFQ.id);
+                                          // Refresh quotations from context
+                                          await refreshQuotations();
+                                          // Re-fetch RFQ details to update quotations list
+                                          const rfqDetailsResponse = await rfqApi.getById(selectedRFQ.id);
+                                          if (rfqDetailsResponse.success && rfqDetailsResponse.data) {
+                                            setRfqDetailsData(rfqDetailsResponse.data);
+                                          }
+                                          const quotationsResponse = await rfqApi.getQuotations(selectedRFQ.id);
+                                          if (quotationsResponse.success && quotationsResponse.data?.quotations) {
+                                            const formattedQuotations = quotationsResponse.data.quotations.map((item: any) => ({
+                                              ...item.quotation,
+                                              vendorName: item.vendor?.name || item.vendor?.company_name || 'Unknown Vendor',
+                                              vendorId: item.vendor?.id || item.vendor?.vendor_id,
+                                              vendorRating: item.vendor?.rating || 0,
+                                              vendorOrders: item.vendor?.total_orders || item.vendor?.orders || 0,
+                                              vendorEmail: item.vendor?.email,
+                                              items: item.items || [],
+                                              deliveryDays: item.quotation?.delivery_days || item.quotation?.deliveryDays,
+                                              delivery_days: item.quotation?.delivery_days || item.quotation?.deliveryDays,
+                                              payment_terms: item.quotation?.payment_terms || item.quotation?.paymentTerms || item.quotation?.payment_terms_text,
+                                              paymentTerms: item.quotation?.payment_terms || item.quotation?.paymentTerms || item.quotation?.payment_terms_text,
+                                              status: item.quotation?.status || 'submitted',
+                                            }));
+                                            setRfqDetailsQuotations(formattedQuotations);
+                                          }
                                         } else {
                                           toast({
                                             title: "Error",

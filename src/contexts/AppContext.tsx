@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { mrfApi, srfApi, rfqApi } from "@/services/api";
+import { mrfApi, srfApi, rfqApi, quotationApi } from "@/services/api";
 import type { MRF, SRF, RFQ as RFQType } from "@/types";
 
 // Types
@@ -318,6 +318,7 @@ interface AppContextType {
   refreshMRFs: () => Promise<void>;
   refreshSRFs: () => Promise<void>;
   refreshRFQs: () => Promise<void>;
+  refreshQuotations: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -407,12 +408,41 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           deadline: rfq.deadline,
           status: rfq.status as "Open" | "Closed" | "Awarded",
           createdDate: rfq.created_at || rfq.createdAt || "",
-          vendorIds: [], // Will be populated from relationships if needed
+          // Get vendorIds from API response instead of hardcoding []
+          vendorIds: rfq.vendor_ids || rfq.vendorIds || rfq.vendors?.map((v: any) => v.id || v.vendor_id) || [],
         }));
         setRfqsState(converted);
       }
     } catch (error) {
       console.error("Failed to fetch RFQs:", error);
+    }
+  };
+
+  // Fetch Quotations from API
+  const refreshQuotations = async () => {
+    try {
+      const response = await quotationApi.getAll();
+      if (response.success && response.data) {
+        // Convert API Quotation type to AppContext Quotation type
+        const converted = response.data.map((q: any) => ({
+          id: q.id,
+          rfqId: q.rfq_id || q.rfqId || "",
+          vendorId: q.vendor_id || q.vendorId || "",
+          vendorName: q.vendor?.name || q.vendor?.company_name || q.vendor_name || "Unknown Vendor",
+          price: String(q.price || q.total_amount || q.amount || "0"),
+          deliveryDate: q.delivery_date || q.deliveryDate || "",
+          notes: q.notes || "",
+          status: (q.status || "Pending") as "Pending" | "Approved" | "Rejected",
+          submittedDate: q.submitted_date || q.submittedDate || q.created_at || q.createdAt || "",
+          documentUrl: q.document_url || q.documentUrl,
+          // Include additional fields for statistics
+          deliveryDays: q.delivery_days || q.deliveryDays,
+          paymentTerms: q.payment_terms || q.paymentTerms || q.payment_terms_text,
+        }));
+        setQuotationsState(converted);
+      }
+    } catch (error) {
+      console.error("Failed to fetch quotations:", error);
     }
   };
 
@@ -424,6 +454,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         refreshMRFs(),
         refreshSRFs(),
         refreshRFQs(),
+        refreshQuotations(),
       ]);
       setLoading(false);
     };
@@ -1150,6 +1181,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         refreshMRFs,
         refreshSRFs,
         refreshRFQs,
+        refreshQuotations,
       }}
     >
       {children}
