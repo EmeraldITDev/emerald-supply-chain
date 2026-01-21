@@ -98,6 +98,40 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   const [technicalReqs, setTechnicalReqs] = useState('');
   const [minRating, setMinRating] = useState(0);
 
+  /**
+   * Safely extracts delivery days from a quotation object
+   * Prioritizes explicit delivery_days value, only calculates from date if needed
+   */
+  const getDeliveryDays = (q: any): number | null => {
+    // First, try to get explicit delivery_days value
+    if (q.delivery_days !== null && q.delivery_days !== undefined && q.delivery_days !== '') {
+      const days = Number(q.delivery_days);
+      if (!isNaN(days)) return Math.round(days);
+    }
+    
+    // Try camelCase variant
+    if (q.deliveryDays !== null && q.deliveryDays !== undefined && q.deliveryDays !== '') {
+      const days = Number(q.deliveryDays);
+      if (!isNaN(days)) return Math.round(days);
+    }
+    
+    // Only calculate from delivery_date if delivery_days is truly missing
+    if (q.delivery_date || q.deliveryDate) {
+      try {
+        const deliveryDate = new Date(q.delivery_date || q.deliveryDate);
+        const now = new Date();
+        const diffMs = deliveryDate.getTime() - now.getTime();
+        const calculatedDays = diffMs / (1000 * 60 * 60 * 24);
+        return Math.ceil(calculatedDays);
+      } catch (e) {
+        console.error('Error calculating delivery days:', e);
+        return null;
+      }
+    }
+    
+    return null;
+  };
+
   // Get approved MRFs that don't have an active RFQ
   const eligibleMRFs = useMemo(() => {
     const rfqMrfIds = rfqs.map(r => r.mrfId);
@@ -157,9 +191,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       return enhancedQuotationData.quotations.map((item: any) => {
         const q = item.quotation;
         const vendor = item.vendor;
-        const deliveryDays = q.delivery_days || Math.ceil(
-          (new Date(q.delivery_date || q.deliveryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-        );
+        const deliveryDays = getDeliveryDays(q);
         
         return {
           ...q,
@@ -183,15 +215,14 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       .filter(q => q.rfqId === selectedRFQ.id)
       .map(q => {
         const vendor = vendors.find(v => v.id === q.vendorId);
-        const deliveryDays = Math.ceil(
-          (new Date(q.deliveryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-        );
+        const deliveryDays = getDeliveryDays(q);
         
         return {
           ...q,
           vendorRating: vendor?.rating || 0,
           vendorOrders: vendor?.orders || 0,
           deliveryDays,
+          delivery_days: deliveryDays,
           // Ensure payment_terms is included
           payment_terms: (q as any).payment_terms || (q as any).paymentTerms || (q as any).payment_terms_text || '',
           paymentTerms: (q as any).payment_terms || (q as any).paymentTerms || (q as any).payment_terms_text || '',
@@ -643,17 +674,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                             const q = item.quotation || item;
                             const vendor = item.vendor || q.vendor || {};
                             
-                            // Calculate delivery days if not provided
-                            let deliveryDays = q.delivery_days ?? q.deliveryDays;
-                            if (!deliveryDays && (q.delivery_date || q.deliveryDate)) {
-                              try {
-                                const deliveryDate = new Date(q.delivery_date || q.deliveryDate);
-                                const now = new Date();
-                                deliveryDays = Math.ceil((deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                              } catch (e) {
-                                console.error('Error calculating delivery days:', e);
-                              }
-                            }
+                            // Calculate delivery days using helper function
+                            const deliveryDays = getDeliveryDays(q);
                             
                             // Extract payment terms from all possible fields
                             const paymentTerms = q.payment_terms ?? 
@@ -1064,7 +1086,13 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                               </div>
                               <div>
                                 <p className="text-sm text-muted-foreground">Delivery</p>
-                                <p className="text-xl font-bold">{quote.deliveryDays} days</p>
+                                <p className="text-xl font-bold">
+                                  {quote.deliveryDays !== null && quote.deliveryDays !== undefined
+                                    ? `${Math.round(quote.deliveryDays)} days`
+                                    : quote.delivery_days !== null && quote.delivery_days !== undefined
+                                      ? `${Math.round(quote.delivery_days)} days`
+                                      : 'N/A'}
+                                </p>
                               </div>
                               <div>
                                 <p className="text-sm text-muted-foreground">Valid Until</p>
@@ -1196,7 +1224,13 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Delivery Days</Label>
-                  <p className="font-medium">{selectedQuotation.deliveryDays || selectedQuotation.delivery_days || 'N/A'} days</p>
+                  <p className="font-medium">
+                    {selectedQuotation.deliveryDays !== null && selectedQuotation.deliveryDays !== undefined
+                      ? `${Math.round(selectedQuotation.deliveryDays)} days`
+                      : selectedQuotation.delivery_days !== null && selectedQuotation.delivery_days !== undefined
+                        ? `${Math.round(selectedQuotation.delivery_days)} days`
+                        : 'N/A'}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Delivery Date</Label>
@@ -1434,7 +1468,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                       <Label className="text-muted-foreground">Delivery Days</Label>
                       <p className="font-medium">
                         {deliveryDays !== null && deliveryDays !== undefined 
-                          ? `${deliveryDays} days` 
+                          ? `${Math.round(deliveryDays)} days` 
                           : loadingRfqDetails
                             ? 'Loading...'
                             : rfqQuotations.length > 0 
@@ -1490,7 +1524,13 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Delivery Days</p>
-                                    <p className="font-medium">{quotation.deliveryDays || quotation.delivery_days || 'N/A'} days</p>
+                                    <p className="font-medium">
+                                      {quotation.deliveryDays !== null && quotation.deliveryDays !== undefined
+                                        ? `${Math.round(quotation.deliveryDays)} days`
+                                        : quotation.delivery_days !== null && quotation.delivery_days !== undefined
+                                          ? `${Math.round(quotation.delivery_days)} days`
+                                          : 'N/A'}
+                                    </p>
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Payment Terms</p>
@@ -1537,16 +1577,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                               const q = item.quotation || item;
                                               const vendor = item.vendor || q.vendor || {};
                                               
-                                              let deliveryDays = q.delivery_days ?? q.deliveryDays;
-                                              if (!deliveryDays && (q.delivery_date || q.deliveryDate)) {
-                                                try {
-                                                  const deliveryDate = new Date(q.delivery_date || q.deliveryDate);
-                                                  const now = new Date();
-                                                  deliveryDays = Math.ceil((deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                                                } catch (e) {
-                                                  console.error('Error calculating delivery days:', e);
-                                                }
-                                              }
+                                              // Calculate delivery days using helper function
+                                              const deliveryDays = getDeliveryDays(q);
                                               
                                               const paymentTerms = q.payment_terms ?? 
                                                                   q.paymentTerms ?? 
@@ -1630,16 +1662,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                               const q = item.quotation || item;
                                               const vendor = item.vendor || q.vendor || {};
                                               
-                                              let deliveryDays = q.delivery_days ?? q.deliveryDays;
-                                              if (!deliveryDays && (q.delivery_date || q.deliveryDate)) {
-                                                try {
-                                                  const deliveryDate = new Date(q.delivery_date || q.deliveryDate);
-                                                  const now = new Date();
-                                                  deliveryDays = Math.ceil((deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                                                } catch (e) {
-                                                  console.error('Error calculating delivery days:', e);
-                                                }
-                                              }
+                                              // Calculate delivery days using helper function
+                                              const deliveryDays = getDeliveryDays(q);
                                               
                                               const paymentTerms = q.payment_terms ?? 
                                                                   q.paymentTerms ?? 
