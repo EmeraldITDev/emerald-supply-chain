@@ -170,10 +170,10 @@ const Procurement = () => {
 
   // Helper to check if MRF has an RFQ
   const getRFQForMRF = (mrfId: string) => {
-    return rfqs.find(rfq => rfq.mrfId === mrfId || rfq.mrf_id === mrfId);
+    // Get the first RFQ for this MRF
+    return rfqs.find(rfq => rfq.mrfId === mrfId || rfq.mrf_id === mrfId) || null;
   };
 
-  // Helper to get quotations for an MRF
   const getQuotationsForMRF = (mrfId: string) => {
     // Get all RFQs for this MRF (in case there are multiple)
     const mrfRfqs = rfqs.filter(rfq => rfq.mrfId === mrfId || rfq.mrf_id === mrfId);
@@ -1463,9 +1463,70 @@ const Procurement = () => {
                                                         const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
                                                         const poNumber = `PO-${year}-${month}${day}-${random}`;
 
+                                                        // Get approved quotation with items
+                                                        const mrfQuotations = getQuotationsForMRF(request.id);
+                                                        const approvedQuotation = mrfQuotations.find((q: any) => 
+                                                          q.status === 'Approved' || q.status === 'approved' || q.status === 'awarded'
+                                                        );
+                                                        
+                                                        // Fetch quotation details with items from API
+                                                        let quotationItems: any[] = [];
+                                                        if (approvedQuotation) {
+                                                          const rfq = getRFQForMRF(request.id);
+                                                          if (rfq) {
+                                                            try {
+                                                              const quotationResponse = await rfqApi.getQuotations(rfq.id);
+                                                              if (quotationResponse.success && quotationResponse.data?.quotations) {
+                                                                // Find the approved quotation in the response
+                                                                const fullQuotation = quotationResponse.data.quotations.find(
+                                                                  (item: any) => 
+                                                                    item.quotation?.id === approvedQuotation.id || 
+                                                                    item.quotation?.id === approvedQuotation.quotationId ||
+                                                                    (item.quotation && approvedQuotation.id && item.quotation.id === approvedQuotation.id)
+                                                                );
+                                                                
+                                                                // Extract items from the quotation
+                                                                if (fullQuotation) {
+                                                                  if (fullQuotation.items && Array.isArray(fullQuotation.items) && fullQuotation.items.length > 0) {
+                                                                    quotationItems = fullQuotation.items;
+                                                                  } else if (fullQuotation.quotation?.items && Array.isArray(fullQuotation.quotation.items) && fullQuotation.quotation.items.length > 0) {
+                                                                    quotationItems = fullQuotation.quotation.items;
+                                                                  }
+                                                                }
+                                                                
+                                                                // If still no items, try to get from context quotation (cast to any to access items)
+                                                                const quotationWithItems = approvedQuotation as any;
+                                                                if (quotationItems.length === 0 && quotationWithItems.items && Array.isArray(quotationWithItems.items)) {
+                                                                  quotationItems = quotationWithItems.items;
+                                                                }
+                                                              }
+                                                            } catch (error) {
+                                                              console.warn('Failed to fetch quotation items:', error);
+                                                              // Fallback to items from context if available
+                                                              const quotationWithItems = approvedQuotation as any;
+                                                              if (quotationWithItems.items && Array.isArray(quotationWithItems.items)) {
+                                                                quotationItems = quotationWithItems.items;
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                        
+                                                        // Log items for debugging
+                                                        if (quotationItems.length === 0) {
+                                                          console.warn('No items found for quotation:', {
+                                                            quotationId: approvedQuotation?.id,
+                                                            rfqId: rfq?.id,
+                                                            mrfId: request.id,
+                                                            approvedQuotation: approvedQuotation,
+                                                          });
+                                                        } else {
+                                                          console.log('Found quotation items:', quotationItems.length, quotationItems);
+                                                        }
+
                                                         // Create PO record - no document generation, just create the PO and move to Purchase Orders
                                                         // Backend will create the PO record with the PO number and update workflow state
-                                                        const poResponse = await mrfApi.generatePO(request.id, poNumber);
+                                                        // Include items if available
+                                                        const poResponse = await mrfApi.generatePO(request.id, poNumber, undefined, quotationItems);
                                                         if (poResponse.success) {
                                                           toast({
                                                             title: "PO Created",
@@ -1865,7 +1926,7 @@ const Procurement = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => {
-                                setSelectedMRFForPODetails(mrf);
+                                setSelectedMRFForPODetails(mrf as unknown as MRFRequest);
                                 setPODetailsDialogOpen(true);
                               }}
                             >

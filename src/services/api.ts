@@ -587,7 +587,7 @@ export const mrfApi = {
   },
 
   // Procurement Manager generates PO
-  generatePO: async (id: string, poNumber: string, poFile?: File): Promise<ApiResponse<MRF>> => {
+  generatePO: async (id: string, poNumber: string, poFile?: File, items?: any[]): Promise<ApiResponse<MRF>> => {
     const { token, expired } = getAuthToken();
     
     if (expired || !token) {
@@ -637,7 +637,7 @@ export const mrfApi = {
 
       try {
         const response = await fetch(`${API_BASE_URL}/mrfs/${id}/generate-po`, {
-          method: 'POST',
+      method: 'POST',
           headers,
           body: formData,
         });
@@ -725,7 +725,21 @@ export const mrfApi = {
       try {
         // First try: Send as JSON (preferred)
         headers['Content-Type'] = 'application/json';
-        const requestBody = { po_number: poNumber };
+        const requestBody: any = { po_number: poNumber };
+        
+        // Include items if provided
+        if (items && items.length > 0) {
+          requestBody.items = items.map(item => ({
+            item_name: item.item_name || item.name,
+            description: item.description || '',
+            quantity: item.quantity || 0,
+            unit: item.unit || 'pcs',
+            unit_price: item.unit_price || item.unitPrice || 0,
+            total_price: item.total_price || item.totalPrice || (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
+            ...(item.rfq_item_id && { rfq_item_id: item.rfq_item_id }),
+            ...(item.specifications && { specifications: item.specifications }),
+          }));
+        }
         
         let response = await fetch(`${API_BASE_URL}/mrfs/${id}/generate-po`, {
           method: 'POST',
@@ -738,6 +752,21 @@ export const mrfApi = {
           console.log('JSON request failed with 400, trying FormData format...');
           const formData = new FormData();
           formData.append('po_number', poNumber);
+          
+          // Include items if provided
+          if (items && items.length > 0) {
+            items.forEach((item, index) => {
+              formData.append(`items[${index}][item_name]`, item.item_name || item.name || '');
+              formData.append(`items[${index}][description]`, item.description || '');
+              formData.append(`items[${index}][quantity]`, String(item.quantity || 0));
+              formData.append(`items[${index}][unit]`, item.unit || 'pcs');
+              formData.append(`items[${index}][unit_price]`, String(item.unit_price || item.unitPrice || 0));
+              formData.append(`items[${index}][total_price]`, String(item.total_price || item.totalPrice || (item.quantity || 0) * (item.unit_price || item.unitPrice || 0)));
+              if (item.rfq_item_id) {
+                formData.append(`items[${index}][rfq_item_id]`, item.rfq_item_id);
+              }
+            });
+          }
           
           // Remove Content-Type header to let browser set it with boundary for FormData
           delete headers['Content-Type'];
