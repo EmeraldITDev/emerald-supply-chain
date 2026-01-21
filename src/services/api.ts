@@ -705,11 +705,11 @@ export const mrfApi = {
         };
       }
     } else {
-      // If no file, send JSON - backend will auto-generate the PO document
-      console.log('Sending PO generation request (auto-generate):', {
+      // If no file, send JSON - backend will create PO record without document generation
+      console.log('Sending PO creation request:', {
         mrfId: id,
         poNumber,
-        note: 'Backend will auto-generate the PO PDF document',
+        note: 'Backend will create PO record and update workflow state (no document generation)',
       });
       
     return apiRequest<MRF>(`/mrfs/${id}/generate-po`, {

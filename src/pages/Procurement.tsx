@@ -1453,7 +1453,7 @@ const Procurement = () => {
                                                     className="text-xs"
                                                     onClick={async (e) => {
                                                       e.stopPropagation();
-                                                      // Automatically generate PO and forward to Finance
+                                                      // Create PO record and forward to Finance
                                                       try {
                                                         // Auto-generate PO number: PO-YYYY-MMDD-XXX format
                                                         const now = new Date();
@@ -1463,13 +1463,13 @@ const Procurement = () => {
                                                         const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
                                                         const poNumber = `PO-${year}-${month}${day}-${random}`;
 
-                                                        // Generate PO automatically - backend will auto-generate the PO PDF document
-                                                        // No file upload needed - backend handles document generation
+                                                        // Create PO record - no document generation, just create the PO and move to Purchase Orders
+                                                        // Backend will create the PO record with the PO number and update workflow state
                                                         const poResponse = await mrfApi.generatePO(request.id, poNumber);
                                                         if (poResponse.success) {
                                                           toast({
-                                                            title: "PO Generated",
-                                                            description: `Purchase Order ${poNumber} has been generated and forwarded to Finance for review.`,
+                                                            title: "PO Created",
+                                                            description: `Purchase Order ${poNumber} has been created and added to Purchase Orders.`,
                                                           });
                                                           // Switch to Purchase Orders tab to show the new PO
                                                           setTab("po");
