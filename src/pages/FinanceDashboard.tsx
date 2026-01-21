@@ -332,30 +332,30 @@ const FinanceDashboard = () => {
             icon={FileText}
             iconColor="text-primary"
           />
-          <StatCard
+        <StatCard
             title="Pending Payments"
             value={stats.pendingPayments || pendingPayment.length || 0}
             description={stats.totalPendingAmount ? `₦${stats.totalPendingAmount.toLocaleString()} total` : "No pending payments"}
-            icon={Clock}
-            iconColor="text-warning"
-            onClick={() => setStatusFilter("pending")}
-          />
-          <StatCard
-            title="Processed Payments"
+          icon={Clock}
+          iconColor="text-warning"
+          onClick={() => setStatusFilter("pending")}
+        />
+        <StatCard
+          title="Processed Payments"
             value={stats.processedPayments || processed.length || 0}
             description={stats.totalProcessedAmount ? `₦${stats.totalProcessedAmount.toLocaleString()} total` : "No processed payments"}
-            icon={CheckCircle}
-            iconColor="text-success"
-            onClick={() => setStatusFilter("processed")}
-          />
-          <StatCard
+          icon={CheckCircle}
+          iconColor="text-success"
+          onClick={() => setStatusFilter("processed")}
+        />
+        <StatCard
             title="Approved Payments"
             value={stats.approvedPayments || 0}
             description={stats.totalApprovedAmount ? `₦${stats.totalApprovedAmount.toLocaleString()} total` : "No approved payments"}
-            icon={TrendingUp}
-            iconColor="text-primary"
-          />
-        </div>
+          icon={TrendingUp}
+          iconColor="text-primary"
+        />
+      </div>
       )}
 
       {/* Main Content */}
@@ -605,16 +605,16 @@ const FinanceDashboard = () => {
                             variant="badge"
                           />
                         )}
-                        {!isProcessed && (
+                      {!isProcessed && (
                           <>
-                            <Button size="sm" variant="outline">
-                              <Download className="h-4 w-4 mr-1" />
-                              Documents
-                            </Button>
-                            <Button 
-                              size="sm"
-                              onClick={() => handleMarkProcessed(mrf.id)}
-                              className="gradient-primary hover:opacity-90"
+                          <Button size="sm" variant="outline">
+                            <Download className="h-4 w-4 mr-1" />
+                            Documents
+                          </Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => handleMarkProcessed(mrf.id)}
+                            className="gradient-primary hover:opacity-90"
                               disabled={actionLoading === mrf.id}
                             >
                               {actionLoading === mrf.id ? (
@@ -648,7 +648,7 @@ const FinanceDashboard = () => {
                             variant="badge"
                           />
                         )}
-                      </div>
+                        </div>
                     </div>
                   );
                 })
