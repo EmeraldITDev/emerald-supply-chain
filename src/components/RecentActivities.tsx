@@ -6,7 +6,7 @@ import { Loader2, FileText, CheckCircle, XCircle, Send, ShoppingCart, DollarSign
 import { useToast } from "@/hooks/use-toast";
 import { dashboardApi } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeTime } from "@/utils/dateUtils";
 
 interface Activity {
   id: string;
@@ -146,7 +146,7 @@ export const RecentActivities = ({ limit = 10 }: RecentActivitiesProps) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
-                      <p className="font-medium text-sm">{activity.title}</p>
+                    <p className="font-medium text-sm">{activity.title}</p>
                       <p className="text-xs text-muted-foreground mt-1">{activity.description}</p>
                       {activity.user && (
                         <p className="text-xs text-muted-foreground mt-1">by {activity.user}</p>
@@ -154,12 +154,12 @@ export const RecentActivities = ({ limit = 10 }: RecentActivitiesProps) => {
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       {activity.status && (
-                        <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs">
                           {activity.status}
-                        </Badge>
+                    </Badge>
                       )}
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                        {formatRelativeTime(activity.timestamp)}
                       </span>
                     </div>
                   </div>

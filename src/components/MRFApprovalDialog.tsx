@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { MRFRequest } from "@/contexts/AppContext";
 import { CheckCircle2, XCircle, Clock, User, Calendar } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { formatApprovalDate } from "@/utils/dateUtils";
 
 interface MRFApprovalDialogProps {
   mrf: MRFRequest | null;
@@ -201,7 +202,7 @@ export function MRFApprovalDialog({
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
-                          by {action.approver} • {new Date(action.timestamp).toLocaleString()}
+                          by {action.approver} • {formatApprovalDate(action.timestamp)}
                         </p>
                         {action.remarks && (
                           <p className="text-sm mt-2 bg-muted p-2 rounded">{action.remarks}</p>

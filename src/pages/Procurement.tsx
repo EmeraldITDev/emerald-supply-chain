@@ -23,6 +23,7 @@ import type { MRFRequest } from "@/contexts/AppContext";
 import { dashboardApi, mrfApi, grnApi, rfqApi, quotationApi } from "@/services/api";
 import type { VendorRegistration, MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
+import { formatMRFDate } from "@/utils/dateUtils";
 import {
   Select,
   SelectContent,
@@ -211,67 +212,6 @@ const Procurement = () => {
   const getMRFRequester = (mrf: MRF) => mrf.requester_name || mrf.requester || "Unknown";
   const getMRFDate = (mrf: MRF) => mrf.created_at || mrf.date || "";
   const getMRFStage = (mrf: MRF) => (mrf.current_stage || mrf.currentStage || "").toLowerCase();
-  
-  // Helper function to format date with proper timezone handling
-  const formatMRFDate = (dateString: string): string => {
-    if (!dateString) return 'N/A';
-    
-    try {
-      let date: Date;
-      
-      // Check if the string has timezone info (ends with Z or has +/- offset)
-      if (dateString.includes('Z') || dateString.match(/[+-]\d{2}:\d{2}$/)) {
-        // Has timezone info (UTC or with offset), parse directly
-        date = new Date(dateString);
-      } else if (dateString.includes('T')) {
-        // ISO format without timezone (e.g., "2025-01-18T20:14:00")
-        // IMPORTANT: If backend is storing local server time without timezone,
-        // we need to parse it as local time, NOT UTC
-        // JavaScript will interpret this as local time by default
-        date = new Date(dateString);
-      } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        // Plain date string (e.g., "2025-01-18") - no time info
-        // This will default to midnight (00:00:00) in local timezone
-        // This is likely the issue - backend is not sending time
-        // For date-only strings, we should check if there's a time component in the original data
-        // If backend sends date without time, we can't display time accurately
-        date = new Date(dateString + 'T00:00:00');
-      } else {
-        // Fallback: try parsing as-is
-        date = new Date(dateString);
-      }
-      
-      // Check if date is valid
-      if (isNaN(date.getTime())) {
-        console.warn('Invalid date string for formatting:', dateString);
-        return 'Invalid Date';
-      }
-      
-      // Format in local timezone - this should show the correct local time
-      // Use the user's local timezone explicitly
-      const options: Intl.DateTimeFormatOptions = {
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric',
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true,
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      };
-      
-      // If the date shows midnight (00:00:00) and the original string didn't have time info,
-      // it's likely the backend didn't send time. In this case, we should still format it,
-      // but the time will show as 12:00 AM which is expected for date-only strings
-      const formatted = date.toLocaleString('en-US', options);
-      
-      // If backend sent a date without time (just date string), the time will be 12:00 AM
-      // This is expected behavior. If backend should send time, it needs to include it in the response.
-      return formatted;
-    } catch (error) {
-      console.error('Error formatting date:', dateString, error);
-      return 'Invalid Date';
-    }
-  };
   const getMRFPOUrl = (mrf: MRF) => mrf.unsigned_po_url || mrf.unsignedPOUrl;
   const getMRFRejectionReason = (mrf: MRF) => mrf.po_rejection_reason || mrf.poRejectionReason;
   const getMRFPONumber = (mrf: MRF) => mrf.po_number || mrf.poNumber;
