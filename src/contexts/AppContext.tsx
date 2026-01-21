@@ -433,11 +433,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           deliveryDate: q.delivery_date || q.deliveryDate || "",
           notes: q.notes || "",
           status: (q.status || "Pending") as "Pending" | "Approved" | "Rejected",
-          submittedDate: q.submitted_date || q.submittedDate || q.created_at || q.createdAt || "",
+          submittedDate: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt || "",
           documentUrl: q.document_url || q.documentUrl,
-          // Include additional fields for statistics
+          // Include additional fields for statistics and display
           deliveryDays: q.delivery_days || q.deliveryDays,
-          paymentTerms: q.payment_terms || q.paymentTerms || q.payment_terms_text,
+          delivery_days: q.delivery_days || q.deliveryDays,
+          // Payment terms - include all variants
+          paymentTerms: q.payment_terms || q.paymentTerms || q.payment_terms_text || "",
+          payment_terms: q.payment_terms || q.paymentTerms || q.payment_terms_text || "",
+          payment_terms_text: q.payment_terms || q.paymentTerms || q.payment_terms_text || "",
+          // Additional fields that might be needed
+          total_amount: q.total_amount || q.totalAmount || q.price || "0",
+          totalAmount: q.total_amount || q.totalAmount || q.price || "0",
+          currency: q.currency || "NGN",
+          validity_days: q.validity_days || q.validityDays,
+          warranty_period: q.warranty_period || q.warrantyPeriod,
         }));
         setQuotationsState(converted);
       }

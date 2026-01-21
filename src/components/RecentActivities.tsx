@@ -72,17 +72,24 @@ export const RecentActivities = ({ limit = 10 }: RecentActivitiesProps) => {
         if (response.success && response.data) {
           setActivities(response.data);
         } else {
-          // Silently fail if endpoint doesn't exist yet (backend not implemented)
-          console.warn('Recent activities endpoint not available:', response.error);
+          // Log the error for debugging
+          console.warn('Recent activities endpoint returned error:', response.error);
           setActivities([]);
         }
       } catch (error: any) {
         // Handle 404 or class not found errors gracefully
-        if (error?.message?.includes('Activity') || error?.message?.includes('404') || error?.message?.includes('not found')) {
-          console.warn('Recent activities endpoint not implemented yet');
+        if (error?.message?.includes('Activity') || 
+            error?.message?.includes('404') || 
+            error?.message?.includes('not found') ||
+            error?.response?.status === 404) {
+          console.warn('Recent activities endpoint not implemented yet or not found');
           setActivities([]);
         } else {
           console.error('Failed to fetch activities:', error);
+          // Show user-friendly message if needed
+          if (error?.response?.status === 401) {
+            console.warn('Authentication required for recent activities');
+          }
         }
       } finally {
         setLoading(false);
