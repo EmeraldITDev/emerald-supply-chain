@@ -448,6 +448,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           currency: q.currency || "NGN",
           validity_days: q.validity_days || q.validityDays,
           warranty_period: q.warranty_period || q.warrantyPeriod,
+          // Include items if available (critical for PO generation)
+          items: q.items || q.quotation_items || q.line_items || [],
         }));
         setQuotationsState(converted);
       }
