@@ -146,6 +146,7 @@ const NewMRF = () => {
           urgency: urgencyValue,
           justification: formData.justification,
           contractType: formData.contractType,
+          department: formData.department || user?.department || "",
         };
         // Include estimatedCost - use 0 if not provided (backend expects a number)
         payload.estimatedCost = formData.estimatedCost && formData.estimatedCost.trim() !== '' 
@@ -298,6 +299,20 @@ const NewMRF = () => {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="department">Department *</Label>
+                <Input
+                  id="department"
+                  placeholder="e.g., Procurement, Finance, Operations"
+                  value={formData.department}
+                  onChange={(e) => handleChange("department", e.target.value)}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  {user?.department ? `Your department: ${user.department}` : "Enter your department name"}
+                </p>
               </div>
 
               <div className="space-y-2">
