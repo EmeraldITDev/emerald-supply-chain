@@ -1477,16 +1477,21 @@ const Procurement = () => {
                                                           await fetchRFQs();
                                                           await fetchQuotations();
                                                         } else {
+                                                          // Show detailed error message from backend
+                                                          const errorMessage = poResponse.error || "Failed to create PO";
+                                                          console.error('PO creation error:', errorMessage);
                                                           toast({
-                                                            title: "Error",
-                                                            description: poResponse.error || "Failed to generate PO",
+                                                            title: "Error Creating PO",
+                                                            description: errorMessage,
                                                             variant: "destructive",
                                                           });
                                                         }
                                                       } catch (error) {
+                                                        console.error('PO creation exception:', error);
+                                                        const errorMessage = error instanceof Error ? error.message : "Failed to create PO";
                                                         toast({
                                                           title: "Error",
-                                                          description: "Failed to generate PO",
+                                                          description: errorMessage,
                                                           variant: "destructive",
                                                         });
                                                       }

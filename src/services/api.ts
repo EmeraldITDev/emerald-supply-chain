@@ -712,10 +712,115 @@ export const mrfApi = {
         note: 'Backend will create PO record and update workflow state (no document generation)',
       });
       
-    return apiRequest<MRF>(`/mrfs/${id}/generate-po`, {
-      method: 'POST',
-      body: JSON.stringify({ po_number: poNumber }),
-      });
+      // Use fetch directly to have better control over error handling
+      // Try JSON first, but backend might expect FormData even without file
+      const headers: HeadersInit = {
+        'Accept': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      try {
+        // First try: Send as JSON (preferred)
+        headers['Content-Type'] = 'application/json';
+        const requestBody = { po_number: poNumber };
+        
+        let response = await fetch(`${API_BASE_URL}/mrfs/${id}/generate-po`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(requestBody),
+        });
+        
+        // If 400 error, try sending as FormData (some backends require FormData even without file)
+        if (response.status === 400) {
+          console.log('JSON request failed with 400, trying FormData format...');
+          const formData = new FormData();
+          formData.append('po_number', poNumber);
+          
+          // Remove Content-Type header to let browser set it with boundary for FormData
+          delete headers['Content-Type'];
+          
+          response = await fetch(`${API_BASE_URL}/mrfs/${id}/generate-po`, {
+            method: 'POST',
+            headers,
+            body: formData,
+          });
+        }
+
+        // Handle 401 Unauthorized
+        if (response.status === 401) {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userData');
+          localStorage.removeItem('tokenExpiry');
+          localStorage.removeItem('isAuthenticated');
+          sessionStorage.removeItem('authToken');
+          sessionStorage.removeItem('userData');
+          sessionStorage.removeItem('tokenExpiry');
+          sessionStorage.removeItem('isAuthenticated');
+          
+          if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+            window.location.href = '/auth';
+          }
+          
+          return {
+            success: false,
+            error: 'Authentication failed. Please log in again.',
+          };
+        }
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          console.error('Failed to parse response:', parseError);
+          return { 
+            success: false, 
+            error: `Server returned invalid response (Status: ${response.status})` 
+          };
+        }
+
+        if (!response.ok) {
+          console.error('PO creation failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            data,
+            requestBody: { po_number: poNumber },
+            mrfId: id,
+          });
+
+          // Handle validation errors
+          if (data.errors) {
+            const errorMessages = Object.entries(data.errors)
+              .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+              .join('; ');
+            return { success: false, error: errorMessages };
+          }
+
+          // Return detailed error message - include full response for debugging
+          const errorMessage = data.message || data.error || `Failed to create PO (Status: ${response.status})`;
+          console.error('Backend error details:', {
+            errorMessage,
+            fullResponse: data,
+            status: response.status,
+          });
+          
+          return { 
+            success: false, 
+            error: errorMessage
+          };
+        }
+
+        console.log('PO created successfully:', data);
+        return { success: true, data: data.data || data };
+      } catch (error) {
+        console.error('PO creation network error:', error);
+        return { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Network error - unable to reach server' 
+        };
+      }
     }
   },
 
