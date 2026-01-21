@@ -1203,16 +1203,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
             const deliveryDays = firstQuotation?.deliveryDays || firstQuotation?.delivery_days || null;
             const paymentTerms = firstQuotation?.payment_terms || firstQuotation?.paymentTerms || null;
             
-            // Get RFQ sent/dispatched timestamp - check multiple possible fields
-            const sentAt = selectedRFQ.createdDate || 
-                          selectedRFQ.created_at || 
-                          selectedRFQ.createdAt || 
-                          selectedRFQ.created_date || 
-                          selectedRFQ.dispatched_at ||
-                          selectedRFQ.dispatchedAt ||
-                          selectedRFQ.sent_at ||
-                          selectedRFQ.sentAt ||
-                          null;
+            // Get RFQ sent/dispatched timestamp - use createdDate
+            const sentAt = selectedRFQ.createdDate || null;
             
             return (
               <div className="space-y-6 mt-4">
@@ -1369,13 +1361,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                             description: "The quotation has been closed.",
                                           });
                                           // Refresh quotations
-                                          const rfqResponse = await rfqApi.getQuotations(selectedRFQ.id);
-                                          if (rfqResponse.success && rfqResponse.data?.quotations) {
-                                            // Update local quotations state
-                                            setQuotations(prev => prev.map(q => 
-                                              q.id === quotation.id ? { ...q, status: 'closed' } : q
-                                            ));
-                                          }
+                                          // Refresh RFQ details to update quotations
+                                          await rfqApi.getQuotations(selectedRFQ.id);
                                         } else {
                                           toast({
                                             title: "Error",
@@ -1408,13 +1395,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                             description: "The quotation has been reopened.",
                                           });
                                           // Refresh quotations
-                                          const rfqResponse = await rfqApi.getQuotations(selectedRFQ.id);
-                                          if (rfqResponse.success && rfqResponse.data?.quotations) {
-                                            // Update local quotations state
-                                            setQuotations(prev => prev.map(q => 
-                                              q.id === quotation.id ? { ...q, status: 'submitted' } : q
-                                            ));
-                                          }
+                                          // Refresh RFQ details to update quotations
+                                          await rfqApi.getQuotations(selectedRFQ.id);
                                         } else {
                                           toast({
                                             title: "Error",

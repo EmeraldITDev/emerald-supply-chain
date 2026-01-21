@@ -991,9 +991,7 @@ const Procurement = () => {
         />
 
         {/* Recent Activities */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <RecentActivities userRole={user?.role || 'procurement'} maxItems={10} />
-        </div>
+        <RecentActivities limit={10} />
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-5 h-auto gap-1">
