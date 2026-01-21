@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { EnhancedVendorRegistration } from "@/components/EnhancedVendorRegistration";
 import { VendorQuoteSubmission } from "@/components/VendorQuoteSubmission";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { formatMRFDate } from "@/utils/dateUtils";
 import type { Vendor } from "@/types";
 
 interface VendorData extends Vendor {
@@ -1251,23 +1252,8 @@ const VendorPortal = () => {
                           </div>
                           <div>
                             <span className="text-muted-foreground">Sent At:</span>
-                            <p className="font-medium text-muted-foreground">
-                              {rfq.sent_at ? (() => {
-                                try {
-                                  const dateStr = rfq.sent_at;
-                                  const date = new Date(dateStr.includes('Z') || dateStr.match(/[+-]\d{2}:\d{2}$/) ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr));
-                                  return isNaN(date.getTime()) ? 'N/A' : date.toLocaleString('en-US', { 
-                                    month: 'short', 
-                                    day: 'numeric', 
-                                    year: 'numeric',
-                                    hour: '2-digit', 
-                                    minute: '2-digit',
-                                    hour12: true
-                                  });
-                                } catch {
-                                  return 'N/A';
-                                }
-                              })() : 'N/A'}
+                            <p className="font-medium">
+                              {formatMRFDate(rfq.sent_at || (rfq as any).created_at || (rfq as any).createdAt)}
                             </p>
                           </div>
                           <div>
@@ -2226,22 +2212,7 @@ const VendorPortal = () => {
                   <div>
                     <Label className="text-muted-foreground">Sent At</Label>
                     <p className="font-medium">
-                      {rfq.sent_at ? (() => {
-                        try {
-                          const dateStr = rfq.sent_at;
-                          const date = new Date(dateStr.includes('Z') || dateStr.match(/[+-]\d{2}:\d{2}$/) ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr));
-                          return isNaN(date.getTime()) ? 'N/A' : date.toLocaleString('en-US', { 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric', 
-                            hour: '2-digit', 
-                            minute: '2-digit',
-                            hour12: true
-                          });
-                        } catch {
-                          return 'N/A';
-                        }
-                      })() : 'N/A'}
+                      {formatMRFDate(rfq.sent_at || (rfq as any).created_at || (rfq as any).createdAt)}
                     </p>
                   </div>
                   {(rfq.payment_terms || rfq.paymentTerms) && (
