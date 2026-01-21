@@ -962,6 +962,89 @@ export const mrfApi = {
       body: JSON.stringify({ reason, comments }),
     });
   },
+
+  // Download PO document
+  downloadPO: async (id: string, poType: 'unsigned' | 'signed' = 'unsigned'): Promise<{ success: boolean; error?: string }> => {
+    const { token, expired } = getAuthToken();
+    
+    if (expired || !token) {
+      return {
+        success: false,
+        error: 'Authentication token has expired. Please log in again.',
+      };
+    }
+
+    try {
+      const endpoint = poType === 'signed' 
+        ? `/mrfs/${id}/download-signed-po`
+        : `/mrfs/${id}/download-po`;
+      
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('tokenExpiry');
+        localStorage.removeItem('isAuthenticated');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('userData');
+        sessionStorage.removeItem('tokenExpiry');
+        sessionStorage.removeItem('isAuthenticated');
+        
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+          window.location.href = '/auth';
+        }
+        
+        return {
+          success: false,
+          error: 'Authentication failed. Please log in again.',
+        };
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          error: errorData.message || errorData.error || `Failed to download PO (Status: ${response.status})`,
+        };
+      }
+
+      // Get the filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `PO-${id}.pdf`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
+
+      // Get the blob and create download link
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      return { success: true };
+    } catch (error) {
+      console.error('PO download error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error - unable to download PO',
+      };
+    }
+  },
 };
 
 // SRF API

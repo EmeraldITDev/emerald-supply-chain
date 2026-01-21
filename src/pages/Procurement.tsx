@@ -769,23 +769,86 @@ const Procurement = () => {
     fetchMRFs();
   };
 
-  const handleDownloadPO = (mrf: MRF) => {
-    const poUrl = getMRFPOShareUrl(mrf) || getMRFPOUrl(mrf);
-    if (poUrl) {
-      // If it's a OneDrive share URL or full URL, open it directly
-      if (poUrl.startsWith('http')) {
-        window.open(poUrl, '_blank');
-      } else {
-        // Assume it's a relative path from the backend
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
-        window.open(`${baseUrl.replace('/api', '')}/${poUrl}`, '_blank');
-      }
-    } else {
+  const handleDownloadPO = async (mrf: MRF) => {
+    // Check for signed PO first (preferred), then unsigned PO
+    const signedPOUrl = mrf.signed_po_url || mrf.signedPOUrl || mrf.signed_po_share_url || mrf.signedPOShareUrl;
+    const unsignedPOUrl = getMRFPOShareUrl(mrf) || getMRFPOUrl(mrf);
+    
+    // If it's an external URL (OneDrive, etc.), open it directly
+    if (signedPOUrl && signedPOUrl.startsWith('http')) {
+      window.open(signedPOUrl, '_blank');
+      return;
+    }
+    
+    if (unsignedPOUrl && unsignedPOUrl.startsWith('http')) {
+      window.open(unsignedPOUrl, '_blank');
+      return;
+    }
+
+    // Try to download from backend API
+    // Prefer signed PO if available, otherwise unsigned
+    const poType = signedPOUrl ? 'signed' : 'unsigned';
+    
+    // Check if PO exists before attempting download
+    if (!signedPOUrl && !unsignedPOUrl) {
       toast({
         title: "PO Not Available",
         description: "PO document is not available for download",
         variant: "destructive",
       });
+      return;
+    }
+
+    try {
+      const response = await mrfApi.downloadPO(mrf.id, poType);
+      
+      if (response.success) {
+        toast({
+          title: "Download Started",
+          description: "Purchase Order download has started",
+        });
+      } else {
+        // If API download fails, try direct URL approach as fallback
+        const fallbackUrl = signedPOUrl || unsignedPOUrl;
+        if (fallbackUrl) {
+          const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
+          const fullUrl = fallbackUrl.startsWith('http') 
+            ? fallbackUrl 
+            : `${baseUrl.replace('/api', '')}/${fallbackUrl}`;
+          window.open(fullUrl, '_blank');
+          toast({
+            title: "Opening PO",
+            description: "Opening PO document in a new window",
+          });
+        } else {
+          toast({
+            title: "Download Failed",
+            description: response.error || "Unable to download PO document",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error downloading PO:', error);
+      // Fallback to direct URL if API fails
+      const fallbackUrl = signedPOUrl || unsignedPOUrl;
+      if (fallbackUrl) {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
+        const fullUrl = fallbackUrl.startsWith('http') 
+          ? fallbackUrl 
+          : `${baseUrl.replace('/api', '')}/${fallbackUrl}`;
+        window.open(fullUrl, '_blank');
+        toast({
+          title: "Opening PO",
+          description: "Opening PO document in a new window",
+        });
+      } else {
+        toast({
+          title: "Download Failed",
+          description: "Unable to download PO document. Please try again later.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
