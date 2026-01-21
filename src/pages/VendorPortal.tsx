@@ -1309,7 +1309,7 @@ const VendorPortal = () => {
                     mrfTitle: vendorRfq.title,
                     description: vendorRfq.description,
                     quantity: '1', // Default if not available
-                    estimatedCost: String(vendorRfq.estimated_cost || vendorRfq.estimatedCost || vendorRfq.budget || '0'),
+                    // Remove estimatedCost to hide budget from vendors
                     deadline: vendorRfq.deadline,
                     status: vendorRfq.status,
                     category: vendorRfq.category || '',

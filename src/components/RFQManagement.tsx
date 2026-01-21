@@ -86,6 +86,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   const [loadingQuotationDetails, setLoadingQuotationDetails] = useState(false);
   const [rfqDetailsQuotations, setRfqDetailsQuotations] = useState<any[]>([]);
   const [loadingRfqDetails, setLoadingRfqDetails] = useState(false);
+  const [rfqDetailsData, setRfqDetailsData] = useState<any | null>(null);
 
   // RFQ Creation form state
   const [selectionMethod, setSelectionMethod] = useState<'all_category' | 'manual' | 'preferred'>('manual');
@@ -588,9 +589,16 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                     onClick={async () => {
                       setSelectedRFQ(rfq);
                       setRfqDetailsDialogOpen(true);
-                      // Fetch fresh quotation data from API
+                      // Fetch fresh quotation data and RFQ details from API
                       setLoadingRfqDetails(true);
                       try {
+                        // Fetch RFQ details to get vendor count
+                        const rfqDetailsResponse = await rfqApi.getById(rfq.id);
+                        if (rfqDetailsResponse.success && rfqDetailsResponse.data) {
+                          setRfqDetailsData(rfqDetailsResponse.data);
+                        }
+                        
+                        // Fetch quotations
                         const response = await rfqApi.getQuotations(rfq.id);
                         if (response.success && response.data?.quotations) {
                           const formattedQuotations = response.data.quotations.map((item: any) => ({
@@ -604,8 +612,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                             // Ensure delivery_days and payment_terms are available
                             deliveryDays: item.quotation?.delivery_days || item.quotation?.deliveryDays,
                             delivery_days: item.quotation?.delivery_days || item.quotation?.deliveryDays,
-                            payment_terms: item.quotation?.payment_terms || item.quotation?.paymentTerms,
-                            paymentTerms: item.quotation?.payment_terms || item.quotation?.paymentTerms,
+                            payment_terms: item.quotation?.payment_terms || item.quotation?.paymentTerms || item.quotation?.payment_terms_text,
+                            paymentTerms: item.quotation?.payment_terms || item.quotation?.paymentTerms || item.quotation?.payment_terms_text,
                             status: item.quotation?.status || 'submitted',
                           }));
                           setRfqDetailsQuotations(formattedQuotations);
@@ -613,8 +621,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                           setRfqDetailsQuotations([]);
                         }
                       } catch (error) {
-                        console.error('Failed to fetch RFQ quotations:', error);
+                        console.error('Failed to fetch RFQ details:', error);
                         setRfqDetailsQuotations([]);
+                        setRfqDetailsData(null);
                       } finally {
                         setLoadingRfqDetails(false);
                       }
@@ -1252,9 +1261,17 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               : quotations.filter(q => q.rfqId === selectedRFQ.id);
             
             // Get delivery days and payment terms from quotations (not RFQ)
-            const firstQuotation = rfqQuotations.length > 0 ? rfqQuotations[0] : null;
-            const deliveryDays = firstQuotation?.deliveryDays || firstQuotation?.delivery_days || null;
-            const paymentTerms = firstQuotation?.payment_terms || firstQuotation?.paymentTerms || null;
+            // Use the first quotation or the selected/awarded quotation if available
+            const selectedQuotation = rfqQuotations.find((q: any) => q.status === 'approved' || q.status === 'awarded') || rfqQuotations[0] || null;
+            const deliveryDays = selectedQuotation?.deliveryDays || selectedQuotation?.delivery_days || null;
+            const paymentTerms = selectedQuotation?.payment_terms || selectedQuotation?.paymentTerms || selectedQuotation?.payment_terms_text || null;
+            
+            // Get vendor count from RFQ details or fallback to vendorIds array
+            const vendorCount = rfqDetailsData?.vendorIds?.length || 
+                               rfqDetailsData?.vendors_count || 
+                               rfqDetailsData?.vendor_count ||
+                               selectedRFQ.vendorIds?.length || 
+                               0;
             
             // Get RFQ sent/dispatched timestamp - use createdDate
             const sentAt = selectedRFQ.createdDate || null;
@@ -1309,7 +1326,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Vendors Invited</Label>
-                    <p className="font-medium">{selectedRFQ.vendorIds?.length || 0}</p>
+                    <p className="font-medium">{vendorCount}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Quotations Received</Label>
@@ -1329,7 +1346,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                           : loadingRfqDetails
                             ? 'Loading...'
                             : rfqQuotations.length > 0 
-                              ? `See individual quotations (${rfqQuotations.length} received)` 
+                              ? 'N/A' 
                               : 'No quotations received yet'}
                       </p>
                       {rfqQuotations.length > 1 && deliveryDays !== null && (
@@ -1346,7 +1363,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                           : loadingRfqDetails
                             ? 'Loading...'
                             : rfqQuotations.length > 0 
-                              ? `See individual quotations (${rfqQuotations.length} received)` 
+                              ? 'N/A' 
                               : 'No quotations received yet'}
                       </p>
                       {rfqQuotations.length > 1 && paymentTerms && (

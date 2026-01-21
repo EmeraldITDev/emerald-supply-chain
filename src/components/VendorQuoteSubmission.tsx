@@ -238,7 +238,6 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
                     </Badge>
                   </div>
                   <p className="font-medium text-sm line-clamp-2">{rfq.mrfTitle}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Budget: ₦{parseInt(rfq.estimatedCost).toLocaleString()}</p>
                 </div>
               ))}
             </div>
@@ -284,16 +283,6 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
                 <div>
                   <span className="text-muted-foreground">Quantity:</span>
                   <p className="font-medium">{selectedRfq.quantity} units</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Budget:</span>
-                  <p className="font-medium">
-                    ₦{(() => {
-                      const budget = selectedRfq.estimatedCost || (selectedRfq as any).estimated_cost || (selectedRfq as any).budget || '0';
-                      const budgetNum = typeof budget === 'string' ? parseFloat(budget) : budget;
-                      return isNaN(budgetNum) || budgetNum === 0 ? 'N/A' : budgetNum.toLocaleString();
-                    })()}
-                  </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Deadline:</span>

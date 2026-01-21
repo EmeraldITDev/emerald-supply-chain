@@ -1432,13 +1432,23 @@ const Procurement = () => {
                                                     e.stopPropagation();
                                                     // Automatically generate PO and forward to Finance
                                                     try {
-                                                      // Generate PO automatically
-                                                      const poResponse = await mrfApi.generatePO(request.id, '');
+                                                      // Auto-generate PO number: PO-YYYY-MMDD-XXX format
+                                                      const now = new Date();
+                                                      const year = now.getFullYear();
+                                                      const month = String(now.getMonth() + 1).padStart(2, '0');
+                                                      const day = String(now.getDate()).padStart(2, '0');
+                                                      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+                                                      const poNumber = `PO-${year}-${month}${day}-${random}`;
+                                                      
+                                                      // Generate PO automatically with auto-generated PO number
+                                                      const poResponse = await mrfApi.generatePO(request.id, poNumber);
                                                       if (poResponse.success) {
                                                         toast({
                                                           title: "PO Generated",
-                                                          description: "Purchase Order has been generated and forwarded to Finance for review.",
+                                                          description: `Purchase Order ${poNumber} has been generated and forwarded to Finance for review.`,
                                                         });
+                                                        // Switch to Purchase Orders tab to show the new PO
+                                                        setTab("po");
                                                         await fetchMRFs();
                                                         await fetchRFQs();
                                                         await fetchQuotations();
