@@ -705,11 +705,17 @@ export const mrfApi = {
         };
       }
     } else {
-      // If no file, use JSON
-    return apiRequest<MRF>(`/mrfs/${id}/generate-po`, {
-      method: 'POST',
-      body: JSON.stringify({ po_number: poNumber }),
-    });
+      // If no file, send JSON - backend will auto-generate the PO document
+      console.log('Sending PO generation request (auto-generate):', {
+        mrfId: id,
+        poNumber,
+        note: 'Backend will auto-generate the PO PDF document',
+      });
+      
+      return apiRequest<MRF>(`/mrfs/${id}/generate-po`, {
+        method: 'POST',
+        body: JSON.stringify({ po_number: poNumber }),
+      });
     }
   },
 

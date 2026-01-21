@@ -1461,7 +1461,8 @@ const Procurement = () => {
                                                         const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
                                                         const poNumber = `PO-${year}-${month}${day}-${random}`;
 
-                                                        // Generate PO automatically with auto-generated PO number
+                                                        // Generate PO automatically - backend will auto-generate the PO PDF document
+                                                        // No file upload needed - backend handles document generation
                                                         const poResponse = await mrfApi.generatePO(request.id, poNumber);
                                                         if (poResponse.success) {
                                                           toast({
