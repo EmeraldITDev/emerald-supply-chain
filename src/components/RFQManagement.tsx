@@ -170,6 +170,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
           deliveryDays,
           items: item.items || [],
           fullData: item, // Store full data for details view
+          // Ensure payment_terms is included
+          payment_terms: q.payment_terms || q.paymentTerms || q.payment_terms_text || '',
+          paymentTerms: q.payment_terms || q.paymentTerms || q.payment_terms_text || '',
         };
       }).sort((a: any, b: any) => parseFloat(a.price || a.total_amount || '0') - parseFloat(b.price || b.total_amount || '0'));
     }
@@ -188,6 +191,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
           vendorRating: vendor?.rating || 0,
           vendorOrders: vendor?.orders || 0,
           deliveryDays,
+          // Ensure payment_terms is included
+          payment_terms: (q as any).payment_terms || (q as any).paymentTerms || (q as any).payment_terms_text || '',
+          paymentTerms: (q as any).payment_terms || (q as any).paymentTerms || (q as any).payment_terms_text || '',
         };
       })
       .sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
@@ -440,7 +446,12 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
             <CardTitle className="text-sm font-medium">Open RFQs</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{rfqs.filter(r => r.status === 'Open').length}</div>
+            <div className="text-2xl font-bold">
+              {rfqs.filter(r => {
+                const status = (r as any).status || r.status;
+                return status === 'Open' || status === 'open' || status === 'pending';
+              }).length}
+            </div>
             <p className="text-xs text-muted-foreground">Awaiting vendor quotes</p>
           </CardContent>
         </Card>
@@ -449,7 +460,23 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
             <CardTitle className="text-sm font-medium">Quotes Received</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{quotations.filter(q => q.status === 'Pending').length}</div>
+            <div className="text-2xl font-bold">
+              {(() => {
+                const now = new Date();
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                return quotations.filter(q => {
+                  // Check if quotation was received this month
+                  const submittedDate = (q as any).submittedDate || (q as any).submitted_date || (q as any).created_at || (q as any).createdAt;
+                  if (!submittedDate) return false;
+                  try {
+                    const quoteDate = new Date(submittedDate);
+                    return quoteDate >= startOfMonth;
+                  } catch {
+                    return false;
+                  }
+                }).length;
+              })()}
+            </div>
             <p className="text-xs text-muted-foreground">Ready for comparison</p>
           </CardContent>
         </Card>
@@ -458,7 +485,12 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
             <CardTitle className="text-sm font-medium">Active Vendors</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeVendors.length}</div>
+            <div className="text-2xl font-bold">
+              {vendors.filter(v => {
+                const status = v.status || (v as any).status;
+                return status === 'Active' || status === 'active' || status === 'verified' || status === 'Verified';
+              }).length}
+            </div>
             <p className="text-xs text-muted-foreground">Verified & ready</p>
           </CardContent>
         </Card>
@@ -467,7 +499,26 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
             <CardTitle className="text-sm font-medium">Awarded</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{rfqs.filter(r => r.status === 'Awarded').length}</div>
+            <div className="text-2xl font-bold">
+              {(() => {
+                const now = new Date();
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                return rfqs.filter(r => {
+                  const status = (r as any).status || r.status;
+                  const isAwarded = status === 'Awarded' || status === 'awarded' || status === 'vendor_selected';
+                  if (!isAwarded) return false;
+                  // Check if awarded this month
+                  const awardedDate = (r as any).awarded_at || (r as any).awardedAt || (r as any).updated_at || (r as any).updatedAt;
+                  if (!awardedDate) return false;
+                  try {
+                    const awardDate = new Date(awardedDate);
+                    return awardDate >= startOfMonth;
+                  } catch {
+                    return false;
+                  }
+                }).length;
+              })()}
+            </div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
@@ -1056,7 +1107,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Payment Terms</Label>
-                  <p className="font-medium">{selectedQuotation.payment_terms || selectedQuotation.paymentTerms || 'N/A'}</p>
+                  <p className="font-medium">
+                    {selectedQuotation.payment_terms || selectedQuotation.paymentTerms || selectedQuotation.payment_terms_text || (selectedQuotation as any).payment_terms_text || 'N/A'}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Validity Period</Label>
@@ -1332,7 +1385,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Payment Terms</p>
-                                    <p className="font-medium">{quotation.payment_terms || quotation.paymentTerms || 'N/A'}</p>
+                                    <p className="font-medium">
+                                      {quotation.payment_terms || quotation.paymentTerms || quotation.payment_terms_text || (quotation as any).payment_terms_text || 'N/A'}
+                                    </p>
                                   </div>
                                 </div>
                               </div>
