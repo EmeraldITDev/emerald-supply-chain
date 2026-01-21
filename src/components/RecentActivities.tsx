@@ -136,7 +136,7 @@ export const RecentActivities = ({ limit = 10 }: RecentActivitiesProps) => {
         <CardDescription>Your recent workflow activities</CardDescription>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[400px]">
+        <ScrollArea className="h-[300px]">
           <div className="space-y-4">
             {activities.map((activity) => (
               <div key={activity.id} className="flex items-start gap-3 pb-4 border-b last:border-0">
