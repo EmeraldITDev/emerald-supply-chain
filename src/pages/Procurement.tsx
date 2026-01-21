@@ -288,12 +288,20 @@ const Procurement = () => {
     const status = (mrf.status || "").toLowerCase();
 
     // Check if workflow state indicates SCD approval
-    if (workflowState === "pending_po_upload" || workflowState === "vendor_approved") {
+    // Updated to include "invoice_approved" which is what the backend sets
+    if (workflowState === "pending_po_upload" || 
+        workflowState === "vendor_approved" || 
+        workflowState === "invoice_approved") {
       return true;
     }
 
     // Check status for SCD approval indicators
-    if (status.includes("vendor approved") || status.includes("supply chain approved") || status.includes("pending po upload")) {
+    // Updated to handle both underscore and space variations
+    const statusLower = status.replace(/_/g, " "); // Convert underscores to spaces for comparison
+    if (statusLower.includes("vendor approved") || 
+        statusLower.includes("supply chain approved") || 
+        statusLower.includes("pending po upload") ||
+        status === "pending_po_upload") { // Also check exact match with underscores
       return true;
     }
 
@@ -301,7 +309,11 @@ const Procurement = () => {
     const approvalHistory = mrf.approval_history || mrf.approvalHistory || [];
     const hasSCDApproval = approvalHistory.some((entry: any) =>
       entry.action === "approved" &&
-      (entry.role === "supply_chain" || entry.approved_by_role === "supply_chain" || entry.stage === "supply_chain")
+      (entry.role === "supply_chain" || 
+       entry.approved_by_role === "supply_chain" || 
+       entry.stage === "supply_chain" ||
+       entry.role === "supply chain director" ||
+       entry.approved_by_role === "supply chain director")
     );
 
     return hasSCDApproval;
