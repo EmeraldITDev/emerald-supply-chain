@@ -468,14 +468,27 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               {(() => {
                 const now = new Date();
                 const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+                
                 return quotations.filter(q => {
-                  // Check if quotation was received this month
-                  const submittedDate = (q as any).submittedDate || (q as any).submitted_date || (q as any).created_at || (q as any).createdAt;
+                  // Check all possible date field variations
+                  const submittedDate = (q as any).submittedDate || 
+                                       (q as any).submitted_date || 
+                                       (q as any).submitted_at ||
+                                       (q as any).submittedAt ||
+                                       (q as any).created_at || 
+                                       (q as any).createdAt ||
+                                       (q as any).date;
+                  
                   if (!submittedDate) return false;
+                  
                   try {
                     const quoteDate = new Date(submittedDate);
-                    return quoteDate >= startOfMonth;
-                  } catch {
+                    // Validate date and check if within current month
+                    if (isNaN(quoteDate.getTime())) return false;
+                    return quoteDate >= startOfMonth && quoteDate <= endOfMonth;
+                  } catch (e) {
+                    console.error('Error parsing date:', submittedDate, e);
                     return false;
                   }
                 }).length;
@@ -604,21 +617,76 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                         // Fetch quotations
                         const response = await rfqApi.getQuotations(rfq.id);
                         if (response.success && response.data?.quotations) {
-                          const formattedQuotations = response.data.quotations.map((item: any) => ({
-                            ...item.quotation,
-                            vendorName: item.vendor?.name || item.vendor?.company_name || 'Unknown Vendor',
-                            vendorId: item.vendor?.id || item.vendor?.vendor_id,
-                            vendorRating: item.vendor?.rating || 0,
-                            vendorOrders: item.vendor?.total_orders || item.vendor?.orders || 0,
-                            vendorEmail: item.vendor?.email,
-                            items: item.items || [],
-                            // Ensure delivery_days and payment_terms are available
-                            deliveryDays: item.quotation?.delivery_days || item.quotation?.deliveryDays,
-                            delivery_days: item.quotation?.delivery_days || item.quotation?.deliveryDays,
-                            payment_terms: item.quotation?.payment_terms || item.quotation?.paymentTerms || item.quotation?.payment_terms_text,
-                            paymentTerms: item.quotation?.payment_terms || item.quotation?.paymentTerms || item.quotation?.payment_terms_text,
-                            status: item.quotation?.status || 'submitted',
-                          }));
+                          const formattedQuotations = response.data.quotations.map((item: any) => {
+                            // Handle both nested structure (item.quotation) and flat structure
+                            const q = item.quotation || item;
+                            const vendor = item.vendor || q.vendor || {};
+                            
+                            // Calculate delivery days if not provided
+                            let deliveryDays = q.delivery_days ?? q.deliveryDays;
+                            if (!deliveryDays && (q.delivery_date || q.deliveryDate)) {
+                              try {
+                                const deliveryDate = new Date(q.delivery_date || q.deliveryDate);
+                                const now = new Date();
+                                deliveryDays = Math.ceil((deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                              } catch (e) {
+                                console.error('Error calculating delivery days:', e);
+                              }
+                            }
+                            
+                            // Extract payment terms from all possible fields
+                            const paymentTerms = q.payment_terms ?? 
+                                                q.paymentTerms ?? 
+                                                q.payment_terms_text ?? 
+                                                (q as any).payment_terms_text ?? 
+                                                null;
+                            
+                            // Build comprehensive quotation object
+                            return {
+                              ...q,
+                              // Vendor information
+                              vendorName: vendor?.name || vendor?.company_name || q.vendorName || 'Unknown Vendor',
+                              vendorId: vendor?.id || vendor?.vendor_id || q.vendorId,
+                              vendorRating: vendor?.rating || q.vendorRating || 0,
+                              vendorOrders: vendor?.total_orders || vendor?.orders || q.vendorOrders || 0,
+                              vendorEmail: vendor?.email || q.vendorEmail,
+                              
+                              // Quotation items
+                              items: item.items || q.items || [],
+                              
+                              // Delivery information - ensure both formats are available
+                              deliveryDays: deliveryDays,
+                              delivery_days: deliveryDays,
+                              deliveryDate: q.delivery_date || q.deliveryDate,
+                              delivery_date: q.delivery_date || q.deliveryDate,
+                              
+                              // Payment terms - ensure all formats are available
+                              payment_terms: paymentTerms,
+                              paymentTerms: paymentTerms,
+                              payment_terms_text: paymentTerms,
+                              
+                              // Price fields - normalize to ensure we have the value
+                              price: q.total_amount || q.totalAmount || q.price || '0',
+                              total_amount: q.total_amount || q.totalAmount || q.price || '0',
+                              totalAmount: q.total_amount || q.totalAmount || q.price || '0',
+                              
+                              // Status
+                              status: q.status || 'submitted',
+                              
+                              // Dates - check all possible fields
+                              submittedDate: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
+                              submitted_date: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
+                              createdAt: q.created_at || q.createdAt,
+                              created_at: q.created_at || q.createdAt,
+                              
+                              // Other fields
+                              validity_days: q.validity_days || q.validityDays,
+                              validityDays: q.validity_days || q.validityDays,
+                              warranty_period: q.warranty_period || q.warrantyPeriod,
+                              notes: q.notes || q.remarks || '',
+                              currency: q.currency || 'NGN',
+                            };
+                          });
                           setRfqDetailsQuotations(formattedQuotations);
                         } else {
                           setRfqDetailsQuotations([]);
@@ -1444,20 +1512,57 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                           }
                                           const quotationsResponse = await rfqApi.getQuotations(selectedRFQ.id);
                                           if (quotationsResponse.success && quotationsResponse.data?.quotations) {
-                                            const formattedQuotations = quotationsResponse.data.quotations.map((item: any) => ({
-                                              ...item.quotation,
-                                              vendorName: item.vendor?.name || item.vendor?.company_name || 'Unknown Vendor',
-                                              vendorId: item.vendor?.id || item.vendor?.vendor_id,
-                                              vendorRating: item.vendor?.rating || 0,
-                                              vendorOrders: item.vendor?.total_orders || item.vendor?.orders || 0,
-                                              vendorEmail: item.vendor?.email,
-                                              items: item.items || [],
-                                              deliveryDays: item.quotation?.delivery_days || item.quotation?.deliveryDays,
-                                              delivery_days: item.quotation?.delivery_days || item.quotation?.deliveryDays,
-                                              payment_terms: item.quotation?.payment_terms || item.quotation?.paymentTerms || item.quotation?.payment_terms_text,
-                                              paymentTerms: item.quotation?.payment_terms || item.quotation?.paymentTerms || item.quotation?.payment_terms_text,
-                                              status: item.quotation?.status || 'submitted',
-                                            }));
+                                            const formattedQuotations = quotationsResponse.data.quotations.map((item: any) => {
+                                              const q = item.quotation || item;
+                                              const vendor = item.vendor || q.vendor || {};
+                                              
+                                              let deliveryDays = q.delivery_days ?? q.deliveryDays;
+                                              if (!deliveryDays && (q.delivery_date || q.deliveryDate)) {
+                                                try {
+                                                  const deliveryDate = new Date(q.delivery_date || q.deliveryDate);
+                                                  const now = new Date();
+                                                  deliveryDays = Math.ceil((deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                                                } catch (e) {
+                                                  console.error('Error calculating delivery days:', e);
+                                                }
+                                              }
+                                              
+                                              const paymentTerms = q.payment_terms ?? 
+                                                                  q.paymentTerms ?? 
+                                                                  q.payment_terms_text ?? 
+                                                                  (q as any).payment_terms_text ?? 
+                                                                  null;
+                                              
+                                              return {
+                                                ...q,
+                                                vendorName: vendor?.name || vendor?.company_name || q.vendorName || 'Unknown Vendor',
+                                                vendorId: vendor?.id || vendor?.vendor_id || q.vendorId,
+                                                vendorRating: vendor?.rating || q.vendorRating || 0,
+                                                vendorOrders: vendor?.total_orders || vendor?.orders || q.vendorOrders || 0,
+                                                vendorEmail: vendor?.email || q.vendorEmail,
+                                                items: item.items || q.items || [],
+                                                deliveryDays: deliveryDays,
+                                                delivery_days: deliveryDays,
+                                                deliveryDate: q.delivery_date || q.deliveryDate,
+                                                delivery_date: q.delivery_date || q.deliveryDate,
+                                                payment_terms: paymentTerms,
+                                                paymentTerms: paymentTerms,
+                                                payment_terms_text: paymentTerms,
+                                                price: q.total_amount || q.totalAmount || q.price || '0',
+                                                total_amount: q.total_amount || q.totalAmount || q.price || '0',
+                                                totalAmount: q.total_amount || q.totalAmount || q.price || '0',
+                                                status: q.status || 'submitted',
+                                                submittedDate: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
+                                                submitted_date: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
+                                                createdAt: q.created_at || q.createdAt,
+                                                created_at: q.created_at || q.createdAt,
+                                                validity_days: q.validity_days || q.validityDays,
+                                                validityDays: q.validity_days || q.validityDays,
+                                                warranty_period: q.warranty_period || q.warrantyPeriod,
+                                                notes: q.notes || q.remarks || '',
+                                                currency: q.currency || 'NGN',
+                                              };
+                                            });
                                             setRfqDetailsQuotations(formattedQuotations);
                                           }
                                         } else {
@@ -1500,20 +1605,57 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                           }
                                           const quotationsResponse = await rfqApi.getQuotations(selectedRFQ.id);
                                           if (quotationsResponse.success && quotationsResponse.data?.quotations) {
-                                            const formattedQuotations = quotationsResponse.data.quotations.map((item: any) => ({
-                                              ...item.quotation,
-                                              vendorName: item.vendor?.name || item.vendor?.company_name || 'Unknown Vendor',
-                                              vendorId: item.vendor?.id || item.vendor?.vendor_id,
-                                              vendorRating: item.vendor?.rating || 0,
-                                              vendorOrders: item.vendor?.total_orders || item.vendor?.orders || 0,
-                                              vendorEmail: item.vendor?.email,
-                                              items: item.items || [],
-                                              deliveryDays: item.quotation?.delivery_days || item.quotation?.deliveryDays,
-                                              delivery_days: item.quotation?.delivery_days || item.quotation?.deliveryDays,
-                                              payment_terms: item.quotation?.payment_terms || item.quotation?.paymentTerms || item.quotation?.payment_terms_text,
-                                              paymentTerms: item.quotation?.payment_terms || item.quotation?.paymentTerms || item.quotation?.payment_terms_text,
-                                              status: item.quotation?.status || 'submitted',
-                                            }));
+                                            const formattedQuotations = quotationsResponse.data.quotations.map((item: any) => {
+                                              const q = item.quotation || item;
+                                              const vendor = item.vendor || q.vendor || {};
+                                              
+                                              let deliveryDays = q.delivery_days ?? q.deliveryDays;
+                                              if (!deliveryDays && (q.delivery_date || q.deliveryDate)) {
+                                                try {
+                                                  const deliveryDate = new Date(q.delivery_date || q.deliveryDate);
+                                                  const now = new Date();
+                                                  deliveryDays = Math.ceil((deliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                                                } catch (e) {
+                                                  console.error('Error calculating delivery days:', e);
+                                                }
+                                              }
+                                              
+                                              const paymentTerms = q.payment_terms ?? 
+                                                                  q.paymentTerms ?? 
+                                                                  q.payment_terms_text ?? 
+                                                                  (q as any).payment_terms_text ?? 
+                                                                  null;
+                                              
+                                              return {
+                                                ...q,
+                                                vendorName: vendor?.name || vendor?.company_name || q.vendorName || 'Unknown Vendor',
+                                                vendorId: vendor?.id || vendor?.vendor_id || q.vendorId,
+                                                vendorRating: vendor?.rating || q.vendorRating || 0,
+                                                vendorOrders: vendor?.total_orders || vendor?.orders || q.vendorOrders || 0,
+                                                vendorEmail: vendor?.email || q.vendorEmail,
+                                                items: item.items || q.items || [],
+                                                deliveryDays: deliveryDays,
+                                                delivery_days: deliveryDays,
+                                                deliveryDate: q.delivery_date || q.deliveryDate,
+                                                delivery_date: q.delivery_date || q.deliveryDate,
+                                                payment_terms: paymentTerms,
+                                                paymentTerms: paymentTerms,
+                                                payment_terms_text: paymentTerms,
+                                                price: q.total_amount || q.totalAmount || q.price || '0',
+                                                total_amount: q.total_amount || q.totalAmount || q.price || '0',
+                                                totalAmount: q.total_amount || q.totalAmount || q.price || '0',
+                                                status: q.status || 'submitted',
+                                                submittedDate: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
+                                                submitted_date: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
+                                                createdAt: q.created_at || q.createdAt,
+                                                created_at: q.created_at || q.createdAt,
+                                                validity_days: q.validity_days || q.validityDays,
+                                                validityDays: q.validity_days || q.validityDays,
+                                                warranty_period: q.warranty_period || q.warrantyPeriod,
+                                                notes: q.notes || q.remarks || '',
+                                                currency: q.currency || 'NGN',
+                                              };
+                                            });
                                             setRfqDetailsQuotations(formattedQuotations);
                                           }
                                         } else {

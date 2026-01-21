@@ -57,14 +57,14 @@ const Procurement = () => {
   const { srfRequests, purchaseOrders, mrns, updateMRN, convertMRNToMRF, addPO } = useApp();
   const { user } = useAuth();
   const { toast } = useToast();
-
+  
   // MRF requests from backend API
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
   const [mrfLoading, setMrfLoading] = useState(true);
   const [poGenerating, setPoGenerating] = useState(false);
   const [rfqs, setRfqs] = useState<any[]>([]);
   const [quotations, setQuotations] = useState<any[]>([]);
-
+  
   const [poDialogOpen, setPODialogOpen] = useState(false);
   const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(null);
   const [grnCompletionDialogOpen, setGrnCompletionDialogOpen] = useState(false);
@@ -79,11 +79,11 @@ const Procurement = () => {
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
-
+  
   // Vendor registrations from dashboard API
   const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
   const [vendorRegistrationsLoading, setVendorRegistrationsLoading] = useState(true);
-
+  
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -285,7 +285,7 @@ const Procurement = () => {
   // Helper to check if Supply Chain Director has approved vendor selection
   const isSupplyChainApproved = (mrf: MRF): boolean => {
     const workflowState = getWorkflowState(mrf);
-    const status = (mrf.status || "").toLowerCase();
+      const status = (mrf.status || "").toLowerCase();
 
     // Check if workflow state indicates SCD approval
     // Updated to include "invoice_approved" which is what the backend sets
@@ -379,7 +379,7 @@ const Procurement = () => {
       const stage = getMRFStage(mrf);
       const status = (mrf.status || "").toLowerCase();
       const rejectionReason = getMRFRejectionReason(mrf);
-
+      
       return (
         stage === "procurement" &&
         status.includes("rejected") &&
@@ -403,6 +403,8 @@ const Procurement = () => {
   const vendorFilter = vendorFromState || vendorFromQuery || undefined;
 
   const [tab, setTab] = useState<string>(vendorFilter ? "po" : "mrf");
+  const [poDetailsDialogOpen, setPODetailsDialogOpen] = useState(false);
+  const [selectedMRFForPODetails, setSelectedMRFForPODetails] = useState<MRFRequest | null>(null);
 
   useEffect(() => {
     if (vendorFromState && !vendorFromQuery) {
@@ -483,7 +485,7 @@ const Procurement = () => {
       filtered = filtered.filter(mrf => {
         const mrfDate = new Date(getMRFDate(mrf));
         const daysDiff = (now.getTime() - mrfDate.getTime()) / (1000 * 60 * 60 * 24);
-
+        
         if (dateFilter === "today") return daysDiff < 1;
         if (dateFilter === "week") return daysDiff < 7;
         if (dateFilter === "month") return daysDiff < 30;
@@ -496,7 +498,7 @@ const Procurement = () => {
       const dateB = getMRFDate(b);
       const costA = parseFloat(getMRFEstimatedCost(a));
       const costB = parseFloat(getMRFEstimatedCost(b));
-
+      
       if (sortBy === "date-desc") return new Date(dateB).getTime() - new Date(dateA).getTime();
       if (sortBy === "date-asc") return new Date(dateA).getTime() - new Date(dateB).getTime();
       if (sortBy === "amount-desc") return costB - costA;
@@ -534,11 +536,11 @@ const Procurement = () => {
     if (!((mrf as any).procurementManagerApprovalTime) || stage === "completed" || stage === "rejected") {
       return null;
     }
-
+    
     const startTime = new Date((mrf as any).procurementManagerApprovalTime);
     const now = new Date();
     const hoursElapsed = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-
+    
     if (hoursElapsed <= 48) return "text-emerald-600 dark:text-emerald-400";
     if (hoursElapsed <= 72) return "text-amber-600 dark:text-amber-400";
     return "text-destructive";
@@ -582,8 +584,8 @@ const Procurement = () => {
           return;
         }
         // Proceed with opening PO generation dialog
-        setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
-        setPODialogOpen(true);
+    setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
+    setPODialogOpen(true);
       } else {
         // Fallback: If Executive approved, allow proceeding
         if (isApproved) {
@@ -708,7 +710,7 @@ const Procurement = () => {
 
         setPODialogOpen(false);
         setSelectedMRFForPO(null);
-
+        
         // Refresh MRFs and RFQs from backend to get updated status
         await fetchMRFs();
         await fetchRFQs();
@@ -913,308 +915,308 @@ const Procurement = () => {
         });
       }}>
         <div className="space-y-6">
-          <div className="flex flex-col gap-2 sm:gap-4">
-            <div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Procurement Dashboard</h1>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage material and service requests</p>
-            </div>
+        <div className="flex flex-col gap-2 sm:gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Procurement Dashboard</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage material and service requests</p>
           </div>
+        </div>
 
-          {/* Stats */}
+        {/* Stats */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Pending PO Upload"
-              value={pendingPOUpload}
-              description="Executive approved, awaiting PO"
-              icon={Clock}
-              iconColor="text-warning"
-              onClick={() => setTab("mrf")}
-            />
-            <StatCard
-              title="Rejected POs"
-              value={rejectedPOCount}
-              description="Need revision & resubmission"
-              icon={XCircle}
-              iconColor="text-destructive"
-              onClick={() => setTab("mrf")}
-            />
-            <StatCard
-              title="Pending MRNs"
-              value={pendingMRNs.length}
-              description="Awaiting review"
-              icon={FileText}
-              iconColor="text-info"
-              onClick={() => setTab("mrn")}
-            />
-            <StatCard
-              title="In Supply Chain"
-              value={inSupplyChain}
-              description="With Supply Chain Director"
-              icon={Package}
-              iconColor="text-success"
-            />
-          </div>
-
-          {/* Dashboard Alerts */}
-          <DashboardAlerts userRole={user?.role || 'procurement'} maxAlerts={5} />
-
-          {/* Vendor Registrations Section */}
-          <VendorRegistrationsList
-            maxItems={3}
-            showTabs={false}
-            title="Pending Vendor Registrations"
-            externalRegistrations={vendorRegistrations}
-            externalLoading={vendorRegistrationsLoading}
+          <StatCard
+            title="Pending PO Upload"
+            value={pendingPOUpload}
+            description="Executive approved, awaiting PO"
+            icon={Clock}
+            iconColor="text-warning"
+            onClick={() => setTab("mrf")}
           />
+          <StatCard
+            title="Rejected POs"
+            value={rejectedPOCount}
+            description="Need revision & resubmission"
+            icon={XCircle}
+            iconColor="text-destructive"
+            onClick={() => setTab("mrf")}
+          />
+          <StatCard
+            title="Pending MRNs"
+            value={pendingMRNs.length}
+            description="Awaiting review"
+            icon={FileText}
+            iconColor="text-info"
+            onClick={() => setTab("mrn")}
+          />
+          <StatCard
+            title="In Supply Chain"
+            value={inSupplyChain}
+            description="With Supply Chain Director"
+            icon={Package}
+            iconColor="text-success"
+          />
+        </div>
+
+        {/* Dashboard Alerts */}
+        <DashboardAlerts userRole={user?.role || 'procurement'} maxAlerts={5} />
+
+        {/* Vendor Registrations Section */}
+        <VendorRegistrationsList 
+          maxItems={3} 
+          showTabs={false} 
+          title="Pending Vendor Registrations"
+          externalRegistrations={vendorRegistrations}
+          externalLoading={vendorRegistrationsLoading}
+        />
 
           {/* Recent Activities */}
           <RecentActivities limit={10} />
 
-          <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-5 h-auto gap-1">
-              <TabsTrigger value="mrn" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3 flex-col sm:flex-row gap-1">
-                <span className="hidden sm:inline">Material Requests (MRN)</span>
-                <span className="sm:hidden">MRN</span>
-                {pendingMRNs.length > 0 && (
-                  <Badge variant="destructive" className="ml-0 sm:ml-2 text-[8px] sm:text-xs h-4 sm:h-5 px-1">
-                    {pendingMRNs.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="mrf" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
-                <span className="hidden sm:inline">MRF (Official)</span>
-                <span className="sm:hidden">MRF</span>
-              </TabsTrigger>
-              <TabsTrigger value="rfq" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
-                <span className="hidden sm:inline">RFQ Management</span>
-                <span className="sm:hidden">RFQ</span>
-                <Send className="h-3 w-3 ml-1 hidden sm:inline" />
-              </TabsTrigger>
-              <TabsTrigger value="srf" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
-                <span className="hidden sm:inline">Service Requests</span>
-                <span className="sm:hidden">SRF</span>
-              </TabsTrigger>
-              <TabsTrigger value="po" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
-                <span className="hidden sm:inline">Purchase Orders</span>
-                <span className="sm:hidden">PO</span>
-              </TabsTrigger>
-            </TabsList>
+        <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-5 h-auto gap-1">
+            <TabsTrigger value="mrn" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3 flex-col sm:flex-row gap-1">
+              <span className="hidden sm:inline">Material Requests (MRN)</span>
+              <span className="sm:hidden">MRN</span>
+              {pendingMRNs.length > 0 && (
+                <Badge variant="destructive" className="ml-0 sm:ml-2 text-[8px] sm:text-xs h-4 sm:h-5 px-1">
+                  {pendingMRNs.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="mrf" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
+              <span className="hidden sm:inline">MRF (Official)</span>
+              <span className="sm:hidden">MRF</span>
+            </TabsTrigger>
+            <TabsTrigger value="rfq" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
+              <span className="hidden sm:inline">RFQ Management</span>
+              <span className="sm:hidden">RFQ</span>
+              <Send className="h-3 w-3 ml-1 hidden sm:inline" />
+            </TabsTrigger>
+            <TabsTrigger value="srf" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
+              <span className="hidden sm:inline">Service Requests</span>
+              <span className="sm:hidden">SRF</span>
+            </TabsTrigger>
+            <TabsTrigger value="po" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
+              <span className="hidden sm:inline">Purchase Orders</span>
+              <span className="sm:hidden">PO</span>
+            </TabsTrigger>
+          </TabsList>
 
-            {/* RFQ Management Tab */}
-            <TabsContent value="rfq" className="space-y-4">
-              <RFQManagement onVendorSelected={(vendorId, rfqId) => {
+          {/* RFQ Management Tab */}
+          <TabsContent value="rfq" className="space-y-4">
+            <RFQManagement onVendorSelected={(vendorId, rfqId) => {
                 // Vendor selection is now handled in RFQManagement component
                 // It automatically sends vendor to Supply Chain Director for approval
                 // Refresh MRF list to see updated workflow state
                 fetchMRFs();
-                setTab("mrf");
-              }} />
-            </TabsContent>
+              setTab("mrf");
+            }} />
+          </TabsContent>
 
-            <TabsContent value="mrn" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <CardTitle>Material Request Notes (MRN)</CardTitle>
-                      <CardDescription>Review department requests and convert to official MRFs</CardDescription>
-                    </div>
+          <TabsContent value="mrn" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle>Material Request Notes (MRN)</CardTitle>
+                    <CardDescription>Review department requests and convert to official MRFs</CardDescription>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {mrns.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No material request notes submitted yet</p>
-                      </div>
-                    ) : (
-                      mrns.map((mrn) => (
-                        <Card key={mrn.id} className="overflow-hidden">
-                          <CardContent className="p-6">
-                            <div className="flex justify-between items-start mb-4">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <span className="font-mono text-sm font-semibold">{mrn.controlNumber}</span>
-                                  <Badge className={
-                                    mrn.status === "Pending" ? "bg-yellow-500" :
-                                      mrn.status === "Under Review" ? "bg-blue-500" :
-                                        mrn.status === "Converted to MRF" ? "bg-green-500" :
-                                          "bg-red-500"
-                                  }>
-                                    {mrn.status}
-                                  </Badge>
-                                  <Badge variant={mrn.urgency === "High" ? "destructive" : "secondary"}>
-                                    {mrn.urgency}
-                                  </Badge>
-                                </div>
-                                <h3 className="text-lg font-semibold">{mrn.title}</h3>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  Requested by {mrn.requesterName} • {mrn.department} • {new Date(mrn.submittedDate).toLocaleDateString()}
-                                </p>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {mrns.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No material request notes submitted yet</p>
+                    </div>
+                  ) : (
+                    mrns.map((mrn) => (
+                      <Card key={mrn.id} className="overflow-hidden">
+                        <CardContent className="p-6">
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="font-mono text-sm font-semibold">{mrn.controlNumber}</span>
+                                <Badge className={
+                                  mrn.status === "Pending" ? "bg-yellow-500" :
+                                  mrn.status === "Under Review" ? "bg-blue-500" :
+                                  mrn.status === "Converted to MRF" ? "bg-green-500" :
+                                  "bg-red-500"
+                                }>
+                                  {mrn.status}
+                                </Badge>
+                                <Badge variant={mrn.urgency === "High" ? "destructive" : "secondary"}>
+                                  {mrn.urgency}
+                                </Badge>
                               </div>
+                              <h3 className="text-lg font-semibold">{mrn.title}</h3>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Requested by {mrn.requesterName} • {mrn.department} • {new Date(mrn.submittedDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3 mb-4">
+                            <div>
+                              <strong className="text-sm">Justification:</strong>
+                              <p className="text-sm text-muted-foreground">{mrn.justification}</p>
                             </div>
 
-                            <div className="space-y-3 mb-4">
-                              <div>
-                                <strong className="text-sm">Justification:</strong>
-                                <p className="text-sm text-muted-foreground">{mrn.justification}</p>
-                              </div>
-
-                              <div>
-                                <strong className="text-sm">Items Requested ({mrn.items.length}):</strong>
-                                <div className="mt-2 space-y-2">
-                                  {mrn.items.map((item, idx) => (
-                                    <div key={idx} className="bg-muted p-3 rounded-md">
-                                      <div className="flex justify-between items-start">
-                                        <div className="flex-1">
-                                          <p className="font-medium">{item.name}</p>
-                                          {item.description && (
-                                            <p className="text-sm text-muted-foreground">{item.description}</p>
-                                          )}
-                                        </div>
-                                        <div className="text-right ml-4">
-                                          <p className="text-sm">Qty: {item.quantity}</p>
-                                          <p className="text-sm font-semibold">₦{parseFloat(item.estimatedUnitCost).toLocaleString()}/unit</p>
-                                        </div>
+                            <div>
+                              <strong className="text-sm">Items Requested ({mrn.items.length}):</strong>
+                              <div className="mt-2 space-y-2">
+                                {mrn.items.map((item, idx) => (
+                                  <div key={idx} className="bg-muted p-3 rounded-md">
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex-1">
+                                        <p className="font-medium">{item.name}</p>
+                                        {item.description && (
+                                          <p className="text-sm text-muted-foreground">{item.description}</p>
+                                        )}
+                                      </div>
+                                      <div className="text-right ml-4">
+                                        <p className="text-sm">Qty: {item.quantity}</p>
+                                        <p className="text-sm font-semibold">₦{parseFloat(item.estimatedUnitCost).toLocaleString()}/unit</p>
                                       </div>
                                     </div>
-                                  ))}
-                                </div>
+                                  </div>
+                                ))}
                               </div>
-
-                              <div className="bg-primary/5 p-3 rounded-md">
-                                <strong className="text-sm">Total Estimated Cost:</strong>
-                                <p className="text-lg font-bold">
-                                  ₦{mrn.items.reduce((sum, item) =>
-                                    sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.estimatedUnitCost) || 0), 0
-                                  ).toLocaleString()}
-                                </p>
-                              </div>
-
-                              {mrn.reviewNotes && (
-                                <div className="bg-muted p-3 rounded-md">
-                                  <strong className="text-sm">Review Notes:</strong>
-                                  <p className="text-sm text-muted-foreground mt-1">{mrn.reviewNotes}</p>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    Reviewed by {mrn.reviewedBy} on {mrn.reviewDate && new Date(mrn.reviewDate).toLocaleDateString()}
-                                  </p>
-                                </div>
-                              )}
-
-                              {mrn.convertedMRFId && (
-                                <div className="bg-green-500/10 p-3 rounded-md">
-                                  <p className="text-sm text-green-700 dark:text-green-400">
-                                    ✓ Converted to MRF: <span className="font-mono font-semibold">{mrn.convertedMRFId}</span>
-                                  </p>
-                                </div>
-                              )}
                             </div>
 
-                            {mrn.status === "Pending" || mrn.status === "Under Review" ? (
-                              <div className="flex gap-2">
-                                <Button
-                                  onClick={() => handleConvertMRNToMRF(mrn.id)}
-                                  className="flex-1"
-                                >
-                                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                                  Convert to MRF
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  onClick={() => {
-                                    const reason = prompt("Enter rejection reason:");
-                                    if (reason) handleRejectMRN(mrn.id, reason);
-                                  }}
-                                >
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                  Reject
-                                </Button>
-                              </div>
-                            ) : null}
-                          </CardContent>
-                        </Card>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                            <div className="bg-primary/5 p-3 rounded-md">
+                              <strong className="text-sm">Total Estimated Cost:</strong>
+                              <p className="text-lg font-bold">
+                                ₦{mrn.items.reduce((sum, item) => 
+                                  sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.estimatedUnitCost) || 0), 0
+                                ).toLocaleString()}
+                              </p>
+                            </div>
 
-            <TabsContent value="mrf" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <CardTitle>Material Request Forms</CardTitle>
-                      <CardDescription>Review and approve material requisitions</CardDescription>
-                    </div>
+                            {mrn.reviewNotes && (
+                              <div className="bg-muted p-3 rounded-md">
+                                <strong className="text-sm">Review Notes:</strong>
+                                <p className="text-sm text-muted-foreground mt-1">{mrn.reviewNotes}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Reviewed by {mrn.reviewedBy} on {mrn.reviewDate && new Date(mrn.reviewDate).toLocaleDateString()}
+                                </p>
+                              </div>
+                            )}
+
+                            {mrn.convertedMRFId && (
+                              <div className="bg-green-500/10 p-3 rounded-md">
+                                <p className="text-sm text-green-700 dark:text-green-400">
+                                  ✓ Converted to MRF: <span className="font-mono font-semibold">{mrn.convertedMRFId}</span>
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {mrn.status === "Pending" || mrn.status === "Under Review" ? (
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => handleConvertMRNToMRF(mrn.id)}
+                                className="flex-1"
+                              >
+                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                Convert to MRF
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => {
+                                  const reason = prompt("Enter rejection reason:");
+                                  if (reason) handleRejectMRN(mrn.id, reason);
+                                }}
+                              >
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Reject
+                              </Button>
+                            </div>
+                          ) : null}
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="mrf" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle>Material Request Forms</CardTitle>
+                    <CardDescription>Review and approve material requisitions</CardDescription>
+                  </div>
                     {/* Only employees can create MRF */}
                     {user?.role === "employee" && (
-                      <Button onClick={() => navigate("/procurement/mrf/new")} size="sm">
-                        <Plus className="mr-2 h-4 w-4" />
-                        New MRF
-                      </Button>
+                  <Button onClick={() => navigate("/procurement/mrf/new")} size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    New MRF
+                  </Button>
                     )}
-                  </div>
-                </CardHeader>
-                <CardContent>
+                </div>
+              </CardHeader>
+              <CardContent>
                   {/* Rejected POs - Need Resubmission - Only visible to Procurement Managers */}
                   {rejectedPOs.length > 0 && (user?.role === "procurement" || user?.role === "procurement_manager") && (
-                    <div className="mb-6 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
-                      <div className="flex items-center gap-2 mb-4">
-                        <XCircle className="h-5 w-5 text-destructive" />
-                        <h3 className="font-semibold text-lg">POs Rejected by Supply Chain</h3>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {rejectedPOs.length} PO(s) rejected and need revision
-                      </p>
-                      <div className="space-y-3">
-                        {rejectedPOs.map((mrf) => (
-                          <Card key={mrf.id} className="bg-card border-destructive/50">
-                            <CardContent className="p-4">
-                              <div className="flex flex-col gap-3">
-                                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <h4 className="font-semibold">{mrf.title}</h4>
-                                      <Badge variant="destructive">Rejected</Badge>
-                                      <Badge variant="outline">{mrf.poNumber}</Badge>
-                                      {mrf.poVersion && (
-                                        <Badge variant="secondary" className="text-xs">
-                                          v{mrf.poVersion}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <div className="text-sm text-muted-foreground space-y-1">
-                                      <p>MRF ID: <span className="font-medium">{mrf.id}</span></p>
-                                      <p>Requester: {mrf.requester}</p>
-                                      <p>Amount: <span className="font-semibold">₦{parseInt(mrf.estimatedCost).toLocaleString()}</span></p>
-                                    </div>
+                  <div className="mb-6 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
+                    <div className="flex items-center gap-2 mb-4">
+                      <XCircle className="h-5 w-5 text-destructive" />
+                      <h3 className="font-semibold text-lg">POs Rejected by Supply Chain</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {rejectedPOs.length} PO(s) rejected and need revision
+                    </p>
+                    <div className="space-y-3">
+                      {rejectedPOs.map((mrf) => (
+                        <Card key={mrf.id} className="bg-card border-destructive/50">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col gap-3">
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="font-semibold">{mrf.title}</h4>
+                                    <Badge variant="destructive">Rejected</Badge>
+                                    <Badge variant="outline">{mrf.poNumber}</Badge>
+                                    {mrf.poVersion && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        v{mrf.poVersion}
+                                      </Badge>
+                                    )}
                                   </div>
+                                  <div className="text-sm text-muted-foreground space-y-1">
+                                    <p>MRF ID: <span className="font-medium">{mrf.id}</span></p>
+                                    <p>Requester: {mrf.requester}</p>
+                                    <p>Amount: <span className="font-semibold">₦{parseInt(mrf.estimatedCost).toLocaleString()}</span></p>
+                                  </div>
+                                </div>
                                   {/* Regenerate PO button - Only for Procurement Managers */}
                                   {(user?.role === "procurement" || user?.role === "procurement_manager") && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleGeneratePO(mrf)}
-                                    >
-                                      <FileText className="h-4 w-4 mr-2" />
-                                      Regenerate PO
-                                    </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleGeneratePO(mrf)}
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Regenerate PO
+                              </Button>
                                   )}
-                                </div>
-
-                                {/* Rejection Details */}
-                                <div className="p-3 bg-destructive/10 rounded-md">
-                                  <p className="text-xs font-semibold text-destructive mb-1">Rejection Reason:</p>
-                                  <p className="text-sm text-foreground">{mrf.poRejectionReason}</p>
-                                  {mrf.supplyChainComments && (
-                                    <>
-                                      <p className="text-xs font-semibold text-muted-foreground mt-2 mb-1">Additional Comments:</p>
-                                      <p className="text-sm text-foreground">{mrf.supplyChainComments}</p>
-                                    </>
-                                  )}
-                                </div>
+                              </div>
+                              
+                              {/* Rejection Details */}
+                              <div className="p-3 bg-destructive/10 rounded-md">
+                                <p className="text-xs font-semibold text-destructive mb-1">Rejection Reason:</p>
+                                <p className="text-sm text-foreground">{mrf.poRejectionReason}</p>
+                                {mrf.supplyChainComments && (
+                                  <>
+                                    <p className="text-xs font-semibold text-muted-foreground mt-2 mb-1">Additional Comments:</p>
+                                    <p className="text-sm text-foreground">{mrf.supplyChainComments}</p>
+                                  </>
+                                )}
+                              </div>
 
                                 {/* Invoice/PFI Access */}
                                 {getMRFPFIUrl(mrf as MRF) && (
@@ -1222,17 +1224,17 @@ const Procurement = () => {
                                     <div className="flex items-center gap-2">
                                       <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                       <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Supporting Document Submitted by Staff</span>
-                                    </div>
+                    </div>
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <Button
+                              <Button
                                         variant="outline"
-                                        size="sm"
+                                size="sm"
                                         onClick={() => handleDownloadPFI(mrf as MRF)}
                                         className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
-                                      >
+                              >
                                         <Download className="h-4 w-4 mr-2" />
                                         View Invoice
-                                      </Button>
+                              </Button>
                                       {(() => {
                                         const docUrl = getMRFPFIUrl(mrf as MRF);
                                         const shareUrl = (mrf as any).invoice_onedrive_url ||
@@ -1250,87 +1252,87 @@ const Procurement = () => {
                                     </div>
                                   </div>
                                 )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
 
 
-                  <div className="space-y-4">
-                    <FilterBar
-                      searchQuery={searchQuery}
-                      onSearchChange={setSearchQuery}
-                      statusFilter={statusFilter}
-                      onStatusFilterChange={setStatusFilter}
-                      statusOptions={statusOptions}
-                      placeholder="Search by title, ID, or requester..."
-                      activeFiltersCount={activeFiltersCount}
-                      onClearFilters={() => {
-                        setStatusFilter("all");
-                        setDateFilter("all");
-                      }}
-                      additionalFilters={
-                        <div className="space-y-3">
-                          <div>
-                            <label className="text-sm font-medium mb-2 block">Date Range</label>
-                            <Select value={dateFilter} onValueChange={setDateFilter}>
-                              <SelectTrigger>
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="h-4 w-4" />
-                                  <SelectValue />
-                                </div>
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">All Time</SelectItem>
-                                <SelectItem value="today">Today</SelectItem>
-                                <SelectItem value="week">This Week</SelectItem>
-                                <SelectItem value="month">This Month</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium mb-2 block">Sort By</label>
-                            <Select value={sortBy} onValueChange={setSortBy}>
-                              <SelectTrigger>
+                <div className="space-y-4">
+                  <FilterBar
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    statusFilter={statusFilter}
+                    onStatusFilterChange={setStatusFilter}
+                    statusOptions={statusOptions}
+                    placeholder="Search by title, ID, or requester..."
+                    activeFiltersCount={activeFiltersCount}
+                    onClearFilters={() => {
+                      setStatusFilter("all");
+                      setDateFilter("all");
+                    }}
+                    additionalFilters={
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Date Range</label>
+                          <Select value={dateFilter} onValueChange={setDateFilter}>
+                            <SelectTrigger>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
                                 <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="date-desc">Newest First</SelectItem>
-                                <SelectItem value="date-asc">Oldest First</SelectItem>
-                                <SelectItem value="amount-desc">Highest Amount</SelectItem>
-                                <SelectItem value="amount-asc">Lowest Amount</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      }
-                    />
-
-                    {/* Results */}
-                    <div className="space-y-3 mt-4">
-                      {filteredMRFs.map((request) => {
-                        const timerColor = getApprovalTimerColor(request);
-                        return (
-                          <div
-                            key={request.id}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
-                            onClick={() => handleMRFClick(request)}
-                          >
-                            <div className="flex items-start gap-4 min-w-0 flex-1">
-                              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                                <Package className="h-6 w-6 text-primary" />
                               </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h3 className="font-semibold text-lg">{request.title}</h3>
-                                  {request.isResubmission && (
-                                    <Badge variant="outline" className="text-xs">
-                                      Resubmission
-                                    </Badge>
-                                  )}
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Time</SelectItem>
+                              <SelectItem value="today">Today</SelectItem>
+                              <SelectItem value="week">This Week</SelectItem>
+                              <SelectItem value="month">This Month</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Sort By</label>
+                          <Select value={sortBy} onValueChange={setSortBy}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="date-desc">Newest First</SelectItem>
+                              <SelectItem value="date-asc">Oldest First</SelectItem>
+                              <SelectItem value="amount-desc">Highest Amount</SelectItem>
+                              <SelectItem value="amount-asc">Lowest Amount</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    }
+                  />
+
+                  {/* Results */}
+                  <div className="space-y-3 mt-4">
+                    {filteredMRFs.map((request) => {
+                      const timerColor = getApprovalTimerColor(request);
+                      return (
+                        <div
+                          key={request.id}
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
+                          onClick={() => handleMRFClick(request)}
+                        >
+                          <div className="flex items-start gap-4 min-w-0 flex-1">
+                            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                              <Package className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-lg">{request.title}</h3>
+                                {request.isResubmission && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Resubmission
+                                  </Badge>
+                                )}
                                   {/* Executive Approval Indicator */}
                                   {(() => {
                                     const executiveApproved = (request as any).executiveApproved ||
@@ -1345,21 +1347,21 @@ const Procurement = () => {
                                     }
                                     return null;
                                   })()}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
-                                  <span className="font-medium">{request.id}</span>
-                                  <span>•</span>
-                                  <span>{request.requester}</span>
-                                  <span>•</span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
+                                <span className="font-medium">{request.id}</span>
+                                <span>•</span>
+                                <span>{request.requester}</span>
+                                <span>•</span>
                                   <span>{formatMRFDate(getMRFDate(request))}</span>
-                                  <span>•</span>
-                                  <span className="font-semibold text-foreground">₦{parseInt(request.estimatedCost).toLocaleString()}</span>
-                                </div>
-                                {request.currentStage && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Stage: <span className="capitalize font-medium">{request.currentStage}</span>
-                                  </p>
-                                )}
+                                <span>•</span>
+                                <span className="font-semibold text-foreground">₦{parseInt(request.estimatedCost).toLocaleString()}</span>
+                              </div>
+                              {request.currentStage && (
+                                <p className="text-xs text-muted-foreground">
+                                  Stage: <span className="capitalize font-medium">{request.currentStage}</span>
+                                </p>
+                              )}
                                 {/* Invoice/PFI Access */}
                                 {getMRFPFIUrl(request as MRF) && (
                                   <div className="mt-2 flex items-center gap-2 flex-wrap">
@@ -1564,17 +1566,17 @@ const Procurement = () => {
                                     </div>
                                   );
                                 })()}
-                              </div>
                             </div>
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-center">
-                              <div className="flex items-center gap-2">
-                                {timerColor && <Clock className={`h-4 w-4 ${timerColor}`} />}
-                                {getMRFStage(request as MRF) === "completed" && <CheckCircle2 className="h-5 w-5 text-success" />}
-                                {getMRFStage(request as MRF) === "rejected" && <XCircle className="h-5 w-5 text-destructive" />}
-                                <Badge className={getStatusColor(request.status)}>
-                                  {request.status}
-                                </Badge>
-                              </div>
+                          </div>
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-center">
+                            <div className="flex items-center gap-2">
+                              {timerColor && <Clock className={`h-4 w-4 ${timerColor}`} />}
+                              {getMRFStage(request as MRF) === "completed" && <CheckCircle2 className="h-5 w-5 text-success" />}
+                              {getMRFStage(request as MRF) === "rejected" && <XCircle className="h-5 w-5 text-destructive" />}
+                              <Badge className={getStatusColor(request.status)}>
+                                {request.status}
+                              </Badge>
+                            </div>
                               <div className="flex items-center gap-2">
                                 {/* View Details button - Shown for procurement after Executive approval */}
                                 {(() => {
@@ -1661,16 +1663,16 @@ const Procurement = () => {
                                   const buttonText = existingRFQ ? "Send RFQ to Vendors Again" : "Send RFQ to Vendors";
 
                                   return (
-                                    <Button
-                                      size="sm"
-                                      variant="default"
-                                      className="text-xs"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleGeneratePO(request);
-                                      }}
-                                    >
-                                      <ShoppingCart className="h-3 w-3 mr-1" />
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleGeneratePO(request);
+                                }}
+                              >
+                                <ShoppingCart className="h-3 w-3 mr-1" />
                                       {buttonText}
                                     </Button>
                                   );
@@ -1703,8 +1705,8 @@ const Procurement = () => {
                                       >
                                         <Trash2 className="h-3 w-3 mr-1" />
                                         Delete PO
-                                      </Button>
-                                    )}
+                              </Button>
+                            )}
                                   </>
                                 )}
                                 {/* Allow delete for procurement managers - MRFs without PO and in early stages */}
@@ -1744,100 +1746,140 @@ const Procurement = () => {
                                   );
                                 })()}
                               </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="srf" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <CardTitle>Service Request Forms</CardTitle>
-                      <CardDescription>List of all service requisition requests</CardDescription>
-                    </div>
-                    {/* Only employees can create SRF */}
-                    {user?.role === "employee" && (
-                      <Button onClick={() => navigate("/procurement/srf/new")} size="sm">
-                        <Plus className="mr-2 h-4 w-4" />
-                        New SRF
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {srfRequests.map((request) => (
-                      <div
-                        key={request.id}
-                        className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                            <FileText className="h-6 w-6 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-lg">{request.title}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {request.id} • {request.requester} • {request.date}
-                            </p>
                           </div>
                         </div>
-                        <Badge className={getStatusColor(request.status)}>
-                          {request.status}
-                        </Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <TabsContent value="po" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Purchase Orders</CardTitle>
-                  <CardDescription>List of all purchase orders</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
+          <TabsContent value="srf" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle>Service Request Forms</CardTitle>
+                    <CardDescription>List of all service requisition requests</CardDescription>
+                  </div>
+                    {/* Only employees can create SRF */}
+                    {user?.role === "employee" && (
+                  <Button onClick={() => navigate("/procurement/srf/new")} size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    New SRF
+                  </Button>
+                    )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {srfRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                          <FileText className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-lg">{request.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {request.id} • {request.requester} • {request.date}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className={getStatusColor(request.status)}>
+                        {request.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="po" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Purchase Orders</CardTitle>
+                <CardDescription>List of all purchase orders</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
                     {mrfRequests.filter(mrf => {
                       // Show MRFs that have PO numbers (POs have been generated)
                       return getMRFPONumber(mrf as MRF);
                     }).map((mrf) => {
                       const poNumber = getMRFPONumber(mrf as MRF);
-                      const vendorName = (mrf as any).selectedVendorName || (mrf as any).vendor_name || 'N/A';
-                      const quotation = getQuotationsForMRF(mrf.id).find((q: any) => q.status === 'Approved' || q.status === 'approved');
-                      const amount = quotation ? (quotation.total_amount || quotation.totalAmount || quotation.price || '0') : getMRFEstimatedCost(mrf as MRF);
+                      const quotation = getQuotationsForMRF(mrf.id).find((q: any) => 
+                        q.status === 'Approved' || q.status === 'approved' || q.status === 'awarded'
+                      );
+                      const vendorName = quotation?.vendorName || 
+                                       (mrf as any).selectedVendorName || 
+                                       (mrf as any).vendor_name || 
+                                       'N/A';
+                      const amount = quotation ? 
+                        (quotation.total_amount || quotation.totalAmount || quotation.price || '0') : 
+                        getMRFEstimatedCost(mrf as MRF);
+                      const unsignedPOUrl = getMRFPOUrl(mrf as MRF) || 
+                                          getMRFPOShareUrl(mrf as MRF) ||
+                                          (mrf as any).unsigned_po_url ||
+                                          (mrf as any).unsignedPOShareUrl ||
+                                          null;
+                      const workflowState = (mrf as any).workflow_state || mrf.status || 'Pending';
 
                       return (
                         <div
                           key={mrf.id}
-                          className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
+                          className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card"
                         >
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                              <ShoppingCart className="h-6 w-6 text-primary" />
-                            </div>
-                            <div>
+                          <div className="flex items-center gap-4 flex-1">
+                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                          <ShoppingCart className="h-6 w-6 text-primary" />
+                        </div>
+                            <div className="flex-1">
                               <p className="font-semibold text-lg">{mrf.title}</p>
-                              <p className="text-sm text-muted-foreground">
-                                PO: {poNumber} • {mrf.id} • {vendorName} • {formatMRFDate(getMRFDate(mrf as MRF))}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Amount: ₦{parseFloat(amount).toLocaleString()} • Status: {mrf.status}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge className={getStatusColor(mrf.status)}>
-                            {mrf.status}
-                          </Badge>
+                          <p className="text-sm text-muted-foreground">
+                                PO: {poNumber} • MRF: {mrf.id} • Vendor: {vendorName}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                                Amount: ₦{parseFloat(amount).toLocaleString()} • 
+                                Status: {workflowState} • 
+                                Date: {formatMRFDate(getMRFDate(mrf as MRF))}
+                          </p>
+                        </div>
+                      </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className={getStatusColor(mrf.status)}>
+                              {workflowState}
+                      </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedMRFForPODetails(mrf);
+                                setPODetailsDialogOpen(true);
+                              }}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              View Details
+                            </Button>
+                            {unsignedPOUrl && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  handleDownloadPO(mrf as MRF);
+                                }}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Download PO
+                              </Button>
+                            )}
+                    </div>
                         </div>
                       );
                     })}
@@ -1847,12 +1889,12 @@ const Procurement = () => {
                         <p>No purchase orders generated yet</p>
                       </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
       </PullToRefresh>
 
       <POGenerationDialog
@@ -1872,6 +1914,156 @@ const Procurement = () => {
           mrf={selectedMRFForGRN}
           onSuccess={handleGRNCompletionSuccess}
         />
+      )}
+
+      {/* PO Details Dialog */}
+      {selectedMRFForPODetails && (
+        <Dialog open={poDetailsDialogOpen} onOpenChange={setPODetailsDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Purchase Order Details</DialogTitle>
+              <DialogDescription>
+                PO Number: {getMRFPONumber(selectedMRFForPODetails as unknown as MRF)}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 mt-4">
+              {/* PO Basic Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">PO Number</Label>
+                  <p className="font-medium">{getMRFPONumber(selectedMRFForPODetails as unknown as MRF)}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">MRF ID</Label>
+                  <p className="font-medium">{selectedMRFForPODetails.id}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Title</Label>
+                  <p className="font-medium">{selectedMRFForPODetails.title}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge className={getStatusColor(selectedMRFForPODetails.status)}>
+                    {(selectedMRFForPODetails as any).workflow_state || selectedMRFForPODetails.status || 'Pending'}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Created Date</Label>
+                  <p className="font-medium">{formatMRFDate(getMRFDate(selectedMRFForPODetails as unknown as MRF))}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Requester</Label>
+                  <p className="font-medium">{getMRFRequester(selectedMRFForPODetails as unknown as MRF)}</p>
+                </div>
+              </div>
+
+              {/* Vendor Information */}
+              {(() => {
+                const quotation = getQuotationsForMRF(selectedMRFForPODetails.id).find((q: any) => 
+                  q.status === 'Approved' || q.status === 'approved' || q.status === 'awarded'
+                );
+                if (!quotation) return null;
+                
+                return (
+                  <div className="border-t pt-4">
+                    <h3 className="font-semibold mb-3">Vendor Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-muted-foreground">Vendor Name</Label>
+                        <p className="font-medium">{quotation.vendorName || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground">Total Amount</Label>
+                        <p className="font-medium">₦{parseFloat(quotation.total_amount || quotation.totalAmount || quotation.price || '0').toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground">Delivery Days</Label>
+                        <p className="font-medium">{quotation.deliveryDays || quotation.delivery_days || 'N/A'} days</p>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground">Payment Terms</Label>
+                        <p className="font-medium">
+                          {quotation.payment_terms || quotation.paymentTerms || quotation.payment_terms_text || 'N/A'}
+                        </p>
+                      </div>
+                      {quotation.currency && (
+                        <div>
+                          <Label className="text-muted-foreground">Currency</Label>
+                          <p className="font-medium">{quotation.currency}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* PO Items */}
+              {(() => {
+                const quotation = getQuotationsForMRF(selectedMRFForPODetails.id).find((q: any) => 
+                  q.status === 'Approved' || q.status === 'approved' || q.status === 'awarded'
+                );
+                const items = quotation?.items || [];
+                
+                if (items.length === 0) {
+                  // Fallback: show MRF description if no items
+                  return (
+                    <div className="border-t pt-4">
+                      <h3 className="font-semibold mb-3">Description</h3>
+                      <p className="text-muted-foreground">{selectedMRFForPODetails.description || 'No items specified'}</p>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="border-t pt-4">
+                    <h3 className="font-semibold mb-3">Items</h3>
+                    <div className="space-y-2">
+                      {items.map((item: any, idx: number) => (
+                        <div key={idx} className="p-3 border rounded-md">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <p className="font-medium">{item.item_name || item.name || `Item ${idx + 1}`}</p>
+                              {item.description && (
+                                <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                              )}
+                              <div className="grid grid-cols-3 gap-4 mt-2 text-sm text-muted-foreground">
+                                <span>Quantity: {item.quantity || 'N/A'}</span>
+                                <span>Unit Price: ₦{parseFloat(item.unit_price || item.unitPrice || '0').toLocaleString()}</span>
+                                <span>Total: ₦{parseFloat(item.total_price || (item.quantity * (item.unit_price || item.unitPrice || 0)) || '0').toLocaleString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* PO Document */}
+              {(() => {
+                const unsignedPOUrl = getMRFPOUrl(selectedMRFForPODetails as unknown as MRF) || 
+                                    getMRFPOShareUrl(selectedMRFForPODetails as unknown as MRF);
+                
+                if (!unsignedPOUrl) return null;
+                
+                return (
+                  <div className="border-t pt-4">
+                    <h3 className="font-semibold mb-3">PO Document</h3>
+                    <Button
+                      onClick={() => {
+                        handleDownloadPO(selectedMRFForPODetails as unknown as MRF);
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Purchase Order
+                    </Button>
+                  </div>
+                );
+              })()}
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* GRN Requested Section */}
