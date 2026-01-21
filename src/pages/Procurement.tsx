@@ -1380,7 +1380,15 @@ const Procurement = () => {
                                           <div className="flex-1">
                                             <p className="text-sm font-medium">{quotation.vendorName || quotation.vendor_name || 'Vendor'}</p>
                                             <p className="text-xs text-muted-foreground">
-                                              Price: ₦{parseFloat(quotation.vendor_price || quotation.vendorPrice || quotation.total_amount || quotation.price || '0').toLocaleString()}
+                                              Price: ₦{parseFloat(
+                                                quotation.total_amount || 
+                                                quotation.totalAmount || 
+                                                quotation.price || 
+                                                quotation.amount ||
+                                                quotation.vendor_price || 
+                                                quotation.vendorPrice || 
+                                                '0'
+                                              ).toLocaleString()}
                                               {(quotation.deliveryDate || quotation.delivery_date) && ` • Delivery: ${new Date(quotation.deliveryDate || quotation.delivery_date).toLocaleDateString()}`}
                                             </p>
                                           </div>
@@ -2138,11 +2146,34 @@ const Procurement = () => {
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground">Delivery Days</p>
-                                  <p className="font-medium">{quotation.deliveryDays || quotation.delivery_days || 'N/A'}</p>
+                                  <p className="font-medium">
+                                    {(() => {
+                                      // Check for delivery_days or deliveryDays first
+                                      const deliveryDays = quotation.delivery_days || quotation.deliveryDays;
+                                      if (deliveryDays !== null && deliveryDays !== undefined && deliveryDays !== '') {
+                                        return deliveryDays;
+                                      }
+                                      // If not available, calculate from delivery_date or deliveryDate
+                                      const deliveryDate = quotation.delivery_date || quotation.deliveryDate;
+                                      if (deliveryDate) {
+                                        try {
+                                          const days = Math.ceil(
+                                            (new Date(deliveryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+                                          );
+                                          return days > 0 ? days : 'N/A';
+                                        } catch {
+                                          return 'N/A';
+                                        }
+                                      }
+                                      return 'N/A';
+                                    })()}
+                                  </p>
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground">Payment Terms</p>
-                                  <p className="font-medium">{quotation.payment_terms || quotation.paymentTerms || 'N/A'}</p>
+                                  <p className="font-medium">
+                                    {quotation.payment_terms || quotation.paymentTerms || quotation.payment_terms_text || 'N/A'}
+                                  </p>
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground">Validity</p>
