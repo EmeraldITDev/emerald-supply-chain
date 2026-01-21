@@ -478,7 +478,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                 }).length;
               })()}
             </div>
-            <p className="text-xs text-muted-foreground">This month</p>
+            <p className="text-xs text-muted-foreground">Quotes Received this month</p>
           </CardContent>
         </Card>
         <Card>
