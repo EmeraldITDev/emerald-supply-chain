@@ -1455,6 +1455,30 @@ const Procurement = () => {
                                                       e.stopPropagation();
                                                       // Automatically generate PO and forward to Finance
                                                       try {
+                                                        // #region agent log
+                                                        fetch('http://127.0.0.1:7242/ingest/9072b976-85e1-47ec-b15b-650e0677f83f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Procurement.tsx:1457',message:'PO generation started',data:{mrfId:request.id,mrfTitle:request.title},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                                                        // #endregion
+                                                        
+                                                        // Get MRF data
+                                                        const mrfData = mrfRequests.find(m => m.id === request.id);
+                                                        const mrfQuotations = getQuotationsForMRF(request.id);
+                                                        const approvedQuotation = mrfQuotations.find((q: any) => 
+                                                          q.status === 'Approved' || q.status === 'approved' || q.status === 'awarded'
+                                                        );
+                                                        const mrfRfqs = rfqs.filter(rfq => rfq.mrfId === request.id || rfq.mrf_id === request.id);
+                                                        
+                                                        // #region agent log
+                                                        fetch('http://127.0.0.1:7242/ingest/9072b976-85e1-47ec-b15b-650e0677f83f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Procurement.tsx:1465',message:'MRF data before PO generation',data:{mrfId:request.id,mrfHasItems:!!(mrfData as any)?.items,mrfItemsCount:(mrfData as any)?.items?.length||0,quotationsCount:mrfQuotations.length,approvedQuotationId:approvedQuotation?.id,approvedQuotationHasItems:!!approvedQuotation?.items,approvedQuotationItemsCount:approvedQuotation?.items?.length||0,rfqsCount:mrfRfqs.length,rfqItemsCount:mrfRfqs[0]?.items?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
+                                                        // #endregion
+                                                        
+                                                        // #region agent log
+                                                        if (approvedQuotation) {
+                                                          fetch('http://127.0.0.1:7242/ingest/9072b976-85e1-47ec-b15b-650e0677f83f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Procurement.tsx:1470',message:'Approved quotation details',data:{quotationId:approvedQuotation.id,quotationStatus:approvedQuotation.status,quotationItems:approvedQuotation.items,quotationItemsType:typeof approvedQuotation.items,quotationItemsIsArray:Array.isArray(approvedQuotation.items)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B'})}).catch(()=>{});
+                                                        } else {
+                                                          fetch('http://127.0.0.1:7242/ingest/9072b976-85e1-47ec-b15b-650e0677f83f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Procurement.tsx:1473',message:'No approved quotation found',data:{mrfId:request.id,allQuotations:mrfQuotations.map((q:any)=>({id:q.id,status:q.status}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                                                        }
+                                                        // #endregion
+                                                        
                                                         // Auto-generate PO number: PO-YYYY-MMDD-XXX format
                                                         const now = new Date();
                                                         const year = now.getFullYear();
@@ -1463,9 +1487,17 @@ const Procurement = () => {
                                                         const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
                                                         const poNumber = `PO-${year}-${month}${day}-${random}`;
 
+                                                        // #region agent log
+                                                        fetch('http://127.0.0.1:7242/ingest/9072b976-85e1-47ec-b15b-650e0677f83f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Procurement.tsx:1482',message:'Calling generatePO API',data:{mrfId:request.id,poNumber,hasFile:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E'})}).catch(()=>{});
+                                                        // #endregion
+
                                                         // Generate PO automatically - backend will auto-generate the PO PDF document
                                                         // No file upload needed - backend handles document generation
                                                         const poResponse = await mrfApi.generatePO(request.id, poNumber);
+                                                        
+                                                        // #region agent log
+                                                        fetch('http://127.0.0.1:7242/ingest/9072b976-85e1-47ec-b15b-650e0677f83f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Procurement.tsx:1488',message:'PO generation response received',data:{success:poResponse.success,error:poResponse.error,hasData:!!poResponse.data},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E'})}).catch(()=>{});
+                                                        // #endregion
                                                         if (poResponse.success) {
                                                           toast({
                                                             title: "PO Generated",

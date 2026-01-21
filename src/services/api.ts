@@ -712,10 +712,20 @@ export const mrfApi = {
         note: 'Backend will auto-generate the PO PDF document',
       });
       
-      return apiRequest<MRF>(`/mrfs/${id}/generate-po`, {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9072b976-85e1-47ec-b15b-650e0677f83f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:715',message:'API request being sent',data:{mrfId:id,poNumber,requestBody:{po_number:poNumber}},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D,E'})}).catch(()=>{});
+      // #endregion
+      
+      const response = await apiRequest<MRF>(`/mrfs/${id}/generate-po`, {
         method: 'POST',
         body: JSON.stringify({ po_number: poNumber }),
       });
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/9072b976-85e1-47ec-b15b-650e0677f83f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:723',message:'API response received',data:{success:response.success,error:response.error,hasData:!!response.data,errorMessage:response.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E'})}).catch(()=>{});
+      // #endregion
+      
+      return response;
     }
   },
 
