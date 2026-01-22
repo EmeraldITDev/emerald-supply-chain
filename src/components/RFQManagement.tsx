@@ -496,57 +496,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(() => {
-                const now = new Date();
-                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-                const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-                
-                const quotesThisMonth = quotations.filter(q => {
-                  // Check all possible date field variations
-                  const submittedDate = (q as any).submittedDate || 
-                                       (q as any).submitted_date || 
-                                       (q as any).submitted_at ||
-                                       (q as any).submittedAt ||
-                                       (q as any).created_at || 
-                                       (q as any).createdAt ||
-                                       (q as any).date;
-                  
-                  if (!submittedDate) {
-                    // Debug: log quotations without dates
-                    console.warn('Quotation without date:', q.id, q);
-                    return false;
-                  }
-                  
-                  try {
-                    const quoteDate = new Date(submittedDate);
-                    // Validate date and check if within current month
-                    if (isNaN(quoteDate.getTime())) {
-                      console.warn('Invalid date format:', submittedDate, 'for quotation:', q.id);
-                      return false;
-                    }
-                    const isInMonth = quoteDate >= startOfMonth && quoteDate <= endOfMonth;
-                    return isInMonth;
-                  } catch (e) {
-                    console.error('Error parsing date:', submittedDate, e);
-                    return false;
-                  }
-                });
-                
-                // Debug: log statistics if no quotes found but quotations exist
-                if (quotesThisMonth.length === 0 && quotations.length > 0) {
-                  console.log('Statistics Debug:', {
-                    totalQuotations: quotations.length,
-                    quotesThisMonth: quotesThisMonth.length,
-                    sampleDate: quotations[0]?.submittedDate || (quotations[0] as any)?.submitted_date,
-                    startOfMonth: startOfMonth.toISOString(),
-                    endOfMonth: endOfMonth.toISOString(),
-                  });
-                }
-                
-                return quotesThisMonth.length;
-              })()}
+              {quotations.length}
             </div>
-            <p className="text-xs text-muted-foreground">Quotes Received this month</p>
+            <p className="text-xs text-muted-foreground">Total quotes received</p>
           </CardContent>
         </Card>
         <Card>

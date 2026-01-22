@@ -1418,7 +1418,11 @@ const Procurement = () => {
                                 <span>•</span>
                                   <span>{formatMRFDate(getMRFDate(request))}</span>
                                 <span>•</span>
-                                <span className="font-semibold text-foreground">₦{parseInt(request.estimatedCost).toLocaleString()}</span>
+                                <span className="font-semibold text-foreground">
+                                  {parseFloat(request.estimatedCost || '0') > 0 
+                                    ? `₦${parseInt(request.estimatedCost).toLocaleString()}`
+                                    : '-'}
+                                </span>
                               </div>
                               {request.currentStage && (
                                 <p className="text-xs text-muted-foreground">
@@ -1483,12 +1487,12 @@ const Procurement = () => {
                                               <p className="text-sm font-medium">{quotation.vendorName || quotation.vendor_name || 'Vendor'}</p>
                                               <p className="text-xs text-muted-foreground">
                                                 Price: ₦{parseFloat(
+                                                  quotation.vendor_price ||
+                                                  quotation.vendorPrice ||
                                                   quotation.total_amount ||
                                                   quotation.totalAmount ||
                                                   quotation.price ||
                                                   quotation.amount ||
-                                                  quotation.vendor_price ||
-                                                  quotation.vendorPrice ||
                                                   '0'
                                                 ).toLocaleString()}
                                                 {(quotation.deliveryDate || quotation.delivery_date) && ` • Delivery: ${new Date(quotation.deliveryDate || quotation.delivery_date).toLocaleDateString()}`}
@@ -1550,10 +1554,11 @@ const Procurement = () => {
                                                                 
                                                                 // Extract items from the quotation
                                                                 if (fullQuotation) {
-                                                                  if (fullQuotation.items && Array.isArray(fullQuotation.items) && fullQuotation.items.length > 0) {
-                                                                    quotationItems = fullQuotation.items;
-                                                                  } else if (fullQuotation.quotation?.items && Array.isArray(fullQuotation.quotation.items) && fullQuotation.quotation.items.length > 0) {
-                                                                    quotationItems = fullQuotation.quotation.items;
+                                                                  const fqAny = fullQuotation as any;
+                                                                  if (fqAny.items && Array.isArray(fqAny.items) && fqAny.items.length > 0) {
+                                                                    quotationItems = fqAny.items;
+                                                                  } else if (fqAny.quotation?.items && Array.isArray(fqAny.quotation.items) && fqAny.quotation.items.length > 0) {
+                                                                    quotationItems = fqAny.quotation.items;
                                                                   }
                                                                 }
                                                                 
