@@ -4,7 +4,8 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, AlertCircle, FileText, Loader2, RefreshCw, Download } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CheckCircle, XCircle, AlertCircle, FileText, Loader2, RefreshCw, Download, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
@@ -16,6 +17,7 @@ import { ExecutiveActionButtons } from "@/components/ExecutiveActionButtons";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { formatMRFDate } from "@/utils/dateUtils";
 
 const ExecutiveDashboard = () => {
   const { user } = useAuth();
@@ -247,176 +249,265 @@ const ExecutiveDashboard = () => {
         </div>
 
 
-        {/* MRF List */}
-        <Card>
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg">Material Requisition Forms</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Review and approve MRFs from departments</CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6 pt-0">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : pendingMRFs.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                <p>No MRFs pending approval</p>
-                <p className="text-xs mt-2">All MRFs have been reviewed</p>
-              </div>
-            ) : (
-              <div className="space-y-3 sm:space-y-4">
-                {pendingMRFs.map((mrf) => {
-                  const estimatedCost = getEstimatedCost(mrf);
-                  const isHighValue = estimatedCost > 1000000;
-                  const isActionLoading = actionLoading === mrf.id;
 
-                  return (
-                    <Card key={mrf.id} className="border-l-4 border-l-primary">
-                      <CardHeader className="p-3 sm:p-4 lg:p-6">
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <CardTitle className="text-sm sm:text-base lg:text-lg truncate">{mrf.title}</CardTitle>
-                            <CardDescription className="text-xs sm:text-sm truncate">
-                              {mrf.id} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
-                            </CardDescription>
-                          </div>
-                          <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-                            <Badge variant={isHighValue ? "destructive" : "default"} className="text-xs">
-                              ₦{estimatedCost.toLocaleString()}
-                            </Badge>
-                            <Badge variant={String(mrf.urgency).toLowerCase() === "high" ? "destructive" : "secondary"} className="text-xs">
-                              {mrf.urgency}
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4 lg:p-6 pt-0">
-                        <div className="grid md:grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="font-semibold">Category:</p>
-                            <p className="text-muted-foreground">{mrf.category}</p>
-                          </div>
-                          <div>
-                            <p className="font-semibold">Quantity:</p>
-                            <p className="text-muted-foreground">{mrf.quantity}</p>
-                          </div>
-                          <div className="md:col-span-2">
-                            <p className="font-semibold">Description:</p>
-                            <p className="text-muted-foreground">{mrf.description}</p>
-                          </div>
-                          <div className="md:col-span-2">
-                            <p className="font-semibold">Justification:</p>
-                            <p className="text-muted-foreground">{mrf.justification}</p>
-                          </div>
-                        </div>
+        {/* MRF List with Tabs */}
+        <Tabs defaultValue="pending" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="pending">
+              Pending Approval
+              {pendingMRFs.length > 0 && (
+                <Badge variant="destructive" className="ml-2 text-xs">{pendingMRFs.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="all">All Requests ({mrfRequests.length})</TabsTrigger>
+          </TabsList>
 
-                        {/* Invoice/PFI Access */}
-                        {getPFIUrl(mrf) && (
-                          <div className="flex flex-col gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Supporting Document Submitted by Staff</span>
+          <TabsContent value="pending">
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Pending Approval</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Review and approve MRFs from departments</CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : pendingMRFs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                    <p>No MRFs pending approval</p>
+                    <p className="text-xs mt-2">All MRFs have been reviewed</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 sm:space-y-4">
+                    {pendingMRFs.map((mrf) => {
+                      const estimatedCost = getEstimatedCost(mrf);
+                      const isHighValue = estimatedCost > 1000000;
+                      const isActionLoading = actionLoading === mrf.id;
+
+                      return (
+                        <Card key={mrf.id} className="border-l-4 border-l-primary">
+                          <CardHeader className="p-3 sm:p-4 lg:p-6">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <CardTitle className="text-sm sm:text-base lg:text-lg truncate">{mrf.title}</CardTitle>
+                                <CardDescription className="text-xs sm:text-sm truncate">
+                                  {mrf.id} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
+                                </CardDescription>
+                              </div>
+                              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                                <Badge variant={isHighValue ? "destructive" : "default"} className="text-xs">
+                                  {estimatedCost > 0 ? `₦${estimatedCost.toLocaleString()}` : '-'}
+                                </Badge>
+                                <Badge variant={String(mrf.urgency).toLowerCase() === "high" ? "destructive" : "secondary"} className="text-xs">
+                                  {mrf.urgency}
+                                </Badge>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => handleDownloadPFI(mrf)}
-                                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
-                              >
-                                <Download className="h-4 w-4 mr-2" />
-                                View Invoice
-                              </Button>
-                              {(() => {
-                                const shareUrl = (mrf as any).invoice_onedrive_url || 
-                                                (mrf as any).invoiceOneDriveUrl ||
-                                                mrf.pfi_share_url || 
-                                                mrf.pfiShareUrl;
-                                return shareUrl && (
-                                  <OneDriveLink 
-                                    webUrl={shareUrl} 
-                                    fileName="Supporting Document"
-                                    variant="badge"
-                                  />
-                                );
-                              })()}
+                          </CardHeader>
+                          <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4 lg:p-6 pt-0">
+                            <div className="grid md:grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <p className="font-semibold">Category:</p>
+                                <p className="text-muted-foreground">{mrf.category}</p>
+                              </div>
+                              <div>
+                                <p className="font-semibold">Quantity:</p>
+                                <p className="text-muted-foreground">{mrf.quantity}</p>
+                              </div>
+                              <div className="md:col-span-2">
+                                <p className="font-semibold">Description:</p>
+                                <p className="text-muted-foreground">{mrf.description}</p>
+                              </div>
+                              <div className="md:col-span-2">
+                                <p className="font-semibold">Justification:</p>
+                                <p className="text-muted-foreground">{mrf.justification}</p>
+                              </div>
                             </div>
-                          </div>
-                        )}
 
-                        {isHighValue && (
-                          <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
-                            <div className="flex gap-2">
-                              <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                              <p className="text-sm text-orange-900 dark:text-orange-100">
-                                High value item - Will require Chairman approval after your review
-                              </p>
-                            </div>
-                          </div>
-                        )}
+                            {/* Invoice/PFI Access */}
+                            {getPFIUrl(mrf) && (
+                              <div className="flex flex-col gap-2 p-3 bg-info/5 border border-info/20 rounded-lg">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="h-4 w-4 text-info" />
+                                  <span className="text-sm font-medium">Supporting Document Submitted by Staff</span>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => handleDownloadPFI(mrf)}
+                                  >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    View Invoice
+                                  </Button>
+                                  {(() => {
+                                    const shareUrl = (mrf as any).invoice_onedrive_url || 
+                                                    (mrf as any).invoiceOneDriveUrl ||
+                                                    mrf.pfi_share_url || 
+                                                    mrf.pfiShareUrl;
+                                    return shareUrl && (
+                                      <OneDriveLink 
+                                        webUrl={shareUrl} 
+                                        fileName="Supporting Document"
+                                        variant="badge"
+                                      />
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            )}
 
-                        {/* View Details Button */}
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
-                              setSelectedMRFForDetails(mrf);
-                              setMrfDetailsDialogOpen(true);
-                              setLoadingFullDetails(true);
-                              try {
-                                const response = await mrfApi.getFullDetails(mrf.id);
-                                if (response.success && response.data) {
-                                  setMrfFullDetails(response.data);
-                                }
-                              } catch (error) {
-                                toast.error("Failed to load MRF details");
-                              } finally {
-                                setLoadingFullDetails(false);
-                              }
-                            }}
-                          >
-                            <FileText className="h-4 w-4 mr-2" />
-                            View Details
-                          </Button>
-                        </div>
+                            {isHighValue && (
+                              <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                                <div className="flex gap-2">
+                                  <AlertCircle className="h-5 w-5 text-warning" />
+                                  <p className="text-sm">
+                                    High value item - Will require Chairman approval after your review
+                                  </p>
+                                </div>
+                              </div>
+                            )}
 
-                        {selectedMRF === mrf.id ? (
-                          <>
-                            <ExecutiveActionButtons
-                              mrf={mrf}
-                              onApprove={handleApprove}
-                              onReject={handleReject}
-                              comments={comments[mrf.id] || ""}
-                              onCommentsChange={(value) => setComments(prev => ({ ...prev, [mrf.id]: value }))}
-                              isLoading={isActionLoading}
-                            />
-                              <Button 
-                                onClick={() => setSelectedMRF(null)}
+                            {/* View Details Button */}
+                            <div className="flex gap-2 pt-2">
+                              <Button
                                 variant="outline"
-                                disabled={isActionLoading}
-                              className="mt-2"
+                                size="sm"
+                                onClick={async () => {
+                                  setSelectedMRFForDetails(mrf);
+                                  setMrfDetailsDialogOpen(true);
+                                  setLoadingFullDetails(true);
+                                  try {
+                                    const response = await mrfApi.getFullDetails(mrf.id);
+                                    if (response.success && response.data) {
+                                      setMrfFullDetails(response.data);
+                                    }
+                                  } catch (error) {
+                                    toast.error("Failed to load MRF details");
+                                  } finally {
+                                    setLoadingFullDetails(false);
+                                  }
+                                }}
                               >
-                                Cancel
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
                               </Button>
-                            </>
-                          ) : (
-                            <Button 
-                              onClick={() => setSelectedMRF(mrf.id)}
-                              className="w-full"
-                            >
-                              Review & Approve
-                            </Button>
-                          )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                            </div>
+
+                            {selectedMRF === mrf.id ? (
+                              <>
+                                <ExecutiveActionButtons
+                                  mrf={mrf}
+                                  onApprove={handleApprove}
+                                  onReject={handleReject}
+                                  comments={comments[mrf.id] || ""}
+                                  onCommentsChange={(value) => setComments(prev => ({ ...prev, [mrf.id]: value }))}
+                                  isLoading={isActionLoading}
+                                />
+                                  <Button 
+                                    onClick={() => setSelectedMRF(null)}
+                                    variant="outline"
+                                    disabled={isActionLoading}
+                                  className="mt-2"
+                                  >
+                                    Cancel
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button 
+                                  onClick={() => setSelectedMRF(mrf.id)}
+                                  className="w-full"
+                                >
+                                  Review & Approve
+                                </Button>
+                              )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="all">
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">All Material Requisition Forms</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">View all MRFs including approved, processed, and completed</CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : mrfRequests.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                    <p>No MRFs found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 sm:space-y-4">
+                    {mrfRequests.map((mrf) => {
+                      const estimatedCost = getEstimatedCost(mrf);
+
+                      return (
+                        <Card key={mrf.id} className="hover:shadow-md transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold truncate">{mrf.title}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {mrf.id} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatMRFDate(getDate(mrf))}
+                                  </span>
+                                  <span className="text-xs font-medium">
+                                    {estimatedCost > 0 ? `₦${estimatedCost.toLocaleString()}` : '-'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge>{mrf.status}</Badge>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={async () => {
+                                    setSelectedMRFForDetails(mrf);
+                                    setMrfDetailsDialogOpen(true);
+                                    setLoadingFullDetails(true);
+                                    try {
+                                      const response = await mrfApi.getFullDetails(mrf.id);
+                                      if (response.success && response.data) {
+                                        setMrfFullDetails(response.data);
+                                      }
+                                    } catch (error) {
+                                      toast.error("Failed to load MRF details");
+                                    } finally {
+                                      setLoadingFullDetails(false);
+                                    }
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  View Details
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Recent Activities */}
         <RecentActivities limit={10} />
