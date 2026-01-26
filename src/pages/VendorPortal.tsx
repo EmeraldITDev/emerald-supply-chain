@@ -1714,7 +1714,7 @@ const VendorPortal = () => {
                       ref={fileInputRef}
                       type="file" 
                       className="hidden"
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.txt,.rtf,.csv,.odt,.ods,.odp"
                       multiple
                       onChange={handleDocUpload}
                     />

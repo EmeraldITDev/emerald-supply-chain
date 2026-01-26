@@ -608,7 +608,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
                           type="file"
                           ref={(el) => { fileInputRefs.current[docReq.type] = el; }}
                           className="hidden"
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.txt,.rtf,.csv,.odt,.ods,.odp"
                           onChange={(e) => handleFileUpload(docReq.type, e)}
                         />
                         <Button 

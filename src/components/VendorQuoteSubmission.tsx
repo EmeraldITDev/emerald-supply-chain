@@ -458,7 +458,7 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
               <Input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.txt,.rtf,.csv,.odt,.ods,.odp"
                 multiple
                 onChange={handleFileUpload}
                 className="flex-1"
