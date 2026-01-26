@@ -863,18 +863,6 @@ const VendorPortal = () => {
                 registration.postalCode
               ].filter(Boolean).join(', ');
 
-              // Log the data being sent for debugging
-              console.log('Sending registration data:', {
-                companyName: registration.companyName,
-                category: categoryValue,
-                email: registration.email,
-                phone: registration.phone || registration.alternatePhone || '',
-                address: fullAddress || registration.address || '',
-                taxId: registration.taxId || '',
-                contactPerson: registration.contactPerson || '',
-                documentsCount: documentFiles.length,
-              });
-
               // Use registerSimple which handles FormData for file uploads
               // Backend only accepts: companyName, category, email, phone, address, taxId, contactPerson, documents
               const registrationPayload = {
