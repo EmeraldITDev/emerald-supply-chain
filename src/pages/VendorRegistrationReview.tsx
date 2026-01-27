@@ -239,67 +239,60 @@ const VendorRegistrationReview = () => {
     // Support multiple property names from backend (camelCase and snake_case)
     const doc = document as any;
     
-    // Check for S3 URL or various backend field mappings
-    const downloadUrl = doc.fileUrl || doc.file_url || doc.url || doc.path || doc.file_path || doc.s3_url || doc.s3Url || doc.fileData;
+    // Priority: Check for direct S3 URL first (fileUrl, file_url, url)
+    const directUrl = doc.fileUrl || doc.file_url || doc.url;
     const fileName = doc.fileName || doc.file_name || doc.name || doc.original_name || doc.originalName || 'document';
+    const documentId = doc.id || doc.document_id;
     
     console.log('Document object:', doc);
-    console.log('Download URL found:', downloadUrl);
+    console.log('Direct URL found:', directUrl);
+    console.log('Document ID:', documentId);
+    console.log('Registration ID:', id);
     
-    if (downloadUrl) {
-      // If it's an S3 URL or any HTTP URL, open in new tab
-      if (downloadUrl.startsWith('http://') || downloadUrl.startsWith('https://')) {
-        window.open(downloadUrl, '_blank');
-        toast({
-          title: "Opening Document",
-          description: `Opening ${fileName}...`,
-        });
-      } else if (downloadUrl.startsWith('data:')) {
-        // Base64 data URL - direct download
-        const link = window.document.createElement("a");
-        link.href = downloadUrl;
-        link.download = fileName;
-        link.click();
-        toast({
-          title: "Downloading",
-          description: `Downloading ${fileName}...`,
-        });
-      } else if (downloadUrl.startsWith('s3://') || downloadUrl.includes('amazonaws.com')) {
-        // S3 path - construct proper URL or use API endpoint
-        const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com';
-        const documentId = doc.id || doc.document_id;
-        const downloadEndpoint = `${apiBase}/api/documents/${documentId}/download`;
-        window.open(downloadEndpoint, '_blank');
-        toast({
-          title: "Opening Document",
-          description: `Opening ${fileName}...`,
-        });
-      } else {
-        // Assume it's a relative path - use backend download endpoint
-        const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com';
-        // Try using the documents download endpoint with the document ID
-        const documentId = doc.id || doc.document_id;
-        if (documentId) {
-          const downloadEndpoint = `${apiBase}/api/documents/${documentId}/download`;
-          window.open(downloadEndpoint, '_blank');
-        } else {
-          // Fallback to direct path construction
-          const fullUrl = downloadUrl.startsWith('/') ? `${apiBase}${downloadUrl}` : `${apiBase}/${downloadUrl}`;
-          window.open(fullUrl, '_blank');
-        }
-        toast({
-          title: "Opening Document",
-          description: `Opening ${fileName}...`,
-        });
-      }
-    } else {
-      console.error('No download URL found in document:', doc);
+    // Option 1: Use direct S3 URL if available (preferred for performance)
+    if (directUrl && (directUrl.startsWith('http://') || directUrl.startsWith('https://'))) {
+      window.open(directUrl, '_blank');
       toast({
-        title: "Download Error",
-        description: "Document URL not available. The document may not have been uploaded to storage yet.",
-        variant: "destructive",
+        title: "Opening Document",
+        description: `Opening ${fileName}...`,
       });
+      return;
     }
+    
+    // Option 2: Use API download endpoint with registrationId and documentId
+    if (id && documentId) {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com';
+      const downloadEndpoint = `${apiBase}/api/vendors/registrations/${id}/documents/${documentId}/download`;
+      console.log('Using API download endpoint:', downloadEndpoint);
+      window.open(downloadEndpoint, '_blank');
+      toast({
+        title: "Opening Document",
+        description: `Opening ${fileName}...`,
+      });
+      return;
+    }
+    
+    // Option 3: Handle base64 data URLs (legacy)
+    const dataUrl = doc.fileData;
+    if (dataUrl && dataUrl.startsWith('data:')) {
+      const link = window.document.createElement("a");
+      link.href = dataUrl;
+      link.download = fileName;
+      link.click();
+      toast({
+        title: "Downloading",
+        description: `Downloading ${fileName}...`,
+      });
+      return;
+    }
+    
+    // No valid download method found
+    console.error('No download URL found in document:', doc);
+    toast({
+      title: "Download Error",
+      description: "Document URL not available. The document may not have been uploaded to storage yet.",
+      variant: "destructive",
+    });
   };
 
   const getStatusBadge = (status: string) => {
