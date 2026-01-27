@@ -1770,6 +1770,35 @@ export const vendorApi = {
         body: formData,
       });
 
+      // Check Content-Type BEFORE attempting to parse as JSON
+      const contentType = response.headers.get('content-type');
+      
+      if (!contentType?.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('Expected JSON but got:', contentType);
+        console.error('Response preview:', textResponse.substring(0, 300));
+        
+        // Check for common HTML patterns (server error pages, auth redirects)
+        if (textResponse.trim().startsWith('<!') || textResponse.includes('<html')) {
+          // Backend might be sleeping/cold starting - provide helpful message
+          if (response.status === 503 || response.status === 502) {
+            return {
+              success: false,
+              error: 'Server is starting up. Please try again in a few seconds.',
+            };
+          }
+          return {
+            success: false,
+            error: `Server returned an error page (Status: ${response.status}). The backend may be unavailable.`,
+          };
+        }
+        
+        return {
+          success: false,
+          error: `Unexpected response format from server. Status: ${response.status}`,
+        };
+      }
+
       const responseData = await response.json();
 
       if (!response.ok) {
@@ -1795,9 +1824,10 @@ export const vendorApi = {
         data: responseData.registration || responseData,
       };
     } catch (error) {
+      console.error('Vendor registration error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Network error',
+        error: error instanceof Error ? error.message : 'Network error - please check your connection',
       };
     }
   },
