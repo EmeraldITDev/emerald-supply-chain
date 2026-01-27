@@ -793,8 +793,8 @@ const VendorPortal = () => {
             
             setIsSubmitting(true);
             try {
-              // Convert documents from base64 to File objects for API
-              const documentFiles: File[] = [];
+              // Convert documents from base64 to File objects with metadata for API
+              const documentFilesWithMeta: Array<{ file: File; type: string; name: string }> = [];
               if (registration.documents && registration.documents.length > 0) {
                 registration.documents.forEach((doc) => {
                   if (doc.fileData && doc.fileName) {
@@ -815,7 +815,13 @@ const VendorPortal = () => {
                       const byteArray = new Uint8Array(byteNumbers);
                       const blob = new Blob([byteArray], { type: mimeType });
                       const file = new File([blob], doc.fileName, { type: mimeType });
-                      documentFiles.push(file);
+                      
+                      // Include the document type (e.g., CAC, TIN, HSE_CERTIFICATE)
+                      documentFilesWithMeta.push({
+                        file,
+                        type: doc.type || 'OTHER',
+                        name: doc.name || doc.fileName
+                      });
                     } catch (error) {
                       console.error('Error converting document:', doc.fileName, error);
                     }
@@ -873,7 +879,7 @@ const VendorPortal = () => {
                 address: (fullAddress || registration.address)?.trim() || undefined,
                 taxId: registration.taxId?.trim() || undefined,
                 contactPerson: registration.contactPerson?.trim() || undefined,
-                documents: documentFiles.length > 0 ? documentFiles : undefined,
+                documents: documentFilesWithMeta.length > 0 ? documentFilesWithMeta : undefined,
               };
 
               // Final validation - ensure required fields are not empty
