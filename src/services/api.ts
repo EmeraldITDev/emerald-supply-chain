@@ -1704,7 +1704,7 @@ export const vendorApi = {
   },
 
   // Legacy register method for simple registrations
-  registerSimple: async (data: CreateVendorRegistrationData & { documents?: File[] }): Promise<ApiResponse<VendorRegistration>> => {
+  registerSimple: async (data: CreateVendorRegistrationData & { documents?: Array<{ file: File; type: string; name: string }> | File[] }): Promise<ApiResponse<VendorRegistration>> => {
     const formData = new FormData();
     
     // Required fields - always append
@@ -1726,10 +1726,20 @@ export const vendorApi = {
       formData.append('contactPerson', data.contactPerson);
     }
     
-    // Documents - append each file
+    // Documents - append each file with its document type
     if (data.documents && data.documents.length > 0) {
-      data.documents.forEach((file) => {
-        formData.append('documents[]', file);
+      data.documents.forEach((doc, index) => {
+        // Handle both { file, type, name } objects and plain File objects
+        if (doc instanceof File) {
+          formData.append('documents[]', doc);
+          // Try to infer type from filename if possible
+          formData.append(`document_types[]`, 'OTHER');
+          formData.append(`document_names[]`, doc.name);
+        } else {
+          formData.append('documents[]', doc.file);
+          formData.append(`document_types[]`, doc.type || 'OTHER');
+          formData.append(`document_names[]`, doc.name || doc.file.name);
+        }
       });
     }
     
