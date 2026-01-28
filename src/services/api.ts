@@ -1802,6 +1802,33 @@ export const vendorApi = {
       const responseData = await response.json();
 
       if (!response.ok) {
+        // Log full response for debugging 500 errors
+        console.error('Registration failed with status:', response.status);
+        console.error('Full response data:', JSON.stringify(responseData, null, 2));
+        
+        // Handle 500 Internal Server Error - likely S3 or backend config issue
+        if (response.status === 500) {
+          const serverMessage = responseData.message || responseData.error || '';
+          const errorDetails = responseData.exception || responseData.trace?.[0]?.function || '';
+          console.error('Server 500 Error:', serverMessage, errorDetails);
+          
+          // Check for common S3-related errors
+          if (serverMessage.toLowerCase().includes('s3') || 
+              serverMessage.toLowerCase().includes('aws') ||
+              serverMessage.toLowerCase().includes('storage') ||
+              serverMessage.toLowerCase().includes('disk')) {
+            return {
+              success: false,
+              error: `S3 Storage Error: ${serverMessage}. Please check your AWS S3 configuration on the backend.`,
+            };
+          }
+          
+          return {
+            success: false,
+            error: `Server Error (500): ${serverMessage || 'Internal server error. Check backend logs for details.'}`,
+          };
+        }
+        
         // Log validation errors for debugging
         if (responseData.errors) {
           console.error('Validation errors:', responseData.errors);
