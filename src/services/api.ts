@@ -22,9 +22,17 @@ import type {
 // For Lovable previews and production, always use the deployed backend
 // Only use localhost if explicitly set in VITE_API_BASE_URL for local development
 const getApiBaseUrl = () => {
-  // If explicitly set, use it (for local development)
+  let baseUrl: string;
+  
+  // If explicitly set, use it (for local development or cPanel)
   if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
+    baseUrl = import.meta.env.VITE_API_BASE_URL.trim();
+    // Ensure it ends with /api
+    if (!baseUrl.endsWith('/api')) {
+      // Remove trailing slash if present, then add /api
+      baseUrl = baseUrl.replace(/\/$/, '') + '/api';
+    }
+    return baseUrl;
   }
   
   // Detect if running in Lovable preview or production
@@ -206,6 +214,22 @@ async function apiRequest<T>(
     }
 
     if (!response.ok) {
+      // Handle 404 Not Found - route not found
+      if (response.status === 404) {
+        const errorMsg = data.message || data.error || 'Route not found';
+        // Provide helpful error message for route not found
+        if (errorMsg.toLowerCase().includes('route') && errorMsg.toLowerCase().includes('not found')) {
+          return {
+            success: false,
+            error: `API route not found. Please verify:\n1. Backend is deployed and running\n2. VITE_API_BASE_URL is set correctly (should end with /api)\n3. Routes are cached on backend (php artisan route:cache)\n\nCurrent API URL: ${API_BASE_URL}${endpoint}`,
+          };
+        }
+        return {
+          success: false,
+          error: errorMsg,
+        };
+      }
+      
       // Handle validation errors
       if (data.errors && typeof data.errors === 'object') {
         const firstError = Object.values(data.errors)[0];
