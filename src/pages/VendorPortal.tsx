@@ -870,7 +870,7 @@ const VendorPortal = () => {
               ].filter(Boolean).join(', ');
 
               // Use registerSimple which handles FormData for file uploads
-              // Backend only accepts: companyName, category, email, phone, address, taxId, contactPerson, documents
+              // Backend accepts: companyName, category, email, phone, address, taxId, contactPerson, financialInfo, documents
               const registrationPayload = {
                 companyName: registration.companyName?.trim() || '',
                 category: categoryValue.trim(),
@@ -879,6 +879,16 @@ const VendorPortal = () => {
                 address: (fullAddress || registration.address)?.trim() || undefined,
                 taxId: registration.taxId?.trim() || undefined,
                 contactPerson: registration.contactPerson?.trim() || undefined,
+                financialInfo: registration.financialInfo
+                  ? {
+                      accountBalance: registration.financialInfo.accountBalance,
+                      bankName: registration.financialInfo.bankName,
+                      accountNumber: registration.financialInfo.accountNumber,
+                      accountName: registration.financialInfo.accountName,
+                      currency: registration.financialInfo.currency,
+                      countryCode: registration.financialInfo.countryCode,
+                    }
+                  : undefined,
                 documents: documentFilesWithMeta.length > 0 ? documentFilesWithMeta : undefined,
               };
 

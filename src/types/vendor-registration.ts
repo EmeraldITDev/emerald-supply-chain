@@ -66,6 +66,17 @@ export interface VendorRegistrationCycle {
   description?: string;
 }
 
+/** Financial information for vendor registration */
+export interface VendorFinancialInfo {
+  accountBalance?: string;
+  bankName?: string;
+  bankCode?: string;
+  accountNumber?: string;
+  accountName?: string;
+  currency?: string;
+  countryCode?: string;
+}
+
 export interface EnhancedVendorRegistration {
   id: string;
   companyName: string;
@@ -78,6 +89,7 @@ export interface EnhancedVendorRegistration {
   city: string;
   state: string;
   country: string;
+  countryCode?: string;
   postalCode?: string;
   taxId: string;
   contactPerson: string;
@@ -88,6 +100,8 @@ export interface EnhancedVendorRegistration {
   yearEstablished?: number;
   numberOfEmployees?: string;
   annualRevenue?: string;
+  /** Financial / banking information */
+  financialInfo?: VendorFinancialInfo;
   documents: VendorDocument[];
   status: 'Draft' | 'Pending' | 'Under Review' | 'Documents Incomplete' | 'Approved' | 'Rejected';
   submittedDate?: string;

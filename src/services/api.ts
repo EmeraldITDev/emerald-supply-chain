@@ -1750,6 +1750,17 @@ export const vendorApi = {
       formData.append('contactPerson', data.contactPerson);
     }
     
+    // Optional financial information
+    if (data.financialInfo && typeof data.financialInfo === 'object') {
+      const fi = data.financialInfo;
+      if (fi.accountBalance != null && String(fi.accountBalance).trim()) formData.append('account_balance', String(fi.accountBalance).trim());
+      if (fi.bankName != null && String(fi.bankName).trim()) formData.append('bank_name', String(fi.bankName).trim());
+      if (fi.accountNumber != null && String(fi.accountNumber).trim()) formData.append('account_number', String(fi.accountNumber).trim());
+      if (fi.accountName != null && String(fi.accountName).trim()) formData.append('account_name', String(fi.accountName).trim());
+      if (fi.currency != null && String(fi.currency).trim()) formData.append('currency', String(fi.currency).trim());
+      if (fi.countryCode != null && String(fi.countryCode).trim()) formData.append('financial_country_code', String(fi.countryCode).trim());
+    }
+    
     // Documents - append each file with its document type
     if (data.documents && data.documents.length > 0) {
       data.documents.forEach((doc, index) => {

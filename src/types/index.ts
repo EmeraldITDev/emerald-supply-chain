@@ -231,6 +231,17 @@ export interface VendorRegistration {
   }>;
 }
 
+/** Financial info for vendor registration (optional) */
+export interface VendorRegistrationFinancialInfo {
+  accountBalance?: string;
+  bankName?: string;
+  bankCode?: string;
+  accountNumber?: string;
+  accountName?: string;
+  currency?: string;
+  countryCode?: string;
+}
+
 export interface CreateVendorRegistrationData {
   companyName: string;
   category: string;
@@ -239,6 +250,8 @@ export interface CreateVendorRegistrationData {
   address: string;
   taxId: string;
   contactPerson: string;
+  /** Optional financial / banking information */
+  financialInfo?: VendorRegistrationFinancialInfo;
 }
 
 // Approval History
