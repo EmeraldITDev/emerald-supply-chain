@@ -68,7 +68,6 @@ export interface VendorRegistrationCycle {
 
 /** Financial information for vendor registration */
 export interface VendorFinancialInfo {
-  accountBalance?: string;
   bankName?: string;
   bankCode?: string;
   accountNumber?: string;

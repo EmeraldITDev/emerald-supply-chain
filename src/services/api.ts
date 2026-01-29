@@ -1778,7 +1778,6 @@ export const vendorApi = {
     // Optional financial information
     if (data.financialInfo && typeof data.financialInfo === 'object') {
       const fi = data.financialInfo;
-      if (fi.accountBalance != null && String(fi.accountBalance).trim()) formData.append('account_balance', String(fi.accountBalance).trim());
       if (fi.bankName != null && String(fi.bankName).trim()) formData.append('bank_name', String(fi.bankName).trim());
       if (fi.accountNumber != null && String(fi.accountNumber).trim()) formData.append('account_number', String(fi.accountNumber).trim());
       if (fi.accountName != null && String(fi.accountName).trim()) formData.append('account_name', String(fi.accountName).trim());

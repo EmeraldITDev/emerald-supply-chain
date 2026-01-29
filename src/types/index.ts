@@ -233,7 +233,6 @@ export interface VendorRegistration {
 
 /** Financial info for vendor registration (optional) */
 export interface VendorRegistrationFinancialInfo {
-  accountBalance?: string;
   bankName?: string;
   bankCode?: string;
   accountNumber?: string;

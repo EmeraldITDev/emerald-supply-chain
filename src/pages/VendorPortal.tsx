@@ -881,7 +881,6 @@ const VendorPortal = () => {
                 contactPerson: registration.contactPerson?.trim() || undefined,
                 financialInfo: registration.financialInfo
                   ? {
-                      accountBalance: registration.financialInfo.accountBalance,
                       bankName: registration.financialInfo.bankName,
                       accountNumber: registration.financialInfo.accountNumber,
                       accountName: registration.financialInfo.accountName,

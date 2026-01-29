@@ -50,7 +50,6 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
   const [numberOfEmployees, setNumberOfEmployees] = useState("");
   const [annualRevenue, setAnnualRevenue] = useState("");
   // Financial information
-  const [accountBalance, setAccountBalance] = useState("");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [accountName, setAccountName] = useState("");
@@ -236,9 +235,8 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
       yearEstablished,
       numberOfEmployees,
       annualRevenue,
-      financialInfo: (accountBalance || bankName || accountNumber || accountName)
+      financialInfo: (bankName || accountNumber || accountName)
         ? {
-            accountBalance: accountBalance || undefined,
             bankName: bankName || undefined,
             accountNumber: accountNumber || undefined,
             accountName: accountName || undefined,
@@ -600,16 +598,6 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Account Balance</Label>
-                <Input 
-                  type="text"
-                  inputMode="decimal"
-                  placeholder={defaultCurrency ? `e.g. 0.00 ${defaultCurrency}` : "e.g. 0.00"}
-                  value={accountBalance}
-                  onChange={(e) => setAccountBalance(e.target.value)}
-                />
-              </div>
               <div className="space-y-2">
                 <Label>Currency</Label>
                 <Input 

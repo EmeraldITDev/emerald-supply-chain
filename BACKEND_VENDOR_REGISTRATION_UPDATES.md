@@ -34,7 +34,6 @@ The frontend sends the same existing fields plus optional financial and country 
 
 - Existing: `companyName`, `category`, `email`, `phone`, `address`, `taxId`, `contactPerson`, `documents`.
 - New (optional, snake_case in FormData):
-  - `account_balance`
   - `bank_name`
   - `account_number`
   - `account_name`
@@ -84,7 +83,6 @@ Example (Laravel-style migration):
 // Add columns to vendor_registrations
 Schema::table('vendor_registrations', function (Blueprint $table) {
     $table->string('country_code', 2)->nullable()->after('address');
-    $table->decimal('account_balance', 18, 2)->nullable();
     $table->string('bank_name', 255)->nullable();
     $table->string('account_number', 64)->nullable();
     $table->string('account_name', 255)->nullable();
@@ -115,7 +113,6 @@ Schema::table('vendor_registrations', function (Blueprint $table) {
 
 1. **Request validation**  
    Add optional rules for the new fields, e.g.:
-   - `account_balance`: numeric, nullable
    - `bank_name`, `account_number`, `account_name`: string, max length, nullable
    - `currency`: string, size 3, nullable
    - `financial_country_code`: string, size 2, nullable
@@ -174,7 +171,6 @@ Schema::table('vendor_registrations', function (Blueprint $table) {
 
 | FormData key              | Type   | Required | Description                    |
 |---------------------------|--------|----------|--------------------------------|
-| `account_balance`         | string | No       | Account balance as entered     |
 | `bank_name`              | string | No       | Bank name (dropdown or free text) |
 | `account_number`         | string | No       | Account number                 |
 | `account_name`           | string | No       | Name on account                |
