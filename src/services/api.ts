@@ -130,7 +130,19 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const { token, expired } = getAuthToken();
+  // Try regular auth token first, then vendor token as fallback
+  let { token, expired } = getAuthToken();
+  let isVendorToken = false;
+  
+  // If no regular token, check for vendor token (for vendor portal)
+  if (!token) {
+    const vendorTokenResult = getVendorAuthToken();
+    if (vendorTokenResult.token) {
+      token = vendorTokenResult.token;
+      expired = vendorTokenResult.expired;
+      isVendorToken = true;
+    }
+  }
   
   // If token is expired, return error immediately (unless this is a login/refresh request)
   const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/refresh');
@@ -192,19 +204,32 @@ async function apiRequest<T>(
 
     // Handle 401 Unauthorized - token is invalid or expired
     if (response.status === 401) {
-      // Clear invalid token
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userData');
-      localStorage.removeItem('tokenExpiry');
-      localStorage.removeItem('isAuthenticated');
-      sessionStorage.removeItem('authToken');
-      sessionStorage.removeItem('userData');
-      sessionStorage.removeItem('tokenExpiry');
-      sessionStorage.removeItem('isAuthenticated');
+      // Clear invalid token (both regular and vendor tokens)
+      if (isVendorToken) {
+        localStorage.removeItem('vendorAuthToken');
+        localStorage.removeItem('vendorData');
+        localStorage.removeItem('vendorTokenExpiry');
+        sessionStorage.removeItem('vendorAuthToken');
+        sessionStorage.removeItem('vendorData');
+        sessionStorage.removeItem('vendorTokenExpiry');
+      } else {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('tokenExpiry');
+        localStorage.removeItem('isAuthenticated');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('userData');
+        sessionStorage.removeItem('tokenExpiry');
+        sessionStorage.removeItem('isAuthenticated');
+      }
       
       // Redirect to login if we're in a browser context (only for non-auth endpoints)
-      if (typeof window !== 'undefined' && !isAuthEndpoint && !window.location.pathname.includes('/auth') && !window.location.pathname.includes('/vendor-portal')) {
-        window.location.href = '/auth';
+      if (typeof window !== 'undefined' && !isAuthEndpoint) {
+        if (window.location.pathname.includes('/vendor-portal')) {
+          // Don't redirect vendors - let them see the error
+        } else if (!window.location.pathname.includes('/auth')) {
+          window.location.href = '/auth';
+        }
       }
       
       return {
