@@ -10,19 +10,23 @@ import { toast } from "sonner";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RecentActivities } from "@/components/RecentActivities";
-import { mrfApi } from "@/services/api";
-import type { MRF } from "@/types";
+import { mrfApi, vendorApi } from "@/services/api";
+import type { MRF, VendorRegistration } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { ExecutiveActionButtons } from "@/components/ExecutiveActionButtons";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { formatMRFDate } from "@/utils/dateUtils";
+import { useNavigate } from "react-router-dom";
 
 const ExecutiveDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
+  const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingVendors, setLoadingVendors] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedMRF, setSelectedMRF] = useState<string | null>(null);
   const [comments, setComments] = useState<{ [key: string]: string }>({});
@@ -48,9 +52,31 @@ const ExecutiveDashboard = () => {
     }
   }, []);
 
+  // Fetch vendor registrations from backend API
+  const fetchVendorRegistrations = useCallback(async () => {
+    setLoadingVendors(true);
+    try {
+      const response = await vendorApi.getRegistrations();
+      if (response.success && response.data) {
+        // Filter only pending registrations
+        const pending = response.data.filter((reg: VendorRegistration) => 
+          reg.status === 'Pending' || reg.status === 'Under Review'
+        );
+        setVendorRegistrations(pending);
+      } else {
+        console.error('Failed to load vendor registrations:', response.error);
+      }
+    } catch (error) {
+      console.error('Failed to connect to server for vendor registrations');
+    } finally {
+      setLoadingVendors(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchMRFs();
-  }, [fetchMRFs]);
+    fetchVendorRegistrations();
+  }, [fetchMRFs, fetchVendorRegistrations]);
 
   // Helper to get estimated cost (handles both snake_case and camelCase)
   const getEstimatedCost = (mrf: MRF) => {
@@ -187,7 +213,7 @@ const ExecutiveDashboard = () => {
     <DashboardLayout>
       <PullToRefresh onRefresh={async () => {
         toast.info("Refreshing data...");
-        await fetchMRFs();
+        await Promise.all([fetchMRFs(), fetchVendorRegistrations()]);
         toast.success("Data refreshed");
       }}>
         <div className="space-y-4 sm:space-y-6">
@@ -199,10 +225,13 @@ const ExecutiveDashboard = () => {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={fetchMRFs}
-            disabled={loading}
+            onClick={() => {
+              fetchMRFs();
+              fetchVendorRegistrations();
+            }}
+            disabled={loading || loadingVendors}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading || loadingVendors ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -218,8 +247,12 @@ const ExecutiveDashboard = () => {
               <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{pendingMRFs.length}</div>
-              <p className="text-xs text-muted-foreground">Awaiting review</p>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">
+                {pendingMRFs.length + vendorRegistrations.length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {pendingMRFs.length} MRF{pendingMRFs.length !== 1 ? 's' : ''}, {vendorRegistrations.length} Vendor{vendorRegistrations.length !== 1 ? 's' : ''}
+              </p>
             </CardContent>
           </Card>
 
@@ -255,8 +288,10 @@ const ExecutiveDashboard = () => {
           <TabsList>
             <TabsTrigger value="pending">
               Pending Approval
-              {pendingMRFs.length > 0 && (
-                <Badge variant="destructive" className="ml-2 text-xs">{pendingMRFs.length}</Badge>
+              {(pendingMRFs.length > 0 || vendorRegistrations.length > 0) && (
+                <Badge variant="destructive" className="ml-2 text-xs">
+                  {pendingMRFs.length + vendorRegistrations.length}
+                </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="all">All Requests ({mrfRequests.length})</TabsTrigger>
@@ -266,21 +301,83 @@ const ExecutiveDashboard = () => {
             <Card>
               <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="text-base sm:text-lg">Pending Approval</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Review and approve MRFs from departments</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">Review and approve MRFs and vendor registrations</CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
-                {loading ? (
+                {loading || loadingVendors ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
-                ) : pendingMRFs.length === 0 ? (
+                ) : pendingMRFs.length === 0 && vendorRegistrations.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                    <p>No MRFs pending approval</p>
-                    <p className="text-xs mt-2">All MRFs have been reviewed</p>
+                    <p>No items pending approval</p>
+                    <p className="text-xs mt-2">All MRFs and vendor registrations have been reviewed</p>
                   </div>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
+                    {/* Vendor Registrations */}
+                    {vendorRegistrations.map((reg) => (
+                      <Card key={`vendor-${reg.id}`} className="border-l-4 border-l-blue-500">
+                        <CardHeader className="p-3 sm:p-4 lg:p-6">
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <CardTitle className="text-sm sm:text-base lg:text-lg truncate">
+                                Vendor Registration: {reg.companyName}
+                              </CardTitle>
+                              <CardDescription className="text-xs sm:text-sm truncate">
+                                {reg.category} • {reg.contactPerson} • {reg.email}
+                              </CardDescription>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              Vendor Registration
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+                          <div className="grid md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="font-semibold">Company:</p>
+                              <p className="text-muted-foreground">{reg.companyName}</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold">Category:</p>
+                              <p className="text-muted-foreground">{reg.category}</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold">Contact:</p>
+                              <p className="text-muted-foreground">{reg.contactPerson}</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold">Email:</p>
+                              <p className="text-muted-foreground">{reg.email}</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold">Phone:</p>
+                              <p className="text-muted-foreground">{reg.phone || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold">Submitted:</p>
+                              <p className="text-muted-foreground">
+                                {new Date(reg.createdAt || reg.submittedDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 pt-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/vendors/registration/${reg.id}`)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Review Registration
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                    {/* MRFs */}
                     {pendingMRFs.map((mrf) => {
                       const estimatedCost = getEstimatedCost(mrf);
                       const isHighValue = estimatedCost > 1000000;
