@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,8 +9,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, FileText, CheckCircle, AlertCircle, X, AlertTriangle, Info, Building2, Loader2 } from "lucide-react";
+import { Upload, FileText, CheckCircle, AlertCircle, X, AlertTriangle, Info, Building2, Loader2, Wallet } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES, type VendorDocument, type VendorDocumentType, type EnhancedVendorRegistration as VendorRegType } from "@/types/vendor-registration";
+import { COUNTRIES_SORTED, getCountryByCode, getDialCodeForCountry } from "@/data/countries";
+import { getBanksForCountry, hasBankListForCountry } from "@/data/banks-by-country";
 
 
 interface EnhancedVendorRegistrationProps {
@@ -34,6 +37,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
+  const [countryCode, setCountryCode] = useState("NG");
   const [country, setCountry] = useState("Nigeria");
   const [postalCode, setPostalCode] = useState("");
   const [taxId, setTaxId] = useState("");
@@ -45,10 +49,42 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
   const [yearEstablished, setYearEstablished] = useState<number | undefined>();
   const [numberOfEmployees, setNumberOfEmployees] = useState("");
   const [annualRevenue, setAnnualRevenue] = useState("");
+  // Financial information
+  const [bankName, setBankName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [currency, setCurrency] = useState("");
 
   // Documents state
   const [uploadedDocuments, setUploadedDocuments] = useState<VendorDocument[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Sync country name when countryCode changes
+  useEffect(() => {
+    const c = getCountryByCode(countryCode);
+    if (c) setCountry(c.name);
+  }, [countryCode]);
+
+  // Banks list for selected country
+  const banksForCountry = useMemo(() => getBanksForCountry(countryCode), [countryCode]);
+  const showBankDropdown = hasBankListForCountry(countryCode);
+  const phonePlaceholder = useMemo(() => {
+    const dial = getDialCodeForCountry(countryCode);
+    if (dial === "+234") return "+234-800-XXX-XXXX";
+    if (dial === "+1") return "+1-XXX-XXX-XXXX";
+    if (dial) return `${dial}-XXX-XXX-XXXX`;
+    return "Phone number";
+  }, [countryCode]);
+  const postalLabel = countryCode === "US" ? "ZIP Code" : "Postal Code";
+  const stateLabel = countryCode === "US" ? "State" : countryCode === "GB" ? "County" : "State / Province";
+  const defaultCurrency = useMemo(() => {
+    if (countryCode === "NG") return "NGN";
+    if (countryCode === "US") return "USD";
+    if (countryCode === "GB") return "GBP";
+    if (countryCode === "GH") return "GHS";
+    if (countryCode === "ZA") return "ZAR";
+    return "";
+  }, [countryCode]);
 
   // Calculate required documents based on OEM status
   const requiredDocuments = useMemo(() => {
@@ -188,6 +224,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
       city,
       state,
       country,
+      countryCode,
       postalCode,
       taxId,
       contactPerson,
@@ -198,6 +235,15 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
       yearEstablished,
       numberOfEmployees,
       annualRevenue,
+      financialInfo: (bankName || accountNumber || accountName)
+        ? {
+            bankName: bankName || undefined,
+            accountNumber: accountNumber || undefined,
+            accountName: accountName || undefined,
+            currency: (currency || defaultCurrency) || undefined,
+            countryCode,
+          }
+        : undefined,
       documents: uploadedDocuments,
       status: "Pending",
     };
@@ -397,7 +443,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               <div className="space-y-2">
                 <Label>Phone Number *</Label>
                 <Input 
-                  placeholder="+234-800-XXX-XXXX"
+                  placeholder={phonePlaceholder}
                   value={phone}
                   onChange={(e) => {
                     setPhone(e.target.value);
@@ -411,7 +457,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               <div className="space-y-2">
                 <Label>Alternate Phone</Label>
                 <Input 
-                  placeholder="+234-800-XXX-XXXX"
+                  placeholder={phonePlaceholder}
                   value={alternatePhone}
                   onChange={(e) => setAlternatePhone(e.target.value)}
                 />
@@ -445,9 +491,9 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               </div>
 
               <div className="space-y-2">
-                <Label>State *</Label>
+                <Label>{stateLabel} *</Label>
                 <Input 
-                  placeholder="Lagos State"
+                  placeholder={countryCode === "US" ? "e.g. California" : countryCode === "NG" ? "Lagos State" : "State / Province"}
                   value={state}
                   onChange={(e) => {
                     setState(e.target.value);
@@ -458,17 +504,31 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               </div>
 
               <div className="space-y-2">
-                <Label>Country</Label>
-                <Input 
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                />
+                <Label>Country *</Label>
+                <Select
+                  value={countryCode}
+                  onValueChange={(code) => {
+                    setCountryCode(code);
+                    setBankName(""); // Reset bank when country changes
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRIES_SORTED.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
-                <Label>Postal Code</Label>
+                <Label>{postalLabel}</Label>
                 <Input 
-                  placeholder="100001"
+                  placeholder={countryCode === "US" ? "e.g. 90210" : "100001"}
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value)}
                 />
@@ -520,6 +580,73 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
                     onChange={(e) => setContactPersonPhone(e.target.value)}
                   />
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Financial Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              Financial Information
+            </CardTitle>
+            <CardDescription>
+              Bank and account details for payments. Fields update based on selected country.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Currency</Label>
+                <Input 
+                  placeholder={defaultCurrency ? `e.g. ${defaultCurrency}` : "e.g. NGN, USD"}
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                />
+              </div>
+              {showBankDropdown ? (
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Bank</Label>
+                  <Select value={bankName || ""} onValueChange={setBankName}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={`Select a bank in ${country}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {banksForCountry.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Bank Name</Label>
+                  <Input 
+                    placeholder="Enter your bank name"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Account Number</Label>
+                <Input 
+                  placeholder="Account number"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Account Name</Label>
+                <Input 
+                  placeholder="Name on account"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                />
               </div>
             </div>
           </CardContent>

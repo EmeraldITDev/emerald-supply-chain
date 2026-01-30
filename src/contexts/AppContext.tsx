@@ -458,18 +458,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Initial data fetch
   useEffect(() => {
-    const fetchAllData = async () => {
-      setLoading(true);
-      await Promise.all([
-        refreshMRFs(),
-        refreshSRFs(),
-        refreshRFQs(),
-        refreshQuotations(),
-      ]);
-      setLoading(false);
-    };
+    // Check if we're in vendor portal context (vendor logged in but no regular user token)
+    const regularToken = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    const vendorToken = localStorage.getItem('vendorAuthToken') || sessionStorage.getItem('vendorAuthToken');
     
-    fetchAllData();
+    // Only auto-refresh if we have a regular user token (not vendor-only)
+    // Vendors should use vendor-specific endpoints instead (vendorPortalApi)
+    if (regularToken || !vendorToken) {
+      const fetchAllData = async () => {
+        setLoading(true);
+        await Promise.all([
+          refreshMRFs(),
+          refreshSRFs(),
+          refreshRFQs(),
+          refreshQuotations(),
+        ]);
+        setLoading(false);
+      };
+      
+      fetchAllData();
+    } else {
+      // Vendor-only context - skip auto-refresh to avoid 401 errors
+      // Vendors will fetch their own data via vendorPortalApi in VendorPortal component
+      console.log("Vendor portal detected - skipping AppContext auto-refresh");
+      setLoading(false);
+    }
   }, []);
 
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([
