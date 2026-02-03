@@ -43,6 +43,9 @@ import {
   Package,
   Loader2,
   RefreshCw,
+  FileCheck,
+  Mail,
+  Bell,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -54,6 +57,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { tripsApi, logisticsDashboardApi } from "@/services/logisticsApi";
 import type { Trip, TripStatus, TripType, TripPassenger, CreateTripData, BulkTripUploadResult } from "@/types/logistics";
+import { VendorJMPSubmission } from "./VendorJMPSubmission";
+import { PassengerNotification } from "./PassengerNotification";
 
 interface TripSchedulingProps {
   onViewTrip?: (trip: Trip) => void;
@@ -101,6 +106,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [bulkUploadDialogOpen, setBulkUploadDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [jmpDialogOpen, setJmpDialogOpen] = useState(false);
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   
   // Form states
@@ -722,6 +729,24 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                   <UserPlus className="mr-2 h-4 w-4" />
                                   Assign Vendor
                                 </DropdownMenuItem>
+                                {trip.vendorId && (
+                                  <DropdownMenuItem onClick={() => {
+                                    setSelectedTrip(trip);
+                                    setJmpDialogOpen(true);
+                                  }}>
+                                    <FileCheck className="mr-2 h-4 w-4" />
+                                    Submit JMP
+                                  </DropdownMenuItem>
+                                )}
+                                {trip.passengers && trip.passengers.length > 0 && (
+                                  <DropdownMenuItem onClick={() => {
+                                    setSelectedTrip(trip);
+                                    setNotificationDialogOpen(true);
+                                  }}>
+                                    <Bell className="mr-2 h-4 w-4" />
+                                    Notify Passengers
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem
                                   onClick={() => handleCancelTrip(trip)}
                                   className="text-destructive"
@@ -889,6 +914,57 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           )}
         </DialogContent>
       </Dialog>
+
+      {/* JMP Submission Dialog */}
+      {selectedTrip && (
+        <VendorJMPSubmission
+          trip={selectedTrip}
+          open={jmpDialogOpen}
+          onOpenChange={setJmpDialogOpen}
+          onSubmit={async (data) => {
+            // Update trip with JMP data
+            setTrips(prev => prev.map(t =>
+              t.id === selectedTrip.id
+                ? {
+                    ...t,
+                    vehiclePlate: data.vehiclePlate,
+                    vehicleType: data.vehicleType,
+                    driverName: data.driverName,
+                    driverPhone: data.driverPhone,
+                    status: "vendor_assigned" as TripStatus,
+                  }
+                : t
+            ));
+            toast({
+              title: "JMP Submitted",
+              description: "Passengers will be automatically notified",
+            });
+          }}
+        />
+      )}
+
+      {/* Passenger Notification Dialog */}
+      {selectedTrip && (
+        <PassengerNotification
+          trip={selectedTrip}
+          open={notificationDialogOpen}
+          onOpenChange={setNotificationDialogOpen}
+          onSendNotifications={async () => {
+            // Update passengers as notified
+            setTrips(prev => prev.map(t =>
+              t.id === selectedTrip.id
+                ? {
+                    ...t,
+                    passengers: t.passengers?.map(p => ({
+                      ...p,
+                      notifiedAt: new Date().toISOString(),
+                    })),
+                  }
+                : t
+            ));
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -953,5 +1029,8 @@ function getMockTrips(): Trip[] {
     },
   ];
 }
+
+// Main component render continuation - JMP and Notification dialogs are rendered inside the component
+// The dialogs are already imported at the top and need to be added to the return statement
 
 export default TripScheduling;
