@@ -29,7 +29,29 @@ import type {
 } from '@/types/logistics';
 import type { ApiResponse } from '@/types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+// Use same API URL logic as main api.ts
+const getApiBaseUrl = () => {
+  let baseUrl: string;
+  
+  if (import.meta.env.VITE_API_BASE_URL) {
+    baseUrl = import.meta.env.VITE_API_BASE_URL.trim();
+    if (!baseUrl.endsWith('/api')) {
+      baseUrl = baseUrl.replace(/\/$/, '') + '/api';
+    }
+    return baseUrl;
+  }
+  
+  const isLovablePreview = typeof window !== 'undefined' && window.location.origin.includes('lovable.app');
+  const isProduction = typeof window !== 'undefined' && !window.location.origin.includes('localhost');
+  
+  if (isLovablePreview || isProduction) {
+    return 'https://supply-chain-backend-hwh6.onrender.com/api';
+  }
+  
+  return 'https://supply-chain-backend-hwh6.onrender.com/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Helper function for API calls
 async function apiRequest<T>(
