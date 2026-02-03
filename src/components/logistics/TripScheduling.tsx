@@ -273,26 +273,28 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     }
   };
 
-  const handleDownloadTemplate = async () => {
+  const handleDownloadTemplate = async (templateType: 'personnel-trip' | 'journey-management' = 'personnel-trip') => {
     try {
-      const blob = await logisticsDashboardApi.downloadTemplate("trips");
+      const blob = await logisticsDashboardApi.downloadTemplate(templateType);
       if (blob) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = "trip_upload_template.xlsx";
+        a.download = templateType === 'journey-management' 
+          ? "journey_management_template.xlsx" 
+          : "personnel_trip_template.xlsx";
         a.click();
         URL.revokeObjectURL(url);
+        toast({
+          title: "Template Downloaded",
+          description: `${templateType === 'journey-management' ? 'Journey Management' : 'Personnel Trip'} template downloaded successfully`,
+        });
       } else {
-        // Provide a simple CSV template for demo
-        const csvContent = "type,origin,destination,scheduled_departure,scheduled_arrival,purpose,priority,notes\npersonnel,Lagos,Abuja,2025-02-10T09:00,2025-02-10T15:00,Staff Transport,normal,";
-        const blob = new Blob([csvContent], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "trip_upload_template.csv";
-        a.click();
-        URL.revokeObjectURL(url);
+        toast({
+          title: "Download Failed",
+          description: "Template file not available",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       toast({
@@ -778,10 +780,16 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Button variant="outline" className="w-full" onClick={handleDownloadTemplate}>
-              <Download className="mr-2 h-4 w-4" />
-              Download Template
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" className="w-full" onClick={() => handleDownloadTemplate('personnel-trip')}>
+                <Download className="mr-2 h-4 w-4" />
+                Personnel Trip Template
+              </Button>
+              <Button variant="outline" className="w-full" onClick={() => handleDownloadTemplate('journey-management')}>
+                <Download className="mr-2 h-4 w-4" />
+                Journey Management Template
+              </Button>
+            </div>
             <div className="border-2 border-dashed rounded-lg p-6 text-center">
               <Input
                 type="file"
