@@ -4,3 +4,6 @@ export { JourneyManagement } from './JourneyManagement';
 export { FleetManagement } from './FleetManagement';
 export { MaterialsTracking } from './MaterialsTracking';
 export { ReportingCompliance } from './ReportingCompliance';
+export { VendorJMPSubmission } from './VendorJMPSubmission';
+export { GPSTrackingPlaceholder } from './GPSTrackingPlaceholder';
+export { PassengerNotification } from './PassengerNotification';

@@ -15,6 +15,7 @@ import {
   UserPlus,
   Settings,
   BarChart3,
+  Satellite,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +40,7 @@ import { JourneyManagement } from "@/components/logistics/JourneyManagement";
 import { FleetManagement } from "@/components/logistics/FleetManagement";
 import { MaterialsTracking } from "@/components/logistics/MaterialsTracking";
 import { ReportingCompliance } from "@/components/logistics/ReportingCompliance";
+import { GPSTrackingPlaceholder } from "@/components/logistics/GPSTrackingPlaceholder";
 
 const Logistics = () => {
   const { toast } = useToast();
@@ -267,7 +269,7 @@ const Logistics = () => {
 
           {/* Module Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto">
+            <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 h-auto">
               <TabsTrigger value="overview" className="text-xs sm:text-sm gap-1">
                 <BarChart3 className="h-4 w-4 hidden sm:block" />
                 Overview
@@ -283,6 +285,10 @@ const Logistics = () => {
               <TabsTrigger value="fleet" className="text-xs sm:text-sm gap-1">
                 <Truck className="h-4 w-4 hidden sm:block" />
                 Fleet
+              </TabsTrigger>
+              <TabsTrigger value="gps" className="text-xs sm:text-sm gap-1">
+                <Satellite className="h-4 w-4 hidden sm:block" />
+                GPS
               </TabsTrigger>
               <TabsTrigger value="materials" className="text-xs sm:text-sm gap-1">
                 <Package className="h-4 w-4 hidden sm:block" />
@@ -465,6 +471,11 @@ const Logistics = () => {
             {/* Fleet Management Tab */}
             <TabsContent value="fleet">
               <FleetManagement />
+            </TabsContent>
+
+            {/* GPS Tracking Tab */}
+            <TabsContent value="gps">
+              <GPSTrackingPlaceholder vehicleCount={vehicles.length} />
             </TabsContent>
 
             {/* Materials Tracking Tab */}
