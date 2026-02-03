@@ -562,9 +562,11 @@ export const logisticsDashboardApi = {
     return apiRequest<UploadTemplate[]>('/uploads/templates');
   },
 
-  // Download template
-  downloadTemplate: async (type: 'trips' | 'materials'): Promise<Blob | null> => {
+  // Download template - returns actual Excel files from public/templates
+  downloadTemplate: async (type: 'trips' | 'materials' | 'journey-management' | 'personnel-trip'): Promise<Blob | null> => {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    
+    // Try backend first, then fall back to local templates
     try {
       const response = await fetch(`${API_BASE_URL}/uploads/templates/${type}`, {
         headers: {
@@ -574,11 +576,31 @@ export const logisticsDashboardApi = {
       if (response.ok) {
         return response.blob();
       }
-      return null;
     } catch (error) {
-      console.error('Failed to download template:', error);
-      return null;
+      console.log('Backend template not available, using local template');
     }
+    
+    // Fallback to local templates in public folder
+    const localTemplates: Record<string, string> = {
+      'trips': '/templates/personnel_trip_template.xlsx',
+      'personnel-trip': '/templates/personnel_trip_template.xlsx',
+      'journey-management': '/templates/journey_management_template.xlsx',
+      'materials': '/templates/personnel_trip_template.xlsx', // Use trip template as fallback
+    };
+    
+    try {
+      const templateUrl = localTemplates[type];
+      if (templateUrl) {
+        const response = await fetch(templateUrl);
+        if (response.ok) {
+          return response.blob();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to download local template:', error);
+    }
+    
+    return null;
   },
 };
 
