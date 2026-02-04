@@ -147,10 +147,11 @@ export const tripsApi = {
   },
 
   // Assign vendor to trip
+  // Backend expects: vendor_id (snake_case) - sends notification to vendor
   assignVendor: async (tripId: string, vendorId: string): Promise<ApiResponse<Trip>> => {
     return apiRequest<Trip>(`/trips/${tripId}/assign-vendor`, {
       method: 'POST',
-      body: JSON.stringify({ vendorId }),
+      body: JSON.stringify({ vendor_id: vendorId }),
     });
   },
 
@@ -207,10 +208,16 @@ export const journeysApi = {
   },
 
   // Update journey status
-  updateStatus: async (id: string, status: string, location?: string): Promise<ApiResponse<Journey>> => {
+  // Backend expects: status (uppercase: DEPARTED, EN_ROUTE, ARRIVED, COMPLETED, CANCELLED), timestamp, location
+  // Triggers JourneyStatusUpdatedNotification to relevant parties
+  updateStatus: async (id: string, status: string, location?: string, timestamp?: string): Promise<ApiResponse<Journey>> => {
     return apiRequest<Journey>(`/journeys/${id}/update-status`, {
       method: 'POST',
-      body: JSON.stringify({ status, location }),
+      body: JSON.stringify({ 
+        status: status.toUpperCase(), 
+        location,
+        timestamp: timestamp || new Date().toISOString().replace('T', ' ').substring(0, 19),
+      }),
     });
   },
 
@@ -376,8 +383,10 @@ export const fleetApi = {
   },
 
   // Get fleet alerts (expiring documents, maintenance due)
-  getAlerts: async (): Promise<ApiResponse<FleetAlert[]>> => {
-    return apiRequest<FleetAlert[]>('/fleet/alerts');
+  // Supports days_threshold query parameter (default: 30)
+  // Returns alerts with severity: critical, warning, info
+  getAlerts: async (daysThreshold: number = 30): Promise<ApiResponse<FleetAlert[]>> => {
+    return apiRequest<FleetAlert[]>(`/fleet/alerts?days_threshold=${daysThreshold}`);
   },
 };
 
