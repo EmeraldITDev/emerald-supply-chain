@@ -259,37 +259,16 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         resetForm();
         fetchTrips();
       } else {
-        // For demo, add to local state
-        const newTrip: Trip = {
-          id: `TRP-${Date.now()}`,
-          tripNumber: `TRP-2025-${String(trips.length + 1).padStart(3, "0")}`,
-          type: tripData.type,
-          origin: tripData.origin,
-          destination: tripData.destination,
-          route: tripData.route,
-          scheduledDepartureAt: tripData.scheduledDepartureAt,
-          scheduledArrivalAt: tripData.scheduledArrivalAt,
-          purpose: tripData.purpose,
-          priority: tripData.priority || "normal",
-          notes: tripData.notes,
-          cargo: tripData.cargo,
-          status: "scheduled",
-          scheduledBy: localStorage.getItem("userName") || "System",
-          createdAt: new Date().toISOString(),
-          passengers: passengers.map((p, i) => ({ ...p, id: `pass-${i}` })),
-        };
-        setTrips(prev => [newTrip, ...prev]);
         toast({
-          title: "Trip Scheduled (Local)",
-          description: `Trip from ${formData.origin} to ${formData.destination} has been scheduled.`,
+          title: "Failed to Schedule Trip",
+          description: response.error || "Unable to create trip. Please try again.",
+          variant: "destructive",
         });
-        setCreateDialogOpen(false);
-        resetForm();
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to create trip",
+        description: "Failed to create trip. Please check your connection.",
         variant: "destructive",
       });
     } finally {
@@ -379,19 +358,16 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         });
         fetchTrips();
       } else {
-        // Update local state for demo
-        setTrips(prev => prev.map(t => 
-          t.id === trip.id ? { ...t, status: "cancelled" as TripStatus } : t
-        ));
         toast({
-          title: "Trip Cancelled",
-          description: `Trip ${trip.tripNumber} has been cancelled.`,
+          title: "Failed to Cancel Trip",
+          description: response.error || "Unable to cancel trip. Please try again.",
+          variant: "destructive",
         });
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to cancel trip",
+        description: "Failed to cancel trip. Please check your connection.",
         variant: "destructive",
       });
     }
@@ -441,35 +417,16 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         setEditDialogOpen(false);
         fetchTrips();
       } else {
-        // Update local state for demo
-        setTrips(prev => prev.map(t =>
-          t.id === selectedTrip.id
-            ? {
-                ...t,
-                type: formData.type || t.type,
-                origin: formData.origin || t.origin,
-                destination: formData.destination || t.destination,
-                route: formData.route,
-                scheduledDepartureAt: formData.scheduledDepartureAt || t.scheduledDepartureAt,
-                scheduledArrivalAt: formData.scheduledArrivalAt,
-                purpose: formData.purpose,
-                priority: (formData.priority as Trip["priority"]) || t.priority,
-                notes: formData.notes,
-                cargo: formData.cargo,
-                passengers: passengers.map((p, i) => ({ ...p, id: `pass-${i}` })),
-              }
-            : t
-        ));
         toast({
-          title: "Trip Updated",
-          description: `Trip ${selectedTrip.tripNumber} has been updated.`,
+          title: "Failed to Update Trip",
+          description: response.error || "Unable to update trip. Please try again.",
+          variant: "destructive",
         });
-        setEditDialogOpen(false);
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update trip",
+        description: "Failed to update trip. Please check your connection.",
         variant: "destructive",
       });
     } finally {
@@ -501,28 +458,16 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         setSelectedVendorId("");
         fetchTrips();
       } else {
-        // Update local state for demo
-        setTrips(prev => prev.map(t =>
-          t.id === selectedTrip.id
-            ? {
-                ...t,
-                vendorId: selectedVendorId,
-                vendorName: vendor?.name,
-                status: "vendor_assigned" as TripStatus,
-              }
-            : t
-        ));
         toast({
-          title: "Vendor Assigned",
-          description: `${vendor?.name} has been assigned to ${selectedTrip.tripNumber}.`,
+          title: "Failed to Assign Vendor",
+          description: response.error || "Unable to assign vendor. Please try again.",
+          variant: "destructive",
         });
-        setAssignVendorDialogOpen(false);
-        setSelectedVendorId("");
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to assign vendor",
+        description: "Failed to assign vendor. Please check your connection.",
         variant: "destructive",
       });
     } finally {
