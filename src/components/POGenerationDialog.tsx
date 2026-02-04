@@ -295,7 +295,6 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
                   placeholder="e.g., 50000"
                   required
                 />
-                <p className="text-xs text-muted-foreground">This budget will be shared with vendors for quotation purposes</p>
               </div>
 
               <div className="space-y-2">
