@@ -101,7 +101,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   const [incidentSeverity, setIncidentSeverity] = useState<string>("low");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch journeys
+  // Fetch journeys from API
   const fetchJourneys = async () => {
     setLoading(true);
     try {
@@ -110,15 +110,15 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
         if (response.success && response.data) {
           setJourneys([response.data]);
         } else {
-          setJourneys(getMockJourneys().filter(j => j.tripId === tripId));
+          setJourneys([]);
         }
       } else {
-        // For demo, use mock data
-        setJourneys(getMockJourneys());
+        // No mock data - show empty state until API provides data
+        setJourneys([]);
       }
     } catch (error) {
       console.error("Failed to fetch journeys:", error);
-      setJourneys(getMockJourneys());
+      setJourneys([]);
     } finally {
       setLoading(false);
     }
@@ -766,91 +766,5 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   );
 };
 
-// Mock data for development
-function getMockJourneys(): Journey[] {
-  return [
-    {
-      id: "journey-001",
-      tripId: "trip-003",
-      tripNumber: "TRP-2025-003",
-      status: "en_route",
-      departedAt: "2025-02-03T06:15:00",
-      departedFrom: "Port Harcourt",
-      currentLocation: "Benin City",
-      lastUpdatedAt: "2025-02-03T10:30:00",
-      checkpoints: [
-        {
-          id: "cp-001",
-          location: "Warri Junction",
-          arrivedAt: "2025-02-03T08:30:00",
-          departedAt: "2025-02-03T08:45:00",
-          notes: "Brief stop for fuel",
-        },
-        {
-          id: "cp-002",
-          location: "Benin City",
-          arrivedAt: "2025-02-03T10:00:00",
-          notes: "Rest stop - 30 minutes",
-        },
-      ],
-      incidents: [],
-      createdAt: "2025-02-03T06:00:00",
-    },
-    {
-      id: "journey-002",
-      tripId: "trip-002",
-      tripNumber: "TRP-2025-002",
-      status: "not_started",
-      checkpoints: [],
-      createdAt: "2025-02-01T11:00:00",
-    },
-    {
-      id: "journey-003",
-      tripId: "trip-004",
-      tripNumber: "TRP-2025-004",
-      status: "arrived",
-      departedAt: "2025-02-02T07:00:00",
-      departedFrom: "Lagos",
-      arrivedAt: "2025-02-02T18:30:00",
-      arrivedTo: "Kano",
-      currentLocation: "Kano",
-      totalDistance: 1050,
-      totalDuration: "11h 30m",
-      delayMinutes: 45,
-      checkpoints: [
-        {
-          id: "cp-003",
-          location: "Ibadan",
-          arrivedAt: "2025-02-02T09:00:00",
-          departedAt: "2025-02-02T09:15:00",
-        },
-        {
-          id: "cp-004",
-          location: "Ilorin",
-          arrivedAt: "2025-02-02T11:30:00",
-          departedAt: "2025-02-02T12:00:00",
-          notes: "Lunch break",
-        },
-        {
-          id: "cp-005",
-          location: "Kaduna",
-          arrivedAt: "2025-02-02T16:00:00",
-          departedAt: "2025-02-02T16:30:00",
-        },
-      ],
-      incidents: [
-        {
-          id: "inc-001",
-          type: "delay",
-          description: "Traffic congestion at Lokoja bridge crossing",
-          location: "Lokoja",
-          reportedAt: "2025-02-02T14:00:00",
-          severity: "low",
-        },
-      ],
-      createdAt: "2025-02-02T06:30:00",
-    },
-  ];
-}
 
 export default JourneyManagement;
