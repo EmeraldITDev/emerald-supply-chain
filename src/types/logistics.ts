@@ -520,6 +520,7 @@ export interface LogisticsDashboardStats {
   availableVehicles: number;
   vehiclesInUse: number;
   vehiclesInMaintenance: number;
+  vehiclesPendingApproval: number;
   documentsExpiringSoon: number;
   documentsExpired: number;
   
@@ -538,6 +539,7 @@ export interface LogisticsDashboardStats {
   
   // Performance
   onTimeRate: number; // percentage
+  totalDistance: number; // in km
   averageTripDuration: string;
 }
 

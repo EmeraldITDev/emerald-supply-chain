@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +16,7 @@ import {
   Settings,
   BarChart3,
   Satellite,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +34,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApp } from "@/contexts/AppContext";
+import { logisticsDashboardApi, tripsApi, fleetApi } from "@/services/logisticsApi";
+import type { LogisticsDashboardStats, Trip as LogisticsTrip, FleetVehicle } from "@/types/logistics";
 
 // Import new modular logistics components
 import { TripScheduling } from "@/components/logistics/TripScheduling";
@@ -45,14 +48,13 @@ import { GPSTrackingPlaceholder } from "@/components/logistics/GPSTrackingPlaceh
 const Logistics = () => {
   const { toast } = useToast();
   const { 
-    trips, 
-    vehicles, 
     staffDrivers,
     addStaffDriver,
   } = useApp();
   
   const [designateDriverOpen, setDesignateDriverOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [loading, setLoading] = useState(true);
 
   // Designate driver form
   const [driverStaffId, setDriverStaffId] = useState("");
@@ -62,14 +64,51 @@ const Logistics = () => {
   const [driverLicense, setDriverLicense] = useState("");
   const [driverLicenseExpiry, setDriverLicenseExpiry] = useState("");
 
-  // Computed stats
-  const activeTrips = trips.filter(t => t.status === "In Transit" || t.status === "in_progress").length;
-  const scheduledTrips = trips.filter(t => t.status === "Scheduled" || t.status === "scheduled").length;
-  const approvedVehicles = vehicles.filter(v => 
-    v.status === "Active" && (!v.approvalStatus || v.approvalStatus === "approved")
-  ).length;
-  const pendingVehicles = vehicles.filter(v => v.approvalStatus === "pending").length;
-  const availableDrivers = staffDrivers.filter(d => d.status === "available").length;
+  // Dashboard stats from API
+  const [stats, setStats] = useState<LogisticsDashboardStats | null>(null);
+  const [recentTrips, setRecentTrips] = useState<LogisticsTrip[]>([]);
+  const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
+
+  // Fetch dashboard data from API
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const [statsRes, tripsRes, vehiclesRes] = await Promise.all([
+        logisticsDashboardApi.getStats(),
+        tripsApi.getAll(),
+        fleetApi.getAll(),
+      ]);
+
+      if (statsRes.success && statsRes.data) {
+        setStats(statsRes.data);
+      }
+      if (tripsRes.success && tripsRes.data) {
+        setRecentTrips(tripsRes.data.slice(0, 5));
+      }
+      if (vehiclesRes.success && vehiclesRes.data) {
+        setVehicles(vehiclesRes.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  // Computed stats - use API data or fallback to 0
+  const activeTrips = stats?.activeTrips ?? 0;
+  const scheduledTrips = stats?.scheduledTrips ?? 0;
+  const approvedVehicles = stats?.availableVehicles ?? vehicles.filter(v => v.status === "available" && v.approvalStatus === "approved").length;
+  const pendingVehicles = stats?.vehiclesPendingApproval ?? vehicles.filter(v => v.approvalStatus === "pending").length;
+  const totalVehicles = stats?.totalVehicles ?? vehicles.length;
+  const availableDrivers = stats?.availableDrivers ?? staffDrivers.filter(d => d.status === "available").length;
+  const totalDrivers = stats?.totalDrivers ?? staffDrivers.length;
+  const onTimeRate = stats?.onTimeRate ?? 0;
+  const totalDistance = stats?.totalDistance ?? 0;
 
   const handleDesignateDriver = () => {
     if (!driverStaffId || !driverName || !driverEmail || !driverLicense || !driverLicenseExpiry) {
@@ -108,7 +147,7 @@ const Logistics = () => {
   };
 
   const handleRefresh = async () => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await fetchDashboardData();
   };
 
   return (
@@ -213,8 +252,14 @@ const Logistics = () => {
                 <Truck className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{activeTrips}</div>
-                <p className="text-xs text-muted-foreground">{scheduledTrips} scheduled</p>
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{activeTrips}</div>
+                    <p className="text-xs text-muted-foreground">{scheduledTrips} scheduled</p>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -224,10 +269,16 @@ const Logistics = () => {
                 <Truck className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{approvedVehicles}</div>
-                <p className="text-xs text-muted-foreground">
-                  {pendingVehicles > 0 ? `${pendingVehicles} pending` : "All approved"}
-                </p>
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{totalVehicles}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {pendingVehicles > 0 ? `${pendingVehicles} pending approval` : `${approvedVehicles} available`}
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -237,10 +288,16 @@ const Logistics = () => {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{staffDrivers.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  {availableDrivers} available
-                </p>
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{totalDrivers}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {availableDrivers} available
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -250,8 +307,14 @@ const Logistics = () => {
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">94%</div>
-                <p className="text-xs text-muted-foreground">This month</p>
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{onTimeRate > 0 ? `${onTimeRate}%` : "—"}</div>
+                    <p className="text-xs text-muted-foreground">{onTimeRate > 0 ? "This month" : "No data"}</p>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -261,8 +324,20 @@ const Logistics = () => {
                 <MapPin className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">12.5K</div>
-                <p className="text-xs text-muted-foreground">km this month</p>
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">
+                      {totalDistance > 0 
+                        ? totalDistance >= 1000 
+                          ? `${(totalDistance / 1000).toFixed(1)}K` 
+                          : totalDistance
+                        : "—"}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{totalDistance > 0 ? "km this month" : "No data"}</p>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -313,21 +388,25 @@ const Logistics = () => {
                     <CardDescription>Latest scheduled and active trips</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {trips.length === 0 ? (
+                    {loading ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : recentTrips.length === 0 ? (
                       <p className="text-center text-muted-foreground py-6">No trips scheduled</p>
                     ) : (
                       <div className="space-y-3">
-                        {trips.slice(0, 5).map((trip) => (
+                        {recentTrips.map((trip) => (
                           <div key={trip.id} className="flex items-center justify-between p-3 border rounded-lg">
                             <div>
-                              <p className="font-medium text-sm">{trip.route || trip.destination}</p>
-                              <p className="text-xs text-muted-foreground">{trip.driver}</p>
+                              <p className="font-medium text-sm">{trip.route || `${trip.origin} → ${trip.destination}`}</p>
+                              <p className="text-xs text-muted-foreground">{trip.driverName || "No driver assigned"}</p>
                             </div>
                             <Badge variant={
-                              trip.status === "Completed" ? "default" :
-                              trip.status === "In Transit" ? "secondary" : "outline"
+                              trip.status === "completed" ? "default" :
+                              trip.status === "in_progress" ? "secondary" : "outline"
                             }>
-                              {trip.status}
+                              {trip.status.replace("_", " ")}
                             </Badge>
                           </div>
                         ))}
@@ -475,7 +554,7 @@ const Logistics = () => {
 
             {/* GPS Tracking Tab */}
             <TabsContent value="gps">
-              <GPSTrackingPlaceholder vehicleCount={vehicles.length} />
+              <GPSTrackingPlaceholder vehicleCount={totalVehicles} />
             </TabsContent>
 
             {/* Materials Tracking Tab */}
