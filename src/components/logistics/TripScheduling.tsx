@@ -55,7 +55,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { tripsApi, logisticsDashboardApi } from "@/services/logisticsApi";
+import { tripsApi, logisticsDashboardApi, logisticsVendorsApi } from "@/services/logisticsApi";
+import { userApi } from "@/services/api";
 import type { Trip, TripStatus, TripType, TripPassenger, CreateTripData, BulkTripUploadResult } from "@/types/logistics";
 import { VendorJMPSubmission } from "./VendorJMPSubmission";
 import { PassengerNotification } from "./PassengerNotification";
@@ -65,14 +66,7 @@ interface TripSchedulingProps {
   onEditTrip?: (trip: Trip) => void;
 }
 
-// Sample vendors for assignment
-const vendorList = [
-  { id: "v-001", name: "FastTrack Logistics", contact: "08012345678", vehicles: 12 },
-  { id: "v-002", name: "Oando Transport", contact: "08023456789", vehicles: 8 },
-  { id: "v-003", name: "Dangote Logistics", contact: "08034567890", vehicles: 25 },
-  { id: "v-004", name: "Swift Movers Ltd", contact: "08045678901", vehicles: 6 },
-  { id: "v-005", name: "Prime Haulage", contact: "08056789012", vehicles: 15 },
-];
+// Vendor and staff lists will be fetched from API
 
 const statusColors: Record<TripStatus, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -91,17 +85,20 @@ const priorityColors: Record<string, string> = {
   urgent: "bg-destructive/10 text-destructive",
 };
 
-// Sample staff list for passenger selection
-const staffList = [
-  { id: "staff-001", name: "Adaora Nwosu", email: "adaora@emeraldcfze.com", department: "Operations" },
-  { id: "staff-002", name: "Chidi Okonkwo", email: "chidi@emeraldcfze.com", department: "Finance" },
-  { id: "staff-003", name: "Fatima Bello", email: "fatima@emeraldcfze.com", department: "HR" },
-  { id: "staff-004", name: "Emeka Eze", email: "emeka@emeraldcfze.com", department: "Procurement" },
-  { id: "staff-005", name: "Ngozi Abubakar", email: "ngozi@emeraldcfze.com", department: "IT" },
-  { id: "staff-006", name: "Tunde Adeyemi", email: "tunde@emeraldcfze.com", department: "Marketing" },
-  { id: "staff-007", name: "Amina Yusuf", email: "amina@emeraldcfze.com", department: "Supply Chain" },
-  { id: "staff-008", name: "Olumide Johnson", email: "olumide@emeraldcfze.com", department: "Warehouse" },
-];
+// Staff types for API data
+interface StaffMember {
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+}
+
+interface VendorItem {
+  id: string;
+  name: string;
+  contact?: string;
+  vehicles?: number;
+}
 
 export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) => {
   const { toast } = useToast();
@@ -132,8 +129,14 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadResult, setUploadResult] = useState<BulkTripUploadResult | null>(null);
+  
+  // Staff and vendor lists from API
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [vendorList, setVendorList] = useState<VendorItem[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+  const [loadingVendors, setLoadingVendors] = useState(false);
 
-  // Fetch trips
+  // Fetch trips from API
   const fetchTrips = async () => {
     setLoading(true);
     try {
@@ -144,20 +147,69 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       if (response.success && response.data) {
         setTrips(response.data);
       } else {
-        // Use mock data for development
-        setTrips(getMockTrips());
+        // No trips available - show empty state
+        setTrips([]);
       }
     } catch (error) {
       console.error("Failed to fetch trips:", error);
-      setTrips(getMockTrips());
+      setTrips([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch staff members from API
+  const fetchStaff = async () => {
+    setLoadingStaff(true);
+    try {
+      const response = await userApi.getAll();
+      if (response.success && response.data) {
+        // Map users to staff format
+        const staff: StaffMember[] = response.data.map((user: any) => ({
+          id: user.id?.toString() || user.staff_id || user.staffId,
+          name: user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+          email: user.email,
+          department: user.department || 'General',
+        }));
+        setStaffList(staff);
+      }
+    } catch (error) {
+      console.error("Failed to fetch staff:", error);
+    } finally {
+      setLoadingStaff(false);
+    }
+  };
+
+  // Fetch vendors from API
+  const fetchVendors = async () => {
+    setLoadingVendors(true);
+    try {
+      const response = await logisticsVendorsApi.getAll();
+      if (response.success && response.data) {
+        const vendors: VendorItem[] = response.data.map((v: any) => ({
+          id: v.id?.toString() || v.vendor_id,
+          name: v.name || v.company_name,
+          contact: v.contact || v.phone,
+          vehicles: v.vehicles || v.vehicle_count,
+        }));
+        setVendorList(vendors);
+      }
+    } catch (error) {
+      console.error("Failed to fetch vendors:", error);
+    } finally {
+      setLoadingVendors(false);
     }
   };
 
   useEffect(() => {
     fetchTrips();
   }, [statusFilter, typeFilter]);
+
+  // Fetch staff and vendors on mount
+  useEffect(() => {
+    fetchStaff();
+    fetchVendors();
+  }, []);
 
   const handleCreateTrip = async () => {
     if (!formData.origin || !formData.destination || !formData.scheduledDepartureAt) {
@@ -1430,68 +1482,5 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   );
 };
 
-// Mock data for development
-function getMockTrips(): Trip[] {
-  return [
-    {
-      id: "trip-001",
-      tripNumber: "TRP-2025-001",
-      type: "personnel",
-      status: "scheduled",
-      origin: "Lagos Head Office",
-      destination: "Abuja Branch",
-      route: "Via Lokoja-Abuja Highway",
-      scheduledDepartureAt: "2025-02-10T09:00:00",
-      scheduledArrivalAt: "2025-02-10T15:00:00",
-      priority: "normal",
-      purpose: "Board Meeting",
-      scheduledBy: "Admin",
-      passengers: [
-        { id: "p1", staffId: "staff-001", name: "Adaora Nwosu", email: "adaora@emeraldcfze.com", department: "Operations" },
-        { id: "p2", staffId: "staff-002", name: "Chidi Okonkwo", email: "chidi@emeraldcfze.com", department: "Finance" },
-      ],
-      createdAt: "2025-02-01T10:00:00",
-    },
-    {
-      id: "trip-002",
-      tripNumber: "TRP-2025-002",
-      type: "material",
-      status: "vendor_assigned",
-      origin: "Warehouse A",
-      destination: "Project Site B",
-      scheduledDepartureAt: "2025-02-11T08:00:00",
-      priority: "high",
-      cargo: "Construction Equipment",
-      vendorId: "v-001",
-      vendorName: "FastTrack Logistics",
-      driverName: "Ibrahim Musa",
-      scheduledBy: "Admin",
-      createdAt: "2025-02-01T11:00:00",
-    },
-    {
-      id: "trip-003",
-      tripNumber: "TRP-2025-003",
-      type: "mixed",
-      status: "in_progress",
-      origin: "Port Harcourt",
-      destination: "Lagos",
-      scheduledDepartureAt: "2025-02-03T06:00:00",
-      actualDepartureAt: "2025-02-03T06:15:00",
-      priority: "urgent",
-      cargo: "Drilling Equipment + Personnel",
-      vendorId: "v-002",
-      vendorName: "Oando Transport",
-      driverName: "Tunde Bakare",
-      scheduledBy: "Admin",
-      passengers: [
-        { id: "p3", staffId: "staff-007", name: "Amina Yusuf", email: "amina@emeraldcfze.com", department: "Supply Chain" },
-      ],
-      createdAt: "2025-02-01T09:00:00",
-    },
-  ];
-}
-
-// Main component render continuation - JMP and Notification dialogs are rendered inside the component
-// The dialogs are already imported at the top and need to be added to the return statement
-
+// Export for use in other components
 export default TripScheduling;

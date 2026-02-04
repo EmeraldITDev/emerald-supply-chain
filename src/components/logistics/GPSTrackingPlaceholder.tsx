@@ -21,11 +21,8 @@ interface GPSTrackingPlaceholderProps {
 }
 
 export const GPSTrackingPlaceholder = ({ vehicleCount = 0 }: GPSTrackingPlaceholderProps) => {
-  const mockVehicleLocations = [
-    { id: "VEH-001", plate: "ABC-123-XY", name: "Toyota Hilux", status: "moving", lastSeen: "2 min ago" },
-    { id: "VEH-002", plate: "DEF-456-XY", name: "Ford Transit", status: "stopped", lastSeen: "5 min ago" },
-    { id: "VEH-003", plate: "GHI-789-XY", name: "Mercedes Sprinter", status: "offline", lastSeen: "1 hr ago" },
-  ];
+  // GPS tracking is a placeholder - vehicle locations will be fetched from backend when GPS integration is ready
+  const vehicleLocations: { id: string; plate: string; name: string; status: string; lastSeen: string }[] = [];
 
   return (
     <div className="space-y-6">
@@ -166,41 +163,10 @@ export const GPSTrackingPlaceholder = ({ vehicleCount = 0 }: GPSTrackingPlacehol
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {mockVehicleLocations.map((vehicle) => (
-              <div
-                key={vehicle.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/30 opacity-60"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-muted">
-                    <Truck className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">{vehicle.name}</p>
-                    <p className="text-xs text-muted-foreground">{vehicle.plate}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-xs",
-                      vehicle.status === "moving" && "border-success text-success",
-                      vehicle.status === "stopped" && "border-warning text-warning",
-                      vehicle.status === "offline" && "border-muted-foreground text-muted-foreground"
-                    )}
-                  >
-                    <Radio className="h-3 w-3 mr-1" />
-                    {vehicle.status === "offline" ? "No GPS" : vehicle.status}
-                  </Badge>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    {vehicle.lastSeen}
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="text-center py-8 text-muted-foreground">
+            <Satellite className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No GPS-enabled vehicles</p>
+            <p className="text-sm">Vehicle tracking will appear here when GPS integration is configured</p>
           </div>
         </CardContent>
       </Card>

@@ -485,27 +485,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([
-    {
-      id: "PO-2025-001",
-      vendor: "ABC Suppliers Ltd",
-      items: "Office Supplies Package",
-      amount: "₦125,000",
-      status: "Approved",
-      date: "2025-10-10",
-      deliveryDate: "2025-10-20",
-    },
-    {
-      id: "PO-2025-002",
-      vendor: "Tech Solutions Inc",
-      items: "Computer Equipment",
-      amount: "₦850,000",
-      status: "Pending",
-      date: "2025-10-12",
-      deliveryDate: "2025-10-25",
-    },
-  ]);
+  // Purchase orders - empty by default, fetch from API
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
 
+  // Trips - fetch from API, no mock data
   const [trips, setTrips] = useState<Trip[]>(() => {
     const stored = localStorage.getItem("trips");
     if (stored) {
@@ -515,30 +498,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.error("Failed to parse stored trips", e);
       }
     }
-    return [
-      {
-        id: "TRP-001",
-        route: "Lagos - Abuja",
-        vehicle: "TRK-001",
-        driver: "John Smith",
-        status: "In Transit",
-        departure: "2025-10-15 08:00",
-        arrival: "2025-10-16 14:00",
-        cargo: "Office Supplies, 2000kg",
-      },
-      {
-        id: "TRP-002",
-        route: "Abuja - Port Harcourt",
-        vehicle: "TRK-002",
-        driver: "Mary Johnson",
-        status: "Scheduled",
-        departure: "2025-10-16 06:00",
-        arrival: "2025-10-17 10:00",
-        cargo: "Raw Materials, 3500kg",
-      },
-    ];
+    return []; // Empty by default - fetch from API
   });
 
+  // Vehicles - fetch from API, no mock data
   const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
     const stored = localStorage.getItem("vehicles");
     if (stored) {
@@ -548,100 +511,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.error("Failed to parse stored vehicles", e);
       }
     }
-    return [
-      {
-        id: "TRK-001",
-        name: "Truck Alpha",
-        type: "Heavy Duty Truck",
-        plate: "ABC-123-XY",
-        status: "Active",
-        driver: "John Smith",
-        lastMaintenance: "2025-09-15",
-        approvalStatus: "approved",
-        approvedBy: "Logistics Coordinator",
-        approvalDate: "2025-01-10",
-      },
-      {
-        id: "TRK-002",
-        name: "Truck Beta",
-        type: "Medium Truck",
-        plate: "DEF-456-ZW",
-        status: "Active",
-        driver: "Mary Johnson",
-        lastMaintenance: "2025-09-20",
-        approvalStatus: "approved",
-        approvedBy: "Logistics Coordinator",
-        approvalDate: "2025-01-12",
-      },
-      {
-        id: "VEH-003",
-        name: "Executive Sedan",
-        type: "Sedan",
-        plate: "LAG-789-AB",
-        status: "Active",
-        driver: "",
-        lastMaintenance: "2025-10-01",
-        vendorId: "V005",
-        vendorName: "AutoFleet Nigeria",
-        approvalStatus: "approved",
-        approvedBy: "Logistics Coordinator",
-        approvalDate: "2025-02-15",
-      },
-      {
-        id: "VEH-004",
-        name: "Staff Bus",
-        type: "Bus (18 Seater)",
-        plate: "ABJ-234-CD",
-        status: "Active",
-        driver: "",
-        lastMaintenance: "2025-09-25",
-        vendorId: "V005",
-        vendorName: "AutoFleet Nigeria",
-        approvalStatus: "approved",
-        approvedBy: "Logistics Coordinator",
-        approvalDate: "2025-02-20",
-      },
-      {
-        id: "VEH-005",
-        name: "Hilux Pickup",
-        type: "Pickup Truck",
-        plate: "PH-567-EF",
-        status: "Active",
-        driver: "",
-        lastMaintenance: "2025-10-05",
-        vendorId: "V006",
-        vendorName: "TransNigeria Logistics",
-        approvalStatus: "approved",
-        approvedBy: "Logistics Coordinator",
-        approvalDate: "2025-03-01",
-      },
-      {
-        id: "VEH-006",
-        name: "Delivery Van",
-        type: "Van",
-        plate: "KAN-890-GH",
-        status: "Active",
-        driver: "",
-        lastMaintenance: "2025-09-28",
-        vendorId: "V006",
-        vendorName: "TransNigeria Logistics",
-        approvalStatus: "approved",
-        approvedBy: "Logistics Coordinator",
-        approvalDate: "2025-03-05",
-      },
-      {
-        id: "VEH-007",
-        name: "Toyota Coaster",
-        type: "Mini Bus (30 Seater)",
-        plate: "LAG-111-JK",
-        status: "Active",
-        driver: "",
-        lastMaintenance: "2025-10-10",
-        vendorId: "V005",
-        vendorName: "AutoFleet Nigeria",
-        approvalStatus: "pending",
-      },
-    ];
+    return []; // Empty by default - fetch from API
   });
 
   // Persist trips to localStorage
@@ -654,132 +524,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("vehicles", JSON.stringify(vehicles));
   }, [vehicles]);
 
-  const [vendors, setVendors] = useState<Vendor[]>([
-    {
-      id: "V001",
-      name: "Steel Works Ltd",
-      category: "Raw Materials",
-      rating: 4.8,
-      orders: 45,
-      status: "Active",
-      kyc: "Verified",
-      email: "vendor@demo.com",
-      phone: "+234-801-234-5678",
-      address: "123 Industrial Road, Lagos",
-      taxId: "TIN-123456789",
-      contactPerson: "John Okafor",
-      documents: [],
-    },
-    {
-      id: "V002",
-      name: "BuildMart Supplies",
-      category: "Construction",
-      rating: 4.5,
-      orders: 32,
-      status: "Active",
-      kyc: "Verified",
-      email: "buildmart@example.com",
-      phone: "+234-802-345-6789",
-      address: "45 Builder Street, Abuja",
-      taxId: "TIN-234567890",
-      contactPerson: "Mary Adeola",
-      documents: [],
-    },
-    {
-      id: "V003",
-      name: "SafetyFirst Co",
-      category: "Safety Equipment",
-      rating: 4.9,
-      orders: 28,
-      status: "Active",
-      kyc: "Verified",
-      email: "safety@example.com",
-      phone: "+234-803-456-7890",
-      address: "78 Safety Avenue, Port Harcourt",
-      taxId: "TIN-345678901",
-      contactPerson: "Peter Chukwu",
-      documents: [],
-    },
-    {
-      id: "V004",
-      name: "TechEquip Ltd",
-      category: "Equipment",
-      rating: 4.3,
-      orders: 18,
-      status: "Pending",
-      kyc: "Under Review",
-      email: "tech@example.com",
-      phone: "+234-804-567-8901",
-      address: "90 Tech Plaza, Ibadan",
-      taxId: "TIN-456789012",
-      contactPerson: "Ahmed Bello",
-      documents: [],
-    },
-    {
-      id: "V005",
-      name: "AutoFleet Nigeria",
-      category: "Automobile",
-      rating: 4.7,
-      orders: 52,
-      status: "Active",
-      kyc: "Verified",
-      email: "info@autofleet.ng",
-      phone: "+234-805-678-9012",
-      address: "15 Fleet Drive, Victoria Island, Lagos",
-      taxId: "TIN-567890123",
-      contactPerson: "Chinedu Okoro",
-      documents: [],
-    },
-    {
-      id: "V006",
-      name: "TransNigeria Logistics",
-      category: "Transportation",
-      rating: 4.6,
-      orders: 38,
-      status: "Active",
-      kyc: "Verified",
-      email: "dispatch@transnigeria.com",
-      phone: "+234-806-789-0123",
-      address: "200 Logistics Way, Apapa, Lagos",
-      taxId: "TIN-678901234",
-      contactPerson: "Funke Adeyemi",
-      documents: [],
-    },
-    {
-      id: "V007",
-      name: "QuickMove Transport",
-      category: "Logistics",
-      rating: 4.4,
-      orders: 25,
-      status: "Active",
-      kyc: "Verified",
-      email: "bookings@quickmove.ng",
-      phone: "+234-807-890-1234",
-      address: "45 Transport Close, Ikeja, Lagos",
-      taxId: "TIN-789012345",
-      contactPerson: "Emeka Nnamdi",
-      documents: [],
-    },
-  ]);
+  // Vendors - empty by default, fetch from API
+  const [vendors, setVendors] = useState<Vendor[]>([]);
 
   // Use the API-backed state defined above
   const rfqs = rfqsState;
   const quotations = quotationsState;
 
-  const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([
-    {
-      id: "VR-001",
-      companyName: "New Vendor Co",
-      category: "Office Supplies",
-      email: "newvendor@example.com",
-      phone: "+234-805-678-9012",
-      address: "123 New Street, Lagos",
-      taxId: "TIN-567890123",
-      contactPerson: "Grace Nwosu",
-      status: "Pending",
-      submittedDate: "2025-10-14",
-    },
-  ]);
+  // Vendor registrations - empty by default, fetch from API
+  const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
 
   // MRF, SRF, RFQ CRUD functions removed - components should call API directly
   // Data is now read-only in context, fetched from API via refresh functions
@@ -1075,7 +828,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setAnnualPlans(annualPlans.map((plan) => (plan.id === id ? { ...plan, ...updates } : plan)));
   };
 
-  // Staff Drivers Management
+  // Staff Drivers Management - empty by default, fetch from API
   const [staffDrivers, setStaffDrivers] = useState<StaffDriver[]>(() => {
     const stored = localStorage.getItem("staffDrivers");
     if (stored) {
@@ -1085,50 +838,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.error("Failed to parse stored staffDrivers", e);
       }
     }
-    return [
-      {
-        id: "DRV-001",
-        staffId: "EMP-001",
-        name: "John Smith",
-        email: "john.smith@emeraldcfze.com",
-        department: "Operations",
-        licenseNumber: "ABC123456",
-        licenseExpiry: "2026-06-15",
-        status: "available",
-        designatedBy: "Logistics Manager",
-        designatedDate: "2024-06-01",
-        totalTrips: 45,
-        rating: 4.8,
-      },
-      {
-        id: "DRV-002",
-        staffId: "EMP-002",
-        name: "Mary Johnson",
-        email: "mary.johnson@emeraldcfze.com",
-        department: "Operations",
-        licenseNumber: "DEF789012",
-        licenseExpiry: "2025-12-20",
-        status: "on-trip",
-        designatedBy: "Logistics Manager",
-        designatedDate: "2024-07-15",
-        totalTrips: 38,
-        rating: 4.9,
-      },
-      {
-        id: "DRV-003",
-        staffId: "EMP-003",
-        name: "Mike Okonkwo",
-        email: "mike.okonkwo@emeraldcfze.com",
-        department: "Warehouse",
-        licenseNumber: "GHI345678",
-        licenseExpiry: "2026-03-10",
-        status: "available",
-        designatedBy: "Logistics Manager",
-        designatedDate: "2024-09-01",
-        totalTrips: 22,
-        rating: 4.7,
-      },
-    ];
+    return []; // Empty by default - fetch from API
   });
 
   // Persist staffDrivers to localStorage

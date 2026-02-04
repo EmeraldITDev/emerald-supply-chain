@@ -91,7 +91,7 @@ export const MaterialsTracking = () => {
   // Categories for filter
   const categories = ["Equipment", "Supplies", "Tools", "Parts", "Electronics", "Furniture"];
 
-  // Fetch materials
+  // Fetch materials from API
   const fetchMaterials = async () => {
     setLoading(true);
     try {
@@ -102,11 +102,11 @@ export const MaterialsTracking = () => {
       if (response.success && response.data) {
         setMaterials(response.data);
       } else {
-        setMaterials(getMockMaterials());
+        setMaterials([]);
       }
     } catch (error) {
       console.error("Failed to fetch materials:", error);
-      setMaterials(getMockMaterials());
+      setMaterials([]);
     } finally {
       setLoading(false);
     }
@@ -721,69 +721,5 @@ export const MaterialsTracking = () => {
   );
 };
 
-// Mock data for development
-function getMockMaterials(): Material[] {
-  return [
-    {
-      id: "mat-001",
-      materialNumber: "MAT-2025-001",
-      name: "Dell Latitude Laptop",
-      description: "Dell Latitude 5530 Business Laptop",
-      category: "Electronics",
-      quantity: 15,
-      unit: "units",
-      condition: "new",
-      status: "available",
-      currentLocation: "Main Warehouse",
-      movementCount: 2,
-      lastMovedAt: "2025-01-20",
-      createdAt: "2025-01-15",
-    },
-    {
-      id: "mat-002",
-      materialNumber: "MAT-2025-002",
-      name: "Office Chairs",
-      description: "Ergonomic office chairs",
-      category: "Furniture",
-      quantity: 50,
-      unit: "units",
-      condition: "new",
-      status: "in_transit",
-      currentLocation: "En Route to Abuja",
-      lastTripId: "trip-001",
-      movementCount: 1,
-      createdAt: "2025-01-18",
-    },
-    {
-      id: "mat-003",
-      materialNumber: "MAT-2025-003",
-      name: "Drilling Equipment",
-      description: "Industrial drilling equipment set",
-      category: "Equipment",
-      quantity: 5,
-      unit: "sets",
-      condition: "used",
-      status: "available",
-      currentLocation: "Port Harcourt Warehouse",
-      movementCount: 8,
-      lastMovedAt: "2025-01-25",
-      createdAt: "2024-06-10",
-    },
-    {
-      id: "mat-004",
-      materialNumber: "MAT-2025-004",
-      name: "Safety Helmets",
-      description: "Construction safety helmets",
-      category: "Supplies",
-      quantity: 200,
-      unit: "units",
-      condition: "new",
-      status: "available",
-      currentLocation: "Main Warehouse",
-      movementCount: 0,
-      createdAt: "2025-01-28",
-    },
-  ];
-}
 
 export default MaterialsTracking;

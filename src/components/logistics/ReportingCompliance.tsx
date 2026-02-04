@@ -90,7 +90,7 @@ export const ReportingCompliance = () => {
   const [reportFile, setReportFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch reports
+  // Fetch reports from API
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -105,18 +105,18 @@ export const ReportingCompliance = () => {
       if (reportsRes.success && reportsRes.data) {
         setReports(reportsRes.data);
       } else {
-        setReports(getMockReports());
+        setReports([]);
       }
 
       if (pendingRes.success && pendingRes.data) {
         setPendingReports(pendingRes.data);
       } else {
-        setPendingReports(getMockPendingReports());
+        setPendingReports([]);
       }
     } catch (error) {
       console.error("Failed to fetch reports:", error);
-      setReports(getMockReports());
-      setPendingReports(getMockPendingReports());
+      setReports([]);
+      setPendingReports([]);
     } finally {
       setLoading(false);
     }
@@ -689,84 +689,5 @@ export const ReportingCompliance = () => {
   );
 };
 
-// Mock data for development
-function getMockReports(): LogisticsReport[] {
-  return [
-    {
-      id: "rpt-001",
-      reportNumber: "RPT-2025-001",
-      type: "weekly",
-      title: "Weekly Operations Report - Week 5",
-      description: "Summary of logistics operations for week 5",
-      status: "approved",
-      periodStart: "2025-01-27",
-      periodEnd: "2025-02-02",
-      submittedBy: "John Coordinator",
-      submittedAt: "2025-02-03",
-      reviewedBy: "Manager Smith",
-      reviewedAt: "2025-02-03",
-      createdAt: "2025-02-02",
-    },
-    {
-      id: "rpt-002",
-      reportNumber: "RPT-2025-002",
-      type: "trip",
-      title: "Trip Report - TRP-2025-003",
-      description: "Post-trip report for Port Harcourt to Lagos journey",
-      status: "submitted",
-      tripId: "trip-003",
-      submittedBy: "Driver Musa",
-      submittedAt: "2025-02-03",
-      createdAt: "2025-02-03",
-    },
-    {
-      id: "rpt-003",
-      reportNumber: "RPT-2025-003",
-      type: "daily",
-      title: "Daily Operations Log - Feb 2",
-      status: "draft",
-      periodStart: "2025-02-02",
-      periodEnd: "2025-02-02",
-      submittedBy: "Admin",
-      createdAt: "2025-02-02",
-    },
-    {
-      id: "rpt-004",
-      reportNumber: "RPT-2025-004",
-      type: "incident",
-      title: "Incident Report - Vehicle Breakdown",
-      description: "Report on VEH-003 breakdown on Lokoja highway",
-      status: "reviewed",
-      submittedBy: "Driver Bakare",
-      submittedAt: "2025-01-28",
-      reviewNotes: "Under investigation",
-      createdAt: "2025-01-28",
-    },
-  ];
-}
-
-function getMockPendingReports(): PendingReport[] {
-  return [
-    {
-      id: "pending-001",
-      type: "trip",
-      title: "Trip Report - TRP-2025-001",
-      dueAt: "2025-02-05",
-      assignedTo: "driver-001",
-      assignedToName: "Ibrahim Musa",
-      tripId: "trip-001",
-      tripNumber: "TRP-2025-001",
-    },
-    {
-      id: "pending-002",
-      type: "weekly",
-      title: "Weekly Report - Week 6",
-      dueAt: "2025-02-01",
-      assignedTo: "coord-001",
-      assignedToName: "Logistics Coordinator",
-      daysOverdue: 2,
-    },
-  ];
-}
 
 export default ReportingCompliance;

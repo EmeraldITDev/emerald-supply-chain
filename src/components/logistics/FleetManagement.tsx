@@ -112,7 +112,7 @@ export const FleetManagement = () => {
   const [documentExpiry, setDocumentExpiry] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch vehicles and alerts
+  // Fetch vehicles and alerts from API
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -127,18 +127,18 @@ export const FleetManagement = () => {
       if (vehiclesRes.success && vehiclesRes.data) {
         setVehicles(vehiclesRes.data);
       } else {
-        setVehicles(getMockVehicles());
+        setVehicles([]);
       }
 
       if (alertsRes.success && alertsRes.data) {
         setAlerts(alertsRes.data);
       } else {
-        setAlerts(getMockAlerts());
+        setAlerts([]);
       }
     } catch (error) {
       console.error("Failed to fetch fleet data:", error);
-      setVehicles(getMockVehicles());
-      setAlerts(getMockAlerts());
+      setVehicles([]);
+      setAlerts([]);
     } finally {
       setLoading(false);
     }
@@ -1141,146 +1141,5 @@ export const FleetManagement = () => {
   );
 };
 
-// Mock data for development
-function getMockVehicles(): FleetVehicle[] {
-  return [
-    {
-      id: "veh-001",
-      vehicleNumber: "VEH-001",
-      plate: "ABC-123-LG",
-      name: "Toyota Hilux 2023",
-      type: "Pickup",
-      make: "Toyota",
-      model: "Hilux",
-      year: 2023,
-      color: "White",
-      ownership: "owned",
-      status: "available",
-      approvalStatus: "approved",
-      passengerCapacity: 5,
-      cargoCapacity: 1000,
-      fuelType: "Diesel",
-      documents: [
-        {
-          id: "doc-001",
-          vehicleId: "veh-001",
-          type: "registration",
-          name: "Vehicle Registration.pdf",
-          uploadedAt: "2025-01-15",
-          expiresAt: "2026-01-15",
-          isExpired: false,
-          isExpiringSoon: false,
-        },
-        {
-          id: "doc-002",
-          vehicleId: "veh-001",
-          type: "insurance",
-          name: "Insurance Certificate.pdf",
-          uploadedAt: "2025-01-15",
-          expiresAt: "2025-02-28",
-          isExpired: false,
-          isExpiringSoon: true,
-        },
-      ],
-      maintenanceHistory: [
-        {
-          id: "maint-001",
-          vehicleId: "veh-001",
-          type: "scheduled",
-          description: "Regular service - oil change, filter replacement",
-          performedAt: "2025-01-10",
-          performedBy: "AutoCare Services",
-          cost: 45000,
-          odometer: 25000,
-        },
-      ],
-      totalTrips: 45,
-      totalDistance: 12500,
-      createdAt: "2023-06-15",
-    },
-    {
-      id: "veh-002",
-      vehicleNumber: "VEH-002",
-      plate: "XYZ-456-AB",
-      name: "Toyota Coaster Bus",
-      type: "Bus",
-      make: "Toyota",
-      model: "Coaster",
-      year: 2022,
-      color: "White",
-      ownership: "vendor",
-      vendorId: "vendor-001",
-      vendorName: "FastTrack Transport",
-      status: "in_use",
-      approvalStatus: "approved",
-      passengerCapacity: 30,
-      fuelType: "Diesel",
-      documents: [],
-      maintenanceHistory: [],
-      totalTrips: 120,
-      totalDistance: 45000,
-      createdAt: "2022-03-20",
-    },
-    {
-      id: "veh-003",
-      vehicleNumber: "VEH-003",
-      plate: "DEF-789-LG",
-      name: "Mercedes Actros Truck",
-      type: "Truck",
-      make: "Mercedes",
-      model: "Actros",
-      year: 2021,
-      ownership: "leased",
-      status: "maintenance",
-      approvalStatus: "approved",
-      cargoCapacity: 25000,
-      fuelType: "Diesel",
-      documents: [
-        {
-          id: "doc-003",
-          vehicleId: "veh-003",
-          type: "roadworthiness",
-          name: "Roadworthiness.pdf",
-          uploadedAt: "2024-06-01",
-          expiresAt: "2025-01-15",
-          isExpired: true,
-          isExpiringSoon: false,
-        },
-      ],
-      maintenanceHistory: [],
-      totalTrips: 89,
-      totalDistance: 78000,
-      createdAt: "2021-08-10",
-    },
-  ];
-}
-
-function getMockAlerts(): FleetAlert[] {
-  return [
-    {
-      id: "alert-001",
-      type: "document_expiring",
-      severity: "high",
-      vehicleId: "veh-001",
-      vehiclePlate: "ABC-123-LG",
-      vehicleName: "Toyota Hilux 2023",
-      message: "Insurance expires in 25 days",
-      dueAt: "2025-02-28",
-      daysRemaining: 25,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: "alert-002",
-      type: "document_expired",
-      severity: "critical",
-      vehicleId: "veh-003",
-      vehiclePlate: "DEF-789-LG",
-      vehicleName: "Mercedes Actros Truck",
-      message: "Roadworthiness certificate expired",
-      dueAt: "2025-01-15",
-      createdAt: new Date().toISOString(),
-    },
-  ];
-}
 
 export default FleetManagement;
