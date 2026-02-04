@@ -772,25 +772,36 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
 
       {/* Bulk Upload Dialog */}
       <Dialog open={bulkUploadDialogOpen} onOpenChange={setBulkUploadDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader className="space-y-2">
             <DialogTitle>Bulk Upload Trips</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               Upload an Excel file with trip data using the provided template
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" className="w-full" onClick={() => handleDownloadTemplate('personnel-trip')}>
-                <Download className="mr-2 h-4 w-4" />
-                Personnel Trip Template
+          <div className="space-y-6 py-4">
+            {/* Template Download Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Button 
+                variant="outline" 
+                className="w-full h-auto py-3 px-4 justify-start gap-3" 
+                onClick={() => handleDownloadTemplate('personnel-trip')}
+              >
+                <Download className="h-4 w-4 shrink-0" />
+                <span className="text-sm text-left truncate">Personnel Trip Template</span>
               </Button>
-              <Button variant="outline" className="w-full" onClick={() => handleDownloadTemplate('journey-management')}>
-                <Download className="mr-2 h-4 w-4" />
-                Journey Management Template
+              <Button 
+                variant="outline" 
+                className="w-full h-auto py-3 px-4 justify-start gap-3" 
+                onClick={() => handleDownloadTemplate('journey-management')}
+              >
+                <Download className="h-4 w-4 shrink-0" />
+                <span className="text-sm text-left truncate">Journey Management Template</span>
               </Button>
             </div>
-            <div className="border-2 border-dashed rounded-lg p-6 text-center">
+            
+            {/* File Upload Area */}
+            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
               <Input
                 type="file"
                 accept=".xlsx,.xls,.csv"
@@ -798,27 +809,33 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 id="bulk-upload-input"
                 onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
               />
-              <label htmlFor="bulk-upload-input" className="cursor-pointer">
-                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <label htmlFor="bulk-upload-input" className="cursor-pointer block">
+                <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  {uploadFile ? uploadFile.name : "Click to select file or drag and drop"}
+                  {uploadFile ? (
+                    <span className="text-foreground font-medium">{uploadFile.name}</span>
+                  ) : (
+                    "Click to select file or drag and drop"
+                  )}
                 </p>
               </label>
             </div>
+            
+            {/* Upload Result */}
             {uploadResult && (
               <div className={cn(
                 "p-4 rounded-lg",
                 uploadResult.failedRows > 0 ? "bg-warning/10" : "bg-success/10"
               )}>
-                <p className="font-medium">
+                <p className="font-medium text-sm">
                   Upload Result: {uploadResult.successfulRows}/{uploadResult.totalRows} successful
                 </p>
                 {uploadResult.errors.length > 0 && (
-                  <div className="mt-2 text-sm">
+                  <div className="mt-3 text-sm">
                     <p className="font-medium text-destructive">Errors:</p>
-                    <ul className="list-disc list-inside">
+                    <ul className="list-disc list-inside mt-1 space-y-1">
                       {uploadResult.errors.slice(0, 5).map((error, i) => (
-                        <li key={i}>
+                        <li key={i} className="text-muted-foreground">
                           Row {error.row}: {error.field} - {error.message}
                         </li>
                       ))}
@@ -828,7 +845,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               </div>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setBulkUploadDialogOpen(false)}>
               Cancel
             </Button>
