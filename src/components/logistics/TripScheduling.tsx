@@ -65,6 +65,15 @@ interface TripSchedulingProps {
   onEditTrip?: (trip: Trip) => void;
 }
 
+// Sample vendors for assignment
+const vendorList = [
+  { id: "v-001", name: "FastTrack Logistics", contact: "08012345678", vehicles: 12 },
+  { id: "v-002", name: "Oando Transport", contact: "08023456789", vehicles: 8 },
+  { id: "v-003", name: "Dangote Logistics", contact: "08034567890", vehicles: 25 },
+  { id: "v-004", name: "Swift Movers Ltd", contact: "08045678901", vehicles: 6 },
+  { id: "v-005", name: "Prime Haulage", contact: "08056789012", vehicles: 15 },
+];
+
 const statusColors: Record<TripStatus, string> = {
   draft: "bg-muted text-muted-foreground",
   scheduled: "bg-warning/10 text-warning",
@@ -106,9 +115,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [bulkUploadDialogOpen, setBulkUploadDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [assignVendorDialogOpen, setAssignVendorDialogOpen] = useState(false);
   const [jmpDialogOpen, setJmpDialogOpen] = useState(false);
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   
   // Form states
   const [formData, setFormData] = useState<Partial<CreateTripData>>({
@@ -331,6 +343,163 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         variant: "destructive",
       });
     }
+  };
+
+  const handleEditTrip = async () => {
+    if (!selectedTrip || !formData.origin || !formData.destination) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Build passengers list from selected
+      const passengers: Omit<TripPassenger, "id" | "notifiedAt">[] = selectedPassengers.map(staffId => {
+        const staff = staffList.find(s => s.id === staffId);
+        return {
+          staffId,
+          name: staff?.name || "",
+          email: staff?.email || "",
+          department: staff?.department || "",
+        };
+      });
+
+      const response = await tripsApi.update(selectedTrip.id, {
+        type: formData.type,
+        origin: formData.origin,
+        destination: formData.destination,
+        route: formData.route,
+        scheduledDepartureAt: formData.scheduledDepartureAt,
+        scheduledArrivalAt: formData.scheduledArrivalAt,
+        purpose: formData.purpose,
+        priority: formData.priority,
+        notes: formData.notes,
+        cargo: formData.cargo,
+      });
+
+      if (response.success) {
+        toast({
+          title: "Trip Updated",
+          description: `Trip ${selectedTrip.tripNumber} has been updated.`,
+        });
+        setEditDialogOpen(false);
+        fetchTrips();
+      } else {
+        // Update local state for demo
+        setTrips(prev => prev.map(t =>
+          t.id === selectedTrip.id
+            ? {
+                ...t,
+                type: formData.type || t.type,
+                origin: formData.origin || t.origin,
+                destination: formData.destination || t.destination,
+                route: formData.route,
+                scheduledDepartureAt: formData.scheduledDepartureAt || t.scheduledDepartureAt,
+                scheduledArrivalAt: formData.scheduledArrivalAt,
+                purpose: formData.purpose,
+                priority: (formData.priority as Trip["priority"]) || t.priority,
+                notes: formData.notes,
+                cargo: formData.cargo,
+                passengers: passengers.map((p, i) => ({ ...p, id: `pass-${i}` })),
+              }
+            : t
+        ));
+        toast({
+          title: "Trip Updated",
+          description: `Trip ${selectedTrip.tripNumber} has been updated.`,
+        });
+        setEditDialogOpen(false);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update trip",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAssignVendor = async () => {
+    if (!selectedTrip || !selectedVendorId) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a vendor",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const vendor = vendorList.find(v => v.id === selectedVendorId);
+      const response = await tripsApi.assignVendor(selectedTrip.id, selectedVendorId);
+
+      if (response.success) {
+        toast({
+          title: "Vendor Assigned",
+          description: `${vendor?.name} has been assigned to ${selectedTrip.tripNumber}.`,
+        });
+        setAssignVendorDialogOpen(false);
+        setSelectedVendorId("");
+        fetchTrips();
+      } else {
+        // Update local state for demo
+        setTrips(prev => prev.map(t =>
+          t.id === selectedTrip.id
+            ? {
+                ...t,
+                vendorId: selectedVendorId,
+                vendorName: vendor?.name,
+                status: "vendor_assigned" as TripStatus,
+              }
+            : t
+        ));
+        toast({
+          title: "Vendor Assigned",
+          description: `${vendor?.name} has been assigned to ${selectedTrip.tripNumber}.`,
+        });
+        setAssignVendorDialogOpen(false);
+        setSelectedVendorId("");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to assign vendor",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openEditDialog = (trip: Trip) => {
+    setSelectedTrip(trip);
+    setFormData({
+      type: trip.type,
+      origin: trip.origin,
+      destination: trip.destination,
+      route: trip.route,
+      scheduledDepartureAt: trip.scheduledDepartureAt,
+      scheduledArrivalAt: trip.scheduledArrivalAt,
+      purpose: trip.purpose,
+      priority: trip.priority,
+      notes: trip.notes,
+      cargo: trip.cargo,
+    });
+    setSelectedPassengers(trip.passengers?.map(p => p.staffId) || []);
+    setEditDialogOpen(true);
+  };
+
+  const openAssignVendorDialog = (trip: Trip) => {
+    setSelectedTrip(trip);
+    setSelectedVendorId(trip.vendorId || "");
+    setAssignVendorDialogOpen(true);
   };
 
   const resetForm = () => {
@@ -723,11 +892,11 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                             </DropdownMenuItem>
                             {trip.status !== "completed" && trip.status !== "cancelled" && (
                               <>
-                                <DropdownMenuItem onClick={() => onEditTrip?.(trip)}>
+                                <DropdownMenuItem onClick={() => openEditDialog(trip)}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit Trip
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {}}>
+                                <DropdownMenuItem onClick={() => openAssignVendorDialog(trip)}>
                                   <UserPlus className="mr-2 h-4 w-4" />
                                   Assign Vendor
                                 </DropdownMenuItem>
@@ -937,6 +1106,273 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Trip Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Trip - {selectedTrip?.tripNumber}</DialogTitle>
+            <DialogDescription>
+              Update trip details below
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Trip Type & Priority */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Trip Type *</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value: TripType) =>
+                    setFormData(prev => ({ ...prev, type: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="personnel">Personnel Movement</SelectItem>
+                    <SelectItem value="material">Material Movement</SelectItem>
+                    <SelectItem value="mixed">Mixed (Personnel + Material)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Priority</Label>
+                <Select
+                  value={formData.priority}
+                  onValueChange={(value) =>
+                    setFormData(prev => ({ ...prev, priority: value as any }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Origin & Destination */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Origin *</Label>
+                <Input
+                  placeholder="e.g., Lagos Head Office"
+                  value={formData.origin || ""}
+                  onChange={(e) =>
+                    setFormData(prev => ({ ...prev, origin: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Destination *</Label>
+                <Input
+                  placeholder="e.g., Abuja Branch"
+                  value={formData.destination || ""}
+                  onChange={(e) =>
+                    setFormData(prev => ({ ...prev, destination: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Route Description */}
+            <div className="space-y-2">
+              <Label>Route Description</Label>
+              <Input
+                placeholder="e.g., Via Lokoja-Abuja Highway"
+                value={formData.route || ""}
+                onChange={(e) =>
+                  setFormData(prev => ({ ...prev, route: e.target.value }))
+                }
+              />
+            </div>
+
+            {/* Schedule */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Scheduled Departure *</Label>
+                <Input
+                  type="datetime-local"
+                  value={formData.scheduledDepartureAt?.slice(0, 16) || ""}
+                  onChange={(e) =>
+                    setFormData(prev => ({ ...prev, scheduledDepartureAt: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Estimated Arrival</Label>
+                <Input
+                  type="datetime-local"
+                  value={formData.scheduledArrivalAt?.slice(0, 16) || ""}
+                  onChange={(e) =>
+                    setFormData(prev => ({ ...prev, scheduledArrivalAt: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Purpose */}
+            <div className="space-y-2">
+              <Label>Purpose</Label>
+              <Input
+                placeholder="e.g., Board Meeting, Equipment Delivery"
+                value={formData.purpose || ""}
+                onChange={(e) =>
+                  setFormData(prev => ({ ...prev, purpose: e.target.value }))
+                }
+              />
+            </div>
+
+            {/* Cargo (for material trips) */}
+            {(formData.type === "material" || formData.type === "mixed") && (
+              <div className="space-y-2">
+                <Label>Cargo Description</Label>
+                <Textarea
+                  placeholder="Describe the materials being transported"
+                  value={formData.cargo || ""}
+                  onChange={(e) =>
+                    setFormData(prev => ({ ...prev, cargo: e.target.value }))
+                  }
+                />
+              </div>
+            )}
+
+            {/* Passengers (for personnel trips) */}
+            {(formData.type === "personnel" || formData.type === "mixed") && (
+              <div className="space-y-2">
+                <Label>Select Passengers</Label>
+                <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                  {staffList.map(staff => (
+                    <div key={staff.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`edit-${staff.id}`}
+                        checked={selectedPassengers.includes(staff.id)}
+                        onCheckedChange={() => togglePassenger(staff.id)}
+                      />
+                      <label
+                        htmlFor={`edit-${staff.id}`}
+                        className="text-sm cursor-pointer flex-1"
+                      >
+                        {staff.name}{" "}
+                        <span className="text-muted-foreground">
+                          ({staff.department})
+                        </span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                {selectedPassengers.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {selectedPassengers.length} passenger(s) selected
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                placeholder="Additional instructions or notes"
+                value={formData.notes || ""}
+                onChange={(e) =>
+                  setFormData(prev => ({ ...prev, notes: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditTrip} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Vendor Dialog */}
+      <Dialog open={assignVendorDialogOpen} onOpenChange={setAssignVendorDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Vendor - {selectedTrip?.tripNumber}</DialogTitle>
+            <DialogDescription>
+              Select a logistics vendor to handle this trip
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Select Vendor *</Label>
+              <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a vendor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vendorList.map(vendor => (
+                    <SelectItem key={vendor.id} value={vendor.id}>
+                      <div className="flex flex-col">
+                        <span>{vendor.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {vendor.vehicles} vehicles • {vendor.contact}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {selectedVendorId && (
+              <div className="rounded-lg border p-4 bg-muted/50">
+                <h4 className="font-medium text-sm mb-2">Vendor Details</h4>
+                {(() => {
+                  const vendor = vendorList.find(v => v.id === selectedVendorId);
+                  return vendor ? (
+                    <div className="space-y-1 text-sm">
+                      <p><span className="text-muted-foreground">Name:</span> {vendor.name}</p>
+                      <p><span className="text-muted-foreground">Contact:</span> {vendor.contact}</p>
+                      <p><span className="text-muted-foreground">Fleet Size:</span> {vendor.vehicles} vehicles</p>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => {
+              setAssignVendorDialogOpen(false);
+              setSelectedVendorId("");
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleAssignVendor} disabled={!selectedVendorId || isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Assigning...
+                </>
+              ) : (
+                "Assign Vendor"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
