@@ -159,27 +159,11 @@ export const ReportingCompliance = () => {
         resetForm();
         fetchData();
       } else {
-        // Add to local state for demo
-        const newReport: LogisticsReport = {
-          id: `RPT-${Date.now()}`,
-          reportNumber: `RPT-2025-${String(reports.length + 1).padStart(3, "0")}`,
-          type: formData.type as ReportType,
-          title: formData.title!,
-          description: formData.description,
-          status: "draft",
-          periodStart: formData.periodStart,
-          periodEnd: formData.periodEnd,
-          content: formData.content,
-          submittedBy: localStorage.getItem("userName") || "System",
-          createdAt: new Date().toISOString(),
-        };
-        setReports(prev => [newReport, ...prev]);
         toast({
-          title: "Report Created (Local)",
-          description: `${formData.title} has been created as draft`,
+          title: "Failed to Create Report",
+          description: response.error || "Unable to create report. Please try again.",
+          variant: "destructive",
         });
-        setCreateDialogOpen(false);
-        resetForm();
       }
     } catch (error) {
       toast({
@@ -202,15 +186,10 @@ export const ReportingCompliance = () => {
         });
         fetchData();
       } else {
-        // Update local state for demo
-        setReports(prev => prev.map(r =>
-          r.id === reportId
-            ? { ...r, status: "submitted" as ReportStatus, submittedAt: new Date().toISOString() }
-            : r
-        ));
         toast({
-          title: "Report Submitted (Local)",
-          description: "Report has been submitted for review",
+          title: "Failed to Submit Report",
+          description: response.error || "Unable to submit report. Please try again.",
+          variant: "destructive",
         });
       }
     } catch (error) {

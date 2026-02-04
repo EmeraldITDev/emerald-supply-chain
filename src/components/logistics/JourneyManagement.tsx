@@ -147,24 +147,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
         setUpdateDialogOpen(false);
         fetchJourneys();
       } else {
-        // Update local state for demo
-        setJourneys(prev => prev.map(j =>
-          j.id === selectedJourney.id
-            ? {
-                ...j,
-                status: updateStatus,
-                currentLocation: currentLocation || j.currentLocation,
-                lastUpdatedAt: new Date().toISOString(),
-                ...(updateStatus === "departed" && { departedAt: new Date().toISOString() }),
-                ...(updateStatus === "arrived" && { arrivedAt: new Date().toISOString() }),
-              }
-            : j
-        ));
         toast({
-          title: "Journey Updated (Local)",
-          description: `Status updated to ${updateStatus.replace("_", " ")}`,
+          title: "Failed to Update Journey",
+          description: response.error || "Unable to update journey. Please try again.",
+          variant: "destructive",
         });
-        setUpdateDialogOpen(false);
       }
     } catch (error) {
       toast({
@@ -195,27 +182,10 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
         });
         fetchJourneys();
       } else {
-        // Update local state for demo
-        const newCheckpoint: JourneyCheckpoint = {
-          id: `cp-${Date.now()}`,
-          location: currentLocation,
-          arrivedAt: new Date().toISOString(),
-          notes: checkpointNotes || undefined,
-        };
-        setJourneys(prev => prev.map(j =>
-          j.id === selectedJourney.id
-            ? {
-                ...j,
-                checkpoints: [...j.checkpoints, newCheckpoint],
-                status: "at_checkpoint" as JourneyStatus,
-                currentLocation,
-                lastUpdatedAt: new Date().toISOString(),
-              }
-            : j
-        ));
         toast({
-          title: "Checkpoint Added (Local)",
-          description: `Checkpoint at ${currentLocation} recorded`,
+          title: "Failed to Add Checkpoint",
+          description: response.error || "Unable to add checkpoint. Please try again.",
+          variant: "destructive",
         });
       }
     } catch (error) {
@@ -251,29 +221,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
         setIncidentDialogOpen(false);
         fetchJourneys();
       } else {
-        // Update local state for demo
-        const newIncident: JourneyIncident = {
-          id: `inc-${Date.now()}`,
-          type: incidentType as any,
-          description: incidentDescription,
-          location: currentLocation || undefined,
-          reportedAt: new Date().toISOString(),
-          severity: incidentSeverity as any,
-        };
-        setJourneys(prev => prev.map(j =>
-          j.id === selectedJourney.id
-            ? {
-                ...j,
-                incidents: [...(j.incidents || []), newIncident],
-                lastUpdatedAt: new Date().toISOString(),
-              }
-            : j
-        ));
         toast({
-          title: "Incident Reported (Local)",
-          description: "The incident has been logged",
+          title: "Failed to Report Incident",
+          description: response.error || "Unable to report incident. Please try again.",
+          variant: "destructive",
         });
-        setIncidentDialogOpen(false);
       }
     } catch (error) {
       toast({
