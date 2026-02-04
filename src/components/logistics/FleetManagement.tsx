@@ -184,26 +184,11 @@ export const FleetManagement = () => {
         resetForm();
         fetchData();
       } else {
-        // Add to local state for demo
-        const newVehicle: FleetVehicle = {
-          id: `VEH-${Date.now()}`,
-          vehicleNumber: `VEH-${String(vehicles.length + 1).padStart(3, "0")}`,
-          ...formData as any,
-          status: "available",
-          approvalStatus: "approved",
-          documents: [],
-          maintenanceHistory: [],
-          totalTrips: 0,
-          totalDistance: 0,
-          createdAt: new Date().toISOString(),
-        };
-        setVehicles(prev => [newVehicle, ...prev]);
         toast({
-          title: "Vehicle Added (Local)",
-          description: `${formData.name} has been added to the fleet`,
+          title: "Failed to Add Vehicle",
+          description: response.error || "Unable to add vehicle. Please try again.",
+          variant: "destructive",
         });
-        setCreateDialogOpen(false);
-        resetForm();
       }
     } catch (error) {
       toast({
@@ -247,34 +232,11 @@ export const FleetManagement = () => {
         setMaintenanceDialogOpen(false);
         fetchData();
       } else {
-        // Add to local state for demo
-        const newRecord: MaintenanceRecord = {
-          id: `maint-${Date.now()}`,
-          vehicleId: selectedVehicle.id,
-          type: maintenanceData.type as any || "scheduled",
-          description: maintenanceData.description!,
-          performedAt: maintenanceData.performedAt || new Date().toISOString(),
-          performedBy: maintenanceData.performedBy || localStorage.getItem("userName") || "System",
-          cost: maintenanceData.cost,
-          odometer: maintenanceData.odometer,
-          notes: maintenanceData.notes,
-          nextScheduledAt: maintenanceData.nextScheduledAt,
-        };
-        setVehicles(prev => prev.map(v =>
-          v.id === selectedVehicle.id
-            ? {
-                ...v,
-                maintenanceHistory: [...v.maintenanceHistory, newRecord],
-                lastMaintenanceAt: new Date().toISOString(),
-                nextMaintenanceAt: maintenanceData.nextScheduledAt,
-              }
-            : v
-        ));
         toast({
-          title: "Maintenance Recorded (Local)",
-          description: "Maintenance record has been added",
+          title: "Failed to Record Maintenance",
+          description: response.error || "Unable to add maintenance record. Please try again.",
+          variant: "destructive",
         });
-        setMaintenanceDialogOpen(false);
       }
     } catch (error) {
       toast({
@@ -315,29 +277,11 @@ export const FleetManagement = () => {
         setDocumentDialogOpen(false);
         fetchData();
       } else {
-        // Add to local state for demo
-        const newDoc: VehicleDocument = {
-          id: `doc-${Date.now()}`,
-          vehicleId: selectedVehicle.id,
-          type: documentType as any,
-          name: documentFile.name,
-          uploadedAt: new Date().toISOString(),
-          expiresAt: documentExpiry || undefined,
-          isExpired: documentExpiry ? new Date(documentExpiry) < new Date() : false,
-          isExpiringSoon: documentExpiry 
-            ? new Date(documentExpiry) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-            : false,
-        };
-        setVehicles(prev => prev.map(v =>
-          v.id === selectedVehicle.id
-            ? { ...v, documents: [...v.documents, newDoc] }
-            : v
-        ));
         toast({
-          title: "Document Uploaded (Local)",
-          description: `${documentFile.name} has been uploaded`,
+          title: "Failed to Upload Document",
+          description: response.error || "Unable to upload document. Please try again.",
+          variant: "destructive",
         });
-        setDocumentDialogOpen(false);
       }
     } catch (error) {
       toast({

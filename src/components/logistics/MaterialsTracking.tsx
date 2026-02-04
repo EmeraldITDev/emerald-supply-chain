@@ -139,28 +139,11 @@ export const MaterialsTracking = () => {
         resetForm();
         fetchMaterials();
       } else {
-        // Add to local state for demo
-        const newMaterial: Material = {
-          id: `MAT-${Date.now()}`,
-          materialNumber: `MAT-2025-${String(materials.length + 1).padStart(3, "0")}`,
-          name: formData.name!,
-          description: formData.description,
-          category: formData.category!,
-          quantity: formData.quantity!,
-          unit: formData.unit || "units",
-          condition: formData.condition || "new",
-          status: "available",
-          currentLocation: formData.currentLocation || "Main Warehouse",
-          movementCount: 0,
-          createdAt: new Date().toISOString(),
-        };
-        setMaterials(prev => [newMaterial, ...prev]);
         toast({
-          title: "Material Added (Local)",
-          description: `${formData.name} has been added to inventory`,
+          title: "Failed to Add Material",
+          description: response.error || "Unable to add material. Please try again.",
+          variant: "destructive",
         });
-        setCreateDialogOpen(false);
-        resetForm();
       }
     } catch (error) {
       toast({
