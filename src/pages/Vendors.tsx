@@ -1063,9 +1063,9 @@ const Vendors = () => {
               {/* Documents Section */}
               <div className="pt-4 border-t">
                 <div className="mb-3">
-                  <Label className="text-base font-semibold">Documents & KYC</Label>
+                  <Label className="text-base font-semibold">Documents</Label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Documents submitted during vendor registration
+                    Registration documents submitted by this vendor
                   </p>
                 </div>
                 
