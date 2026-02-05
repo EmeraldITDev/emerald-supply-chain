@@ -174,11 +174,27 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
     if (!email.trim()) errors.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Invalid email format";
     if (!phone.trim()) errors.phone = "Phone number is required";
+    if (!alternatePhone.trim()) errors.alternatePhone = "Alternate phone is required";
     if (!address.trim()) errors.address = "Business address is required";
     if (!city.trim()) errors.city = "City is required";
     if (!state.trim()) errors.state = "State is required";
+    if (!postalCode.trim()) errors.postalCode = "Postal code is required";
     if (!taxId.trim()) errors.taxId = "Tax ID (TIN) is required";
     if (!contactPerson.trim()) errors.contactPerson = "Contact person name is required";
+    if (!contactPersonTitle.trim()) errors.contactPersonTitle = "Contact person title is required";
+    if (!contactPersonEmail.trim()) errors.contactPersonEmail = "Contact person email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactPersonEmail)) errors.contactPersonEmail = "Invalid email format";
+    if (!contactPersonPhone.trim()) errors.contactPersonPhone = "Contact person phone is required";
+    if (!website.trim()) errors.website = "Website is required";
+    if (!yearEstablished) errors.yearEstablished = "Year established is required";
+    if (!numberOfEmployees.trim()) errors.numberOfEmployees = "Number of employees is required";
+    if (!annualRevenue.trim()) errors.annualRevenue = "Annual revenue is required";
+    
+    // Financial information validation
+    if (!bankName.trim()) errors.bankName = "Bank name is required";
+    if (!accountNumber.trim()) errors.accountNumber = "Account number is required";
+    if (!accountName.trim()) errors.accountName = "Account name is required";
+    if (!currency.trim() && !defaultCurrency) errors.currency = "Currency is required";
 
     // Check for missing required documents
     if (missingDocuments.length > 0) {
@@ -334,22 +350,32 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               </div>
 
               <div className="space-y-2">
-                <Label>Year Established</Label>
+                <Label>Year Established *</Label>
                 <Input 
                   type="number"
                   placeholder="2010"
                   value={yearEstablished || ""}
-                  onChange={(e) => setYearEstablished(parseInt(e.target.value) || undefined)}
+                  onChange={(e) => {
+                    setYearEstablished(parseInt(e.target.value) || undefined);
+                    if (formErrors.yearEstablished) setFormErrors(prev => ({ ...prev, yearEstablished: "" }));
+                  }}
+                  className={formErrors.yearEstablished ? "border-destructive" : ""}
                 />
+                {formErrors.yearEstablished && <p className="text-sm text-destructive">{formErrors.yearEstablished}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label>Number of Employees</Label>
+                <Label>Number of Employees *</Label>
                 <Input 
                   placeholder="50-100"
                   value={numberOfEmployees}
-                  onChange={(e) => setNumberOfEmployees(e.target.value)}
+                  onChange={(e) => {
+                    setNumberOfEmployees(e.target.value);
+                    if (formErrors.numberOfEmployees) setFormErrors(prev => ({ ...prev, numberOfEmployees: "" }));
+                  }}
+                  className={formErrors.numberOfEmployees ? "border-destructive" : ""}
                 />
+                {formErrors.numberOfEmployees && <p className="text-sm text-destructive">{formErrors.numberOfEmployees}</p>}
               </div>
 
               <div className="space-y-2">
@@ -367,12 +393,31 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               </div>
 
               <div className="space-y-2">
-                <Label>Website</Label>
+                <Label>Website *</Label>
                 <Input 
                   placeholder="https://yourcompany.com"
                   value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
+                  onChange={(e) => {
+                    setWebsite(e.target.value);
+                    if (formErrors.website) setFormErrors(prev => ({ ...prev, website: "" }));
+                  }}
+                  className={formErrors.website ? "border-destructive" : ""}
                 />
+                {formErrors.website && <p className="text-sm text-destructive">{formErrors.website}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Annual Revenue *</Label>
+                <Input 
+                  placeholder="e.g. $1M - $5M"
+                  value={annualRevenue}
+                  onChange={(e) => {
+                    setAnnualRevenue(e.target.value);
+                    if (formErrors.annualRevenue) setFormErrors(prev => ({ ...prev, annualRevenue: "" }));
+                  }}
+                  className={formErrors.annualRevenue ? "border-destructive" : ""}
+                />
+                {formErrors.annualRevenue && <p className="text-sm text-destructive">{formErrors.annualRevenue}</p>}
               </div>
             </div>
 
@@ -455,12 +500,17 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               </div>
 
               <div className="space-y-2">
-                <Label>Alternate Phone</Label>
+                <Label>Alternate Phone *</Label>
                 <Input 
                   placeholder={phonePlaceholder}
                   value={alternatePhone}
-                  onChange={(e) => setAlternatePhone(e.target.value)}
+                  onChange={(e) => {
+                    setAlternatePhone(e.target.value);
+                    if (formErrors.alternatePhone) setFormErrors(prev => ({ ...prev, alternatePhone: "" }));
+                  }}
+                  className={formErrors.alternatePhone ? "border-destructive" : ""}
                 />
+                {formErrors.alternatePhone && <p className="text-sm text-destructive">{formErrors.alternatePhone}</p>}
               </div>
 
               <div className="space-y-2 md:col-span-2">
@@ -526,12 +576,17 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               </div>
 
               <div className="space-y-2">
-                <Label>{postalLabel}</Label>
+                <Label>{postalLabel} *</Label>
                 <Input 
                   placeholder={countryCode === "US" ? "e.g. 90210" : "100001"}
                   value={postalCode}
-                  onChange={(e) => setPostalCode(e.target.value)}
+                  onChange={(e) => {
+                    setPostalCode(e.target.value);
+                    if (formErrors.postalCode) setFormErrors(prev => ({ ...prev, postalCode: "" }));
+                  }}
+                  className={formErrors.postalCode ? "border-destructive" : ""}
                 />
+                {formErrors.postalCode && <p className="text-sm text-destructive">{formErrors.postalCode}</p>}
               </div>
             </div>
 
@@ -554,31 +609,46 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Title/Position</Label>
+                  <Label>Title/Position *</Label>
                   <Input 
                     placeholder="Managing Director"
                     value={contactPersonTitle}
-                    onChange={(e) => setContactPersonTitle(e.target.value)}
+                    onChange={(e) => {
+                      setContactPersonTitle(e.target.value);
+                      if (formErrors.contactPersonTitle) setFormErrors(prev => ({ ...prev, contactPersonTitle: "" }));
+                    }}
+                    className={formErrors.contactPersonTitle ? "border-destructive" : ""}
                   />
+                  {formErrors.contactPersonTitle && <p className="text-sm text-destructive">{formErrors.contactPersonTitle}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Contact Email</Label>
+                  <Label>Contact Email *</Label>
                   <Input 
                     type="email"
                     placeholder="john@yourcompany.com"
                     value={contactPersonEmail}
-                    onChange={(e) => setContactPersonEmail(e.target.value)}
+                    onChange={(e) => {
+                      setContactPersonEmail(e.target.value);
+                      if (formErrors.contactPersonEmail) setFormErrors(prev => ({ ...prev, contactPersonEmail: "" }));
+                    }}
+                    className={formErrors.contactPersonEmail ? "border-destructive" : ""}
                   />
+                  {formErrors.contactPersonEmail && <p className="text-sm text-destructive">{formErrors.contactPersonEmail}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Contact Phone</Label>
+                  <Label>Contact Phone *</Label>
                   <Input 
                     placeholder="+234-800-XXX-XXXX"
                     value={contactPersonPhone}
-                    onChange={(e) => setContactPersonPhone(e.target.value)}
+                    onChange={(e) => {
+                      setContactPersonPhone(e.target.value);
+                      if (formErrors.contactPersonPhone) setFormErrors(prev => ({ ...prev, contactPersonPhone: "" }));
+                    }}
+                    className={formErrors.contactPersonPhone ? "border-destructive" : ""}
                   />
+                  {formErrors.contactPersonPhone && <p className="text-sm text-destructive">{formErrors.contactPersonPhone}</p>}
                 </div>
               </div>
             </div>
@@ -599,18 +669,29 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Currency</Label>
+                <Label>Currency *</Label>
                 <Input 
                   placeholder={defaultCurrency ? `e.g. ${defaultCurrency}` : "e.g. NGN, USD"}
                   value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
+                  onChange={(e) => {
+                    setCurrency(e.target.value);
+                    if (formErrors.currency) setFormErrors(prev => ({ ...prev, currency: "" }));
+                  }}
+                  className={formErrors.currency ? "border-destructive" : ""}
                 />
+                {formErrors.currency && <p className="text-sm text-destructive">{formErrors.currency}</p>}
               </div>
               {showBankDropdown ? (
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Bank</Label>
-                  <Select value={bankName || ""} onValueChange={setBankName}>
-                    <SelectTrigger>
+                  <Label>Bank *</Label>
+                  <Select 
+                    value={bankName || ""} 
+                    onValueChange={(value) => {
+                      setBankName(value);
+                      if (formErrors.bankName) setFormErrors(prev => ({ ...prev, bankName: "" }));
+                    }}
+                  >
+                    <SelectTrigger className={formErrors.bankName ? "border-destructive" : ""}>
                       <SelectValue placeholder={`Select a bank in ${country}`} />
                     </SelectTrigger>
                     <SelectContent>
@@ -621,32 +702,48 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
                       ))}
                     </SelectContent>
                   </Select>
+                  {formErrors.bankName && <p className="text-sm text-destructive">{formErrors.bankName}</p>}
                 </div>
               ) : (
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Bank Name</Label>
+                  <Label>Bank Name *</Label>
                   <Input 
                     placeholder="Enter your bank name"
                     value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
+                    onChange={(e) => {
+                      setBankName(e.target.value);
+                      if (formErrors.bankName) setFormErrors(prev => ({ ...prev, bankName: "" }));
+                    }}
+                    className={formErrors.bankName ? "border-destructive" : ""}
                   />
+                  {formErrors.bankName && <p className="text-sm text-destructive">{formErrors.bankName}</p>}
                 </div>
               )}
               <div className="space-y-2">
-                <Label>Account Number</Label>
+                <Label>Account Number *</Label>
                 <Input 
                   placeholder="Account number"
                   value={accountNumber}
-                  onChange={(e) => setAccountNumber(e.target.value)}
+                  onChange={(e) => {
+                    setAccountNumber(e.target.value);
+                    if (formErrors.accountNumber) setFormErrors(prev => ({ ...prev, accountNumber: "" }));
+                  }}
+                  className={formErrors.accountNumber ? "border-destructive" : ""}
                 />
+                {formErrors.accountNumber && <p className="text-sm text-destructive">{formErrors.accountNumber}</p>}
               </div>
               <div className="space-y-2">
-                <Label>Account Name</Label>
+                <Label>Account Name *</Label>
                 <Input 
                   placeholder="Name on account"
                   value={accountName}
-                  onChange={(e) => setAccountName(e.target.value)}
+                  onChange={(e) => {
+                    setAccountName(e.target.value);
+                    if (formErrors.accountName) setFormErrors(prev => ({ ...prev, accountName: "" }));
+                  }}
+                  className={formErrors.accountName ? "border-destructive" : ""}
                 />
+                {formErrors.accountName && <p className="text-sm text-destructive">{formErrors.accountName}</p>}
               </div>
             </div>
           </CardContent>
