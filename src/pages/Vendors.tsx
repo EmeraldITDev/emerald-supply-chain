@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, TrendingUp, FileCheck, Plus, Star, Upload, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send } from "lucide-react";
+import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send } from "lucide-react";
+import { VENDOR_DOCUMENT_REQUIREMENTS } from "@/types/vendor-registration";
 import { Textarea } from "@/components/ui/textarea";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { Badge } from "@/components/ui/badge";
@@ -37,10 +38,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const Vendors = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { vendors: contextVendors, addVendorDocument, deleteVendorDocument } = useApp();
+  const { vendors: contextVendors } = useApp();
   const [vendors, setVendors] = useState(contextVendors);
   const [loadingVendors, setLoadingVendors] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [vendorDetailsOpen, setVendorDetailsOpen] = useState(false);
@@ -563,61 +563,68 @@ const Vendors = () => {
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0 || !selectedVendor) return;
+  // Helper function to get document label from type
+  const getDocumentLabel = (type: string) => {
+    const req = VENDOR_DOCUMENT_REQUIREMENTS.find(r => r.type === type);
+    return req?.label || type;
+  };
 
-    const file = files[0];
+  // Helper function to format file size
+  const formatFileSize = (bytes: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const handleDownloadDocument = (doc: any) => {
+    // Priority: Check for direct S3 URL first (fileUrl, file_url, url)
+    const directUrl = doc.fileUrl || doc.file_url || doc.url;
+    const fileName = doc.fileName || doc.file_name || doc.name || doc.original_name || doc.originalName || 'document';
+    const documentId = doc.id || doc.document_id;
+    const vendorId = selectedVendor?.id;
     
-    // Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Option 1: Use direct S3 URL if available (preferred for performance)
+    if (directUrl && (directUrl.startsWith('http://') || directUrl.startsWith('https://'))) {
+      window.open(directUrl, '_blank');
       toast({
-        title: "File too large",
-        description: "Maximum file size is 5MB",
-        variant: "destructive",
+        title: "Opening Document",
+        description: `Opening ${fileName}...`,
       });
       return;
     }
-
-    // Read file as base64
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const fileData = e.target?.result as string;
-      
-      addVendorDocument(selectedVendor.id, {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        fileData,
-      });
-
-      toast({
-        title: "Document uploaded",
-        description: `${file.name} has been uploaded successfully`,
-      });
-
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleDownloadDocument = (document: any) => {
-    const link = window.document.createElement("a");
-    link.href = document.fileData;
-    link.download = document.name;
-    link.click();
-  };
-
-  const handleDeleteDocument = (documentId: string) => {
-    if (!selectedVendor) return;
     
-    deleteVendorDocument(selectedVendor.id, documentId);
+    // Option 2: Use API download endpoint with vendorId and documentId
+    if (vendorId && documentId) {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com';
+      const downloadEndpoint = `${apiBase}/api/vendors/${vendorId}/documents/${documentId}/download`;
+      window.open(downloadEndpoint, '_blank');
+      toast({
+        title: "Opening Document",
+        description: `Opening ${fileName}...`,
+      });
+      return;
+    }
+    
+    // Option 3: Handle base64 data URLs (legacy)
+    const dataUrl = doc.fileData;
+    if (dataUrl && dataUrl.startsWith('data:')) {
+      const link = window.document.createElement("a");
+      link.href = dataUrl;
+      link.download = fileName;
+      link.click();
+      toast({
+        title: "Downloading",
+        description: `Downloading ${fileName}...`,
+      });
+      return;
+    }
+    
+    // No valid download method found
     toast({
-      title: "Document deleted",
-      description: "Document has been removed successfully",
+      title: "Download Error",
+      description: "Document URL not available. The document may not have been uploaded to storage yet.",
+      variant: "destructive",
     });
   };
 
@@ -1055,67 +1062,48 @@ const Vendors = () => {
 
               {/* Documents Section */}
               <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-3">
+                <div className="mb-3">
                   <Label className="text-base font-semibold">Documents & KYC</Label>
-                  <Button
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="gap-2"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Upload Document
-                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Documents submitted during vendor registration
+                  </p>
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  onChange={handleFileUpload}
-                />
-                <p className="text-xs text-muted-foreground mb-3">
-                  Upload CAC certificates, tax documents, bank details, or other vendor documents (Max 5MB)
-                </p>
                 
                 {(!selectedVendor.documents || selectedVendor.documents.length === 0) ? (
                   <div className="text-center py-6 text-sm text-muted-foreground border rounded-md border-dashed">
                     <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No documents uploaded yet</p>
-                    <p className="text-xs mt-1">Upload CAC, certificates, or other documents</p>
+                    <p>No documents submitted</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {selectedVendor.documents.map((doc: any) => (
+                    {selectedVendor.documents.map((doc: any, index: number) => (
                       <div
-                        key={doc.id}
-                        className="flex items-center justify-between p-3 border rounded-md bg-muted/30"
+                        key={doc.id || index}
+                        className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
                       >
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <FileText className="h-5 w-5 text-primary flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{doc.name || doc.fileName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {doc.size ? `${(doc.size / 1024).toFixed(1)} KB • ` : ''}
-                              {doc.uploadDate || doc.uploadedAt ? new Date(doc.uploadDate || doc.uploadedAt).toLocaleDateString() : ''}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <FileText className="h-6 w-6 text-primary flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{getDocumentLabel(doc.type) || doc.name || doc.fileName}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {doc.fileName || doc.name} {doc.fileSize || doc.size ? `• ${formatFileSize(doc.fileSize || doc.size)}` : ''}
                             </p>
+                            {doc.expiryDate && (
+                              <p className="text-xs text-warning flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                Expires: {new Date(doc.expiryDate).toLocaleDateString()}
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <div className="flex gap-1 flex-shrink-0">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDownloadDocument(doc)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDeleteDocument(doc.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDownloadDocument(doc)}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </Button>
                       </div>
                     ))}
                   </div>
