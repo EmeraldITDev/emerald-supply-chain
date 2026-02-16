@@ -336,8 +336,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await mrfApi.getAll();
       if (response.success && response.data) {
+        const rawData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.mrfs || [];
         // Convert API MRF type to AppContext MRFRequest type
-        const converted = response.data.map((mrf: MRF) => ({
+        const converted = rawData.map((mrf: MRF) => ({
           id: mrf.id,
           title: mrf.title,
           category: mrf.category,
@@ -371,8 +372,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await srfApi.getAll();
       if (response.success && response.data) {
+        const rawData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.srfs || [];
         // Convert API SRF type to AppContext SRFRequest type
-        const converted = response.data.map((srf: any) => ({
+        const converted = rawData.map((srf: any) => ({
           id: srf.id,
           title: srf.title,
           serviceType: srf.service_type || srf.serviceType || "",
@@ -397,8 +399,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await rfqApi.getAll();
       if (response.success && response.data) {
+        const rawData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.rfqs || [];
         // Convert API RFQ type to AppContext RFQ type
-        const converted = response.data.map((rfq: any) => ({
+        const converted = rawData.map((rfq: any) => ({
           id: rfq.id,
           mrfId: rfq.mrf_id || rfq.mrfId || "",
           mrfTitle: rfq.title || rfq.mrfTitle || "",
@@ -423,8 +426,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await quotationApi.getAll();
       if (response.success && response.data) {
+        const rawData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.quotations || [];
         // Convert API Quotation type to AppContext Quotation type
-        const converted = response.data.map((q: any) => ({
+        const converted = rawData.map((q: any) => ({
           id: q.id,
           rfqId: q.rfq_id || q.rfqId || "",
           vendorId: q.vendor_id || q.vendorId || "",
