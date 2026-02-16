@@ -83,10 +83,12 @@ const Logistics = () => {
         setStats(statsRes.data);
       }
       if (tripsRes.success && tripsRes.data) {
-        setRecentTrips(tripsRes.data.slice(0, 5));
+        const tripsData = Array.isArray(tripsRes.data) ? tripsRes.data : (tripsRes.data as any)?.data || (tripsRes.data as any)?.trips || [];
+        setRecentTrips(tripsData.slice(0, 5));
       }
       if (vehiclesRes.success && vehiclesRes.data) {
-        setVehicles(vehiclesRes.data);
+        const vehiclesData = Array.isArray(vehiclesRes.data) ? vehiclesRes.data : (vehiclesRes.data as any)?.data || (vehiclesRes.data as any)?.vehicles || [];
+        setVehicles(vehiclesData);
       }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
