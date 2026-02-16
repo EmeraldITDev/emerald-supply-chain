@@ -125,13 +125,15 @@ export const FleetManagement = () => {
       ]);
 
       if (vehiclesRes.success && vehiclesRes.data) {
-        setVehicles(vehiclesRes.data);
+        const vehiclesData = Array.isArray(vehiclesRes.data) ? vehiclesRes.data : (vehiclesRes.data as any)?.data || (vehiclesRes.data as any)?.vehicles || [];
+        setVehicles(vehiclesData);
       } else {
         setVehicles([]);
       }
 
       if (alertsRes.success && alertsRes.data) {
-        setAlerts(alertsRes.data);
+        const alertsData = Array.isArray(alertsRes.data) ? alertsRes.data : (alertsRes.data as any)?.data || (alertsRes.data as any)?.alerts || [];
+        setAlerts(alertsData);
       } else {
         setAlerts([]);
       }
