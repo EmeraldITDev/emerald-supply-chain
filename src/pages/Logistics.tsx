@@ -83,11 +83,11 @@ const Logistics = () => {
         setStats(statsRes.data);
       }
       if (tripsRes.success && tripsRes.data) {
-        const tripsData = Array.isArray(tripsRes.data) ? tripsRes.data : (tripsRes.data as any)?.data || (tripsRes.data as any)?.trips || [];
+        const tripsData = Array.isArray(tripsRes.data) ? tripsRes.data : [];
         setRecentTrips(tripsData.slice(0, 5));
       }
       if (vehiclesRes.success && vehiclesRes.data) {
-        const vehiclesData = Array.isArray(vehiclesRes.data) ? vehiclesRes.data : (vehiclesRes.data as any)?.data || (vehiclesRes.data as any)?.vehicles || [];
+        const vehiclesData = Array.isArray(vehiclesRes.data) ? vehiclesRes.data : [];
         setVehicles(vehiclesData);
       }
     } catch (error) {

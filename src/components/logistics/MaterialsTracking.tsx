@@ -100,7 +100,7 @@ export const MaterialsTracking = () => {
         category: categoryFilter !== "all" ? categoryFilter : undefined,
       });
       if (response.success && response.data) {
-        const materialsData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.materials || [];
+        const materialsData = Array.isArray(response.data) ? response.data : [];
         setMaterials(materialsData);
       } else {
         setMaterials([]);

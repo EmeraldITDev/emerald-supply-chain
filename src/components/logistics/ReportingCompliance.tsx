@@ -103,14 +103,14 @@ export const ReportingCompliance = () => {
       ]);
 
       if (reportsRes.success && reportsRes.data) {
-        const reportsData = Array.isArray(reportsRes.data) ? reportsRes.data : (reportsRes.data as any)?.data || (reportsRes.data as any)?.reports || [];
+        const reportsData = Array.isArray(reportsRes.data) ? reportsRes.data : [];
         setReports(reportsData);
       } else {
         setReports([]);
       }
 
       if (pendingRes.success && pendingRes.data) {
-        const pendingData = Array.isArray(pendingRes.data) ? pendingRes.data : (pendingRes.data as any)?.data || (pendingRes.data as any)?.reports || [];
+        const pendingData = Array.isArray(pendingRes.data) ? pendingRes.data : [];
         setPendingReports(pendingData);
       } else {
         setPendingReports([]);
