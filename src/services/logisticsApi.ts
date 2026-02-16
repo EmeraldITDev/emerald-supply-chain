@@ -96,8 +96,33 @@ async function apiRequest<T>(
       };
     }
 
-    // Extract data property if backend wraps response, otherwise use as-is
-    const responseData = (data && typeof data === 'object' && 'data' in data) ? data.data : data;
+    // Deep extraction for Laravel's nested response structure:
+    // Backend returns: { success: true, data: { trips: { data: [...], current_page, total, ... } } }
+    // or: { success: true, data: { trip: { ... } } }
+    // We need to unwrap to get the actual array or entity.
+    let responseData = (data && typeof data === 'object' && 'data' in data) ? data.data : data;
+    
+    // If responseData is an object with a single key containing a Laravel pagination object or entity
+    if (responseData && typeof responseData === 'object' && !Array.isArray(responseData)) {
+      const keys = Object.keys(responseData);
+      if (keys.length === 1) {
+        const innerValue = responseData[keys[0]];
+        if (innerValue && typeof innerValue === 'object') {
+          // Laravel pagination object: { data: [...], current_page, total, ... }
+          if (Array.isArray(innerValue.data) && ('current_page' in innerValue || 'total' in innerValue || 'per_page' in innerValue)) {
+            responseData = innerValue.data;
+          } else if (!Array.isArray(innerValue)) {
+            // Single entity: { trip: { id, title, ... } }
+            responseData = innerValue;
+          }
+        }
+      }
+      // Also handle case where responseData itself has pagination keys (e.g., unwrapped once already)
+      else if ('current_page' in responseData && Array.isArray(responseData.data)) {
+        responseData = responseData.data;
+      }
+    }
+    
     return { success: true, data: responseData };
   } catch (error) {
     console.error('API request failed:', error);

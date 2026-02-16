@@ -145,7 +145,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         type: typeFilter !== "all" ? typeFilter : undefined,
       });
       if (response.success && response.data) {
-        const tripsData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.trips || [];
+        const tripsData = Array.isArray(response.data) ? response.data : [];
         setTrips(tripsData);
       } else {
         // No trips available - show empty state
