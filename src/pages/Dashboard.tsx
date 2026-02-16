@@ -85,9 +85,10 @@ const Dashboard = () => {
         const mrfResponse = await mrfApi.getAll();
         if (mrfResponse.success && mrfResponse.data) {
           const activities: any[] = [];
+          const mrfArray = Array.isArray(mrfResponse.data) ? mrfResponse.data : (mrfResponse.data as any)?.data || (mrfResponse.data as any)?.mrfs || [];
           
           // Add MRF activities
-          mrfResponse.data.slice(0, 10).forEach((mrf: any) => {
+          mrfArray.slice(0, 10).forEach((mrf: any) => {
             activities.push({
               id: mrf.id,
               type: "MRF",

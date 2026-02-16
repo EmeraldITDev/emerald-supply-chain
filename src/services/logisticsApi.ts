@@ -96,7 +96,9 @@ async function apiRequest<T>(
       };
     }
 
-    return { success: true, data };
+    // Extract data property if backend wraps response, otherwise use as-is
+    const responseData = (data && typeof data === 'object' && 'data' in data) ? data.data : data;
+    return { success: true, data: responseData };
   } catch (error) {
     console.error('API request failed:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Network error' };
