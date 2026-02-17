@@ -636,7 +636,7 @@ export const FleetManagement = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredVehicles.map((vehicle) => {
-                    const expiringDocs = vehicle.documents.filter(d => d.isExpiringSoon || d.isExpired);
+                    const expiringDocs = (vehicle.documents || []).filter(d => d.isExpiringSoon || d.isExpired);
                     return (
                       <TableRow key={vehicle.id}>
                         <TableCell>
@@ -665,7 +665,7 @@ export const FleetManagement = () => {
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <FileText className="h-4 w-4 text-muted-foreground" />
-                            <span>{vehicle.documents.length}</span>
+                            <span>{(vehicle.documents || []).length}</span>
                             {expiringDocs.length > 0 && (
                               <Badge variant="destructive" className="ml-1 text-xs">
                                 {expiringDocs.length} expiring
@@ -816,14 +816,14 @@ export const FleetManagement = () => {
                 </div>
               </TabsContent>
               <TabsContent value="documents" className="space-y-4">
-                {selectedVehicle.documents.length === 0 ? (
+                {(selectedVehicle.documents || []).length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
                     <p>No documents uploaded</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {selectedVehicle.documents.map((doc) => (
+                    {(selectedVehicle.documents || []).map((doc) => (
                       <div key={doc.id} className={cn(
                         "flex items-center justify-between p-3 border rounded-lg",
                         doc.isExpired && "border-destructive/50 bg-destructive/5",
@@ -869,14 +869,14 @@ export const FleetManagement = () => {
                 </Button>
               </TabsContent>
               <TabsContent value="maintenance" className="space-y-4">
-                {selectedVehicle.maintenanceHistory.length === 0 ? (
+                {(selectedVehicle.maintenanceHistory || []).length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Wrench className="h-12 w-12 mx-auto mb-2 opacity-50" />
                     <p>No maintenance records</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {selectedVehicle.maintenanceHistory.map((record) => (
+                    {(selectedVehicle.maintenanceHistory || []).map((record) => (
                       <div key={record.id} className="p-3 border rounded-lg">
                         <div className="flex items-center justify-between">
                           <div>
