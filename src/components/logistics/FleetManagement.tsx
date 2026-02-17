@@ -308,11 +308,12 @@ export const FleetManagement = () => {
   };
 
   const filteredVehicles = vehicles.filter(vehicle => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      vehicle.vehicleNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vehicle.plate.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vehicle.vendorName?.toLowerCase().includes(searchQuery.toLowerCase());
+      (vehicle.vehicleNumber || '').toLowerCase().includes(q) ||
+      (vehicle.plate || '').toLowerCase().includes(q) ||
+      (vehicle.name || '').toLowerCase().includes(q) ||
+      (vehicle.vendorName || '').toLowerCase().includes(q);
     return matchesSearch;
   });
 

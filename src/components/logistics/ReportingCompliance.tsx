@@ -209,9 +209,10 @@ export const ReportingCompliance = () => {
   };
 
   const filteredReports = reports.filter(report => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      report.reportNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      report.title.toLowerCase().includes(searchQuery.toLowerCase());
+      (report.reportNumber || '').toLowerCase().includes(q) ||
+      (report.title || '').toLowerCase().includes(q);
     return matchesSearch;
   });
 
