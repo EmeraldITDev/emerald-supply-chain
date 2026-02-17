@@ -518,12 +518,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   };
 
   const filteredTrips = trips.filter(trip => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      trip.tripNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trip.origin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trip.destination.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trip.vendorName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trip.driverName?.toLowerCase().includes(searchQuery.toLowerCase());
+      (trip.tripNumber || '').toLowerCase().includes(q) ||
+      (trip.origin || '').toLowerCase().includes(q) ||
+      (trip.destination || '').toLowerCase().includes(q) ||
+      (trip.vendorName || '').toLowerCase().includes(q) ||
+      (trip.driverName || '').toLowerCase().includes(q);
     return matchesSearch;
   });
 

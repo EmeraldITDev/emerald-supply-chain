@@ -235,10 +235,11 @@ export const MaterialsTracking = () => {
   };
 
   const filteredMaterials = materials.filter(material => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      material.materialNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      material.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      material.currentLocation.toLowerCase().includes(searchQuery.toLowerCase());
+      (material.materialNumber || '').toLowerCase().includes(q) ||
+      (material.name || '').toLowerCase().includes(q) ||
+      (material.currentLocation || '').toLowerCase().includes(q);
     return matchesSearch;
   });
 

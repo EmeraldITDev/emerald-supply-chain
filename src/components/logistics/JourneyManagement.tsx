@@ -255,9 +255,10 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   };
 
   const filteredJourneys = journeys.filter(journey => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      journey.tripNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      journey.currentLocation?.toLowerCase().includes(searchQuery.toLowerCase());
+      (journey.tripNumber || '').toLowerCase().includes(q) ||
+      (journey.currentLocation || '').toLowerCase().includes(q);
     const matchesStatus = statusFilter === "all" || journey.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
