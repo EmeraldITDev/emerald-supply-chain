@@ -17,16 +17,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   Table,
   TableBody,
   TableCell,
@@ -49,7 +39,7 @@ import {
   Eye,
   Edit,
   XCircle,
-  Trash2,
+  
   UserPlus,
   Package,
   Loader2,
@@ -146,9 +136,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [vendorList, setVendorList] = useState<VendorItem[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [loadingVendors, setLoadingVendors] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [tripToDelete, setTripToDelete] = useState<Trip | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Safe date formatter — returns fallback string for null/invalid dates
   const formatDate = (dateStr: string | undefined | null, opts?: Intl.DateTimeFormatOptions) => {
@@ -450,48 +437,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     }
   };
 
-  const handleDeleteTrip = async () => {
-    if (!tripToDelete) return;
-    setIsDeleting(true);
-    try {
-      const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
-      const apiUrl = import.meta.env.VITE_API_BASE_URL
-        ? import.meta.env.VITE_API_BASE_URL.trim().replace(/\/$/, "") + "/api"
-        : "https://supply-chain-backend-hwh6.onrender.com/api";
-      const res = await fetch(`${apiUrl}/trips/${tripToDelete.id}`, {
-        method: "DELETE",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (res.ok || res.status === 204 || res.status === 200) {
-        toast({
-          title: "Trip Deleted",
-          description: `Trip ${tripToDelete.tripNumber} has been permanently deleted.`,
-        });
-        setTrips((prev) => prev.filter((t) => t.id !== tripToDelete.id));
-      } else {
-        const data = await res.json().catch(() => ({}));
-        toast({
-          title: "Failed to Delete Trip",
-          description: data.message || "Unable to delete trip. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete trip. Please check your connection.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(false);
-      setDeleteDialogOpen(false);
-      setTripToDelete(null);
-    }
-  };
 
   const handleEditTrip = async () => {
     if (!selectedTrip || !formData.origin || !formData.destination) {
@@ -1055,18 +1000,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                 </DropdownMenuItem>
                               </>
                             )}
-                            {trip.status === "cancelled" && (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setTripToDelete(trip);
-                                  setDeleteDialogOpen(true);
-                                }}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Trip
-                              </DropdownMenuItem>
-                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -1567,38 +1500,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Cancelled Trip</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to permanently delete trip{" "}
-              <span className="font-semibold">{tripToDelete?.tripNumber}</span>? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteTrip}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Trip
-                </>
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
