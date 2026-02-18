@@ -235,21 +235,31 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         };
       });
 
-      const tripData: CreateTripData = {
-        type: formData.type || "personnel",
+      // Build payload in snake_case as expected by Laravel backend
+      const tripPayload = {
+        trip_type: formData.type || "personnel",
         origin: formData.origin,
         destination: formData.destination,
-        route: formData.route,
-        scheduledDepartureAt: formData.scheduledDepartureAt,
-        scheduledArrivalAt: formData.scheduledArrivalAt,
-        purpose: formData.purpose,
+        route: formData.route || null,
+        scheduled_departure_at: formData.scheduledDepartureAt
+          ? new Date(formData.scheduledDepartureAt).toISOString().replace('T', ' ').substring(0, 19)
+          : null,
+        scheduled_arrival_at: formData.scheduledArrivalAt
+          ? new Date(formData.scheduledArrivalAt).toISOString().replace('T', ' ').substring(0, 19)
+          : null,
+        purpose: formData.purpose || null,
         priority: formData.priority || "normal",
-        notes: formData.notes,
-        cargo: formData.cargo,
-        passengers,
+        notes: formData.notes || null,
+        cargo: formData.cargo || null,
+        passengers: passengers.map(p => ({
+          staff_id: p.staffId,
+          name: p.name,
+          email: p.email,
+          department: p.department,
+        })),
       };
 
-      const response = await tripsApi.create(tripData);
+      const response = await tripsApi.create(tripPayload as any);
       
       if (response.success) {
         toast({
@@ -397,18 +407,24 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         };
       });
 
-      const response = await tripsApi.update(selectedTrip.id, {
-        type: formData.type,
+      const editPayload = {
+        trip_type: formData.type,
         origin: formData.origin,
         destination: formData.destination,
-        route: formData.route,
-        scheduledDepartureAt: formData.scheduledDepartureAt,
-        scheduledArrivalAt: formData.scheduledArrivalAt,
-        purpose: formData.purpose,
+        route: formData.route || null,
+        scheduled_departure_at: formData.scheduledDepartureAt
+          ? new Date(formData.scheduledDepartureAt).toISOString().replace('T', ' ').substring(0, 19)
+          : null,
+        scheduled_arrival_at: formData.scheduledArrivalAt
+          ? new Date(formData.scheduledArrivalAt).toISOString().replace('T', ' ').substring(0, 19)
+          : null,
+        purpose: formData.purpose || null,
         priority: formData.priority,
-        notes: formData.notes,
-        cargo: formData.cargo,
-      });
+        notes: formData.notes || null,
+        cargo: formData.cargo || null,
+      };
+
+      const response = await tripsApi.update(selectedTrip.id, editPayload as any);
 
       if (response.success) {
         toast({
