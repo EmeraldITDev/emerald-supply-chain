@@ -627,7 +627,9 @@ export const FleetManagement = () => {
                   <TableRow>
                     <TableHead>Vehicle</TableHead>
                     <TableHead>Plate</TableHead>
-                    <TableHead>Type</TableHead>
+                    <TableHead>Type / Make</TableHead>
+                    <TableHead>Capacity</TableHead>
+                    <TableHead>Fuel</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Ownership</TableHead>
                     <TableHead>Documents</TableHead>
@@ -641,22 +643,59 @@ export const FleetManagement = () => {
                       <TableRow key={vehicle.id}>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{vehicle.name}</p>
-                            <p className="text-xs text-muted-foreground">{vehicle.vehicleNumber}</p>
+                            <p className="font-medium">{vehicle.name || "—"}</p>
+                            <p className="text-xs text-muted-foreground">{vehicle.vehicleNumber || vehicle.id?.slice(0, 8) || "—"}</p>
+                            {vehicle.color && (
+                              <p className="text-xs text-muted-foreground capitalize">{vehicle.color}</p>
+                            )}
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono">{vehicle.plate}</TableCell>
+                        <TableCell className="font-mono text-sm">{vehicle.plate || "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{vehicle.type}</Badge>
+                          <Badge variant="outline">{vehicle.type || "—"}</Badge>
+                          {(vehicle.make || vehicle.model) && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {[vehicle.make, vehicle.model, vehicle.year && `(${vehicle.year})`].filter(Boolean).join(" ")}
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>
-                          <Badge className={cn(statusColors[vehicle.status], "capitalize")}>
-                            {vehicle.status.replace("_", " ")}
+                          <div className="space-y-1">
+                            {vehicle.passengerCapacity != null && (
+                              <div className="flex items-center gap-1 text-xs">
+                                <Users className="h-3 w-3 text-muted-foreground" />
+                                <span>{vehicle.passengerCapacity} seats</span>
+                              </div>
+                            )}
+                            {vehicle.cargoCapacity != null && (
+                              <div className="flex items-center gap-1 text-xs">
+                                <Package className="h-3 w-3 text-muted-foreground" />
+                                <span>{vehicle.cargoCapacity} kg</span>
+                              </div>
+                            )}
+                            {vehicle.passengerCapacity == null && vehicle.cargoCapacity == null && (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {vehicle.fuelType ? (
+                            <div className="flex items-center gap-1 text-xs">
+                              <Fuel className="h-3 w-3 text-muted-foreground" />
+                              <span>{vehicle.fuelType}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={cn(statusColors[vehicle.status] || "bg-muted text-muted-foreground", "capitalize")}>
+                            {(vehicle.status || "unknown").replace(/_/g, " ")}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge className={cn(ownershipColors[vehicle.ownership], "capitalize")}>
-                            {vehicle.ownership}
+                          <Badge className={cn(ownershipColors[vehicle.ownership] || "bg-muted text-muted-foreground", "capitalize")}>
+                            {vehicle.ownership || "—"}
                           </Badge>
                           {vehicle.vendorName && (
                             <p className="text-xs text-muted-foreground mt-1">{vehicle.vendorName}</p>
@@ -807,13 +846,33 @@ export const FleetManagement = () => {
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                   <div>
                     <Label className="text-muted-foreground">Total Trips</Label>
-                    <p className="font-medium">{selectedVehicle.totalTrips}</p>
+                    <p className="font-medium">{selectedVehicle.totalTrips ?? 0}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Total Distance</Label>
-                    <p className="font-medium">{selectedVehicle.totalDistance.toLocaleString()} km</p>
+                    <p className="font-medium">{(selectedVehicle.totalDistance ?? 0).toLocaleString()} km</p>
                   </div>
                 </div>
+                {selectedVehicle.currentDriverName && (
+                  <div className="pt-4 border-t">
+                    <Label className="text-muted-foreground">Current Driver</Label>
+                    <p className="font-medium">{selectedVehicle.currentDriverName}</p>
+                  </div>
+                )}
+                {selectedVehicle.lastMaintenanceAt && (
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div>
+                      <Label className="text-muted-foreground">Last Maintenance</Label>
+                      <p className="font-medium">{new Date(selectedVehicle.lastMaintenanceAt).toLocaleDateString()}</p>
+                    </div>
+                    {selectedVehicle.nextMaintenanceAt && (
+                      <div>
+                        <Label className="text-muted-foreground">Next Maintenance</Label>
+                        <p className="font-medium">{new Date(selectedVehicle.nextMaintenanceAt).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </TabsContent>
               <TabsContent value="documents" className="space-y-4">
                 {(selectedVehicle.documents || []).length === 0 ? (
