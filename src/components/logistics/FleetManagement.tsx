@@ -503,7 +503,7 @@ export const FleetManagement = () => {
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             <strong>{criticalAlerts.length} critical alert(s):</strong>{" "}
-            {criticalAlerts.slice(0, 2).map(a => `${a.vehiclePlate}: ${a.message}`).join("; ")}
+            {criticalAlerts.slice(0, 2).map(a => `${a.vehiclePlate || "Vehicle"}: ${a.message || ""}`).join("; ")}
             {criticalAlerts.length > 2 && ` and ${criticalAlerts.length - 2} more...`}
           </AlertDescription>
         </Alert>
@@ -549,7 +549,7 @@ export const FleetManagement = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {alerts.filter(a => a.type.includes("document")).length}
+              {alerts.filter(a => (a.type || "").includes("document")).length}
             </div>
           </CardContent>
         </Card>
@@ -944,7 +944,7 @@ export const FleetManagement = () => {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-medium">
-                              {new Date(record.performedAt).toLocaleDateString()}
+                              {record.performedAt ? new Date(record.performedAt).toLocaleDateString() : "N/A"}
                             </p>
                             {record.cost && (
                               <p className="text-xs text-muted-foreground">
