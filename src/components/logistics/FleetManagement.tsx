@@ -891,7 +891,7 @@ export const FleetManagement = () => {
                         <div className="flex items-center gap-3">
                           <FileText className="h-5 w-5 text-muted-foreground" />
                           <div>
-                            <p className="font-medium capitalize">{doc.type.replace("_", " ")}</p>
+                            <p className="font-medium capitalize">{(doc.type || "").replace(/_/g, " ")}</p>
                             <p className="text-xs text-muted-foreground">{doc.name}</p>
                           </div>
                         </div>

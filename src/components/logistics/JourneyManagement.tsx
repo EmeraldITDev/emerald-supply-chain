@@ -424,13 +424,13 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   </div>
 
                   {/* Checkpoints Preview */}
-                  {journey.checkpoints.length > 0 && (
+                  {(journey.checkpoints || []).length > 0 && (
                     <div className="pt-2 border-t">
                       <p className="text-xs text-muted-foreground mb-2">
-                        Checkpoints ({journey.checkpoints.length})
+                        Checkpoints ({(journey.checkpoints || []).length})
                       </p>
                       <div className="flex gap-2 overflow-x-auto pb-2">
-                        {journey.checkpoints.map((cp, idx) => (
+                        {(journey.checkpoints || []).map((cp, idx) => (
                           <Badge key={cp.id} variant="outline" className="shrink-0">
                             <Flag className="h-3 w-3 mr-1" />
                             {idx + 1}. {cp.location}
@@ -501,11 +501,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
               </div>
 
               {/* Checkpoints */}
-              {selectedJourney.checkpoints.length > 0 && (
+              {(selectedJourney.checkpoints || []).length > 0 && (
                 <div>
                   <Label className="text-muted-foreground">Checkpoints</Label>
                   <div className="mt-2 space-y-2">
-                    {selectedJourney.checkpoints.map((cp, idx) => (
+                    {(selectedJourney.checkpoints || []).map((cp, idx) => (
                       <div key={cp.id} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
                         <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">
                           {idx + 1}
@@ -513,7 +513,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                         <div className="flex-1">
                           <p className="font-medium">{cp.location}</p>
                           <p className="text-xs text-muted-foreground">
-                            Arrived: {new Date(cp.arrivedAt).toLocaleString()}
+                            Arrived: {cp.arrivedAt ? new Date(cp.arrivedAt).toLocaleString() : "N/A"}
                             {cp.departedAt && ` • Left: ${new Date(cp.departedAt).toLocaleTimeString()}`}
                           </p>
                           {cp.notes && <p className="text-sm mt-1">{cp.notes}</p>}
