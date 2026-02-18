@@ -415,6 +415,13 @@ export const fleetApi = {
   getAlerts: async (daysThreshold: number = 30): Promise<ApiResponse<FleetAlert[]>> => {
     return apiRequest<FleetAlert[]>(`/fleet/alerts?days_threshold=${daysThreshold}`);
   },
+
+  // Delete vehicle
+  delete: async (id: string): Promise<ApiResponse<void>> => {
+    return apiRequest<void>(`/fleet/vehicles/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // ==========================================

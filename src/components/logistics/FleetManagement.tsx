@@ -16,6 +16,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -35,6 +45,7 @@ import {
   Calendar,
   Wrench,
   MapPin,
+  Trash2,
   MoreHorizontal,
   Eye,
   Upload,
@@ -96,6 +107,9 @@ export const FleetManagement = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [vehicleToDelete, setVehicleToDelete] = useState<FleetVehicle | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<FleetVehicle | null>(null);
 
   // Form states
@@ -296,6 +310,37 @@ export const FleetManagement = () => {
       setDocumentFile(null);
       setDocumentType("registration");
       setDocumentExpiry("");
+    }
+  };
+
+  const handleDeleteVehicle = async () => {
+    if (!vehicleToDelete) return;
+    setIsDeleting(true);
+    try {
+      const response = await fleetApi.delete(vehicleToDelete.id);
+      if (response.success) {
+        setVehicles((prev) => prev.filter((v) => v.id !== vehicleToDelete.id));
+        toast({
+          title: "Vehicle Deleted",
+          description: `${vehicleToDelete.name} has been removed from the fleet`,
+        });
+      } else {
+        toast({
+          title: "Failed to Delete Vehicle",
+          description: response.error || "Unable to delete vehicle. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete vehicle",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setVehicleToDelete(null);
     }
   };
 
@@ -703,6 +748,17 @@ export const FleetManagement = () => {
                                 <Wrench className="mr-2 h-4 w-4" />
                                 Add Maintenance
                               </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => {
+                                  setVehicleToDelete(vehicle);
+                                  setDeleteDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Vehicle
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -1084,6 +1140,35 @@ export const FleetManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Vehicle Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Vehicle</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{vehicleToDelete?.name}</strong> ({vehicleToDelete?.plate})? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteVehicle}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Vehicle"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
