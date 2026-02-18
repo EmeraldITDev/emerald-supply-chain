@@ -867,7 +867,7 @@ export const FleetManagement = () => {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Total Distance</Label>
-                    <p className="font-medium">{selectedVehicle.totalDistance.toLocaleString()} km</p>
+                    <p className="font-medium">{(selectedVehicle.totalDistance ?? 0).toLocaleString()} km</p>
                   </div>
                 </div>
               </TabsContent>
