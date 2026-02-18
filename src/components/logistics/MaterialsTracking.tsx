@@ -523,8 +523,8 @@ export const MaterialsTracking = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge className={cn(statusColors[material.status], "capitalize")}>
-                          {material.status.replace("_", " ")}
+                        <Badge className={cn(statusColors[material.status] || "bg-muted text-muted-foreground", "capitalize")}>
+                          {(material.status || "unknown").replace(/_/g, " ")}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -654,8 +654,8 @@ export const MaterialsTracking = () => {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Status</Label>
-                  <Badge className={cn(statusColors[selectedMaterial.status], "capitalize mt-1")}>
-                    {selectedMaterial.status.replace("_", " ")}
+                  <Badge className={cn(statusColors[selectedMaterial.status] || "bg-muted text-muted-foreground", "capitalize mt-1")}>
+                    {(selectedMaterial.status || "unknown").replace(/_/g, " ")}
                   </Badge>
                 </div>
                 <div>

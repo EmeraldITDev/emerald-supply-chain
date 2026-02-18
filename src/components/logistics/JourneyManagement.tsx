@@ -338,9 +338,9 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-sm">{journey.tripNumber}</span>
-                        <Badge className={cn(statusColors[journey.status], "capitalize")}>
+                        <Badge className={cn(statusColors[journey.status] || "bg-muted text-muted-foreground", "capitalize")}>
                           {statusIcons[journey.status]}
-                          <span className="ml-1">{journey.status.replace("_", " ")}</span>
+                          <span className="ml-1">{(journey.status || "unknown").replace(/_/g, " ")}</span>
                         </Badge>
                         {journey.incidents && journey.incidents.length > 0 && (
                           <Badge variant="destructive">
@@ -457,9 +457,9 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
               {/* Status & Progress */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Badge className={cn(statusColors[selectedJourney.status], "capitalize")}>
+                  <Badge className={cn(statusColors[selectedJourney.status] || "bg-muted text-muted-foreground", "capitalize")}>
                     {statusIcons[selectedJourney.status]}
-                    <span className="ml-1">{selectedJourney.status.replace("_", " ")}</span>
+                    <span className="ml-1">{(selectedJourney.status || "unknown").replace(/_/g, " ")}</span>
                   </Badge>
                   <span className="text-sm">{getJourneyProgress(selectedJourney)}% Complete</span>
                 </div>
