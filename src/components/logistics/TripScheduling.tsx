@@ -939,8 +939,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge className={cn(statusColors[trip.status], "capitalize")}>
-                          {trip.status.replace("_", " ")}
+                        <Badge className={cn(statusColors[trip.status] || "bg-muted text-muted-foreground", "capitalize")}>
+                          {(trip.status || "unknown").replace(/_/g, " ")}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -1120,8 +1120,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Status</Label>
-                  <Badge className={cn(statusColors[selectedTrip.status], "capitalize mt-1")}>
-                    {selectedTrip.status.replace("_", " ")}
+                  <Badge className={cn(statusColors[selectedTrip.status] || "bg-muted text-muted-foreground", "capitalize mt-1")}>
+                    {(selectedTrip.status || "unknown").replace(/_/g, " ")}
                   </Badge>
                 </div>
                 <div>

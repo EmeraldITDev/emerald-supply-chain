@@ -799,8 +799,8 @@ export const FleetManagement = () => {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Status</Label>
-                    <Badge className={cn(statusColors[selectedVehicle.status], "capitalize mt-1")}>
-                      {selectedVehicle.status.replace("_", " ")}
+                    <Badge className={cn(statusColors[selectedVehicle.status] || "bg-muted text-muted-foreground", "capitalize mt-1")}>
+                      {(selectedVehicle.status || "unknown").replace(/_/g, " ")}
                     </Badge>
                   </div>
                   <div>
