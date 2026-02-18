@@ -136,6 +136,58 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [loadingVendors, setLoadingVendors] = useState(false);
 
+  // Safe date formatter — returns fallback string for null/invalid dates
+  const formatDate = (dateStr: string | undefined | null, opts?: Intl.DateTimeFormatOptions) => {
+    if (!dateStr) return "Not set";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "Not set";
+    return opts ? d.toLocaleString(undefined, opts) : d.toLocaleString();
+  };
+
+  // Normalize backend snake_case response to camelCase Trip interface
+  const normalizeTrip = (raw: any): Trip => ({
+    id: raw.id?.toString(),
+    tripNumber: raw.trip_code || raw.tripNumber || raw.trip_number || `TRIP-${raw.id}`,
+    type: raw.trip_type || raw.type || "personnel",
+    status: raw.status || "draft",
+    origin: raw.origin,
+    destination: raw.destination,
+    route: raw.route,
+    distance: raw.distance,
+    estimatedDuration: raw.estimated_duration || raw.estimatedDuration,
+    scheduledDepartureAt: raw.scheduled_departure_at || raw.scheduledDepartureAt || "",
+    scheduledArrivalAt: raw.scheduled_arrival_at || raw.scheduledArrivalAt,
+    actualDepartureAt: raw.actual_departure_at || raw.actualDepartureAt,
+    actualArrivalAt: raw.actual_arrival_at || raw.actualArrivalAt,
+    vendorId: raw.vendor_id?.toString() || raw.vendorId,
+    vendorName: raw.vendor?.name || raw.vendorName,
+    vendorType: raw.vendor?.type || raw.vendorType,
+    vehicleId: raw.vehicle_id?.toString() || raw.vehicleId,
+    vehiclePlate: raw.vehicle?.plate || raw.vehiclePlate,
+    vehicleType: raw.vehicle?.type || raw.vehicleType,
+    driverName: raw.driver?.name || raw.driverName,
+    driverPhone: raw.driver?.phone || raw.driverPhone,
+    purpose: raw.purpose,
+    priority: raw.priority || "normal",
+    notes: raw.notes,
+    cargo: raw.cargo,
+    passengers: (raw.passengers || []).map((p: any) => ({
+      id: p.id?.toString(),
+      staffId: p.staff_id?.toString() || p.staffId,
+      name: p.name,
+      email: p.email,
+      department: p.department,
+      pickupLocation: p.pickup_location || p.pickupLocation,
+      dropoffLocation: p.dropoff_location || p.dropoffLocation,
+      notifiedAt: p.notified_at || p.notifiedAt,
+    })),
+    materials: raw.materials || [],
+    scheduledBy: raw.created_by?.toString() || raw.scheduledBy || "",
+    scheduledByName: raw.scheduledByName,
+    createdAt: raw.created_at || raw.createdAt,
+    updatedAt: raw.updated_at || raw.updatedAt,
+  });
+
   // Fetch trips from API
   const fetchTrips = async () => {
     setLoading(true);
@@ -146,7 +198,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       });
       if (response.success && response.data) {
         const tripsData = Array.isArray(response.data) ? response.data : [];
-        setTrips(tripsData);
+        setTrips(tripsData.map(normalizeTrip));
       } else {
         // No trips available - show empty state
         setTrips([]);
@@ -870,9 +922,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm">
                           <Calendar className="h-3 w-3 text-muted-foreground" />
-                          {new Date(trip.scheduledDepartureAt).toLocaleDateString()}
-                          <Clock className="h-3 w-3 ml-1 text-muted-foreground" />
-                          {new Date(trip.scheduledDepartureAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {formatDate(trip.scheduledDepartureAt, { dateStyle: "medium" } as any)}
+                          {trip.scheduledDepartureAt && !isNaN(new Date(trip.scheduledDepartureAt).getTime()) && (
+                            <>
+                              <Clock className="h-3 w-3 ml-1 text-muted-foreground" />
+                              {new Date(trip.scheduledDepartureAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -1077,7 +1133,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 <div>
                   <Label className="text-muted-foreground">Scheduled Departure</Label>
                   <p className="font-medium">
-                    {new Date(selectedTrip.scheduledDepartureAt).toLocaleString()}
+                    {formatDate(selectedTrip.scheduledDepartureAt)}
                   </p>
                 </div>
                 <div>
