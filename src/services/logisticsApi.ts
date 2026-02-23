@@ -329,6 +329,11 @@ export const materialsApi = {
       body: formData,
     });
   },
+
+  // Delete material
+  delete: async (id: string): Promise<ApiResponse<void>> => {
+    return apiRequest<void>(`/materials/${id}`, { method: 'DELETE' });
+  },
 };
 
 // ==========================================
