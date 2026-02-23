@@ -244,9 +244,7 @@ export const MRFProgressTracker = ({ mrfId, showTitle = true, onProgressUpdate }
                           Completed: {new Date(step.completedAt).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
+                            day: 'numeric'
                           })}
                         </p>
                         {step.completedBy && (
