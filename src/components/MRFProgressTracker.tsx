@@ -241,10 +241,14 @@ export const MRFProgressTracker = ({ mrfId, showTitle = true, onProgressUpdate }
                     {step.status === 'completed' && step.completedAt && (
                       <div className="text-xs text-muted-foreground space-y-1">
                         <p>
-                          Completed: {new Date(step.completedAt).toLocaleDateString('en-US', {
+                          Completed: {new Date(step.completedAt).toLocaleString('en-US', {
+                            timeZone: 'Africa/Lagos',
                             year: 'numeric',
                             month: 'short',
-                            day: 'numeric'
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
                           })}
                         </p>
                         {step.completedBy && (
