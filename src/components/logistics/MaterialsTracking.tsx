@@ -521,8 +521,10 @@ export const MaterialsTracking = () => {
                   <TableRow>
                     <TableHead>Material #</TableHead>
                     <TableHead>Name</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Quantity</TableHead>
+                    <TableHead>Unit</TableHead>
                     <TableHead>Condition</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Location</TableHead>
@@ -536,21 +538,18 @@ export const MaterialsTracking = () => {
                         {material.materialNumber}
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <p className="font-medium">{material.name}</p>
-                          {material.description && (
-                            <p className="text-xs text-muted-foreground truncate max-w-[150px]">
-                              {material.description}
-                            </p>
-                          )}
-                        </div>
+                        <p className="font-medium">{material.name}</p>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                          {material.description || '—'}
+                        </p>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{material.category}</Badge>
                       </TableCell>
-                      <TableCell>
-                        {material.quantity} {material.unit}
-                      </TableCell>
+                      <TableCell>{material.quantity}</TableCell>
+                      <TableCell>{material.unit || '—'}</TableCell>
                       <TableCell>
                         <Badge className={cn(conditionColors[material.condition], "capitalize")}>
                           {material.condition}

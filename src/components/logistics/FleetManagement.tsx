@@ -670,12 +670,17 @@ export const FleetManagement = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Vehicle</TableHead>
+                    <TableHead>Vehicle ID</TableHead>
+                    <TableHead>Vehicle Name</TableHead>
                     <TableHead>Plate</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Make / Model</TableHead>
+                    <TableHead>Year</TableHead>
+                    <TableHead>Color</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Ownership</TableHead>
                     <TableHead>Capacity</TableHead>
+                    <TableHead>Fuel Type</TableHead>
                     <TableHead>Driver / Trip</TableHead>
                     <TableHead>Maintenance</TableHead>
                     <TableHead>Documents</TableHead>
@@ -687,22 +692,28 @@ export const FleetManagement = () => {
                     const expiringDocs = (vehicle.documents || []).filter(d => d.isExpiringSoon || d.isExpired);
                     return (
                       <TableRow key={vehicle.id}>
+                        <TableCell className="font-mono text-sm">
+                          {vehicle.vehicleNumber || '—'}
+                        </TableCell>
                         <TableCell>
-                          <div>
-                            <p className="font-medium">{vehicle.name}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{vehicle.vehicleNumber}</p>
-                            {vehicle.make && (
-                              <p className="text-xs text-muted-foreground">{vehicle.make} {vehicle.model} {vehicle.year ? `(${vehicle.year})` : ''}</p>
-                            )}
-                          </div>
+                          <p className="font-medium">{vehicle.name || '—'}</p>
                         </TableCell>
                         <TableCell className="font-mono text-sm">{vehicle.plate || '—'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="capitalize">
                             <Truck className="mr-1 h-3 w-3" />
-                            {vehicle.type}
+                            {vehicle.type || '—'}
                           </Badge>
                         </TableCell>
+                        <TableCell>
+                          {vehicle.make || vehicle.model ? (
+                            <span>{vehicle.make || ''} {vehicle.model || ''}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{vehicle.year || '—'}</TableCell>
+                        <TableCell>{vehicle.color || '—'}</TableCell>
                         <TableCell>
                           <Badge className={cn(statusColors[vehicle.status], "capitalize")}>
                             {vehicle.status.replace("_", " ")}
@@ -730,16 +741,20 @@ export const FleetManagement = () => {
                                 <span>{vehicle.cargoCapacity} kg</span>
                               </div>
                             ) : null}
-                            {vehicle.fuelType && (
-                              <div className="flex items-center gap-1">
-                                <Fuel className="h-3 w-3 text-muted-foreground" />
-                                <span className="capitalize">{vehicle.fuelType}</span>
-                              </div>
-                            )}
-                            {!vehicle.passengerCapacity && !vehicle.cargoCapacity && !vehicle.fuelType && (
+                            {!vehicle.passengerCapacity && !vehicle.cargoCapacity && (
                               <span className="text-muted-foreground">—</span>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {vehicle.fuelType ? (
+                            <div className="flex items-center gap-1">
+                              <Fuel className="h-3 w-3 text-muted-foreground" />
+                              <span className="capitalize">{vehicle.fuelType}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
