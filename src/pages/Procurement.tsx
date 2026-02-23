@@ -2370,7 +2370,7 @@ const Procurement = () => {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Date Created</Label>
-                  <p className="font-medium">{formatDateLagos(getMRFDate(selectedMRFForDetails), { includeTime: true, format: 'medium' })}</p>
+                  <p className="font-medium">{formatDateLagos(getMRFDate(selectedMRFForDetails), { includeTime: false, format: 'medium' })}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Estimated Cost</Label>
