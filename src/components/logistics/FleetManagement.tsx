@@ -675,6 +675,9 @@ export const FleetManagement = () => {
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Ownership</TableHead>
+                    <TableHead>Capacity</TableHead>
+                    <TableHead>Driver / Trip</TableHead>
+                    <TableHead>Maintenance</TableHead>
                     <TableHead>Documents</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -687,12 +690,18 @@ export const FleetManagement = () => {
                         <TableCell>
                           <div>
                             <p className="font-medium">{vehicle.name}</p>
-                            <p className="text-xs text-muted-foreground">{vehicle.vehicleNumber}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{vehicle.vehicleNumber}</p>
+                            {vehicle.make && (
+                              <p className="text-xs text-muted-foreground">{vehicle.make} {vehicle.model} {vehicle.year ? `(${vehicle.year})` : ''}</p>
+                            )}
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono">{vehicle.plate}</TableCell>
+                        <TableCell className="font-mono text-sm">{vehicle.plate || '—'}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{vehicle.type}</Badge>
+                          <Badge variant="outline" className="capitalize">
+                            <Truck className="mr-1 h-3 w-3" />
+                            {vehicle.type}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge className={cn(statusColors[vehicle.status], "capitalize")}>
@@ -706,6 +715,63 @@ export const FleetManagement = () => {
                           {vehicle.vendorName && (
                             <p className="text-xs text-muted-foreground mt-1">{vehicle.vendorName}</p>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm space-y-0.5">
+                            {vehicle.passengerCapacity ? (
+                              <div className="flex items-center gap-1">
+                                <Users className="h-3 w-3 text-muted-foreground" />
+                                <span>{vehicle.passengerCapacity} pax</span>
+                              </div>
+                            ) : null}
+                            {vehicle.cargoCapacity ? (
+                              <div className="flex items-center gap-1">
+                                <Package className="h-3 w-3 text-muted-foreground" />
+                                <span>{vehicle.cargoCapacity} kg</span>
+                              </div>
+                            ) : null}
+                            {vehicle.fuelType && (
+                              <div className="flex items-center gap-1">
+                                <Fuel className="h-3 w-3 text-muted-foreground" />
+                                <span className="capitalize">{vehicle.fuelType}</span>
+                              </div>
+                            )}
+                            {!vehicle.passengerCapacity && !vehicle.cargoCapacity && !vehicle.fuelType && (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {vehicle.currentDriverName ? (
+                              <div className="flex items-center gap-1">
+                                <Users className="h-3 w-3 text-muted-foreground" />
+                                <span>{vehicle.currentDriverName}</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">No driver</span>
+                            )}
+                            {vehicle.currentTripId && (
+                              <p className="text-xs text-muted-foreground font-mono mt-0.5">Trip: {vehicle.currentTripId.substring(0, 8)}</p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {vehicle.nextMaintenanceAt ? (
+                              <div className="flex items-center gap-1">
+                                <Wrench className="h-3 w-3 text-muted-foreground" />
+                                <span>{new Date(vehicle.nextMaintenanceAt).toLocaleDateString()}</span>
+                              </div>
+                            ) : vehicle.lastMaintenanceAt ? (
+                              <div className="flex items-center gap-1 text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                <span>Last: {new Date(vehicle.lastMaintenanceAt).toLocaleDateString()}</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
