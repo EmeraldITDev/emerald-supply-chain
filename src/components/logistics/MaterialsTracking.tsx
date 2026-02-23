@@ -33,6 +33,7 @@ import {
   Eye,
   Edit,
   Loader2,
+  Trash2,
   RefreshCw,
   Upload,
   Download,
@@ -46,6 +47,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { materialsApi, logisticsDashboardApi } from "@/services/logisticsApi";
@@ -87,6 +98,9 @@ export const MaterialsTracking = () => {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadResult, setUploadResult] = useState<BulkMaterialUploadResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [materialToDelete, setMaterialToDelete] = useState<Material | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Categories for filter
   const categories = ["Equipment", "Supplies", "Tools", "Parts", "Electronics", "Furniture"];
@@ -224,6 +238,26 @@ export const MaterialsTracking = () => {
         description: "Could not download template",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleDeleteMaterial = async () => {
+    if (!materialToDelete) return;
+    setIsDeleting(true);
+    try {
+      const response = await materialsApi.delete(materialToDelete.id);
+      if (response.success) {
+        setMaterials(prev => prev.filter(m => m.id !== materialToDelete.id));
+        toast({ title: "Material Deleted", description: `${materialToDelete.name} has been removed` });
+      } else {
+        toast({ title: "Delete Failed", description: response.error || "Unable to delete material", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to delete material", variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setMaterialToDelete(null);
     }
   };
 
@@ -556,6 +590,16 @@ export const MaterialsTracking = () => {
                               <History className="mr-2 h-4 w-4" />
                               Movement History
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => {
+                                setMaterialToDelete(material);
+                                setDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Material
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -702,6 +746,34 @@ export const MaterialsTracking = () => {
           )}
         </DialogContent>
       </Dialog>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Material</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{materialToDelete?.name}</strong>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteMaterial}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
