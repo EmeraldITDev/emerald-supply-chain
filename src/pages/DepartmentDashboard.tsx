@@ -407,7 +407,7 @@ const DepartmentDashboard = () => {
                                 <p className="text-sm text-muted-foreground">MRF ID: {mrf.id}</p>
                                 <div className="flex flex-wrap items-center gap-2 mt-1">
                                   <span className="text-xs text-muted-foreground">
-                                    {mrf.created_at ? format(new Date(mrf.created_at), "MMM dd, yyyy 'at' h:mm a") : ""}
+                                    {mrf.created_at ? format(new Date(mrf.created_at), "MMM dd, yyyy") : ""}
                                   </span>
                                   {(() => {
                                     const cost = parseFloat(String(mrf.estimatedCost || mrf.estimated_cost || 0));
