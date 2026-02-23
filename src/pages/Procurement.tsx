@@ -1215,7 +1215,7 @@ const Procurement = () => {
                     <CardDescription>Review and approve material requisitions</CardDescription>
                   </div>
                     {/* Only employees can create MRF */}
-                    {user?.role === "employee" && (
+                    {(user?.role === "employee" || user?.role === "general_employee") && (
                   <Button onClick={() => navigate("/procurement/mrf/new")} size="sm">
                     <Plus className="mr-2 h-4 w-4" />
                     New MRF
@@ -1899,7 +1899,7 @@ const Procurement = () => {
                     <CardDescription>List of all service requisition requests</CardDescription>
                   </div>
                     {/* Only employees can create SRF */}
-                    {user?.role === "employee" && (
+                    {(user?.role === "employee" || user?.role === "general_employee") && (
                   <Button onClick={() => navigate("/procurement/srf/new")} size="sm">
                     <Plus className="mr-2 h-4 w-4" />
                     New SRF

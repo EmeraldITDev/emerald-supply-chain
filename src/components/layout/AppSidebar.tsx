@@ -15,7 +15,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import {
   Sidebar,
   SidebarContent,
@@ -81,7 +81,7 @@ export function AppSidebar() {
 
   // Role-based navigation structure
   const getNavigationGroups = () => {
-    if (user?.role === "employee") {
+    if (isEmployeeRole(user?.role)) {
       return [
         {
           label: "Main",

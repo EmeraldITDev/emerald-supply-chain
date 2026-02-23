@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -360,7 +360,7 @@ const DepartmentDashboard = () => {
                     <CardTitle className="text-base sm:text-lg">Material Request Forms (MRF)</CardTitle>
                     <CardDescription className="text-xs sm:text-sm">Track your material requisition forms and their progress</CardDescription>
                   </div>
-                  {user?.role === "employee" && (
+                  {isEmployeeRole(user?.role) && (
                     <Button onClick={() => navigate("/new-mrf")} size="sm" className="sm:size-default">
                       <Plus className="mr-2 h-4 w-4" />
                       <span className="hidden sm:inline">New MRF</span>
@@ -379,7 +379,7 @@ const DepartmentDashboard = () => {
                     <div className="text-center py-8 text-muted-foreground">
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No MRFs found.</p>
-                      {user?.role === "employee" && (
+                      {isEmployeeRole(user?.role) && (
                         <p className="text-sm mt-1">Create your first Material Request Form.</p>
                       )}
                     </div>
@@ -479,7 +479,7 @@ const DepartmentDashboard = () => {
                     <CardTitle className="text-base sm:text-lg">Service Request Forms (SRF)</CardTitle>
                     <CardDescription className="text-xs sm:text-sm">Official service requisition forms</CardDescription>
                   </div>
-                  {user?.role === "employee" && (
+                  {isEmployeeRole(user?.role) && (
                     <Button onClick={() => navigate("/new-srf")} size="sm" className="sm:size-default">
                       <Plus className="mr-2 h-4 w-4" />
                       <span className="hidden sm:inline">New SRF</span>
@@ -494,7 +494,7 @@ const DepartmentDashboard = () => {
                     <div className="text-center py-8 text-muted-foreground">
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No SRFs found.</p>
-                      {user?.role === "employee" && (
+                      {isEmployeeRole(user?.role) && (
                         <p className="text-sm mt-1">Create your first Service Request Form.</p>
                       )}
                     </div>
