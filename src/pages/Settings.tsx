@@ -30,7 +30,7 @@ export default function Settings() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Role-based access control
-  const isRegularEmployee = user?.role === "employee";
+  const isRegularEmployee = user?.role === "employee" || user?.role === "general_employee";
   const canViewProfile = !isRegularEmployee;
   const canViewAuditTrail = ['chairman', 'executive', 'supply_chain_director', 'procurement', 'finance', 'logistics'].includes(user?.role || '');
   const canManageUsers = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain'].includes(user?.role || '');

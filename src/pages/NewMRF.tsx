@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { ArrowLeft, AlertCircle, Loader2, Upload, FileText, X, Cloud } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { type MRFRequest } from "@/contexts/AppContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { mrfApi } from "@/services/api";
@@ -22,7 +22,7 @@ const NewMRF = () => {
 
   // Only employees can create MRF
   useEffect(() => {
-    if (user && user.role !== "employee") {
+    if (user && !isEmployeeRole(user.role)) {
       toast({
         title: "Access Denied",
         description: "Only staff members can create Material Request Forms. Please contact your administrator.",

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Package, ShoppingCart, Truck, Warehouse, TrendingUp, AlertCircle, CheckCircle, Clock, Users, FileText, Activity } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import DepartmentDashboard from "./DepartmentDashboard";
 import FinanceDashboard from "./FinanceDashboard";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -23,7 +23,7 @@ const Dashboard = () => {
   const [activitiesLoading, setActivitiesLoading] = useState(true);
 
   // Route to role-specific dashboard
-  if (user?.role === "employee") {
+  if (isEmployeeRole(user?.role)) {
     return <DepartmentDashboard />;
   }
 
@@ -342,7 +342,7 @@ const Dashboard = () => {
             <CardContent className="p-4 sm:p-6 pt-0">
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {/* Only employees can create MRF/SRF - show for any non-manager roles */}
-                {!['logistics_manager', 'procurement_manager', 'executive', 'chairman', 'finance', 'supply_chain_director'].includes(user?.role || '') && (
+                {isEmployeeRole(user?.role) && (
                   <>
                     <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/procurement/mrf/new")}>
                       <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
