@@ -76,6 +76,30 @@ const conditionColors: Record<string, string> = {
   damaged: "bg-destructive/10 text-destructive",
 };
 
+// Normalize backend snake_case response to camelCase Material interface
+const normalizeMaterial = (raw: any): Material => ({
+  id: raw.id?.toString(),
+  materialNumber: raw.material_number || raw.materialNumber || `MAT-${raw.id}`,
+  name: raw.name || '',
+  description: raw.description || '',
+  category: raw.category || '',
+  quantity: raw.quantity != null ? Number(raw.quantity) : 0,
+  unit: raw.unit || '',
+  condition: raw.condition || 'new',
+  status: raw.status || 'available',
+  currentLocation: raw.current_location || raw.currentLocation || '',
+  warehouseId: raw.warehouse_id?.toString() || raw.warehouseId,
+  lastMovedAt: raw.last_moved_at || raw.lastMovedAt,
+  lastTripId: raw.last_trip_id?.toString() || raw.lastTripId,
+  movementCount: raw.movement_count || raw.movementCount || 0,
+  weight: raw.weight,
+  dimensions: raw.dimensions,
+  value: raw.value,
+  notes: raw.notes,
+  createdAt: raw.created_at || raw.createdAt || '',
+  updatedAt: raw.updated_at || raw.updatedAt,
+});
+
 export const MaterialsTracking = () => {
   const { toast } = useToast();
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -115,7 +139,7 @@ export const MaterialsTracking = () => {
       });
       if (response.success && response.data) {
         const materialsData = Array.isArray(response.data) ? response.data : [];
-        setMaterials(materialsData);
+        setMaterials(materialsData.map(normalizeMaterial));
       } else {
         setMaterials([]);
       }

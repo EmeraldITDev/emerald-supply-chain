@@ -93,6 +93,44 @@ const documentTypes = [
   { value: "other", label: "Other" },
 ];
 
+// Normalize backend snake_case response to camelCase FleetVehicle interface
+const normalizeVehicle = (raw: any): FleetVehicle => ({
+  id: raw.id?.toString(),
+  vehicleNumber: raw.vehicle_number || raw.vehicleNumber || `VEH-${raw.id}`,
+  plate: raw.plate || raw.plate_number || '',
+  name: raw.name || raw.vehicle_name || '',
+  type: raw.type || raw.vehicle_type || '',
+  make: raw.make || '',
+  model: raw.model || '',
+  year: raw.year ? Number(raw.year) : undefined,
+  color: raw.color || '',
+  ownership: raw.ownership || 'owned',
+  vendorId: raw.vendor_id?.toString() || raw.vendorId,
+  vendorName: raw.vendor?.name || raw.vendor_name || raw.vendorName || '',
+  status: raw.status || 'available',
+  approvalStatus: raw.approval_status || raw.approvalStatus || 'pending',
+  approvedBy: raw.approved_by || raw.approvedBy,
+  approvedAt: raw.approved_at || raw.approvedAt,
+  passengerCapacity: raw.passenger_capacity != null ? Number(raw.passenger_capacity) : raw.passengerCapacity,
+  cargoCapacity: raw.cargo_capacity != null ? Number(raw.cargo_capacity) : raw.cargoCapacity,
+  fuelType: raw.fuel_type || raw.fuelType || '',
+  fuelCapacity: raw.fuel_capacity != null ? Number(raw.fuel_capacity) : raw.fuelCapacity,
+  documents: raw.documents || [],
+  lastMaintenanceAt: raw.last_maintenance_at || raw.lastMaintenanceAt,
+  nextMaintenanceAt: raw.next_maintenance_at || raw.nextMaintenanceAt,
+  maintenanceHistory: raw.maintenance_history || raw.maintenanceHistory || [],
+  currentDriverId: raw.current_driver_id?.toString() || raw.currentDriverId,
+  currentDriverName: raw.current_driver_name || raw.currentDriverName,
+  currentTripId: raw.current_trip_id?.toString() || raw.currentTripId,
+  totalTrips: raw.total_trips || raw.totalTrips || 0,
+  totalDistance: raw.total_distance || raw.totalDistance || 0,
+  gpsEnabled: raw.gps_enabled || raw.gpsEnabled,
+  gpsDeviceId: raw.gps_device_id || raw.gpsDeviceId,
+  lastKnownLocation: raw.last_known_location || raw.lastKnownLocation,
+  createdAt: raw.created_at || raw.createdAt || '',
+  updatedAt: raw.updated_at || raw.updatedAt,
+});
+
 export const FleetManagement = () => {
   const { toast } = useToast();
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
@@ -140,7 +178,7 @@ export const FleetManagement = () => {
 
       if (vehiclesRes.success && vehiclesRes.data) {
         const vehiclesData = Array.isArray(vehiclesRes.data) ? vehiclesRes.data : [];
-        setVehicles(vehiclesData);
+        setVehicles(vehiclesData.map(normalizeVehicle));
       } else {
         setVehicles([]);
       }

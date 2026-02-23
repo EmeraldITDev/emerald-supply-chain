@@ -306,9 +306,26 @@ export const materialsApi = {
 
   // Create material
   create: async (data: Partial<Material>): Promise<ApiResponse<Material>> => {
+    // Convert camelCase to snake_case for Laravel backend
+    const snakeData: Record<string, any> = {
+      name: data.name,
+      description: data.description,
+      category: data.category,
+      quantity: data.quantity,
+      unit: data.unit,
+      condition: data.condition,
+      status: data.status,
+      current_location: data.currentLocation,
+      warehouse_id: data.warehouseId,
+      weight: data.weight,
+      dimensions: data.dimensions,
+      value: data.value,
+      notes: data.notes,
+    };
+    Object.keys(snakeData).forEach(k => snakeData[k] === undefined && delete snakeData[k]);
     return apiRequest<Material>('/materials', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(snakeData),
     });
   },
 
@@ -364,9 +381,26 @@ export const fleetApi = {
 
   // Create vehicle
   create: async (data: CreateVehicleData): Promise<ApiResponse<FleetVehicle>> => {
+    // Convert camelCase to snake_case for Laravel backend
+    const snakeData: Record<string, any> = {
+      plate: data.plate,
+      name: data.name,
+      type: data.type,
+      make: data.make,
+      model: data.model,
+      year: data.year,
+      color: data.color,
+      ownership: data.ownership,
+      vendor_id: data.vendorId,
+      passenger_capacity: data.passengerCapacity,
+      cargo_capacity: data.cargoCapacity,
+      fuel_type: data.fuelType,
+    };
+    // Remove undefined values
+    Object.keys(snakeData).forEach(k => snakeData[k] === undefined && delete snakeData[k]);
     return apiRequest<FleetVehicle>('/fleet/vehicles', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(snakeData),
     });
   },
 
