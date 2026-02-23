@@ -23,7 +23,7 @@ import type { MRFRequest } from "@/contexts/AppContext";
 import { dashboardApi, mrfApi, grnApi, rfqApi, quotationApi } from "@/services/api";
 import type { VendorRegistration, MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
-import { formatMRFDate } from "@/utils/dateUtils";
+import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
 import {
   Select,
   SelectContent,
@@ -1416,7 +1416,7 @@ const Procurement = () => {
                                 <span>•</span>
                                 <span>{request.requester}</span>
                                 <span>•</span>
-                                  <span>{formatMRFDate(getMRFDate(request))}</span>
+                                  <span>{formatDateLagos(getMRFDate(request), { includeTime: false, format: 'medium' })}</span>
                                 <span>•</span>
                                 <span className="font-semibold text-foreground">
                                   {parseFloat(request.estimatedCost || '0') > 0 
