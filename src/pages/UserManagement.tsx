@@ -260,7 +260,7 @@ const UserManagement = () => {
     { value: "executive", label: "Executive" },
     { value: "procurement", label: "Procurement Manager" },
     { value: "supply_chain_director", label: "Supply Chain Director" },
-    { value: "finance", label: "Finance Officer" },
+    { value: "finance", label: "Finance" },
     { value: "admin", label: "Admin" },
   ];
 
