@@ -704,8 +704,7 @@ export const FleetManagement = () => {
               <p className="text-sm">Add a vehicle to get started</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[1400px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Vehicle ID</TableHead>
@@ -886,7 +885,6 @@ export const FleetManagement = () => {
                   })}
                 </TableBody>
               </Table>
-            </div>
           )}
         </CardContent>
       </Card>
