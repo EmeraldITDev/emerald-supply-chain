@@ -403,7 +403,7 @@ export const FleetManagement = () => {
   const criticalAlerts = alerts.filter(a => a.severity === "critical" || a.severity === "high");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-hidden">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -704,6 +704,7 @@ export const FleetManagement = () => {
               <p className="text-sm">Add a vehicle to get started</p>
             </div>
           ) : (
+            <div className="overflow-x-auto w-full">
               <Table className="min-w-[1400px]">
                 <TableHeader>
                   <TableRow>
@@ -885,6 +886,7 @@ export const FleetManagement = () => {
                   })}
                 </TableBody>
               </Table>
+            </div>
           )}
         </CardContent>
       </Card>
