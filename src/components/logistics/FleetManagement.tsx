@@ -403,7 +403,7 @@ export const FleetManagement = () => {
   const criticalAlerts = alerts.filter(a => a.severity === "critical" || a.severity === "high");
 
   return (
-    <div className="space-y-6 overflow-hidden">
+    <div className="space-y-6 w-full min-w-0 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -641,8 +641,8 @@ export const FleetManagement = () => {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
+          <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center">
+            <div className="relative min-w-0 flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search vehicles..."
@@ -651,9 +651,9 @@ export const FleetManagement = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 sm:flex-nowrap sm:justify-end">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -665,7 +665,7 @@ export const FleetManagement = () => {
                 </SelectContent>
               </Select>
               <Select value={ownershipFilter} onValueChange={setOwnershipFilter}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue placeholder="Ownership" />
                 </SelectTrigger>
                 <SelectContent>
@@ -685,14 +685,14 @@ export const FleetManagement = () => {
       </Card>
 
       {/* Vehicles Table */}
-      <Card>
+      <Card className="w-full min-w-0 overflow-hidden">
         <CardHeader>
           <CardTitle>Fleet Vehicles</CardTitle>
           <CardDescription>
             {filteredVehicles.length} vehicle(s) in fleet
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="w-full min-w-0">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -704,189 +704,187 @@ export const FleetManagement = () => {
               <p className="text-sm">Add a vehicle to get started</p>
             </div>
           ) : (
-            <div className="overflow-x-auto w-full">
-              <Table className="min-w-[1400px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vehicle ID</TableHead>
-                    <TableHead>Vehicle Name</TableHead>
-                    <TableHead>Plate</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Make / Model</TableHead>
-                    <TableHead>Year</TableHead>
-                    <TableHead>Color</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Ownership</TableHead>
-                    <TableHead>Capacity</TableHead>
-                    <TableHead>Fuel Type</TableHead>
-                    <TableHead>Driver / Trip</TableHead>
-                    <TableHead>Maintenance</TableHead>
-                    <TableHead>Documents</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredVehicles.map((vehicle) => {
-                    const expiringDocs = (vehicle.documents || []).filter(d => d.isExpiringSoon || d.isExpired);
-                    return (
-                      <TableRow key={vehicle.id}>
-                        <TableCell className="font-mono text-sm">
-                          {vehicle.vehicleNumber || '—'}
-                        </TableCell>
-                        <TableCell>
-                          <p className="font-medium">{vehicle.name || '—'}</p>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">{vehicle.plate || '—'}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            <Truck className="mr-1 h-3 w-3" />
-                            {vehicle.type || '—'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {vehicle.make || vehicle.model ? (
-                            <span>{vehicle.make || ''} {vehicle.model || ''}</span>
-                          ) : (
+            <Table className="w-max min-w-[1400px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Vehicle ID</TableHead>
+                  <TableHead>Vehicle Name</TableHead>
+                  <TableHead>Plate</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Make / Model</TableHead>
+                  <TableHead>Year</TableHead>
+                  <TableHead>Color</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Ownership</TableHead>
+                  <TableHead>Capacity</TableHead>
+                  <TableHead>Fuel Type</TableHead>
+                  <TableHead>Driver / Trip</TableHead>
+                  <TableHead>Maintenance</TableHead>
+                  <TableHead>Documents</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredVehicles.map((vehicle) => {
+                  const expiringDocs = (vehicle.documents || []).filter(d => d.isExpiringSoon || d.isExpired);
+                  return (
+                    <TableRow key={vehicle.id}>
+                      <TableCell className="font-mono text-sm">
+                        {vehicle.vehicleNumber || '—'}
+                      </TableCell>
+                      <TableCell>
+                        <p className="font-medium">{vehicle.name || '—'}</p>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">{vehicle.plate || '—'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          <Truck className="mr-1 h-3 w-3" />
+                          {vehicle.type || '—'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {vehicle.make || vehicle.model ? (
+                          <span>{vehicle.make || ''} {vehicle.model || ''}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{vehicle.year || '—'}</TableCell>
+                      <TableCell>{vehicle.color || '—'}</TableCell>
+                      <TableCell>
+                        <Badge className={cn(statusColors[vehicle.status], "capitalize")}>
+                          {vehicle.status.replace("_", " ")}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={cn(ownershipColors[vehicle.ownership], "capitalize")}>
+                          {vehicle.ownership}
+                        </Badge>
+                        {vehicle.vendorName && (
+                          <p className="text-xs text-muted-foreground mt-1">{vehicle.vendorName}</p>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm space-y-0.5">
+                          {vehicle.passengerCapacity ? (
+                            <div className="flex items-center gap-1">
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              <span>{vehicle.passengerCapacity} pax</span>
+                            </div>
+                          ) : null}
+                          {vehicle.cargoCapacity ? (
+                            <div className="flex items-center gap-1">
+                              <Package className="h-3 w-3 text-muted-foreground" />
+                              <span>{vehicle.cargoCapacity} kg</span>
+                            </div>
+                          ) : null}
+                          {!vehicle.passengerCapacity && !vehicle.cargoCapacity && (
                             <span className="text-muted-foreground">—</span>
                           )}
-                        </TableCell>
-                        <TableCell>{vehicle.year || '—'}</TableCell>
-                        <TableCell>{vehicle.color || '—'}</TableCell>
-                        <TableCell>
-                          <Badge className={cn(statusColors[vehicle.status], "capitalize")}>
-                            {vehicle.status.replace("_", " ")}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={cn(ownershipColors[vehicle.ownership], "capitalize")}>
-                            {vehicle.ownership}
-                          </Badge>
-                          {vehicle.vendorName && (
-                            <p className="text-xs text-muted-foreground mt-1">{vehicle.vendorName}</p>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm space-y-0.5">
-                            {vehicle.passengerCapacity ? (
-                              <div className="flex items-center gap-1">
-                                <Users className="h-3 w-3 text-muted-foreground" />
-                                <span>{vehicle.passengerCapacity} pax</span>
-                              </div>
-                            ) : null}
-                            {vehicle.cargoCapacity ? (
-                              <div className="flex items-center gap-1">
-                                <Package className="h-3 w-3 text-muted-foreground" />
-                                <span>{vehicle.cargoCapacity} kg</span>
-                              </div>
-                            ) : null}
-                            {!vehicle.passengerCapacity && !vehicle.cargoCapacity && (
-                              <span className="text-muted-foreground">—</span>
-                            )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {vehicle.fuelType ? (
+                          <div className="flex items-center gap-1">
+                            <Fuel className="h-3 w-3 text-muted-foreground" />
+                            <span className="capitalize">{vehicle.fuelType}</span>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          {vehicle.fuelType ? (
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {vehicle.currentDriverName ? (
                             <div className="flex items-center gap-1">
-                              <Fuel className="h-3 w-3 text-muted-foreground" />
-                              <span className="capitalize">{vehicle.fuelType}</span>
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              <span>{vehicle.currentDriverName}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">No driver</span>
+                          )}
+                          {vehicle.currentTripId && (
+                            <p className="text-xs text-muted-foreground font-mono mt-0.5">Trip: {vehicle.currentTripId.substring(0, 8)}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {vehicle.nextMaintenanceAt ? (
+                            <div className="flex items-center gap-1">
+                              <Wrench className="h-3 w-3 text-muted-foreground" />
+                              <span>{new Date(vehicle.nextMaintenanceAt).toLocaleDateString()}</span>
+                            </div>
+                          ) : vehicle.lastMaintenanceAt ? (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              <span>Last: {new Date(vehicle.lastMaintenanceAt).toLocaleDateString()}</span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {vehicle.currentDriverName ? (
-                              <div className="flex items-center gap-1">
-                                <Users className="h-3 w-3 text-muted-foreground" />
-                                <span>{vehicle.currentDriverName}</span>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">No driver</span>
-                            )}
-                            {vehicle.currentTripId && (
-                              <p className="text-xs text-muted-foreground font-mono mt-0.5">Trip: {vehicle.currentTripId.substring(0, 8)}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {vehicle.nextMaintenanceAt ? (
-                              <div className="flex items-center gap-1">
-                                <Wrench className="h-3 w-3 text-muted-foreground" />
-                                <span>{new Date(vehicle.nextMaintenanceAt).toLocaleDateString()}</span>
-                              </div>
-                            ) : vehicle.lastMaintenanceAt ? (
-                              <div className="flex items-center gap-1 text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                <span>Last: {new Date(vehicle.lastMaintenanceAt).toLocaleDateString()}</span>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <span>{(vehicle.documents || []).length}</span>
-                            {expiringDocs.length > 0 && (
-                              <Badge variant="destructive" className="ml-1 text-xs">
-                                {expiringDocs.length} expiring
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => {
-                                setSelectedVehicle(vehicle);
-                                setViewDialogOpen(true);
-                              }}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => {
-                                setSelectedVehicle(vehicle);
-                                setDocumentDialogOpen(true);
-                              }}>
-                                <Upload className="mr-2 h-4 w-4" />
-                                Upload Document
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => {
-                                setSelectedVehicle(vehicle);
-                                setMaintenanceDialogOpen(true);
-                              }}>
-                                <Wrench className="mr-2 h-4 w-4" />
-                                Add Maintenance
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => {
-                                  setVehicleToDelete(vehicle);
-                                  setDeleteDialogOpen(true);
-                                }}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Vehicle
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span>{(vehicle.documents || []).length}</span>
+                          {expiringDocs.length > 0 && (
+                            <Badge variant="destructive" className="ml-1 text-xs">
+                              {expiringDocs.length} expiring
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedVehicle(vehicle);
+                              setViewDialogOpen(true);
+                            }}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedVehicle(vehicle);
+                              setDocumentDialogOpen(true);
+                            }}>
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload Document
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedVehicle(vehicle);
+                              setMaintenanceDialogOpen(true);
+                            }}>
+                              <Wrench className="mr-2 h-4 w-4" />
+                              Add Maintenance
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => {
+                                setVehicleToDelete(vehicle);
+                                setDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Vehicle
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
