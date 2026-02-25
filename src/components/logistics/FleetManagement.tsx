@@ -734,7 +734,7 @@ export const FleetManagement = () => {
             </div>
           ) : (
             <div className="w-full overflow-x-auto">
-              <div className="min-w-[500px]">
+              <div className="max-w-[500px]">
                 <Table className="w-full table-auto">
                   <TableHeader>
                     <TableRow>
