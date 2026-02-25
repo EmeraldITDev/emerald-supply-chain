@@ -155,7 +155,7 @@ const Logistics = () => {
   return (
     <DashboardLayout>
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="space-y-6">
+        <div className="space-y-6 w-full min-w-0 overflow-x-hidden">
           {/* Header */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -345,7 +345,7 @@ const Logistics = () => {
           </div>
 
           {/* Module Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 w-full min-w-0">
             <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 h-auto">
               <TabsTrigger value="overview" className="text-xs sm:text-sm gap-1">
                 <BarChart3 className="h-4 w-4 hidden sm:block" />
@@ -550,7 +550,7 @@ const Logistics = () => {
             </TabsContent>
 
             {/* Fleet Management Tab */}
-            <TabsContent value="fleet">
+            <TabsContent value="fleet" className="w-full min-w-0 overflow-x-hidden">
               <FleetManagement />
             </TabsContent>
 
