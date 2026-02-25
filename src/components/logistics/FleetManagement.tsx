@@ -714,27 +714,27 @@ export const FleetManagement = () => {
       </Card>
 
       {/* Vehicles Table */}
-      <Card className="w-full min-w-0">
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Fleet Vehicles</CardTitle>
           <CardDescription>
             {filteredVehicles.length} vehicle(s) in fleet
           </CardDescription>
         </CardHeader>
-        <CardContent className="w-full overflow-x-auto p-0">
+        <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center py-12 px-6">
+            <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : filteredVehicles.length === 0 ? (
-            <div className="text-center py-12 px-6 text-muted-foreground">
+            <div className="text-center py-12 text-muted-foreground">
               <Truck className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No vehicles found</p>
               <p className="text-sm">Add a vehicle to get started</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table className="w-max min-w-full">
+            <div className="w-full overflow-x-auto">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Vehicle ID</TableHead>
