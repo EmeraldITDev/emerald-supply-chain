@@ -155,6 +155,15 @@ export const FleetManagement = () => {
     ownership: "owned",
     status: "available",
     approvalStatus: "approved",
+    name: "",
+    plate: "",
+    type: "",
+    make: "",
+    model: "",
+    color: "",
+    fuelType: "",
+    passengerCapacity: undefined,
+    cargoCapacity: undefined,
   });
   const [maintenanceData, setMaintenanceData] = useState<Partial<MaintenanceRecord>>({
     type: "scheduled",
@@ -387,7 +396,22 @@ export const FleetManagement = () => {
       ownership: "owned",
       status: "available",
       approvalStatus: "approved",
+      name: "",
+      plate: "",
+      type: "",
+      make: "",
+      model: "",
+      year: undefined,
+      color: "",
+      passengerCapacity: undefined,
+      cargoCapacity: undefined,
+      fuelType: "",
+      vendorId: undefined,
     });
+    setMaintenanceData({ type: "scheduled" });
+    setDocumentFile(null);
+    setDocumentType("registration");
+    setDocumentExpiry("");
   };
 
   const filteredVehicles = vehicles.filter(vehicle => {
@@ -412,7 +436,12 @@ export const FleetManagement = () => {
             Manage vehicles, maintenance, and documentation
           </p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <Dialog open={createDialogOpen} onOpenChange={(open) => {
+          setCreateDialogOpen(open);
+          if (open) {
+            resetForm();
+          }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -685,26 +714,27 @@ export const FleetManagement = () => {
       </Card>
 
       {/* Vehicles Table */}
-      <Card className="w-full min-w-0 overflow-hidden">
+      <Card className="w-full min-w-0">
         <CardHeader>
           <CardTitle>Fleet Vehicles</CardTitle>
           <CardDescription>
             {filteredVehicles.length} vehicle(s) in fleet
           </CardDescription>
         </CardHeader>
-        <CardContent className="w-full min-w-0">
+        <CardContent className="w-full overflow-x-auto p-0">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-12 px-6">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : filteredVehicles.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="text-center py-12 px-6 text-muted-foreground">
               <Truck className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No vehicles found</p>
               <p className="text-sm">Add a vehicle to get started</p>
             </div>
           ) : (
-            <Table className="w-max min-w-[1400px]">
+            <div className="overflow-x-auto">
+              <Table className="w-max min-w-full">
               <TableHeader>
                 <TableRow>
                   <TableHead>Vehicle ID</TableHead>
@@ -885,6 +915,7 @@ export const FleetManagement = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
