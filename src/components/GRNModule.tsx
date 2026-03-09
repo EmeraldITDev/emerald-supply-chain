@@ -825,7 +825,9 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Code</TableHead>
                       <TableHead>Item</TableHead>
+                      <TableHead>UOM</TableHead>
                       <TableHead>Ordered</TableHead>
                       <TableHead>Received</TableHead>
                       <TableHead>Condition</TableHead>
