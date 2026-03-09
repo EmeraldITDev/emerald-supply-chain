@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Warehouse as WarehouseIcon, Package, AlertCircle, CheckCircle, Plus, MapPin, Receipt as ReceiptIcon } from "lucide-react";
+import { Warehouse as WarehouseIcon, Package, AlertCircle, CheckCircle, Plus, MapPin, Receipt as ReceiptIcon, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { GRNModule } from "@/components/GRNModule";
+import { DailyMaterialsConsumption } from "@/components/warehouse/DailyMaterialsConsumption";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Receipt {
@@ -237,15 +238,24 @@ const Warehouse = () => {
               <ReceiptIcon className="h-4 w-4" />
               GRN Management
             </TabsTrigger>
+            <TabsTrigger value="consumption" className="gap-2">
+              <ClipboardList className="h-4 w-4" />
+              Materials Consumption
+            </TabsTrigger>
             <TabsTrigger value="locations">Storage Locations</TabsTrigger>
             <TabsTrigger value="receipts">Legacy Receipts</TabsTrigger>
             <TabsTrigger value="dispatch">Goods Dispatch</TabsTrigger>
             <TabsTrigger value="ehs">EHS Compliance</TabsTrigger>
           </TabsList>
 
-          {/* GRN Module - New Tab */}
+          {/* GRN Module */}
           <TabsContent value="grn" className="space-y-4">
             <GRNModule userRole={user?.role || 'employee'} />
+          </TabsContent>
+
+          {/* Daily Materials Consumption */}
+          <TabsContent value="consumption" className="space-y-4">
+            <DailyMaterialsConsumption />
           </TabsContent>
 
           <TabsContent value="locations" className="space-y-4">

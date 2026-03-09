@@ -4,6 +4,8 @@ export interface GRNItem {
   id: string;
   name: string;
   description?: string;
+  itemCode?: string;
+  uom?: string;
   quantityOrdered: number;
   quantityReceived: number;
   unitPrice: number;
@@ -16,10 +18,13 @@ export interface GRN {
   id: string;
   grnNumber: string;
   poNumber: string;
+  mrfNumber?: string;
   vendorId: string;
   vendorName: string;
+  category?: string;
   receivedDate: string;
   receivedBy: string;
+  designation?: string;
   inspectedBy?: string;
   inspectionDate?: string;
   items: GRNItem[];
@@ -27,6 +32,7 @@ export interface GRN {
   status: 'Pending Inspection' | 'Inspected' | 'Approved' | 'With Finance' | 'Payment Processing' | 'Completed' | 'Rejected';
   warehouseLocation?: string;
   deliveryNoteNumber?: string;
+  waybillInvoiceNo?: string;
   invoiceNumber?: string;
   invoiceAmount?: number;
   financeReceivedDate?: string;
@@ -39,11 +45,15 @@ export interface GRN {
 
 export interface CreateGRNData {
   poNumber: string;
+  mrfNumber?: string;
   vendorId: string;
   vendorName: string;
+  category?: string;
+  designation?: string;
   items: Omit<GRNItem, 'id'>[];
   warehouseLocation?: string;
   deliveryNoteNumber?: string;
+  waybillInvoiceNo?: string;
   invoiceNumber?: string;
   invoiceAmount?: number;
   remarks?: string;

@@ -168,15 +168,19 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
       id: `GRN-${Date.now()}`,
       grnNumber,
       poNumber: newGRN.poNumber,
+      mrfNumber: newGRN.mrfNumber,
       vendorId: newGRN.vendorId || "",
       vendorName: newGRN.vendorName,
+      category: newGRN.category,
       receivedDate: new Date().toISOString().split("T")[0],
       receivedBy: localStorage.getItem("userName") || "Warehouse Staff",
+      designation: newGRN.designation,
       items: newGRN.items.map((item, idx) => ({ ...item, id: String(idx + 1) })),
       totalAmount,
       status: "Pending Inspection",
       warehouseLocation: newGRN.warehouseLocation,
       deliveryNoteNumber: newGRN.deliveryNoteNumber,
+      waybillInvoiceNo: newGRN.waybillInvoiceNo,
       invoiceNumber: newGRN.invoiceNumber,
       invoiceAmount: newGRN.invoiceAmount,
       remarks: newGRN.remarks,
@@ -287,6 +291,8 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
       id: String(Date.now()),
       name: newItem.name,
       description: newItem.description,
+      itemCode: newItem.itemCode,
+      uom: newItem.uom,
       quantityOrdered: newItem.quantityOrdered,
       quantityReceived: newItem.quantityReceived || newItem.quantityOrdered,
       unitPrice: newItem.unitPrice,
@@ -523,6 +529,14 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                 />
               </div>
               <div className="space-y-2">
+                <Label>MRF Number</Label>
+                <Input 
+                  placeholder="MRF-XXX"
+                  value={newGRN.mrfNumber || ""}
+                  onChange={(e) => setNewGRN(prev => ({ ...prev, mrfNumber: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>Vendor Name *</Label>
                 <Input 
                   placeholder="Vendor name"
@@ -531,11 +545,46 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                 />
               </div>
               <div className="space-y-2">
+                <Label>Category</Label>
+                <Select 
+                  value={newGRN.category || ""} 
+                  onValueChange={(val) => setNewGRN(prev => ({ ...prev, category: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Safety Materials">Safety Materials</SelectItem>
+                    <SelectItem value="Spare Parts">Spare Parts</SelectItem>
+                    <SelectItem value="Lube Oil">Lube Oil</SelectItem>
+                    <SelectItem value="Office Equipment">Office Equipment</SelectItem>
+                    <SelectItem value="Office Consumable">Office Consumable</SelectItem>
+                    <SelectItem value="Field Consumables">Field Consumables</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Designation (Receiver's Role)</Label>
+                <Input 
+                  placeholder="e.g. Materials Coordinator"
+                  value={newGRN.designation || ""}
+                  onChange={(e) => setNewGRN(prev => ({ ...prev, designation: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>Delivery Note Number</Label>
                 <Input 
                   placeholder="DN-XXXXX"
                   value={newGRN.deliveryNoteNumber || ""}
                   onChange={(e) => setNewGRN(prev => ({ ...prev, deliveryNoteNumber: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Waybill/Invoice No.</Label>
+                <Input 
+                  placeholder="WB-XXXXX"
+                  value={newGRN.waybillInvoiceNo || ""}
+                  onChange={(e) => setNewGRN(prev => ({ ...prev, waybillInvoiceNo: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
@@ -548,10 +597,11 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                     <SelectValue placeholder="Select location" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Zone A">Zone A - Heavy Materials</SelectItem>
-                    <SelectItem value="Zone B">Zone B - Raw Materials</SelectItem>
-                    <SelectItem value="Zone C">Zone C - Safety Equipment</SelectItem>
-                    <SelectItem value="Zone D">Zone D - General Storage</SelectItem>
+                    <SelectItem value="OB/OB">OB/OB</SelectItem>
+                    <SelectItem value="Oando WH">Oando WH</SelectItem>
+                    <SelectItem value="EOC">EOC</SelectItem>
+                    <SelectItem value="KWALE">KWALE</SelectItem>
+                    <SelectItem value="EBOCHA">EBOCHA</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -578,13 +628,29 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
             <div className="space-y-4">
               <h4 className="font-semibold">Items Received</h4>
               
-              <div className="grid grid-cols-6 gap-2 items-end">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+                <div className="space-y-1">
+                  <Label className="text-xs">Item Code</Label>
+                  <Input 
+                    placeholder="ITM-XXX"
+                    value={newItem.itemCode || ""}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, itemCode: e.target.value }))}
+                  />
+                </div>
                 <div className="col-span-2 space-y-1">
                   <Label className="text-xs">Item Name *</Label>
                   <Input 
                     placeholder="Item name"
                     value={newItem.name || ""}
                     onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">UOM</Label>
+                  <Input 
+                    placeholder="e.g. PCS"
+                    value={newItem.uom || ""}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, uom: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-1">
@@ -624,7 +690,9 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Code</TableHead>
                       <TableHead>Item</TableHead>
+                      <TableHead>UOM</TableHead>
                       <TableHead>Ordered</TableHead>
                       <TableHead>Received</TableHead>
                       <TableHead>Unit Price</TableHead>
@@ -634,7 +702,9 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                   <TableBody>
                     {newGRN.items.map((item, idx) => (
                       <TableRow key={idx}>
+                        <TableCell className="font-mono text-xs">{item.itemCode || "-"}</TableCell>
                         <TableCell>{item.name}</TableCell>
+                        <TableCell>{item.uom || "-"}</TableCell>
                         <TableCell>{item.quantityOrdered}</TableCell>
                         <TableCell>{item.quantityReceived}</TableCell>
                         <TableCell>₦{item.unitPrice.toLocaleString()}</TableCell>
@@ -642,7 +712,7 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell colSpan={4} className="text-right font-semibold">Total</TableCell>
+                      <TableCell colSpan={6} className="text-right font-semibold">Total</TableCell>
                       <TableCell className="font-semibold">
                         ₦{newGRN.items.reduce((sum, item) => sum + item.totalAmount, 0).toLocaleString()}
                       </TableCell>
@@ -689,10 +759,22 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                   <p className="text-sm text-muted-foreground">PO Number</p>
                   <p className="font-medium">{selectedGRN.poNumber}</p>
                 </div>
+                {selectedGRN.mrfNumber && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">MRF Number</p>
+                    <p className="font-medium">{selectedGRN.mrfNumber}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-muted-foreground">Vendor</p>
                   <p className="font-medium">{selectedGRN.vendorName}</p>
                 </div>
+                {selectedGRN.category && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Category</p>
+                    <Badge variant="outline">{selectedGRN.category}</Badge>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-muted-foreground">Received Date</p>
                   <p className="font-medium">{new Date(selectedGRN.receivedDate).toLocaleDateString()}</p>
@@ -701,10 +783,22 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                   <p className="text-sm text-muted-foreground">Received By</p>
                   <p className="font-medium">{selectedGRN.receivedBy}</p>
                 </div>
+                {selectedGRN.designation && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Designation</p>
+                    <p className="font-medium">{selectedGRN.designation}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-muted-foreground">Warehouse Location</p>
                   <p className="font-medium">{selectedGRN.warehouseLocation || "N/A"}</p>
                 </div>
+                {selectedGRN.waybillInvoiceNo && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Waybill/Invoice No.</p>
+                    <p className="font-medium">{selectedGRN.waybillInvoiceNo}</p>
+                  </div>
+                )}
                 {selectedGRN.inspectedBy && (
                   <>
                     <div>
@@ -737,7 +831,9 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Code</TableHead>
                       <TableHead>Item</TableHead>
+                      <TableHead>UOM</TableHead>
                       <TableHead>Ordered</TableHead>
                       <TableHead>Received</TableHead>
                       <TableHead>Condition</TableHead>
@@ -748,7 +844,9 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                   <TableBody>
                     {selectedGRN.items.map((item) => (
                       <TableRow key={item.id}>
+                        <TableCell className="font-mono text-xs">{item.itemCode || "-"}</TableCell>
                         <TableCell>{item.name}</TableCell>
+                        <TableCell>{item.uom || "-"}</TableCell>
                         <TableCell>{item.quantityOrdered}</TableCell>
                         <TableCell>{item.quantityReceived}</TableCell>
                         <TableCell>
@@ -761,7 +859,7 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell colSpan={5} className="text-right font-semibold">Total Amount</TableCell>
+                      <TableCell colSpan={7} className="text-right font-semibold">Total Amount</TableCell>
                       <TableCell className="font-semibold">₦{selectedGRN.totalAmount.toLocaleString()}</TableCell>
                     </TableRow>
                   </TableBody>
