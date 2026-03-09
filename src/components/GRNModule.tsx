@@ -684,7 +684,9 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Code</TableHead>
                       <TableHead>Item</TableHead>
+                      <TableHead>UOM</TableHead>
                       <TableHead>Ordered</TableHead>
                       <TableHead>Received</TableHead>
                       <TableHead>Unit Price</TableHead>
@@ -694,7 +696,9 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                   <TableBody>
                     {newGRN.items.map((item, idx) => (
                       <TableRow key={idx}>
+                        <TableCell className="font-mono text-xs">{item.itemCode || "-"}</TableCell>
                         <TableCell>{item.name}</TableCell>
+                        <TableCell>{item.uom || "-"}</TableCell>
                         <TableCell>{item.quantityOrdered}</TableCell>
                         <TableCell>{item.quantityReceived}</TableCell>
                         <TableCell>₦{item.unitPrice.toLocaleString()}</TableCell>
@@ -702,7 +706,7 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell colSpan={4} className="text-right font-semibold">Total</TableCell>
+                      <TableCell colSpan={6} className="text-right font-semibold">Total</TableCell>
                       <TableCell className="font-semibold">
                         ₦{newGRN.items.reduce((sum, item) => sum + item.totalAmount, 0).toLocaleString()}
                       </TableCell>
