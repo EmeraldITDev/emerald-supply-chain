@@ -753,10 +753,22 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                   <p className="text-sm text-muted-foreground">PO Number</p>
                   <p className="font-medium">{selectedGRN.poNumber}</p>
                 </div>
+                {selectedGRN.mrfNumber && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">MRF Number</p>
+                    <p className="font-medium">{selectedGRN.mrfNumber}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-muted-foreground">Vendor</p>
                   <p className="font-medium">{selectedGRN.vendorName}</p>
                 </div>
+                {selectedGRN.category && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Category</p>
+                    <Badge variant="outline">{selectedGRN.category}</Badge>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-muted-foreground">Received Date</p>
                   <p className="font-medium">{new Date(selectedGRN.receivedDate).toLocaleDateString()}</p>
@@ -765,10 +777,22 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                   <p className="text-sm text-muted-foreground">Received By</p>
                   <p className="font-medium">{selectedGRN.receivedBy}</p>
                 </div>
+                {selectedGRN.designation && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Designation</p>
+                    <p className="font-medium">{selectedGRN.designation}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-muted-foreground">Warehouse Location</p>
                   <p className="font-medium">{selectedGRN.warehouseLocation || "N/A"}</p>
                 </div>
+                {selectedGRN.waybillInvoiceNo && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Waybill/Invoice No.</p>
+                    <p className="font-medium">{selectedGRN.waybillInvoiceNo}</p>
+                  </div>
+                )}
                 {selectedGRN.inspectedBy && (
                   <>
                     <div>
