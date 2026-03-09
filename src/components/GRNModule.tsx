@@ -523,6 +523,14 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                 />
               </div>
               <div className="space-y-2">
+                <Label>MRF Number</Label>
+                <Input 
+                  placeholder="MRF-XXX"
+                  value={newGRN.mrfNumber || ""}
+                  onChange={(e) => setNewGRN(prev => ({ ...prev, mrfNumber: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>Vendor Name *</Label>
                 <Input 
                   placeholder="Vendor name"
@@ -531,11 +539,46 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                 />
               </div>
               <div className="space-y-2">
+                <Label>Category</Label>
+                <Select 
+                  value={newGRN.category || ""} 
+                  onValueChange={(val) => setNewGRN(prev => ({ ...prev, category: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Safety Materials">Safety Materials</SelectItem>
+                    <SelectItem value="Spare Parts">Spare Parts</SelectItem>
+                    <SelectItem value="Lube Oil">Lube Oil</SelectItem>
+                    <SelectItem value="Office Equipment">Office Equipment</SelectItem>
+                    <SelectItem value="Office Consumable">Office Consumable</SelectItem>
+                    <SelectItem value="Field Consumables">Field Consumables</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Designation (Receiver's Role)</Label>
+                <Input 
+                  placeholder="e.g. Materials Coordinator"
+                  value={newGRN.designation || ""}
+                  onChange={(e) => setNewGRN(prev => ({ ...prev, designation: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>Delivery Note Number</Label>
                 <Input 
                   placeholder="DN-XXXXX"
                   value={newGRN.deliveryNoteNumber || ""}
                   onChange={(e) => setNewGRN(prev => ({ ...prev, deliveryNoteNumber: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Waybill/Invoice No.</Label>
+                <Input 
+                  placeholder="WB-XXXXX"
+                  value={newGRN.waybillInvoiceNo || ""}
+                  onChange={(e) => setNewGRN(prev => ({ ...prev, waybillInvoiceNo: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
@@ -548,10 +591,11 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                     <SelectValue placeholder="Select location" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Zone A">Zone A - Heavy Materials</SelectItem>
-                    <SelectItem value="Zone B">Zone B - Raw Materials</SelectItem>
-                    <SelectItem value="Zone C">Zone C - Safety Equipment</SelectItem>
-                    <SelectItem value="Zone D">Zone D - General Storage</SelectItem>
+                    <SelectItem value="OB/OB">OB/OB</SelectItem>
+                    <SelectItem value="Oando WH">Oando WH</SelectItem>
+                    <SelectItem value="EOC">EOC</SelectItem>
+                    <SelectItem value="KWALE">KWALE</SelectItem>
+                    <SelectItem value="EBOCHA">EBOCHA</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
