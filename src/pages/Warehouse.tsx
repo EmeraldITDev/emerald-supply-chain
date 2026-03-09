@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Warehouse as WarehouseIcon, Package, AlertCircle, CheckCircle, Plus, MapPin, Receipt as ReceiptIcon, ClipboardList } from "lucide-react";
+import { Warehouse as WarehouseIcon, Package, AlertCircle, CheckCircle, MapPin, Receipt as ReceiptIcon, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -12,11 +12,8 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { GRNModule } from "@/components/GRNModule";
 import { DailyMaterialsConsumption } from "@/components/warehouse/DailyMaterialsConsumption";
@@ -35,14 +32,8 @@ interface Receipt {
 const Warehouse = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [receiptDetailsOpen, setReceiptDetailsOpen] = useState(false);
-  
-  // New receipt form
-  const [newSupplier, setNewSupplier] = useState("");
-  const [newPO, setNewPO] = useState("");
-  const [newInspector, setNewInspector] = useState("");
   
   const locations = [
     { id: "A1", zone: "Zone A", capacity: 1000, occupied: 750, items: 45, type: "Heavy Materials" },
@@ -104,82 +95,6 @@ const Warehouse = () => {
             <h1 className="text-3xl font-bold tracking-tight">Warehouse Management</h1>
             <p className="text-muted-foreground mt-2">Manage storage, receipts, dispatch, and EHS compliance</p>
           </div>
-          <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                New Receipt
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>New Goods Receipt</DialogTitle>
-                <DialogDescription>Record incoming materials</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Supplier</Label>
-                  <Select value={newSupplier} onValueChange={setNewSupplier}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select supplier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Steel Works Ltd">Steel Works Ltd</SelectItem>
-                      <SelectItem value="BuildMart">BuildMart</SelectItem>
-                      <SelectItem value="SafetyFirst Co">SafetyFirst Co</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>PO Number</Label>
-                  <Input 
-                    placeholder="Enter PO number"
-                    value={newPO}
-                    onChange={(e) => setNewPO(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Inspector</Label>
-                  <Select value={newInspector} onValueChange={setNewInspector}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Assign inspector" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="John Doe">John Doe</SelectItem>
-                      <SelectItem value="Jane Smith">Jane Smith</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button className="w-full transition-transform hover:scale-105" onClick={() => {
-                  if (!newSupplier || !newInspector) {
-                    toast({ title: "Validation Error", description: "Please fill required fields", variant: "destructive" });
-                    return;
-                  }
-                  
-                  const newReceipt: Receipt = {
-                    id: `GR-${String(receipts.length + 1).padStart(3, '0')}`,
-                    supplier: newSupplier,
-                    items: 0,
-                    date: new Date().toISOString().split('T')[0],
-                    status: "Pending",
-                    inspector: newInspector,
-                    poNumber: newPO || undefined
-                  };
-                  
-                  setReceipts([newReceipt, ...receipts]);
-                  toast({ title: "Receipt Created", description: `${newReceipt.id} has been created` });
-                  
-                  // Reset form
-                  setNewSupplier("");
-                  setNewPO("");
-                  setNewInspector("");
-                  setReceiptDialogOpen(false);
-                }}>
-                  Create Receipt
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">

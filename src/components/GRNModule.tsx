@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Package, CheckCircle, Clock, AlertTriangle, Send, FileText, Truck, Receipt, Eye, Download, ArrowRight } from "lucide-react";
+import { Plus, Package, CheckCircle, Clock, AlertTriangle, Send, FileText, Truck, Receipt, Eye, Download, ArrowRight, Upload } from "lucide-react";
 import type { GRN, GRNItem, CreateGRNData } from "@/types/grn";
+import * as XLSX from "xlsx";
 
 interface GRNModuleProps {
   userRole: string;
@@ -112,9 +113,12 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
   };
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [bulkUploadDialogOpen, setBulkUploadDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedGRN, setSelectedGRN] = useState<GRN | null>(null);
   const [activeTab, setActiveTab] = useState("all");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   // Form state for new GRN
   const [newGRN, setNewGRN] = useState<Partial<CreateGRNData>>({
@@ -308,6 +312,173 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
     setNewItem({});
   };
 
+  const GRN_TEMPLATE_COLUMNS = [
+    "PO Number", "MRF Number", "Vendor Name", "Category", "Designation",
+    "Warehouse Location", "Delivery Note Number", "Waybill/Invoice No",
+    "Invoice Number", "Invoice Amount", "Remarks",
+    "Item Description", "Item Code", "UOM", "Qty Ordered", "Qty Received",
+    "Unit Price", "Condition", "Item Remarks"
+  ];
+
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([GRN_TEMPLATE_COLUMNS, [
+      "PO-2025-001", "MRF-001", "Steel Works Ltd", "Spare Parts", "Warehouse Manager",
+      "Zone A", "DN-12345", "WB-001", "INV-001", 500000, "Sample entry",
+      "Steel Pipes", "SP-001", "PCS", 100, 100, 5000, "Good", ""
+    ]]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "GRN Template");
+    XLSX.writeFile(wb, "grn_bulk_upload_template.xlsx");
+    toast({ title: "Template Downloaded", description: "Fill in the template and upload it back" });
+  };
+
+  const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        if (rows.length < 2) {
+          setUploadErrors(["File is empty or has no data rows"]);
+          setBulkUploadDialogOpen(true);
+          return;
+        }
+
+        const headers = rows[0].map((h: any) => String(h).trim());
+        const missingCols = GRN_TEMPLATE_COLUMNS.filter(col => !headers.includes(col));
+        if (missingCols.length > 0) {
+          setUploadErrors([`Missing columns: ${missingCols.join(", ")}`]);
+          setBulkUploadDialogOpen(true);
+          return;
+        }
+
+        const errors: string[] = [];
+        const newGrns: GRN[] = [];
+        const grouped: Record<string, { header: any; items: any[] }> = {};
+
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row || row.length === 0) continue;
+
+          const getValue = (col: string) => {
+            const idx = headers.indexOf(col);
+            return idx >= 0 ? row[idx] : undefined;
+          };
+
+          const poNumber = String(getValue("PO Number") || "").trim();
+          if (!poNumber) {
+            errors.push(`Row ${i + 1}: Missing PO Number`);
+            continue;
+          }
+
+          const vendorName = String(getValue("Vendor Name") || "").trim();
+          if (!vendorName) {
+            errors.push(`Row ${i + 1}: Missing Vendor Name`);
+            continue;
+          }
+
+          const itemName = String(getValue("Item Description") || "").trim();
+          if (!itemName) {
+            errors.push(`Row ${i + 1}: Missing Item Description`);
+            continue;
+          }
+
+          const key = `${poNumber}__${vendorName}`;
+          if (!grouped[key]) {
+            grouped[key] = {
+              header: {
+                poNumber,
+                vendorName,
+                mrfNumber: String(getValue("MRF Number") || ""),
+                category: String(getValue("Category") || ""),
+                designation: String(getValue("Designation") || ""),
+                warehouseLocation: String(getValue("Warehouse Location") || ""),
+                deliveryNoteNumber: String(getValue("Delivery Note Number") || ""),
+                waybillInvoiceNo: String(getValue("Waybill/Invoice No") || ""),
+                invoiceNumber: String(getValue("Invoice Number") || ""),
+                invoiceAmount: Number(getValue("Invoice Amount")) || 0,
+                remarks: String(getValue("Remarks") || ""),
+              },
+              items: [],
+            };
+          }
+
+          const qtyOrdered = Number(getValue("Qty Ordered")) || 0;
+          const qtyReceived = Number(getValue("Qty Received")) || qtyOrdered;
+          const unitPrice = Number(getValue("Unit Price")) || 0;
+
+          grouped[key].items.push({
+            id: String(Date.now() + i),
+            name: itemName,
+            itemCode: String(getValue("Item Code") || ""),
+            uom: String(getValue("UOM") || ""),
+            quantityOrdered: qtyOrdered,
+            quantityReceived: qtyReceived,
+            unitPrice,
+            totalAmount: qtyReceived * unitPrice,
+            condition: (getValue("Condition") as any) || "Good",
+            remarks: String(getValue("Item Remarks") || ""),
+          });
+        }
+
+        Object.values(grouped).forEach((group, idx) => {
+          const totalAmount = group.items.reduce((sum: number, item: any) => sum + item.totalAmount, 0);
+          const grnNumber = `GRN-${new Date().getFullYear()}-${String(grns.length + idx + 1).padStart(4, "0")}`;
+          newGrns.push({
+            id: `GRN-${Date.now()}-${idx}`,
+            grnNumber,
+            poNumber: group.header.poNumber,
+            mrfNumber: group.header.mrfNumber || undefined,
+            vendorId: "",
+            vendorName: group.header.vendorName,
+            category: group.header.category || undefined,
+            receivedDate: new Date().toISOString().split("T")[0],
+            receivedBy: localStorage.getItem("userName") || "Warehouse Staff",
+            designation: group.header.designation || undefined,
+            items: group.items,
+            totalAmount,
+            status: "Pending Inspection",
+            warehouseLocation: group.header.warehouseLocation || undefined,
+            deliveryNoteNumber: group.header.deliveryNoteNumber || undefined,
+            waybillInvoiceNo: group.header.waybillInvoiceNo || undefined,
+            invoiceNumber: group.header.invoiceNumber || undefined,
+            invoiceAmount: group.header.invoiceAmount || undefined,
+            remarks: group.header.remarks || undefined,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        });
+
+        if (errors.length > 0) {
+          setUploadErrors(errors);
+          setBulkUploadDialogOpen(true);
+        }
+
+        if (newGrns.length > 0) {
+          saveGrns([...newGrns, ...grns]);
+          toast({
+            title: "Bulk Upload Successful",
+            description: `${newGrns.length} GRN(s) created with ${Object.values(grouped).reduce((s, g) => s + g.items.length, 0)} total items`,
+          });
+        } else if (errors.length === 0) {
+          setUploadErrors(["No valid data found in the file"]);
+          setBulkUploadDialogOpen(true);
+        }
+      } catch (err) {
+        setUploadErrors(["Failed to parse file. Please use the provided template."]);
+        setBulkUploadDialogOpen(true);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const canViewFinanceActions = ['finance', 'admin', 'chairman'].includes(userRole);
   const canViewWarehouseActions = ['logistics', 'warehouse', 'admin', 'supply_chain_director', 'procurement'].includes(userRole);
 
@@ -358,16 +529,33 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
       </div>
 
       {/* Actions */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-3">
         <div>
           <h3 className="text-lg font-semibold">Goods Received Notes</h3>
           <p className="text-sm text-muted-foreground">Track goods receipt and payment processing</p>
         </div>
         {canViewWarehouseActions && (
-          <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New GRN
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={handleDownloadTemplate} className="gap-2">
+              <Download className="h-4 w-4" />
+              Download Template
+            </Button>
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="gap-2">
+              <Upload className="h-4 w-4" />
+              Bulk Upload
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={handleBulkUpload}
+            />
+            <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New GRN
+            </Button>
+          </div>
         )}
       </div>
 
@@ -874,6 +1062,29 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Upload Errors Dialog */}
+      <Dialog open={bulkUploadDialogOpen} onOpenChange={setBulkUploadDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Upload Issues</DialogTitle>
+            <DialogDescription>The following issues were found during upload</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[300px]">
+            <div className="space-y-2">
+              {uploadErrors.map((error, idx) => (
+                <div key={idx} className="flex items-start gap-2 text-sm p-2 rounded bg-destructive/10 text-destructive">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkUploadDialogOpen(false)}>Close</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
