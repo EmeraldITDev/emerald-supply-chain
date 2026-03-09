@@ -624,6 +624,19 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                               Complete
                             </Button>
                           )}
+                          
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              setGrnToDelete(grn);
+                              setDeleteConfirmOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
+                          </Button>
                         </div>
                       </div>
                     </div>
