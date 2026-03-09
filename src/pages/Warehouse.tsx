@@ -32,14 +32,8 @@ interface Receipt {
 const Warehouse = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [receiptDetailsOpen, setReceiptDetailsOpen] = useState(false);
-  
-  // New receipt form
-  const [newSupplier, setNewSupplier] = useState("");
-  const [newPO, setNewPO] = useState("");
-  const [newInspector, setNewInspector] = useState("");
   
   const locations = [
     { id: "A1", zone: "Zone A", capacity: 1000, occupied: 750, items: 45, type: "Heavy Materials" },
