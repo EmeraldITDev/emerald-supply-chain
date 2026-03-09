@@ -838,7 +838,9 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                   <TableBody>
                     {selectedGRN.items.map((item) => (
                       <TableRow key={item.id}>
+                        <TableCell className="font-mono text-xs">{item.itemCode || "-"}</TableCell>
                         <TableCell>{item.name}</TableCell>
+                        <TableCell>{item.uom || "-"}</TableCell>
                         <TableCell>{item.quantityOrdered}</TableCell>
                         <TableCell>{item.quantityReceived}</TableCell>
                         <TableCell>
@@ -851,7 +853,7 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell colSpan={5} className="text-right font-semibold">Total Amount</TableCell>
+                      <TableCell colSpan={7} className="text-right font-semibold">Total Amount</TableCell>
                       <TableCell className="font-semibold">₦{selectedGRN.totalAmount.toLocaleString()}</TableCell>
                     </TableRow>
                   </TableBody>
