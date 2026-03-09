@@ -622,13 +622,29 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
             <div className="space-y-4">
               <h4 className="font-semibold">Items Received</h4>
               
-              <div className="grid grid-cols-6 gap-2 items-end">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+                <div className="space-y-1">
+                  <Label className="text-xs">Item Code</Label>
+                  <Input 
+                    placeholder="ITM-XXX"
+                    value={newItem.itemCode || ""}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, itemCode: e.target.value }))}
+                  />
+                </div>
                 <div className="col-span-2 space-y-1">
                   <Label className="text-xs">Item Name *</Label>
                   <Input 
                     placeholder="Item name"
                     value={newItem.name || ""}
                     onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">UOM</Label>
+                  <Input 
+                    placeholder="e.g. PCS"
+                    value={newItem.uom || ""}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, uom: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-1">
