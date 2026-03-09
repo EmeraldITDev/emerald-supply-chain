@@ -12,7 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Package, CheckCircle, Clock, AlertTriangle, Send, FileText, Truck, Receipt, Eye, Download, ArrowRight, Upload } from "lucide-react";
+import { Plus, Package, CheckCircle, Clock, AlertTriangle, Send, FileText, Truck, Receipt, Eye, Download, ArrowRight, Upload, Trash2 } from "lucide-react";
 import type { GRN, GRNItem, CreateGRNData } from "@/types/grn";
 import * as XLSX from "xlsx";
 
