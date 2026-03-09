@@ -113,9 +113,12 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
   };
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [bulkUploadDialogOpen, setBulkUploadDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedGRN, setSelectedGRN] = useState<GRN | null>(null);
   const [activeTab, setActiveTab] = useState("all");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   // Form state for new GRN
   const [newGRN, setNewGRN] = useState<Partial<CreateGRNData>>({
