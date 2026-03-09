@@ -33,77 +33,7 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
         console.error("Failed to parse stored GRNs", e);
       }
     }
-    // Demo data
-    return [
-      {
-        id: "GRN-001",
-        grnNumber: "GRN-2025-0001",
-        poNumber: "PO-2025-001",
-        vendorId: "V001",
-        vendorName: "Steel Works Ltd",
-        receivedDate: "2025-01-10",
-        receivedBy: "Warehouse Manager",
-        inspectedBy: "Quality Inspector",
-        inspectionDate: "2025-01-10",
-        items: [
-          { id: "1", name: "Steel Pipes", quantityOrdered: 100, quantityReceived: 100, unitPrice: 5000, totalAmount: 500000, condition: "Good" },
-          { id: "2", name: "Steel Rods", quantityOrdered: 50, quantityReceived: 48, unitPrice: 3000, totalAmount: 144000, condition: "Partial", remarks: "2 units damaged in transit" },
-        ],
-        totalAmount: 644000,
-        status: "With Finance",
-        warehouseLocation: "Zone A",
-        deliveryNoteNumber: "DN-12345",
-        invoiceNumber: "INV-2025-001",
-        invoiceAmount: 644000,
-        financeReceivedDate: "2025-01-10",
-        createdAt: "2025-01-10T08:00:00Z",
-        updatedAt: "2025-01-10T10:00:00Z",
-      },
-      {
-        id: "GRN-002",
-        grnNumber: "GRN-2025-0002",
-        poNumber: "PO-2025-002",
-        vendorId: "V002",
-        vendorName: "BuildMart",
-        receivedDate: "2025-01-12",
-        receivedBy: "Warehouse Staff",
-        items: [
-          { id: "1", name: "Cement Bags", quantityOrdered: 200, quantityReceived: 200, unitPrice: 4500, totalAmount: 900000, condition: "Good" },
-        ],
-        totalAmount: 900000,
-        status: "Pending Inspection",
-        warehouseLocation: "Zone B",
-        deliveryNoteNumber: "DN-12346",
-        createdAt: "2025-01-12T09:00:00Z",
-        updatedAt: "2025-01-12T09:00:00Z",
-      },
-      {
-        id: "GRN-003",
-        grnNumber: "GRN-2025-0003",
-        poNumber: "PO-2025-003",
-        vendorId: "V003",
-        vendorName: "SafetyFirst Co",
-        receivedDate: "2025-01-14",
-        receivedBy: "Warehouse Manager",
-        inspectedBy: "Quality Inspector",
-        inspectionDate: "2025-01-14",
-        items: [
-          { id: "1", name: "Safety Helmets", quantityOrdered: 50, quantityReceived: 50, unitPrice: 2500, totalAmount: 125000, condition: "Good" },
-          { id: "2", name: "Safety Vests", quantityOrdered: 100, quantityReceived: 100, unitPrice: 1500, totalAmount: 150000, condition: "Good" },
-        ],
-        totalAmount: 275000,
-        status: "Payment Processing",
-        warehouseLocation: "Zone C",
-        deliveryNoteNumber: "DN-12347",
-        invoiceNumber: "INV-2025-003",
-        invoiceAmount: 275000,
-        financeReceivedDate: "2025-01-14",
-        financeProcessedBy: "Finance Manager",
-        paymentStatus: "Approved",
-        createdAt: "2025-01-14T10:00:00Z",
-        updatedAt: "2025-01-14T14:00:00Z",
-      },
-    ];
+    return [];
   });
 
   // Persist GRNs to localStorage
