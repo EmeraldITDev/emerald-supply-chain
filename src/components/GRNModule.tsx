@@ -12,7 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Package, CheckCircle, Clock, AlertTriangle, Send, FileText, Truck, Receipt, Eye, Download, ArrowRight, Upload } from "lucide-react";
+import { Plus, Package, CheckCircle, Clock, AlertTriangle, Send, FileText, Truck, Receipt, Eye, Download, ArrowRight, Upload, Trash2 } from "lucide-react";
 import type { GRN, GRNItem, CreateGRNData } from "@/types/grn";
 import * as XLSX from "xlsx";
 
@@ -28,13 +28,21 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
     const stored = localStorage.getItem("grns");
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Clear old demo data (IDs like GRN-001, GRN-002, GRN-003)
+        const filtered = parsed.filter((g: GRN) => !['GRN-001', 'GRN-002', 'GRN-003'].includes(g.id));
+        if (filtered.length !== parsed.length) {
+          localStorage.setItem("grns", JSON.stringify(filtered));
+        }
+        return filtered;
       } catch (e) {
         console.error("Failed to parse stored GRNs", e);
       }
     }
     return [];
   });
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [grnToDelete, setGrnToDelete] = useState<GRN | null>(null);
 
   // Persist GRNs to localStorage
   const saveGrns = (newGrns: GRN[]) => {
@@ -616,6 +624,19 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
                               Complete
                             </Button>
                           )}
+                          
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              setGrnToDelete(grn);
+                              setDeleteConfirmOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -1014,6 +1035,34 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
           </ScrollArea>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkUploadDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete GRN</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>{grnToDelete?.grnNumber}</strong>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+            <Button 
+              variant="destructive"
+              onClick={() => {
+                if (grnToDelete) {
+                  saveGrns(grns.filter(g => g.id !== grnToDelete.id));
+                  toast({ title: "GRN Deleted", description: `${grnToDelete.grnNumber} has been removed` });
+                  setGrnToDelete(null);
+                  setDeleteConfirmOpen(false);
+                }
+              }}
+            >
+              Delete
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
