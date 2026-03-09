@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Warehouse as WarehouseIcon, Package, AlertCircle, CheckCircle, Plus, MapPin, Receipt as ReceiptIcon } from "lucide-react";
+import { Warehouse as WarehouseIcon, Package, AlertCircle, CheckCircle, Plus, MapPin, Receipt as ReceiptIcon, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
