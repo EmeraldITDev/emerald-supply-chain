@@ -238,15 +238,24 @@ const Warehouse = () => {
               <ReceiptIcon className="h-4 w-4" />
               GRN Management
             </TabsTrigger>
+            <TabsTrigger value="consumption" className="gap-2">
+              <ClipboardList className="h-4 w-4" />
+              Materials Consumption
+            </TabsTrigger>
             <TabsTrigger value="locations">Storage Locations</TabsTrigger>
             <TabsTrigger value="receipts">Legacy Receipts</TabsTrigger>
             <TabsTrigger value="dispatch">Goods Dispatch</TabsTrigger>
             <TabsTrigger value="ehs">EHS Compliance</TabsTrigger>
           </TabsList>
 
-          {/* GRN Module - New Tab */}
+          {/* GRN Module */}
           <TabsContent value="grn" className="space-y-4">
             <GRNModule userRole={user?.role || 'employee'} />
+          </TabsContent>
+
+          {/* Daily Materials Consumption */}
+          <TabsContent value="consumption" className="space-y-4">
+            <DailyMaterialsConsumption />
           </TabsContent>
 
           <TabsContent value="locations" className="space-y-4">

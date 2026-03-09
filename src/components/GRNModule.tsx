@@ -291,6 +291,8 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
       id: String(Date.now()),
       name: newItem.name,
       description: newItem.description,
+      itemCode: newItem.itemCode,
+      uom: newItem.uom,
       quantityOrdered: newItem.quantityOrdered,
       quantityReceived: newItem.quantityReceived || newItem.quantityOrdered,
       unitPrice: newItem.unitPrice,
