@@ -529,16 +529,33 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
       </div>
 
       {/* Actions */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-3">
         <div>
           <h3 className="text-lg font-semibold">Goods Received Notes</h3>
           <p className="text-sm text-muted-foreground">Track goods receipt and payment processing</p>
         </div>
         {canViewWarehouseActions && (
-          <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New GRN
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={handleDownloadTemplate} className="gap-2">
+              <Download className="h-4 w-4" />
+              Download Template
+            </Button>
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="gap-2">
+              <Upload className="h-4 w-4" />
+              Bulk Upload
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={handleBulkUpload}
+            />
+            <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New GRN
+            </Button>
+          </div>
         )}
       </div>
 
