@@ -1038,6 +1038,34 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete GRN</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>{grnToDelete?.grnNumber}</strong>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+            <Button 
+              variant="destructive"
+              onClick={() => {
+                if (grnToDelete) {
+                  saveGrns(grns.filter(g => g.id !== grnToDelete.id));
+                  toast({ title: "GRN Deleted", description: `${grnToDelete.grnNumber} has been removed` });
+                  setGrnToDelete(null);
+                  setDeleteConfirmOpen(false);
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
