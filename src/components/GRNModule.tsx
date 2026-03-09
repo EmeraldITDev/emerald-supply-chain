@@ -1064,6 +1064,29 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Upload Errors Dialog */}
+      <Dialog open={bulkUploadDialogOpen} onOpenChange={setBulkUploadDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Upload Issues</DialogTitle>
+            <DialogDescription>The following issues were found during upload</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[300px]">
+            <div className="space-y-2">
+              {uploadErrors.map((error, idx) => (
+                <div key={idx} className="flex items-start gap-2 text-sm p-2 rounded bg-destructive/10 text-destructive">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkUploadDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
