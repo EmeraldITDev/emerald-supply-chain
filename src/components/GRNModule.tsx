@@ -28,13 +28,21 @@ export const GRNModule = ({ userRole }: GRNModuleProps) => {
     const stored = localStorage.getItem("grns");
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Clear old demo data (IDs like GRN-001, GRN-002, GRN-003)
+        const filtered = parsed.filter((g: GRN) => !['GRN-001', 'GRN-002', 'GRN-003'].includes(g.id));
+        if (filtered.length !== parsed.length) {
+          localStorage.setItem("grns", JSON.stringify(filtered));
+        }
+        return filtered;
       } catch (e) {
         console.error("Failed to parse stored GRNs", e);
       }
     }
     return [];
   });
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [grnToDelete, setGrnToDelete] = useState<GRN | null>(null);
 
   // Persist GRNs to localStorage
   const saveGrns = (newGrns: GRN[]) => {
