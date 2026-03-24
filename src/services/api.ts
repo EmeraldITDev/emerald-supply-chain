@@ -1919,7 +1919,25 @@ export const vendorApi = {
   },
 
   getRegistrations: async (): Promise<ApiResponse<VendorRegistration[]>> => {
-    return apiRequest<VendorRegistration[]>('/vendors/registrations');
+    const response = await apiRequest<any[]>('/vendors/registrations');
+    if (response.success && response.data) {
+      // Map snake_case backend fields to camelCase frontend interface
+      response.data = response.data.map((reg: any) => ({
+        id: reg.id,
+        companyName: reg.companyName || reg.company_name || '',
+        category: reg.category || '',
+        email: reg.email || '',
+        phone: reg.phone || '',
+        address: reg.address || '',
+        taxId: reg.taxId || reg.tax_id || '',
+        contactPerson: reg.contactPerson || reg.contact_person || '',
+        status: reg.status || 'Pending',
+        submittedDate: reg.submittedDate || reg.submitted_date || reg.createdAt || reg.created_at || '',
+        createdAt: reg.createdAt || reg.created_at || '',
+        documents: reg.documents || [],
+      })) as VendorRegistration[];
+    }
+    return response as ApiResponse<VendorRegistration[]>;
   },
 
   getRegistration: async (id: string): Promise<ApiResponse<VendorRegistration>> => {
