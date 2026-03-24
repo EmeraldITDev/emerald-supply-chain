@@ -8,7 +8,7 @@ export interface EmailNotification {
   html?: string;
   attachments?: Array<{
     filename: string;
-    content: string | Buffer;
+    content: string | Uint8Array;
   }>;
 }
 
