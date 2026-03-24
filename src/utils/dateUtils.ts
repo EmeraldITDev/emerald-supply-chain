@@ -160,8 +160,15 @@ export const formatRelativeTime = (dateString: string | null | undefined): strin
     );
 
     // Use date-fns formatDistanceToNow
-    const { formatDistanceToNow } = require('date-fns');
-    return formatDistanceToNow(lagosDate, { addSuffix: true });
+    const now = new Date();
+    const diffMs = now.getTime() - lagosDate.getTime();
+    const diffMins = Math.round(diffMs / 60000);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+    const diffHours = Math.round(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    const diffDays = Math.round(diffHours / 24);
+    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
   } catch (error) {
     console.error('Error formatting relative time:', dateString, error);
     return 'Invalid Date';
