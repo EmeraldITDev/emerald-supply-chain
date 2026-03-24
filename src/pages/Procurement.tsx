@@ -416,24 +416,16 @@ const Procurement = () => {
     if (vendorFilter) setTab("po");
   }, [vendorFilter]);
 
-  // Fetch vendor registrations from the dashboard API (same source as Dashboard)
+  // Fetch vendor registrations directly so both procurement and procurement managers can review them
   useEffect(() => {
     const fetchVendorRegistrations = async () => {
       setVendorRegistrationsLoading(true);
       try {
-        const response = await dashboardApi.getProcurementManagerDashboard();
-        if (response.success && response.data?.pendingRegistrations) {
-          // Map the dashboard data to VendorRegistration format
-          const registrations = response.data.pendingRegistrations.map((reg: any) => ({
-            id: reg.id,
-            companyName: reg.companyName,
-            email: reg.email,
-            category: reg.category,
-            status: "Pending" as const,
-            submittedDate: reg.createdAt,
-            contactPerson: reg.contactPerson,
-          }));
-          setVendorRegistrations(registrations);
+        const response = await vendorApi.getRegistrations();
+        if (response.success && response.data) {
+          setVendorRegistrations(
+            response.data.filter((reg) => reg.status === "Pending" || reg.status === "Under Review")
+          );
         }
       } catch (error) {
         toast({

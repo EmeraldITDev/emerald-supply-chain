@@ -325,42 +325,40 @@ const Vendors = () => {
     setContactDialogOpen(true);
   };
 
-  // Fetch vendor registrations and dashboard stats from API (same source as Dashboard)
+  // Fetch vendor registrations directly so both procurement and procurement managers can access them
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchVendorData = async () => {
       setLoadingRegistrations(true);
       setLoadingStats(true);
       try {
-        const response = await dashboardApi.getProcurementManagerDashboard();
-        if (response.success && response.data) {
-          // Map pending registrations to VendorRegistration format
-          if (response.data.pendingRegistrations) {
-            const registrations = response.data.pendingRegistrations.map((reg: any) => ({
-              id: reg.id,
-              companyName: reg.companyName,
-              email: reg.email,
-              category: reg.category,
-              status: "Pending" as const,
-              submittedDate: reg.createdAt,
-              contactPerson: reg.contactPerson,
-            }));
-            setVendorRegistrations(registrations);
-          }
-          
-          // Set dashboard stats from API (nested under 'stats' object)
-          const stats = response.data.stats;
+        const [registrationsResponse, dashboardResponse] = await Promise.all([
+          vendorApi.getRegistrations(),
+          dashboardApi.getProcurementManagerDashboard(),
+        ]);
+
+        if (registrationsResponse.success && registrationsResponse.data) {
+          setVendorRegistrations(registrationsResponse.data);
+        }
+
+        if (dashboardResponse.success && dashboardResponse.data) {
+          const stats = dashboardResponse.data.stats;
           setDashboardStats({
             totalVendors: stats?.totalVendors || 0,
-            activeVendors: stats?.totalVendors || 0, // Use totalVendors as active count
-            pendingRegistrations: stats?.pendingKYC || response.data.pendingRegistrations?.length || 0,
+            activeVendors: stats?.totalVendors || 0,
+            pendingRegistrations: stats?.pendingKYC || dashboardResponse.data.pendingRegistrations?.length || registrationsResponse.data?.length || 0,
             avgRating: stats?.avgRating || 0,
             onTimeDelivery: stats?.onTimeDelivery || 0,
           });
+        } else {
+          setDashboardStats((prev) => ({
+            ...prev,
+            pendingRegistrations: registrationsResponse.data?.filter((reg) => reg.status === "Pending" || reg.status === "Under Review").length || 0,
+          }));
         }
       } catch (error) {
         toast({
           title: "Error",
-          description: "Failed to load vendor data",
+          description: "Failed to load vendor registrations",
           variant: "destructive",
         });
       } finally {
@@ -369,7 +367,7 @@ const Vendors = () => {
       }
     };
 
-    fetchDashboardData();
+    fetchVendorData();
   }, [toast]);
 
   // Fetch approved vendors
