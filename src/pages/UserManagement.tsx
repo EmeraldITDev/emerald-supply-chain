@@ -58,7 +58,7 @@ const UserManagement = () => {
   });
 
   // Check if user can manage users
-  const canManageUsers = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain'].includes(user?.role || '');
+  const canManageUsers = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain', 'chairman', 'admin'].includes(user?.role || '');
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
