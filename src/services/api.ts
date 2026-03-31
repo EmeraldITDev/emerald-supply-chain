@@ -1941,7 +1941,36 @@ export const vendorApi = {
   },
 
   getRegistration: async (id: string): Promise<ApiResponse<VendorRegistration>> => {
-    return apiRequest<VendorRegistration>(`/vendors/registrations/${id}`);
+    const response = await apiRequest<any>(`/vendors/registrations/${id}`);
+    if (response.success && response.data) {
+      const reg = response.data;
+      // Normalize snake_case to camelCase
+      response.data = {
+        ...reg,
+        companyName: reg.companyName || reg.company_name || '',
+        category: reg.category || '',
+        email: reg.email || '',
+        phone: reg.phone || '',
+        address: reg.address || '',
+        taxId: reg.taxId || reg.tax_id || '',
+        contactPerson: reg.contactPerson || reg.contact_person || '',
+        contactPersonTitle: reg.contactPersonTitle || reg.contact_person_title || '',
+        status: reg.status || 'Pending',
+        submittedDate: reg.submittedDate || reg.submitted_date || reg.createdAt || reg.created_at || '',
+        createdAt: reg.createdAt || reg.created_at || '',
+        documents: (reg.documents || []).map((doc: any) => ({
+          ...doc,
+          id: doc.id || doc.document_id,
+          type: doc.type || doc.document_type || 'OTHER',
+          fileName: doc.fileName || doc.file_name || doc.original_name || doc.name || 'document',
+          name: doc.name || doc.original_name || doc.fileName || doc.file_name || 'document',
+          fileSize: doc.fileSize || doc.file_size || doc.size || 0,
+          fileUrl: doc.fileUrl || doc.file_url || doc.url || '',
+          expiryDate: doc.expiryDate || doc.expiry_date || null,
+        })),
+      } as VendorRegistration;
+    }
+    return response as ApiResponse<VendorRegistration>;
   },
 
   approveRegistration: async (id: string): Promise<ApiResponse<{ vendor: Vendor; temporaryPassword: string }>> => {

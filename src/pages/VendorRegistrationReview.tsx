@@ -235,8 +235,7 @@ const VendorRegistrationReview = () => {
     }
   };
 
-  const handleDownloadDocument = (document: VendorDocument) => {
-    // Support multiple property names from backend (camelCase and snake_case)
+  const handleDownloadDocument = async (document: VendorDocument) => {
     const doc = document as any;
     
     // Priority: Check for direct S3 URL first (fileUrl, file_url, url)
@@ -259,16 +258,48 @@ const VendorRegistrationReview = () => {
       return;
     }
     
-    // Option 2: Use API download endpoint with registrationId and documentId
+    // Option 2: Use API download endpoint with auth token
     if (id && documentId) {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com';
-      const downloadEndpoint = `${apiBase}/api/vendors/registrations/${id}/documents/${documentId}/download`;
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
+      const baseUrl = apiBase.endsWith('/api') ? apiBase : `${apiBase.replace(/\/$/, '')}/api`;
+      const downloadEndpoint = `${baseUrl}/vendors/registrations/${id}/documents/${documentId}/download`;
+      
       console.log('Using API download endpoint:', downloadEndpoint);
-      window.open(downloadEndpoint, '_blank');
-      toast({
-        title: "Opening Document",
-        description: `Opening ${fileName}...`,
-      });
+      
+      try {
+        const response = await fetch(downloadEndpoint, {
+          headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const link = window.document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          link.click();
+          URL.revokeObjectURL(url);
+          toast({
+            title: "Downloading",
+            description: `Downloading ${fileName}...`,
+          });
+        } else {
+          // If authenticated download fails, try opening in new tab (may trigger browser download)
+          console.warn('Authenticated download failed, trying direct open');
+          window.open(downloadEndpoint, '_blank');
+          toast({
+            title: "Opening Document",
+            description: `Attempting to open ${fileName}...`,
+          });
+        }
+      } catch (error) {
+        console.error('Download error:', error);
+        // Fallback to direct URL open
+        window.open(downloadEndpoint, '_blank');
+      }
       return;
     }
     
