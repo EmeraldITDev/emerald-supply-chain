@@ -355,7 +355,14 @@ export const ReportingCompliance = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {/* Report Generator Dialog */}
+      <LogisticsReportGenerator
+        open={reportGeneratorOpen}
+        onOpenChange={setReportGeneratorOpen}
+      />
 
       {/* Overdue Reports Alert */}
       {overdueReports.length > 0 && (

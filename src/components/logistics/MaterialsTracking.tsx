@@ -803,6 +803,60 @@ export const MaterialsTracking = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* CSV Import with Preview */}
+      <CSVImportPreview
+        open={csvImportOpen}
+        onOpenChange={setCsvImportOpen}
+        title="Import Materials from CSV"
+        description="Upload a CSV file with materials data. Preview and verify before importing."
+        columns={[
+          { key: "name", label: "Name", required: true },
+          { key: "category", label: "Category", required: true },
+          { key: "quantity", label: "Quantity", required: true },
+          { key: "unit", label: "Unit" },
+          { key: "condition", label: "Condition" },
+          { key: "location", label: "Location" },
+          { key: "description", label: "Description" },
+        ] as CSVColumn[]}
+        onConfirmImport={async (data) => {
+          let successCount = 0;
+          let failCount = 0;
+          for (const row of data) {
+            try {
+              const payload = {
+                name: row.name,
+                category: row.category,
+                quantity: parseInt(row.quantity) || 0,
+                unit: row.unit || "units",
+                condition: row.condition || "new",
+                status: "available",
+                current_location: row.location || "",
+                description: row.description || "",
+              };
+              const res = await materialsApi.create(payload as any);
+              if (res.success) successCount++;
+              else failCount++;
+            } catch {
+              failCount++;
+            }
+          }
+          fetchMaterials();
+          if (failCount > 0) {
+            throw new Error(`${successCount} imported, ${failCount} failed`);
+          }
+        }}
+        onDownloadTemplate={() => {
+          const csv = "name,category,quantity,unit,condition,location,description\nLaptop,Electronics,10,units,new,Main Warehouse,Dell Latitude Laptops";
+          const blob = new Blob([csv], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "materials_import_template.csv";
+          a.click();
+          URL.revokeObjectURL(url);
+        }}
+      />
     </div>
   );
 };
