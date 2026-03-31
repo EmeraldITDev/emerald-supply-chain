@@ -126,6 +126,7 @@ export const MaterialsTracking = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [materialToDelete, setMaterialToDelete] = useState<Material | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
 
   // Categories for filter
   const categories = ["Equipment", "Supplies", "Tools", "Parts", "Electronics", "Furniture"];
