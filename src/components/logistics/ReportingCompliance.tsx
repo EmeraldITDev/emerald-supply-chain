@@ -50,6 +50,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { reportsApi } from "@/services/logisticsApi";
 import type { LogisticsReport, PendingReport, ReportStatus, ReportType, CreateReportData } from "@/types/logistics";
+import { LogisticsReportGenerator } from "./LogisticsReportGenerator";
 
 const statusColors: Record<ReportStatus, string> = {
   draft: "bg-muted text-muted-foreground",
