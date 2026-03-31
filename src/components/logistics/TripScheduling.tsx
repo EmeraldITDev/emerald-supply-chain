@@ -131,6 +131,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadResult, setUploadResult] = useState<BulkTripUploadResult | null>(null);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
   
   // Staff and vendor lists from API
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
