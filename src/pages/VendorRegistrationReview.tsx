@@ -243,13 +243,16 @@ const VendorRegistrationReview = () => {
     const fileName = doc.fileName || doc.file_name || doc.name || doc.original_name || doc.originalName || 'document';
     const documentId = doc.id || doc.document_id;
     
-    console.log('Document object:', doc);
-    console.log('Direct URL found:', directUrl);
-    console.log('Document ID:', documentId);
-    console.log('Registration ID:', id);
+    console.log('Document download initiated:', {
+      documentId,
+      fileName,
+      hasDirectUrl: !!directUrl,
+      registrationId: id,
+    });
     
     // Option 1: Use direct S3 URL if available (preferred for performance)
     if (directUrl && (directUrl.startsWith('http://') || directUrl.startsWith('https://'))) {
+      console.log('Using direct S3 URL for download');
       window.open(directUrl, '_blank');
       toast({
         title: "Opening Document",
@@ -260,70 +263,42 @@ const VendorRegistrationReview = () => {
     
     // Option 2: Use API download endpoint with auth token
     if (id && documentId) {
-      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
-      const baseUrl = apiBase.endsWith('/api') ? apiBase : `${apiBase.replace(/\/$/, '')}/api`;
-      const downloadEndpoint = `${baseUrl}/vendors/registrations/${id}/documents/${documentId}/download`;
-      
-      console.log('Using API download endpoint:', downloadEndpoint);
+      console.log('Using API download endpoint for document:', documentId);
       
       try {
-        const response = await fetch(downloadEndpoint, {
-          headers: {
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          },
-        });
+        const response = await vendorApi.downloadDocument(id, documentId);
         
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          const link = window.document.createElement('a');
-          link.href = url;
-          link.download = fileName;
-          link.click();
-          URL.revokeObjectURL(url);
+        if (response.success) {
           toast({
-            title: "Downloading",
-            description: `Downloading ${fileName}...`,
+            title: "Success",
+            description: "Document downloaded successfully",
           });
         } else {
-          // If authenticated download fails, try opening in new tab (may trigger browser download)
-          console.warn('Authenticated download failed, trying direct open');
-          window.open(downloadEndpoint, '_blank');
           toast({
-            title: "Opening Document",
-            description: `Attempting to open ${fileName}...`,
+            title: "Download Failed",
+            description: response.error || "Unable to download document",
+            variant: "destructive",
           });
+          console.error('Download failed:', response.error);
         }
       } catch (error) {
         console.error('Download error:', error);
-        // Fallback to direct URL open
-        window.open(downloadEndpoint, '_blank');
+        toast({
+          title: "Error",
+          description: "An error occurred while downloading the document",
+          variant: "destructive",
+        });
       }
       return;
     }
     
-    // Option 3: Handle base64 data URLs (legacy)
-    const dataUrl = doc.fileData;
-    if (dataUrl && dataUrl.startsWith('data:')) {
-      const link = window.document.createElement("a");
-      link.href = dataUrl;
-      link.download = fileName;
-      link.click();
-      toast({
-        title: "Downloading",
-        description: `Downloading ${fileName}...`,
-      });
-      return;
-    }
-    
-    // No valid download method found
-    console.error('No download URL found in document:', doc);
+    // Fallback: Show error if no download method available
     toast({
-      title: "Download Error",
-      description: "Document URL not available. The document may not have been uploaded to storage yet.",
+      title: "Error",
+      description: "Unable to download document - no document ID or direct URL found",
       variant: "destructive",
     });
+    console.error('No download method available:', { documentId, directUrl, registrationId: id });
   };
 
   const getStatusBadge = (status: string) => {

@@ -2027,6 +2027,98 @@ export const vendorApi = {
       body: JSON.stringify(data),
     });
   },
+
+  // Download vendor registration document
+  downloadDocument: async (registrationId: string, documentId: string): Promise<{ success: boolean; error?: string }> => {
+    const { token, expired } = getAuthToken();
+    
+    if (expired || !token) {
+      return {
+        success: false,
+        error: 'Authentication token has expired. Please log in again.',
+      };
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/vendors/registrations/${registrationId}/documents/${documentId}/download`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('tokenExpiry');
+        localStorage.removeItem('isAuthenticated');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('userData');
+        sessionStorage.removeItem('tokenExpiry');
+        sessionStorage.removeItem('isAuthenticated');
+        
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/auth')) {
+          window.location.href = '/auth';
+        }
+        
+        return {
+          success: false,
+          error: 'Authentication failed. Please log in again.',
+        };
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `Failed to download document (Status: ${response.status})`;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          // Use default error message if JSON parsing fails
+        }
+        
+        console.warn('Document download error:', { status: response.status, errorMessage });
+        return {
+          success: false,
+          error: errorMessage,
+        };
+      }
+
+      // Get the filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `document-${documentId}`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
+
+      // Get the blob and create download link
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Document download error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error - unable to download document',
+      };
+    }
+  },
 };
 
 // Vendor Authentication API (separate from internal user auth)

@@ -152,12 +152,25 @@ const UserManagement = () => {
           updateData.can_manage_users = formData.can_manage_users;
         }
 
+        // Log the update request for debugging role assignment issues
+        console.log("Updating user with data:", { ...updateData, password: updateData.password ? '***' : undefined });
+
         const response = await userApi.update(selectedUser.id, updateData);
         if (response.success) {
-          toast({
-            title: "Success",
-            description: "User updated successfully",
-          });
+          // Verify role was set correctly
+          if (response.data && response.data.role && response.data.role !== formData.role) {
+            console.warn(`⚠️ Role mismatch: Sent ${formData.role}, backend returned ${response.data.role}`);
+            toast({
+              title: "Warning",
+              description: `User updated, but role may not have been set correctly. Sent: ${formData.role}, Returned: ${response.data.role}`,
+              variant: "default",
+            });
+          } else {
+            toast({
+              title: "Success",
+              description: "User updated successfully",
+            });
+          }
           setDialogOpen(false);
           fetchUsers();
         } else {
@@ -184,12 +197,25 @@ const UserManagement = () => {
           createData.can_manage_users = formData.can_manage_users;
         }
 
+        // Log the create request for debugging role assignment issues
+        console.log("Creating user with data:", { ...createData, password: '***' });
+
         const response = await userApi.create(createData);
         if (response.success) {
-          toast({
-            title: "Success",
-            description: "User created successfully",
-          });
+          // Verify role was set correctly
+          if (response.data && response.data.role && response.data.role !== formData.role) {
+            console.warn(`⚠️ Role mismatch: Sent ${formData.role}, backend returned ${response.data.role}`);
+            toast({
+              title: "Warning",
+              description: `User created, but role may not have been set correctly. Sent: ${formData.role}, Returned: ${response.data.role}`,
+              variant: "default",
+            });
+          } else {
+            toast({
+              title: "Success",
+              description: `User created successfully with role: ${formData.role}`,
+            });
+          }
           setDialogOpen(false);
           fetchUsers();
         } else {
@@ -201,6 +227,7 @@ const UserManagement = () => {
         }
       }
     } catch (error) {
+      console.error("User management error:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred",
