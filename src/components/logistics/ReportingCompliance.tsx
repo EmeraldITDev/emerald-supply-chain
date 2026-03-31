@@ -90,6 +90,7 @@ export const ReportingCompliance = () => {
   });
   const [reportFile, setReportFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reportGeneratorOpen, setReportGeneratorOpen] = useState(false);
 
   // Fetch reports from API
   const fetchData = async () => {
