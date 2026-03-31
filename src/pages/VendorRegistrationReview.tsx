@@ -319,7 +319,7 @@ const VendorRegistrationReview = () => {
 
     try {
       // ✅ PATH 1: Direct URL available (OneDrive, S3 Public)
-      if (directUrl && (directUrl.startsWith('http://') || directUrl.startsWith('https://'))) {
+      if (directUrl && typeof directUrl === 'string' && (directUrl.startsWith('http://') || directUrl.startsWith('https://'))) {
         console.log('Using direct S3 URL for download');
         window.open(directUrl, '_blank');
         toast({
@@ -328,7 +328,7 @@ const VendorRegistrationReview = () => {
         });
       } 
       // ✅ PATH 2: Use API download endpoint with auth token
-      else if (id && documentId) {
+      else if (id && documentId && typeof documentId === 'string') {
         console.log('Using API download endpoint for document:', documentId);
 
         try {
@@ -477,7 +477,7 @@ const VendorRegistrationReview = () => {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Category</Label>
-                  <p className="font-medium">{registration?.category || enhancedReg?.categories?.join(", ") || "N/A"}</p>
+                  <p className="font-medium">{registration?.category || (Array.isArray(enhancedReg?.categories) ? enhancedReg.categories.join(", ") : "N/A")}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Tax ID</Label>
@@ -487,7 +487,7 @@ const VendorRegistrationReview = () => {
                   <div>
                     <Label className="text-muted-foreground">Year Established</Label>
                     <p className="font-medium flex items-center gap-1">
-                      <Calendar className="h-4 w-4" /> {enhancedReg.yearEstablished}
+                      <Calendar className="h-4 w-4" /> {String(enhancedReg.yearEstablished)}
                     </p>
                   </div>
                 )}
@@ -495,7 +495,7 @@ const VendorRegistrationReview = () => {
                   <div>
                     <Label className="text-muted-foreground">Number of Employees</Label>
                     <p className="font-medium flex items-center gap-1">
-                      <Users className="h-4 w-4" /> {enhancedReg.numberOfEmployees}
+                      <Users className="h-4 w-4" /> {String(enhancedReg.numberOfEmployees)}
                     </p>
                   </div>
                 )}
@@ -503,7 +503,7 @@ const VendorRegistrationReview = () => {
                   <div>
                     <Label className="text-muted-foreground">Annual Revenue</Label>
                     <p className="font-medium flex items-center gap-1">
-                      <DollarSign className="h-4 w-4" /> {enhancedReg.annualRevenue}
+                      <DollarSign className="h-4 w-4" /> {String(enhancedReg.annualRevenue)}
                     </p>
                   </div>
                 )}
@@ -512,8 +512,8 @@ const VendorRegistrationReview = () => {
                     <Label className="text-muted-foreground">Website</Label>
                     <p className="font-medium flex items-center gap-1">
                       <Globe className="h-4 w-4" />
-                      <a href={enhancedReg.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                        {enhancedReg.website}
+                      <a href={String(enhancedReg.website)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                        {String(enhancedReg.website)}
                       </a>
                     </p>
                   </div>
@@ -537,7 +537,7 @@ const VendorRegistrationReview = () => {
                 {enhancedReg?.contactPersonTitle && (
                   <div>
                     <Label className="text-muted-foreground">Title</Label>
-                    <p className="font-medium">{enhancedReg.contactPersonTitle}</p>
+                    <p className="font-medium">{String(enhancedReg.contactPersonTitle)}</p>
                   </div>
                 )}
                 <div>
@@ -556,7 +556,7 @@ const VendorRegistrationReview = () => {
                   <div>
                     <Label className="text-muted-foreground">Alternate Phone</Label>
                     <p className="font-medium flex items-center gap-1">
-                      <Phone className="h-4 w-4" /> {enhancedReg.alternatePhone}
+                      <Phone className="h-4 w-4" /> {String(enhancedReg.alternatePhone)}
                     </p>
                   </div>
                 )}
@@ -594,45 +594,95 @@ const VendorRegistrationReview = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {documents.map((doc, index) => (
-                      <div
-                        key={doc.id || index}
-                        className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <FileText className="h-8 w-8 text-primary shrink-0" />
-                          <div className="min-w-0">
-                            <p className="font-medium truncate">{getDocumentLabel(doc.type)}</p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {doc.fileName || doc.name} • {formatFileSize(doc.fileSize)}
-                            </p>
-                            {doc.expiryDate && (
-                              <p className="text-xs text-warning flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                Expires: {new Date(doc.expiryDate).toLocaleDateString()}
+                    {/* Render each document */}
+                    {documents.map((doc, index) => {
+                      const expired = isDocumentExpired(doc);
+                      const expiringSoon = isDocumentExpiringsooon(doc, 30) && !expired;
+                      
+                      return (
+                        <div
+                          key={doc.id || index}
+                          className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                            expired 
+                              ? 'bg-destructive/5 border-destructive/20' 
+                              : expiringSoon 
+                              ? 'bg-warning/5 border-warning/20' 
+                              : 'bg-card hover:bg-muted/50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <FileText className={`h-8 w-8 shrink-0 ${expired ? 'text-destructive' : expiringSoon ? 'text-warning' : 'text-primary'}`} />
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{getDocumentLabel(doc.type)}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {doc.fileName || doc.name} • {formatFileSize(doc.fileSize)}
                               </p>
-                            )}
+                              {doc.expiryDate && (
+                                <>
+                                  <div className={`text-xs flex items-center gap-1 mt-1 font-semibold ${getExpiryStatusColor(doc)}`}>
+                                    <Clock className="h-3 w-3" />
+                                    {getExpiryStatusLabel(doc)}
+                                  </div>
+                                  {expired && (
+                                    <p className="text-xs text-destructive mt-1 font-medium">
+                                      📝 This document needs to be renewed
+                                    </p>
+                                  )}
+                                </>
+                              )}
+                            </div>
                           </div>
+                          
+                          {/* Download button */}
+                          {((doc as unknown as Record<string, unknown>).file_share_url || (doc as unknown as Record<string, unknown>).fileShareUrl) ? (
+                            <OneDriveLink
+                              webUrl={(doc as unknown as Record<string, unknown>).file_share_url as string || (doc as unknown as Record<string, unknown>).fileShareUrl as string}
+                              fileName={doc.fileName || doc.name}
+                              variant="button"
+                              size="sm"
+                            />
+                          ) : (
+                            <Button
+                              variant={expired ? "destructive" : "outline"}
+                              size="sm"
+                              onClick={() => handleDownloadDocument(doc)}
+                              disabled={expired}
+                              title={expired ? "This document has expired and cannot be downloaded" : "Download document"}
+                              className="shrink-0"
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              {expired ? "Expired" : "Download"}
+                            </Button>
+                          )}
                         </div>
-                        {((doc as unknown as Record<string, unknown>).file_share_url || (doc as unknown as Record<string, unknown>).fileShareUrl) ? (
-                          <OneDriveLink
-                            webUrl={(doc as unknown as Record<string, unknown>).file_share_url as string || (doc as unknown as Record<string, unknown>).fileShareUrl as string}
-                            fileName={doc.fileName || doc.name}
-                            variant="button"
-                            size="sm"
-                          />
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadDocument(doc)}
-                          >
-                            <Download className="h-4 w-4 mr-1" />
-                            Download
-                          </Button>
-                        )}
+                      );
+                    })}
+                    
+                    {/* ⏸️ EXPIRED DOCUMENTS WARNING */}
+                    {documents.some(d => isDocumentExpired(d)) && (
+                      <div className="mt-4 p-3 bg-destructive/5 border border-destructive/20 rounded-lg animate-pulse">
+                        <p className="text-sm text-destructive font-semibold flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 shrink-0" />
+                          <span>
+                            {documents.filter(d => isDocumentExpired(d)).length} document{documents.filter(d => isDocumentExpired(d)).length !== 1 ? 's' : ''} 
+                            {' '}expired and need{documents.filter(d => isDocumentExpired(d)).length !== 1 ? '' : 's'} renewal
+                          </span>
+                        </p>
                       </div>
-                    ))}
+                    )}
+                    
+                    {/* ⚠️ EXPIRING SOON WARNING */}
+                    {documents.some(d => isDocumentExpiringsooon(d, 30) && !isDocumentExpired(d)) && (
+                      <div className="mt-2 p-3 bg-warning/5 border border-warning/20 rounded-lg">
+                        <p className="text-sm text-warning font-semibold flex items-center gap-2">
+                          <Clock className="h-4 w-4 shrink-0" />
+                          <span>
+                            {documents.filter(d => isDocumentExpiringsooon(d, 30) && !isDocumentExpired(d)).length} document{documents.filter(d => isDocumentExpiringsooon(d, 30) && !isDocumentExpired(d)).length !== 1 ? 's' : ''} 
+                            {' '}will expire within 30 days
+                          </span>
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -665,12 +715,12 @@ const VendorRegistrationReview = () => {
                     <Separator />
                     <div>
                       <Label className="text-muted-foreground">Reviewed Date</Label>
-                      <p className="font-medium">{new Date(enhancedReg.reviewedDate).toLocaleDateString()}</p>
+                      <p className="font-medium">{new Date(String(enhancedReg.reviewedDate)).toLocaleDateString()}</p>
                     </div>
                     {enhancedReg.reviewedBy && (
                       <div>
                         <Label className="text-muted-foreground">Reviewed By</Label>
-                        <p className="font-medium">{enhancedReg.reviewedBy}</p>
+                        <p className="font-medium">{String(enhancedReg.reviewedBy)}</p>
                       </div>
                     )}
                   </>
@@ -678,7 +728,7 @@ const VendorRegistrationReview = () => {
                 {enhancedReg.reviewNotes && (
                   <div>
                     <Label className="text-muted-foreground">Review Notes</Label>
-                    <p className="text-sm">{enhancedReg.reviewNotes}</p>
+                    <p className="text-sm">{String(enhancedReg.reviewNotes)}</p>
                   </div>
                 )}
               </CardContent>
@@ -770,115 +820,3 @@ const VendorRegistrationReview = () => {
 };
 
 export default VendorRegistrationReview;
-
-<Card>
-  <CardHeader>
-    <CardTitle className="flex items-center gap-2">
-      <FileText className="h-5 w-5" />
-      Uploaded Documents
-    </CardTitle>
-    <CardDescription>
-      {documents.length} document{documents.length !== 1 ? "s" : ""} uploaded
-    </CardDescription>
-  </CardHeader>
-  <CardContent>
-    {documents.length === 0 ? (
-      <div className="text-center py-8 text-muted-foreground">
-        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>No documents uploaded</p>
-      </div>
-    ) : (
-      <div className="space-y-3">
-        {/* Render each document */}
-        {documents.map((doc, index) => {
-          const expired = isDocumentExpired(doc);
-          const expiringSoon = isDocumentExpiringsooon(doc, 30) && !expired;
-          
-          return (
-            <div
-              key={doc.id || index}
-              className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                expired 
-                  ? 'bg-destructive/5 border-destructive/20' 
-                  : expiringSoon 
-                  ? 'bg-warning/5 border-warning/20' 
-                  : 'bg-card hover:bg-muted/50'
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <FileText className={`h-8 w-8 shrink-0 ${expired ? 'text-destructive' : expiringSoon ? 'text-warning' : 'text-primary'}`} />
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{getDocumentLabel(doc.type)}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {doc.fileName || doc.name} • {formatFileSize(doc.fileSize)}
-                  </p>
-                  {doc.expiryDate && (
-                    <>
-                      <div className={`text-xs flex items-center gap-1 mt-1 font-semibold ${getExpiryStatusColor(doc)}`}>
-                        <Clock className="h-3 w-3" />
-                        {getExpiryStatusLabel(doc)}
-                      </div>
-                      {expired && (
-                        <p className="text-xs text-destructive mt-1 font-medium">
-                          📝 This document needs to be renewed
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-              
-              {/* Download button */}
-              {((doc as unknown as Record<string, unknown>).file_share_url || (doc as unknown as Record<string, unknown>).fileShareUrl) ? (
-                <OneDriveLink
-                  webUrl={(doc as unknown as Record<string, unknown>).file_share_url as string || (doc as unknown as Record<string, unknown>).fileShareUrl as string}
-                  fileName={doc.fileName || doc.name}
-                  variant="button"
-                  size="sm"
-                />
-              ) : (
-                <Button
-                  variant={expired ? "destructive" : "outline"}
-                  size="sm"
-                  onClick={() => handleDownloadDocument(doc)}
-                  disabled={expired}
-                  title={expired ? "This document has expired and cannot be downloaded" : "Download document"}
-                  className="shrink-0"
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  {expired ? "Expired" : "Download"}
-                </Button>
-              )}
-            </div>
-          );
-        })}
-        
-        {/* ⏸️ EXPIRED DOCUMENTS WARNING */}
-        {documents.some(d => isDocumentExpired(d)) && (
-          <div className="mt-4 p-3 bg-destructive/5 border border-destructive/20 rounded-lg animate-pulse">
-            <p className="text-sm text-destructive font-semibold flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>
-                {documents.filter(d => isDocumentExpired(d)).length} document{documents.filter(d => isDocumentExpired(d)).length !== 1 ? 's' : ''} 
-                {' '}expired and need{documents.filter(d => isDocumentExpired(d)).length !== 1 ? '' : 's'} renewal
-              </span>
-            </p>
-          </div>
-        )}
-        
-        {/* ⚠️ EXPIRING SOON WARNING */}
-        {documents.some(d => isDocumentExpiringsooon(d, 30) && !isDocumentExpired(d)) && (
-          <div className="mt-2 p-3 bg-warning/5 border border-warning/20 rounded-lg">
-            <p className="text-sm text-warning font-semibold flex items-center gap-2">
-              <Clock className="h-4 w-4 shrink-0" />
-              <span>
-                {documents.filter(d => isDocumentExpiringsooon(d, 30) && !isDocumentExpired(d)).length} document{documents.filter(d => isDocumentExpiringsooon(d, 30) && !isDocumentExpired(d)).length !== 1 ? 's' : ''} 
-                {' '}will expire within 30 days
-              </span>
-            </p>
-          </div>
-        )}
-      </div>
-    )}
-  </CardContent>
-</Card>
