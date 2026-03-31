@@ -317,9 +317,13 @@ export const MaterialsTracking = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setCsvImportOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            CSV Import
+          </Button>
           <Button variant="outline" onClick={() => setBulkUploadDialogOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
-            Bulk Upload
+            Excel Upload
           </Button>
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
