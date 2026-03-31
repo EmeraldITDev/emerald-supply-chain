@@ -61,6 +61,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { materialsApi, logisticsDashboardApi } from "@/services/logisticsApi";
 import type { Material, MaterialStatus, BulkMaterialUploadResult } from "@/types/logistics";
+import { CSVImportPreview, type CSVColumn } from "./CSVImportPreview";
 
 const statusColors: Record<MaterialStatus, string> = {
   available: "bg-success/10 text-success",
