@@ -258,9 +258,12 @@ const UserManagement = () => {
   const roleOptions = [
     { value: "employee", label: "Regular Staff" },
     { value: "executive", label: "Executive" },
-    { value: "procurement", label: "Procurement Manager" },
+    { value: "procurement_manager", label: "Procurement Manager" },
+    { value: "procurement", label: "Procurement" },
     { value: "supply_chain_director", label: "Supply Chain Director" },
+    { value: "supply_chain", label: "Supply Chain" },
     { value: "finance", label: "Finance" },
+    { value: "chairman", label: "Chairman" },
     { value: "admin", label: "Admin" },
   ];
 
