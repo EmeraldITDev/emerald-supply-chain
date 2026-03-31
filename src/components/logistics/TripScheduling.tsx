@@ -61,6 +61,7 @@ import { userApi } from "@/services/api";
 import type { Trip, TripStatus, TripType, TripPassenger, CreateTripData, BulkTripUploadResult } from "@/types/logistics";
 import { VendorJMPSubmission } from "./VendorJMPSubmission";
 import { PassengerNotification } from "./PassengerNotification";
+import { CSVImportPreview, type CSVColumn } from "./CSVImportPreview";
 
 interface TripSchedulingProps {
   onViewTrip?: (trip: Trip) => void;
