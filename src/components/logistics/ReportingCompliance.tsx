@@ -50,6 +50,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { reportsApi } from "@/services/logisticsApi";
 import type { LogisticsReport, PendingReport, ReportStatus, ReportType, CreateReportData } from "@/types/logistics";
+import { LogisticsReportGenerator } from "./LogisticsReportGenerator";
 
 const statusColors: Record<ReportStatus, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -89,6 +90,7 @@ export const ReportingCompliance = () => {
   });
   const [reportFile, setReportFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reportGeneratorOpen, setReportGeneratorOpen] = useState(false);
 
   // Fetch reports from API
   const fetchData = async () => {
@@ -228,13 +230,18 @@ export const ReportingCompliance = () => {
             Submit and track operational reports
           </p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Report
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setReportGeneratorOpen(true)}>
+            <FileText className="mr-2 h-4 w-4" />
+            Generate Report
+          </Button>
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Report
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Create New Report</DialogTitle>
@@ -348,7 +355,14 @@ export const ReportingCompliance = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {/* Report Generator Dialog */}
+      <LogisticsReportGenerator
+        open={reportGeneratorOpen}
+        onOpenChange={setReportGeneratorOpen}
+      />
 
       {/* Overdue Reports Alert */}
       {overdueReports.length > 0 && (

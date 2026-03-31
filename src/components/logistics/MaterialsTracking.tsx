@@ -61,6 +61,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { materialsApi, logisticsDashboardApi } from "@/services/logisticsApi";
 import type { Material, MaterialStatus, BulkMaterialUploadResult } from "@/types/logistics";
+import { CSVImportPreview, type CSVColumn } from "./CSVImportPreview";
 
 const statusColors: Record<MaterialStatus, string> = {
   available: "bg-success/10 text-success",
@@ -125,6 +126,7 @@ export const MaterialsTracking = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [materialToDelete, setMaterialToDelete] = useState<Material | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
 
   // Categories for filter
   const categories = ["Equipment", "Supplies", "Tools", "Parts", "Electronics", "Furniture"];
@@ -315,9 +317,13 @@ export const MaterialsTracking = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setCsvImportOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            CSV Import
+          </Button>
           <Button variant="outline" onClick={() => setBulkUploadDialogOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
-            Bulk Upload
+            Excel Upload
           </Button>
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
@@ -797,6 +803,60 @@ export const MaterialsTracking = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* CSV Import with Preview */}
+      <CSVImportPreview
+        open={csvImportOpen}
+        onOpenChange={setCsvImportOpen}
+        title="Import Materials from CSV"
+        description="Upload a CSV file with materials data. Preview and verify before importing."
+        columns={[
+          { key: "name", label: "Name", required: true },
+          { key: "category", label: "Category", required: true },
+          { key: "quantity", label: "Quantity", required: true },
+          { key: "unit", label: "Unit" },
+          { key: "condition", label: "Condition" },
+          { key: "location", label: "Location" },
+          { key: "description", label: "Description" },
+        ] as CSVColumn[]}
+        onConfirmImport={async (data) => {
+          let successCount = 0;
+          let failCount = 0;
+          for (const row of data) {
+            try {
+              const payload = {
+                name: row.name,
+                category: row.category,
+                quantity: parseInt(row.quantity) || 0,
+                unit: row.unit || "units",
+                condition: row.condition || "new",
+                status: "available",
+                current_location: row.location || "",
+                description: row.description || "",
+              };
+              const res = await materialsApi.create(payload as any);
+              if (res.success) successCount++;
+              else failCount++;
+            } catch {
+              failCount++;
+            }
+          }
+          fetchMaterials();
+          if (failCount > 0) {
+            throw new Error(`${successCount} imported, ${failCount} failed`);
+          }
+        }}
+        onDownloadTemplate={() => {
+          const csv = "name,category,quantity,unit,condition,location,description\nLaptop,Electronics,10,units,new,Main Warehouse,Dell Latitude Laptops";
+          const blob = new Blob([csv], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "materials_import_template.csv";
+          a.click();
+          URL.revokeObjectURL(url);
+        }}
+      />
     </div>
   );
 };

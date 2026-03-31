@@ -61,6 +61,7 @@ import { userApi } from "@/services/api";
 import type { Trip, TripStatus, TripType, TripPassenger, CreateTripData, BulkTripUploadResult } from "@/types/logistics";
 import { VendorJMPSubmission } from "./VendorJMPSubmission";
 import { PassengerNotification } from "./PassengerNotification";
+import { CSVImportPreview, type CSVColumn } from "./CSVImportPreview";
 
 interface TripSchedulingProps {
   onViewTrip?: (trip: Trip) => void;
@@ -130,6 +131,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadResult, setUploadResult] = useState<BulkTripUploadResult | null>(null);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
   
   // Staff and vendor lists from API
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
@@ -609,9 +611,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setCsvImportOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            CSV Import
+          </Button>
           <Button variant="outline" onClick={() => setBulkUploadDialogOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
-            Bulk Upload
+            Excel Upload
           </Button>
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
@@ -1484,7 +1490,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           open={notificationDialogOpen}
           onOpenChange={setNotificationDialogOpen}
           onSendNotifications={async () => {
-            // Update passengers as notified
             setTrips(prev => prev.map(t =>
               t.id === selectedTrip.id
                 ? {
@@ -1499,6 +1504,73 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           }}
         />
       )}
+
+      {/* CSV Import with Preview */}
+      <CSVImportPreview
+        open={csvImportOpen}
+        onOpenChange={setCsvImportOpen}
+        title="Import Trips from CSV"
+        description="Upload a CSV file with trip data. Preview and verify before importing."
+        columns={[
+          { key: "origin", label: "Origin", required: true },
+          { key: "destination", label: "Destination", required: true },
+          { key: "type", label: "Trip Type" },
+          { key: "scheduled_departure", label: "Scheduled Departure", required: true },
+          { key: "scheduled_arrival", label: "Scheduled Arrival" },
+          { key: "purpose", label: "Purpose" },
+          { key: "priority", label: "Priority" },
+          { key: "route", label: "Route" },
+          { key: "cargo", label: "Cargo" },
+          { key: "notes", label: "Notes" },
+        ] as CSVColumn[]}
+        onConfirmImport={async (data) => {
+          // Create trips one by one from parsed CSV data
+          let successCount = 0;
+          let failCount = 0;
+          for (const row of data) {
+            try {
+              const depAt = row.scheduled_departure
+                ? new Date(row.scheduled_departure).toISOString().replace('T', ' ').substring(0, 19)
+                : null;
+              const arrAt = row.scheduled_arrival
+                ? new Date(row.scheduled_arrival).toISOString().replace('T', ' ').substring(0, 19)
+                : null;
+              const payload = {
+                trip_type: row.type || "personnel",
+                origin: row.origin,
+                destination: row.destination,
+                scheduled_departure_at: depAt,
+                scheduled_arrival_at: arrAt,
+                purpose: row.purpose || null,
+                priority: row.priority || "normal",
+                route: row.route || null,
+                cargo: row.cargo || null,
+                notes: row.notes || null,
+                passengers: [],
+              };
+              const res = await tripsApi.create(payload as any);
+              if (res.success) successCount++;
+              else failCount++;
+            } catch {
+              failCount++;
+            }
+          }
+          fetchTrips();
+          if (failCount > 0) {
+            throw new Error(`${successCount} imported, ${failCount} failed`);
+          }
+        }}
+        onDownloadTemplate={() => {
+          const csv = "origin,destination,type,scheduled_departure,scheduled_arrival,purpose,priority,route,cargo,notes\nLagos,Abuja,personnel,2025-03-15 08:00:00,2025-03-15 16:00:00,Board Meeting,normal,Via Lokoja,,";
+          const blob = new Blob([csv], { type: "text/csv" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "trips_import_template.csv";
+          a.click();
+          URL.revokeObjectURL(url);
+        }}
+      />
 
     </div>
   );
