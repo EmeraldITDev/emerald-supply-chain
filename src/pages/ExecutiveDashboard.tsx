@@ -145,67 +145,6 @@ const ExecutiveDashboard = () => {
     return pendingMRFs.reduce((sum, mrf) => sum + getEstimatedCost(mrf), 0);
   }, [pendingMRFs]);
 
-  const handleApprove = async (mrfId: string) => {
-    const mrf = mrfRequests.find(m => m.id === mrfId);
-    if (!mrf) return;
-
-    setActionLoading(mrfId);
-    
-    try {
-      // Call the real backend API endpoint
-      const response = await mrfApi.executiveApprove(mrfId, comments[mrfId] || "Approved");
-      
-      if (response.success) {
-        const estimatedCost = parseFloat(String(mrf.estimated_cost || mrf.estimatedCost || "0"));
-        
-        if (estimatedCost > 1000000) {
-          toast.success("High-value MRF forwarded to Chairman for final approval");
-        } else {
-          toast.success("MRF approved - Forwarded to Procurement Manager to generate RFQ");
-        }
-        
-        // Refresh the list from backend
-        await fetchMRFs();
-        setComments(prev => ({ ...prev, [mrfId]: "" }));
-        setSelectedMRF(null);
-      } else {
-        toast.error(response.error || "Failed to approve MRF");
-      }
-    } catch (error) {
-      toast.error("Failed to connect to server");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleReject = async (mrfId: string) => {
-    if (!comments[mrfId]?.trim()) {
-      toast.error("Please provide rejection reason");
-      return;
-    }
-
-    setActionLoading(mrfId);
-
-    try {
-      // Call the real backend API endpoint
-      const response = await mrfApi.workflowReject(mrfId, comments[mrfId], "Rejected by Executive");
-      
-      if (response.success) {
-        toast.success("MRF rejected");
-        await fetchMRFs();
-        setComments(prev => ({ ...prev, [mrfId]: "" }));
-        setSelectedMRF(null);
-      } else {
-        toast.error(response.error || "Failed to reject MRF");
-      }
-    } catch (error) {
-      toast.error("Failed to connect to server");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-
   return (
     <DashboardLayout>
       <PullToRefresh onRefresh={async () => {
