@@ -156,7 +156,7 @@ const ExecutiveDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Executive Dashboard</h1>
-            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">Review and approve Material Requisition Forms</p>
+            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">View and monitor Material Requisition Forms</p>
           </div>
           <Button 
             variant="outline" 
