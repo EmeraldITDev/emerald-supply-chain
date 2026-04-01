@@ -16,9 +16,6 @@ const ChairmanDashboard = () => {
   const { user } = useAuth();
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selectedMRF, setSelectedMRF] = useState<string | null>(null);
-  const [comments, setComments] = useState<{ [key: string]: string }>({});
 
   // Fetch MRFs from backend API
   const fetchMRFs = useCallback(async () => {
