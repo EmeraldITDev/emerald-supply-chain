@@ -92,7 +92,7 @@ const ChairmanDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Chairman Dashboard</h1>
-            <p className="text-muted-foreground">Final approval authority for high-value items and payments</p>
+            <p className="text-muted-foreground">Monitor high-value items and payments</p>
           </div>
           <Button 
             variant="outline" 
