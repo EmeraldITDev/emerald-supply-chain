@@ -4,7 +4,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+
 import { FileText, DollarSign, Loader2, RefreshCw, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { PullToRefresh } from "@/components/PullToRefresh";
