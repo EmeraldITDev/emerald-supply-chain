@@ -27,9 +27,6 @@ const ExecutiveDashboard = () => {
   const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingVendors, setLoadingVendors] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selectedMRF, setSelectedMRF] = useState<string | null>(null);
-  const [comments, setComments] = useState<{ [key: string]: string }>({});
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
