@@ -1951,11 +1951,26 @@ export const vendorApi = {
         data: responseData.registration || responseData,
       };
     } catch (error) {
-      console.error('Vendor registration error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error - please check your connection',
-      };
+      console.error('Vendor registration error (attempt 1):', error);
+      // Auto-retry once for network/cold-start errors
+      try {
+        await new Promise(r => setTimeout(r, 1500));
+        const retryResponse = await fetch(`${API_BASE_URL}/vendors/register`, {
+          method: 'POST',
+          headers,
+          body: formData,
+        });
+        const retryData = await retryResponse.json();
+        if (retryResponse.ok) {
+          return { success: true, data: retryData.registration || retryData };
+        }
+        return { success: false, error: retryData.error || retryData.message || 'Registration failed after retry' };
+      } catch (retryError) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Network error - please check your connection',
+        };
+      }
     }
   },
 

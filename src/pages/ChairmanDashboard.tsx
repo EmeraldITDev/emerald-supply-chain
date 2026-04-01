@@ -237,7 +237,6 @@ const ChairmanDashboard = () => {
               <div className="space-y-4">
                 {pendingPayment.map((mrf) => {
                   const estimatedCost = getEstimatedCost(mrf);
-                  const isActionLoading = actionLoading === mrf.id;
 
                   return (
                     <Card key={mrf.id} className="border-l-4 border-l-primary">
@@ -253,18 +252,10 @@ const ChairmanDashboard = () => {
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <Button 
-                          onClick={() => handlePaymentApproval(mrf.id)} 
-                          className="w-full"
-                          disabled={isActionLoading}
-                        >
-                          {isActionLoading ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                          )}
-                          Approve Payment
-                        </Button>
+                        <Badge variant="secondary">
+                          <Eye className="h-3 w-3 mr-1" />
+                          Read-Only View
+                        </Badge>
                       </CardContent>
                     </Card>
                   );

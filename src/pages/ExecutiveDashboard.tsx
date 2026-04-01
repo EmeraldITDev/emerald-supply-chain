@@ -427,33 +427,6 @@ const ExecutiveDashboard = () => {
                               </Button>
                             </div>
 
-                            {selectedMRF === mrf.id ? (
-                              <>
-                                <ExecutiveActionButtons
-                                  mrf={mrf}
-                                  onApprove={handleApprove}
-                                  onReject={handleReject}
-                                  comments={comments[mrf.id] || ""}
-                                  onCommentsChange={(value) => setComments(prev => ({ ...prev, [mrf.id]: value }))}
-                                  isLoading={isActionLoading}
-                                />
-                                  <Button 
-                                    onClick={() => setSelectedMRF(null)}
-                                    variant="outline"
-                                    disabled={isActionLoading}
-                                  className="mt-2"
-                                  >
-                                    Cancel
-                                  </Button>
-                                </>
-                              ) : (
-                                <Button 
-                                  onClick={() => setSelectedMRF(mrf.id)}
-                                  className="w-full"
-                                >
-                                  Review & Approve
-                                </Button>
-                              )}
                           </CardContent>
                         </Card>
                       );
