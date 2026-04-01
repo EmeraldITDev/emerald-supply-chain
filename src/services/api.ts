@@ -1112,6 +1112,22 @@ export const mrfApi = {
       };
     }
   },
+
+  // Executive approves MRF
+  executiveApprove: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/executive-approve`, {
+      method: 'POST',
+      body: JSON.stringify({ remarks }),
+    });
+  },
+
+  // Chairman approves MRF
+  chairmanApprove: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/chairman-approve`, {
+      method: 'POST',
+      body: JSON.stringify({ remarks }),
+    });
+  },
 };
 
 // SRF API
