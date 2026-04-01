@@ -44,9 +44,9 @@ export interface MRF {
   created_at?: string; // Backend snake_case variant
   department?: string;
   status: string; // Flexible to match backend workflow statuses
-  currentStage?: 'pending' | 'executive_review' | 'chairman_review' | 'procurement' | 'executive' | 'chairman' | 'supply_chain' | 'finance' | 'chairman_payment' | 'completed' | 'rejected';
+  currentStage?: 'pending' | 'supply_chain_director_review' | 'procurement_review' | 'rfq_issued' | 'vendor_quotes_received' | 'vendor_selected' | 'po_generated' | 'completed' | 'rejected';
   current_stage?: string; // Backend snake_case variant
-  workflowState?: 'mrf_created' | 'mrf_approved' | 'mrf_rejected' | 'po_generated' | 'po_reviewed' | 'po_signed' | 'po_rejected' | 'payment_processed' | 'grn_requested' | 'grn_completed';
+  workflowState?: 'mrf_created' | 'supply_chain_director_approved' | 'supply_chain_director_rejected' | 'rfq_issued' | 'vendor_quotes_received' | 'vendor_selected' | 'po_generated' | 'completed' | 'rejected';
   workflow_state?: string; // Backend snake_case variant
   approvalHistory?: ApprovalHistoryEntry[];
   approval_history?: ApprovalHistoryEntry[]; // Backend snake_case variant

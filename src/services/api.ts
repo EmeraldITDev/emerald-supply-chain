@@ -609,22 +609,38 @@ export const mrfApi = {
   },
 
   // ==========================================
-  // Phase 1: MRF Multi-Stage Workflow Endpoints
+  // Phase 2: Updated MRF Workflow Endpoints
   // ==========================================
 
-  // Executive approves MRF (routes to chairman if >1M, else to procurement)
-  executiveApprove: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
-    return apiRequest<MRF>(`/mrfs/${id}/executive-approve`, {
+  // Supply Chain Director approves MRF
+  supplyChainDirectorApprove: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/supply-chain-director-approve`, {
       method: 'POST',
       body: JSON.stringify({ remarks }),
     });
   },
 
-  // Chairman approves high-value MRF (>1M)
-  chairmanApprove: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
-    return apiRequest<MRF>(`/mrfs/${id}/chairman-approve`, {
+  // Supply Chain Director rejects MRF
+  supplyChainDirectorReject: async (id: string, reason: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/supply-chain-director-reject`, {
       method: 'POST',
-      body: JSON.stringify({ remarks }),
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  // Procurement Manager issues RFQ to vendors
+  issueRFQ: async (id: string, vendorIds: string[], rfqData?: any): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/issue-rfq`, {
+      method: 'POST',
+      body: JSON.stringify({ vendor_ids: vendorIds, rfq_data: rfqData }),
+    });
+  },
+
+  // Procurement Manager reviews vendor quotes and selects vendor
+  selectVendor: async (id: string, vendorId: string, quotationId: string, remarks?: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/select-vendor`, {
+      method: 'POST',
+      body: JSON.stringify({ vendor_id: vendorId, quotation_id: quotationId, remarks }),
     });
   },
 
