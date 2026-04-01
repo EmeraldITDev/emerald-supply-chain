@@ -1750,7 +1750,7 @@ export const vendorApi = {
     });
   },
 
-  // Enhanced vendor registration with documents
+  // Enhanced vendor registration with documents (with auto-retry for cold-start 5xx)
   register: async (data: {
     companyName: string;
     categories: string[];
@@ -1780,10 +1780,17 @@ export const vendorApi = {
       expiryDate?: string;
     }>;
   }): Promise<ApiResponse<VendorRegistration>> => {
-    return apiRequest<VendorRegistration>('/vendors/register', {
+    const attempt = () => apiRequest<VendorRegistration>('/vendors/register', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    const result = await attempt();
+    if (!result.success && (result.error?.includes('Server') || result.error?.includes('Network') || result.error?.includes('fetch'))) {
+      // Auto-retry once after a short delay (handles cold-start 5xx)
+      await new Promise(r => setTimeout(r, 1500));
+      return attempt();
+    }
+    return result;
   },
 
   // Legacy register method for simple registrations
