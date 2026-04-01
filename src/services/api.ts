@@ -54,6 +54,8 @@ const API_BASE_URL = getApiBaseUrl();
 if (typeof window !== 'undefined') {
   console.log('API Base URL:', API_BASE_URL);
   console.log('Current Origin:', window.location.origin);
+  console.log('CORS Debug - Frontend Origin:', window.location.origin);
+  console.log('CORS Debug - API URL:', API_BASE_URL);
 }
 
 // Helper function to check if token is expired
