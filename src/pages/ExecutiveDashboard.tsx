@@ -248,7 +248,7 @@ const ExecutiveDashboard = () => {
                   <div className="text-center py-8 text-muted-foreground">
                     <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
                     <p>No items pending approval</p>
-                    <p className="text-xs mt-2">All MRFs and vendor registrations have been reviewed</p>
+                    <p className="text-xs mt-2">No pending items to display</p>
                   </div>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
