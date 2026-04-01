@@ -445,7 +445,7 @@ const Procurement = () => {
   const pendingMRNs = mrns.filter(mrn => mrn.status === "Pending" || mrn.status === "Under Review");
   const pendingPOUpload = executiveApprovedMRFs.length;
   const rejectedPOCount = rejectedPOs.length;
-  const inSupplyChain = mrfRequests.filter(mrf => mrf.currentStage === "supply_chain").length;
+  const inSupplyChain = mrfRequests.filter(mrf => mrf.currentStage === "supply_chain_director_review").length;
   const totalPOs = purchaseOrders.length;
 
   // Filtered data
