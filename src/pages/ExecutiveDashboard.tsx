@@ -317,8 +317,6 @@ const ExecutiveDashboard = () => {
                     {pendingMRFs.map((mrf) => {
                       const estimatedCost = getEstimatedCost(mrf);
                       const isHighValue = estimatedCost > 1000000;
-                      const isActionLoading = actionLoading === mrf.id;
-
                       return (
                         <Card key={mrf.id} className="border-l-4 border-l-primary">
                           <CardHeader className="p-3 sm:p-4 lg:p-6">
