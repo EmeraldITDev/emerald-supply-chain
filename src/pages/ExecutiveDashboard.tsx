@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle, XCircle, AlertCircle, FileText, Loader2, RefreshCw, Download, Eye } from "lucide-react";
+import { AlertCircle, FileText, Loader2, RefreshCw, Download, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
@@ -13,7 +13,7 @@ import { RecentActivities } from "@/components/RecentActivities";
 import { mrfApi, vendorApi } from "@/services/api";
 import type { MRF, VendorRegistration } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
-import { ExecutiveActionButtons } from "@/components/ExecutiveActionButtons";
+
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -27,9 +27,6 @@ const ExecutiveDashboard = () => {
   const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingVendors, setLoadingVendors] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selectedMRF, setSelectedMRF] = useState<string | null>(null);
-  const [comments, setComments] = useState<{ [key: string]: string }>({});
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
@@ -148,67 +145,6 @@ const ExecutiveDashboard = () => {
     return pendingMRFs.reduce((sum, mrf) => sum + getEstimatedCost(mrf), 0);
   }, [pendingMRFs]);
 
-  const handleApprove = async (mrfId: string) => {
-    const mrf = mrfRequests.find(m => m.id === mrfId);
-    if (!mrf) return;
-
-    setActionLoading(mrfId);
-    
-    try {
-      // Call the real backend API endpoint
-      const response = await mrfApi.executiveApprove(mrfId, comments[mrfId] || "Approved");
-      
-      if (response.success) {
-        const estimatedCost = parseFloat(String(mrf.estimated_cost || mrf.estimatedCost || "0"));
-        
-        if (estimatedCost > 1000000) {
-          toast.success("High-value MRF forwarded to Chairman for final approval");
-        } else {
-          toast.success("MRF approved - Forwarded to Procurement Manager to generate RFQ");
-        }
-        
-        // Refresh the list from backend
-        await fetchMRFs();
-        setComments(prev => ({ ...prev, [mrfId]: "" }));
-        setSelectedMRF(null);
-      } else {
-        toast.error(response.error || "Failed to approve MRF");
-      }
-    } catch (error) {
-      toast.error("Failed to connect to server");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleReject = async (mrfId: string) => {
-    if (!comments[mrfId]?.trim()) {
-      toast.error("Please provide rejection reason");
-      return;
-    }
-
-    setActionLoading(mrfId);
-
-    try {
-      // Call the real backend API endpoint
-      const response = await mrfApi.workflowReject(mrfId, comments[mrfId], "Rejected by Executive");
-      
-      if (response.success) {
-        toast.success("MRF rejected");
-        await fetchMRFs();
-        setComments(prev => ({ ...prev, [mrfId]: "" }));
-        setSelectedMRF(null);
-      } else {
-        toast.error(response.error || "Failed to reject MRF");
-      }
-    } catch (error) {
-      toast.error("Failed to connect to server");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-
   return (
     <DashboardLayout>
       <PullToRefresh onRefresh={async () => {
@@ -220,7 +156,7 @@ const ExecutiveDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Executive Dashboard</h1>
-            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">Review and approve Material Requisition Forms</p>
+            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">View and monitor Material Requisition Forms</p>
           </div>
           <Button 
             variant="outline" 
@@ -301,7 +237,7 @@ const ExecutiveDashboard = () => {
             <Card>
               <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="text-base sm:text-lg">Pending Approval</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Review and approve MRFs and vendor registrations</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">View MRFs and vendor registrations</CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 {loading || loadingVendors ? (
@@ -312,7 +248,7 @@ const ExecutiveDashboard = () => {
                   <div className="text-center py-8 text-muted-foreground">
                     <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
                     <p>No items pending approval</p>
-                    <p className="text-xs mt-2">All MRFs and vendor registrations have been reviewed</p>
+                    <p className="text-xs mt-2">No pending items to display</p>
                   </div>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
@@ -381,8 +317,6 @@ const ExecutiveDashboard = () => {
                     {pendingMRFs.map((mrf) => {
                       const estimatedCost = getEstimatedCost(mrf);
                       const isHighValue = estimatedCost > 1000000;
-                      const isActionLoading = actionLoading === mrf.id;
-
                       return (
                         <Card key={mrf.id} className="border-l-4 border-l-primary">
                           <CardHeader className="p-3 sm:p-4 lg:p-6">
@@ -493,33 +427,6 @@ const ExecutiveDashboard = () => {
                               </Button>
                             </div>
 
-                            {selectedMRF === mrf.id ? (
-                              <>
-                                <ExecutiveActionButtons
-                                  mrf={mrf}
-                                  onApprove={handleApprove}
-                                  onReject={handleReject}
-                                  comments={comments[mrf.id] || ""}
-                                  onCommentsChange={(value) => setComments(prev => ({ ...prev, [mrf.id]: value }))}
-                                  isLoading={isActionLoading}
-                                />
-                                  <Button 
-                                    onClick={() => setSelectedMRF(null)}
-                                    variant="outline"
-                                    disabled={isActionLoading}
-                                  className="mt-2"
-                                  >
-                                    Cancel
-                                  </Button>
-                                </>
-                              ) : (
-                                <Button 
-                                  onClick={() => setSelectedMRF(mrf.id)}
-                                  className="w-full"
-                                >
-                                  Review & Approve
-                                </Button>
-                              )}
                           </CardContent>
                         </Card>
                       );

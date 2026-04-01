@@ -4,8 +4,8 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle, XCircle, FileText, DollarSign, Loader2, RefreshCw } from "lucide-react";
+
+import { FileText, DollarSign, Loader2, RefreshCw, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
@@ -16,9 +16,6 @@ const ChairmanDashboard = () => {
   const { user } = useAuth();
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selectedMRF, setSelectedMRF] = useState<string | null>(null);
-  const [comments, setComments] = useState<{ [key: string]: string }>({});
 
   // Fetch MRFs from backend API
   const fetchMRFs = useCallback(async () => {
@@ -84,76 +81,6 @@ const ChairmanDashboard = () => {
     return [...pendingApproval, ...pendingPayment].reduce((sum, mrf) => sum + getEstimatedCost(mrf), 0);
   }, [pendingApproval, pendingPayment]);
 
-  const handleApprove = async (mrfId: string) => {
-    setActionLoading(mrfId);
-    
-    try {
-      // Call the real backend API endpoint for chairman approval
-      const response = await mrfApi.chairmanApprove(mrfId, comments[mrfId] || "Approved");
-      
-      if (response.success) {
-        toast.success("High-value MRF approved - Forwarded to Procurement to generate RFQ");
-        await fetchMRFs();
-        setComments(prev => ({ ...prev, [mrfId]: "" }));
-        setSelectedMRF(null);
-      } else {
-        toast.error(response.error || "Failed to approve MRF");
-      }
-    } catch (error) {
-      toast.error("Failed to connect to server");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleReject = async (mrfId: string) => {
-    if (!comments[mrfId]?.trim()) {
-      toast.error("Please provide rejection reason");
-      return;
-    }
-
-    setActionLoading(mrfId);
-
-    try {
-      const response = await mrfApi.workflowReject(mrfId, comments[mrfId], "Rejected by Chairman");
-      
-      if (response.success) {
-        toast.success("MRF rejected");
-        await fetchMRFs();
-        setComments(prev => ({ ...prev, [mrfId]: "" }));
-        setSelectedMRF(null);
-      } else {
-        toast.error(response.error || "Failed to reject MRF");
-      }
-    } catch (error) {
-      toast.error("Failed to connect to server");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handlePaymentApproval = async (mrfId: string) => {
-    setActionLoading(mrfId);
-    
-    try {
-      // Call the real backend API endpoint for payment approval
-      const response = await mrfApi.approvePayment(mrfId);
-      
-      if (response.success) {
-        toast.success("Payment approved successfully - MRF workflow completed");
-        await fetchMRFs();
-        setComments(prev => ({ ...prev, [mrfId]: "" }));
-        setSelectedMRF(null);
-      } else {
-        toast.error(response.error || "Failed to approve payment");
-      }
-    } catch (error) {
-      toast.error("Failed to connect to server");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   return (
     <DashboardLayout>
       <PullToRefresh onRefresh={async () => {
@@ -165,7 +92,7 @@ const ChairmanDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Chairman Dashboard</h1>
-            <p className="text-muted-foreground">Final approval authority for high-value items and payments</p>
+            <p className="text-muted-foreground">Monitor high-value items and payments</p>
           </div>
           <Button 
             variant="outline" 
@@ -240,7 +167,6 @@ const ChairmanDashboard = () => {
               <div className="space-y-4">
                 {pendingApproval.map((mrf) => {
                   const estimatedCost = getEstimatedCost(mrf);
-                  const isActionLoading = actionLoading === mrf.id;
 
                   return (
                     <Card key={mrf.id} className="border-l-4 border-l-destructive">
@@ -275,71 +201,12 @@ const ChairmanDashboard = () => {
                             <p className="font-semibold">Justification:</p>
                             <p className="text-muted-foreground">{mrf.justification}</p>
                           </div>
-                          {(mrf.executiveComments || mrf.executive_remarks) && (
-                            <div className="md:col-span-2 bg-muted p-3 rounded-lg">
-                              <p className="font-semibold text-sm">Executive Comments:</p>
-                              <p className="text-sm">{mrf.executiveComments || mrf.executive_remarks}</p>
-                            </div>
-                          )}
                         </div>
-
-                        {selectedMRF === mrf.id && (
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Chairman Comments:</label>
-                            <Textarea
-                              value={comments[mrf.id] || ""}
-                              onChange={(e) => setComments(prev => ({ ...prev, [mrf.id]: e.target.value }))}
-                              placeholder="Enter your comments..."
-                              rows={3}
-                              disabled={isActionLoading}
-                            />
-                          </div>
-                        )}
-
                         <div className="flex gap-2">
-                          {selectedMRF === mrf.id ? (
-                            <>
-                              <Button 
-                                onClick={() => handleApprove(mrf.id)}
-                                className="flex-1"
-                                disabled={isActionLoading}
-                              >
-                                {isActionLoading ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="mr-2 h-4 w-4" />
-                                )}
-                                Approve
-                              </Button>
-                              <Button 
-                                onClick={() => handleReject(mrf.id)}
-                                variant="destructive"
-                                className="flex-1"
-                                disabled={isActionLoading}
-                              >
-                                {isActionLoading ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                )}
-                                Reject
-                              </Button>
-                              <Button 
-                                onClick={() => setSelectedMRF(null)}
-                                variant="outline"
-                                disabled={isActionLoading}
-                              >
-                                Cancel
-                              </Button>
-                            </>
-                          ) : (
-                            <Button 
-                              onClick={() => setSelectedMRF(mrf.id)}
-                              className="w-full"
-                            >
-                              Review
-                            </Button>
-                          )}
+                          <Badge variant="secondary">
+                            <Eye className="h-3 w-3 mr-1" />
+                            Read-Only View
+                          </Badge>
                         </div>
                       </CardContent>
                     </Card>
@@ -370,7 +237,6 @@ const ChairmanDashboard = () => {
               <div className="space-y-4">
                 {pendingPayment.map((mrf) => {
                   const estimatedCost = getEstimatedCost(mrf);
-                  const isActionLoading = actionLoading === mrf.id;
 
                   return (
                     <Card key={mrf.id} className="border-l-4 border-l-primary">
@@ -386,18 +252,10 @@ const ChairmanDashboard = () => {
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <Button 
-                          onClick={() => handlePaymentApproval(mrf.id)} 
-                          className="w-full"
-                          disabled={isActionLoading}
-                        >
-                          {isActionLoading ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                          )}
-                          Approve Payment
-                        </Button>
+                        <Badge variant="secondary">
+                          <Eye className="h-3 w-3 mr-1" />
+                          Read-Only View
+                        </Badge>
                       </CardContent>
                     </Card>
                   );
