@@ -45,7 +45,7 @@ export const mockMRFs: MRF[] = [
     requesterId: 'user-1',
     date: '2025-01-15',
     status: 'Pending',
-    currentStage: 'procurement',
+    currentStage: 'procurement_review',
   },
 ];
 
