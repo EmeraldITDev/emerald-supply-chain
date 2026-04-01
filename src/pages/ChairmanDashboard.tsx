@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle, XCircle, FileText, DollarSign, Loader2, RefreshCw } from "lucide-react";
+import { FileText, DollarSign, Loader2, RefreshCw, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
