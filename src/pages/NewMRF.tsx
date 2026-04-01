@@ -155,6 +155,10 @@ const NewMRF = () => {
         
         console.log('Creating MRF with payload:', payload, 'PFI file:', pfiFile?.name);
         
+        // Debug: Log the API base URL and full endpoint
+        console.log('API Base URL:', import.meta.env.VITE_API_BASE_URL);
+        console.log('Full endpoint will be:', `${import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com'}/api/mrfs`);
+        
         // Create FormData if PFI or invoice file is provided
         let response;
         if (pfiFile || invoiceFile || invoiceOneDriveUrl) {
@@ -171,8 +175,15 @@ const NewMRF = () => {
           if (invoiceOneDriveUrl) {
             formDataObj.append('invoice_onedrive_url', invoiceOneDriveUrl);
           }
+          console.log('Sending FormData with files:', {
+            hasPfi: !!pfiFile,
+            hasInvoice: !!invoiceFile,
+            hasOneDriveUrl: !!invoiceOneDriveUrl,
+            payloadKeys: Object.keys(payload)
+          });
           response = await mrfApi.createWithPFI(formDataObj);
         } else {
+          console.log('Sending JSON payload:', payload);
           response = await mrfApi.create(payload);
         }
         
@@ -190,11 +201,35 @@ const NewMRF = () => {
       });
     navigate("/dashboard");
         } else {
-          toast({
-            title: "Error",
-            description: response.error || "Failed to create MRF",
-            variant: "destructive",
+          // Enhanced error handling for network issues
+          const errorMessage = response.error || "Failed to create MRF";
+          console.error('MRF creation failed:', {
+            error: response.error,
+            fullResponse: response,
+            payload: payload,
+            apiUrl: import.meta.env.VITE_API_BASE_URL
           });
+          
+          // Check for specific error types
+          if (errorMessage.includes('NetworkError') || errorMessage.includes('fetch')) {
+            toast({
+              title: "Network Error",
+              description: "Unable to connect to the server. Please check your internet connection and try again.",
+              variant: "destructive",
+            });
+          } else if (errorMessage.includes('CORS')) {
+            toast({
+              title: "Connection Error",
+              description: "Server connection blocked. Please contact support.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Error",
+              description: errorMessage,
+              variant: "destructive",
+            });
+          }
         }
       }
     } catch (error) {
