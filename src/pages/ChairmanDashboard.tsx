@@ -167,7 +167,6 @@ const ChairmanDashboard = () => {
               <div className="space-y-4">
                 {pendingApproval.map((mrf) => {
                   const estimatedCost = getEstimatedCost(mrf);
-                  const isActionLoading = actionLoading === mrf.id;
 
                   return (
                     <Card key={mrf.id} className="border-l-4 border-l-destructive">
@@ -202,71 +201,12 @@ const ChairmanDashboard = () => {
                             <p className="font-semibold">Justification:</p>
                             <p className="text-muted-foreground">{mrf.justification}</p>
                           </div>
-                          {(mrf.executiveComments || mrf.executive_remarks) && (
-                            <div className="md:col-span-2 bg-muted p-3 rounded-lg">
-                              <p className="font-semibold text-sm">Executive Comments:</p>
-                              <p className="text-sm">{mrf.executiveComments || mrf.executive_remarks}</p>
-                            </div>
-                          )}
                         </div>
-
-                        {selectedMRF === mrf.id && (
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Chairman Comments:</label>
-                            <Textarea
-                              value={comments[mrf.id] || ""}
-                              onChange={(e) => setComments(prev => ({ ...prev, [mrf.id]: e.target.value }))}
-                              placeholder="Enter your comments..."
-                              rows={3}
-                              disabled={isActionLoading}
-                            />
-                          </div>
-                        )}
-
                         <div className="flex gap-2">
-                          {selectedMRF === mrf.id ? (
-                            <>
-                              <Button 
-                                onClick={() => handleApprove(mrf.id)}
-                                className="flex-1"
-                                disabled={isActionLoading}
-                              >
-                                {isActionLoading ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="mr-2 h-4 w-4" />
-                                )}
-                                Approve
-                              </Button>
-                              <Button 
-                                onClick={() => handleReject(mrf.id)}
-                                variant="destructive"
-                                className="flex-1"
-                                disabled={isActionLoading}
-                              >
-                                {isActionLoading ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                )}
-                                Reject
-                              </Button>
-                              <Button 
-                                onClick={() => setSelectedMRF(null)}
-                                variant="outline"
-                                disabled={isActionLoading}
-                              >
-                                Cancel
-                              </Button>
-                            </>
-                          ) : (
-                            <Button 
-                              onClick={() => setSelectedMRF(mrf.id)}
-                              className="w-full"
-                            >
-                              Review
-                            </Button>
-                          )}
+                          <Badge variant="secondary">
+                            <Eye className="h-3 w-3 mr-1" />
+                            Read-Only View
+                          </Badge>
                         </div>
                       </CardContent>
                     </Card>
