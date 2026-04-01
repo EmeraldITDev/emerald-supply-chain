@@ -237,7 +237,7 @@ const ExecutiveDashboard = () => {
             <Card>
               <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="text-base sm:text-lg">Pending Approval</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Review and approve MRFs and vendor registrations</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">View MRFs and vendor registrations</CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 {loading || loadingVendors ? (
