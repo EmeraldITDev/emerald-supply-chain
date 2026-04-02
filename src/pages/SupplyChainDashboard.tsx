@@ -45,7 +45,7 @@ const SupplyChainDashboard = () => {
   const [vendorRegistrationsLoading, setVendorRegistrationsLoading] = useState(true);
 
   // Non-Emerald contract: Supply Chain Director first approval (MRF approval)
-  const [mrfsForFirstApproval, setMrfsForFirstApproval] = useState<MRF | null>(null);
+  const [mrfForFirstApproval, setMrfForFirstApproval] = useState<MRF | null>(null);
   const [firstApprovalDialogOpen, setFirstApprovalDialogOpen] = useState(false);
 
   // Fetch MRFs from backend API
@@ -195,7 +195,7 @@ const SupplyChainDashboard = () => {
   }, [mrfRequests]);
 
   const handleFirstApprovalApprove = async (remarks: string) => {
-    const target = mrfsForFirstApproval;
+    const target = mrfForFirstApproval;
     if (!target) return;
 
     const mrfId = target.id;
@@ -212,13 +212,13 @@ const SupplyChainDashboard = () => {
     } finally {
       setActionLoading(null);
       setFirstApprovalDialogOpen(false);
-      setMrfsForFirstApproval(null);
+      setMrfForFirstApproval(null);
       await fetchMRFs();
     }
   };
 
   const handleFirstApprovalReject = async (reason: string) => {
-    const target = mrfsForFirstApproval;
+    const target = mrfForFirstApproval;
     if (!target) return;
 
     const mrfId = target.id;
@@ -235,7 +235,7 @@ const SupplyChainDashboard = () => {
     } finally {
       setActionLoading(null);
       setFirstApprovalDialogOpen(false);
-      setMrfsForFirstApproval(null);
+      setMrfForFirstApproval(null);
       await fetchMRFs();
     }
   };
@@ -458,7 +458,7 @@ const SupplyChainDashboard = () => {
                             disabled={isActionLoading}
                             className="flex-1"
                             onClick={() => {
-                              setMrfsForFirstApproval(mrf);
+                              setMrfForFirstApproval(mrf);
                               setFirstApprovalDialogOpen(true);
                             }}
                           >
@@ -796,11 +796,11 @@ const SupplyChainDashboard = () => {
 
       {/* MRF First Approval Dialog (Non-Emerald contracts) */}
       <MRFApprovalDialog
-        mrf={mrfsForFirstApproval as any}
+        mrf={mrfForFirstApproval}
         open={firstApprovalDialogOpen}
         onOpenChange={(open) => {
           setFirstApprovalDialogOpen(open);
-          if (!open) setMrfsForFirstApproval(null);
+          if (!open) setMrfForFirstApproval(null);
         }}
         onApprove={handleFirstApprovalApprove}
         onReject={handleFirstApprovalReject}

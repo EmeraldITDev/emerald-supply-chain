@@ -14,9 +14,10 @@ import { MRFRequest } from "@/contexts/AppContext";
 import { CheckCircle2, XCircle, Clock, User, Calendar } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { formatApprovalDate } from "@/utils/dateUtils";
+import type { MRF } from "@/types";
 
 interface MRFApprovalDialogProps {
-  mrf: MRFRequest | null;
+  mrf: (MRFRequest | MRF) | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onApprove: (remarks: string) => void;
@@ -89,10 +90,7 @@ export function MRFApprovalDialog({
     return `${remainingHours}h`;
   };
 
-  const currentStage =
-    (mrf.currentStage as string | undefined) ||
-    ((mrf as any).current_stage as string | undefined) ||
-    "";
+  const currentStage = ((mrf as MRFRequest).currentStage as string | undefined) || "";
   const canApprove = currentStage.toLowerCase() === currentUserRole.toLowerCase();
 
   return (
