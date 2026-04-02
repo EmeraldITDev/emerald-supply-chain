@@ -64,6 +64,25 @@ const SupplyChainDashboard = () => {
     fetchMRFs();
   }, [fetchMRFs]);
 
+  useEffect(() => {
+    const fetchVendorRegistrations = async () => {
+      setVendorRegistrationsLoading(true);
+      try {
+        const response = await vendorApi.getRegistrations();
+        if (response.success && response.data) {
+          setVendorRegistrations(
+            response.data.filter((reg) => reg.status?.toLowerCase() === "pending" || reg.status?.toLowerCase() === "under review")
+          );
+        }
+      } catch (error) {
+        // Silent fail - vendor registrations are supplementary
+      } finally {
+        setVendorRegistrationsLoading(false);
+      }
+    };
+    fetchVendorRegistrations();
+  }, []);
+
   // Helper functions for field access
   const getEstimatedCost = (mrf: MRF) => {
     return parseFloat(String(mrf.estimated_cost || mrf.estimatedCost || "0"));
