@@ -1024,8 +1024,6 @@ const Procurement = () => {
           externalLoading={vendorRegistrationsLoading}
         />
 
-          {/* Recent Activities */}
-          <RecentActivities limit={10} />
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-5 h-auto gap-1">
