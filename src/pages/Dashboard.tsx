@@ -65,7 +65,7 @@ const Dashboard = () => {
             setDashboardData(response.data);
           }
 
-          // Reuse the exact same pending vendor registrations logic as the Procurement dashboard.
+          // Reuse the exact same pending vendor registrations logic as Procurement.
           setPendingRegistrationsLoading(true);
           const pendingRes = await getPendingVendorRegistrations();
           if (pendingRes.success && pendingRes.data) {
@@ -175,7 +175,7 @@ const Dashboard = () => {
     },
     {
       title: "Pending KYC",
-      value: dashboardData?.stats?.pendingKYC?.toString() || "0",
+      value: pendingRegistrations.length.toString(),
       description: "Vendor registrations",
       icon: Users,
       trend: "Awaiting review",
@@ -183,7 +183,7 @@ const Dashboard = () => {
     },
     {
       title: "Awaiting Review",
-      value: dashboardData?.stats?.awaitingReview?.toString() || "0",
+      value: pendingRegistrations.length.toString(),
       description: "Pending registrations",
       icon: Clock,
       trend: "Needs attention",
