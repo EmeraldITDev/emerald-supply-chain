@@ -424,7 +424,7 @@ const Procurement = () => {
         const response = await vendorApi.getRegistrations();
         if (response.success && response.data) {
           setVendorRegistrations(
-            response.data.filter((reg) => reg.status === "Pending" || reg.status === "Under Review")
+            response.data.filter((reg) => reg.status?.toLowerCase() === "pending" || reg.status?.toLowerCase() === "under review")
           );
         }
       } catch (error) {
