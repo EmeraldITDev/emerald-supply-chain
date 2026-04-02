@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
 import { vendorApi, dashboardApi } from "@/services/api";
 import { VendorRegistration, Vendor } from "@/types";
+import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -331,13 +332,13 @@ const Vendors = () => {
       setLoadingRegistrations(true);
       setLoadingStats(true);
       try {
-        const [registrationsResponse, dashboardResponse] = await Promise.all([
-          vendorApi.getRegistrations(),
+        const [pendingRegsResponse, dashboardResponse] = await Promise.all([
+          getPendingVendorRegistrations(),
           dashboardApi.getProcurementManagerDashboard(),
         ]);
 
-        if (registrationsResponse.success && registrationsResponse.data) {
-          setVendorRegistrations(registrationsResponse.data);
+        if (pendingRegsResponse.success && pendingRegsResponse.data) {
+          setVendorRegistrations(pendingRegsResponse.data);
         }
 
         if (dashboardResponse.success && dashboardResponse.data) {
@@ -345,14 +346,14 @@ const Vendors = () => {
           setDashboardStats({
             totalVendors: stats?.totalVendors || 0,
             activeVendors: stats?.totalVendors || 0,
-            pendingRegistrations: stats?.pendingKYC || dashboardResponse.data.pendingRegistrations?.length || registrationsResponse.data?.length || 0,
+            pendingRegistrations: stats?.pendingKYC || dashboardResponse.data.pendingRegistrations?.length || pendingRegsResponse.data?.length || 0,
             avgRating: stats?.avgRating || 0,
             onTimeDelivery: stats?.onTimeDelivery || 0,
           });
         } else {
           setDashboardStats((prev) => ({
             ...prev,
-            pendingRegistrations: registrationsResponse.data?.filter((reg) => reg.status === "Pending" || reg.status === "Under Review").length || 0,
+            pendingRegistrations: pendingRegsResponse.data?.length || 0,
           }));
         }
       } catch (error) {
@@ -470,8 +471,8 @@ const Vendors = () => {
           ) : "Vendor registration has been approved. Credentials have been sent via email.",
           duration: 30000,
         });
-        // Refresh registrations
-        const refreshResponse = await vendorApi.getRegistrations();
+        // Refresh registrations (Pending/Under Review list)
+        const refreshResponse = await getPendingVendorRegistrations();
         if (refreshResponse.success && refreshResponse.data) {
           setVendorRegistrations(refreshResponse.data);
         }
@@ -535,8 +536,8 @@ const Vendors = () => {
           title: "Rejected",
           description: "Vendor registration has been rejected.",
         });
-        // Refresh registrations
-        const refreshResponse = await vendorApi.getRegistrations();
+        // Refresh registrations (Pending/Under Review list)
+        const refreshResponse = await getPendingVendorRegistrations();
         if (refreshResponse.success && refreshResponse.data) {
           setVendorRegistrations(refreshResponse.data);
         }

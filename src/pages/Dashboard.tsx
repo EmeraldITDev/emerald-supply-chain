@@ -8,6 +8,7 @@ import DepartmentDashboard from "./DepartmentDashboard";
 import FinanceDashboard from "./FinanceDashboard";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { dashboardApi, mrfApi } from "@/services/api";
+import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,8 @@ const Dashboard = () => {
   const { toast } = useToast();
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingRegistrations, setPendingRegistrations] = useState<any[]>([]);
+  const [pendingRegistrationsLoading, setPendingRegistrationsLoading] = useState(false);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
 
@@ -61,6 +64,15 @@ const Dashboard = () => {
           if (response.success && response.data) {
             setDashboardData(response.data);
           }
+
+          // Reuse the exact same pending vendor registrations logic as the Procurement dashboard.
+          setPendingRegistrationsLoading(true);
+          const pendingRes = await getPendingVendorRegistrations();
+          if (pendingRes.success && pendingRes.data) {
+            setPendingRegistrations(pendingRes.data as any);
+          } else {
+            setPendingRegistrations([]);
+          }
         } catch (error) {
           toast({
             title: "Error",
@@ -68,6 +80,7 @@ const Dashboard = () => {
             variant: "destructive",
           });
         } finally {
+          setPendingRegistrationsLoading(false);
           setLoading(false);
         }
       }
@@ -127,6 +140,14 @@ const Dashboard = () => {
         if (response.success && response.data) {
           setDashboardData(response.data);
         }
+
+        setPendingRegistrationsLoading(true);
+        const pendingRes = await getPendingVendorRegistrations();
+        if (pendingRes.success && pendingRes.data) {
+          setPendingRegistrations(pendingRes.data as any);
+        } else {
+          setPendingRegistrations([]);
+        }
       } catch (error) {
         toast({
           title: "Error",
@@ -134,6 +155,7 @@ const Dashboard = () => {
           variant: "destructive",
         });
       } finally {
+        setPendingRegistrationsLoading(false);
         setLoading(false);
       }
     } else {
@@ -251,20 +273,22 @@ const Dashboard = () => {
           <Card>
             <CardHeader className="p-4 sm:p-6">
               <CardTitle className="text-base sm:text-lg">
-                {dashboardData?.pendingRegistrations?.length ? "Pending Vendor Registrations" : "Recent Activities"}
+                {pendingRegistrations.length ? "Pending Vendor Registrations" : "Recent Activities"}
               </CardTitle>
               <CardDescription className="text-xs sm:text-sm">
-                {dashboardData?.pendingRegistrations?.length 
-                  ? `${dashboardData.pendingRegistrations.length} awaiting review`
+                {pendingRegistrations.length 
+                  ? `${pendingRegistrations.length} awaiting review`
                   : "Latest procurement actions"}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0">
               {loading ? (
                 <div className="text-center py-4 text-sm text-muted-foreground">Loading...</div>
-              ) : dashboardData?.pendingRegistrations?.length > 0 ? (
+              ) : pendingRegistrationsLoading ? (
+                <div className="text-center py-4 text-sm text-muted-foreground">Loading vendor registrations...</div>
+              ) : pendingRegistrations.length > 0 ? (
                 <div className="space-y-3 sm:space-y-4">
-                  {dashboardData.pendingRegistrations.slice(0, 5).map((reg: any) => (
+                  {pendingRegistrations.slice(0, 5).map((reg: any) => (
                     <div 
                       key={reg.id} 
                       className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0 cursor-pointer hover:bg-accent/50 p-2 rounded transition-colors"
@@ -284,13 +308,13 @@ const Dashboard = () => {
                       </Badge>
                     </div>
                   ))}
-                  {dashboardData.pendingRegistrations.length > 5 && (
+                  {pendingRegistrations.length > 5 && (
                     <Button 
                       variant="ghost" 
                       className="w-full mt-2"
                       onClick={() => navigate("/vendors")}
                     >
-                      View All ({dashboardData.pendingRegistrations.length})
+                      View All ({pendingRegistrations.length})
                     </Button>
                   )}
                 </div>

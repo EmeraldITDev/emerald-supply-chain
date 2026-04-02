@@ -18,6 +18,7 @@ import { RFQManagement } from "@/components/RFQManagement";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
+import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 
 import type { MRFRequest } from "@/contexts/AppContext";
 import { dashboardApi, mrfApi, grnApi, rfqApi, quotationApi, vendorApi } from "@/services/api";
@@ -460,12 +461,8 @@ const Procurement = () => {
     const fetchVendorRegistrations = async () => {
       setVendorRegistrationsLoading(true);
       try {
-        const response = await vendorApi.getRegistrations();
-        if (response.success && response.data) {
-          setVendorRegistrations(
-            response.data.filter((reg) => reg.status?.toLowerCase() === "pending" || reg.status?.toLowerCase() === "under review")
-          );
-        }
+        const response = await getPendingVendorRegistrations();
+        if (response.success && response.data) setVendorRegistrations(response.data);
       } catch (error) {
         toast({
           title: "Error",
