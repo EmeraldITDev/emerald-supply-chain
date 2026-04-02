@@ -18,7 +18,7 @@ import { RFQManagement } from "@/components/RFQManagement";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
-import { RecentActivities } from "@/components/RecentActivities";
+
 import type { MRFRequest } from "@/contexts/AppContext";
 import { dashboardApi, mrfApi, grnApi, rfqApi, quotationApi, vendorApi } from "@/services/api";
 import type { VendorRegistration, MRF } from "@/types";
@@ -424,7 +424,7 @@ const Procurement = () => {
         const response = await vendorApi.getRegistrations();
         if (response.success && response.data) {
           setVendorRegistrations(
-            response.data.filter((reg) => reg.status === "Pending" || reg.status === "Under Review")
+            response.data.filter((reg) => reg.status?.toLowerCase() === "pending" || reg.status?.toLowerCase() === "under review")
           );
         }
       } catch (error) {
@@ -1024,8 +1024,6 @@ const Procurement = () => {
           externalLoading={vendorRegistrationsLoading}
         />
 
-          {/* Recent Activities */}
-          <RecentActivities limit={10} />
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-5 h-auto gap-1">

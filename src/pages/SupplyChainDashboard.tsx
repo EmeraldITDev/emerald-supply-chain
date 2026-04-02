@@ -19,8 +19,8 @@ import { PORejectionDialog } from "@/components/PORejectionDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
-import { RecentActivities } from "@/components/RecentActivities";
-import { mrfApi } from "@/services/api";
+import { mrfApi, vendorApi } from "@/services/api";
+import type { VendorRegistration } from "@/types";
 import type { MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { SupplyChainActionButtons } from "@/components/SupplyChainActionButtons";
@@ -40,6 +40,8 @@ const SupplyChainDashboard = () => {
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+  const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
+  const [vendorRegistrationsLoading, setVendorRegistrationsLoading] = useState(true);
 
   // Fetch MRFs from backend API
   const fetchMRFs = useCallback(async () => {
@@ -61,6 +63,25 @@ const SupplyChainDashboard = () => {
   useEffect(() => {
     fetchMRFs();
   }, [fetchMRFs]);
+
+  useEffect(() => {
+    const fetchVendorRegistrations = async () => {
+      setVendorRegistrationsLoading(true);
+      try {
+        const response = await vendorApi.getRegistrations();
+        if (response.success && response.data) {
+          setVendorRegistrations(
+            response.data.filter((reg) => reg.status?.toLowerCase() === "pending" || reg.status?.toLowerCase() === "under review")
+          );
+        }
+      } catch (error) {
+        // Silent fail - vendor registrations are supplementary
+      } finally {
+        setVendorRegistrationsLoading(false);
+      }
+    };
+    fetchVendorRegistrations();
+  }, []);
 
   // Helper functions for field access
   const getEstimatedCost = (mrf: MRF) => {
@@ -315,6 +336,8 @@ const SupplyChainDashboard = () => {
           maxItems={3} 
           showTabs={false} 
           title="Pending Vendor Registrations"
+          externalRegistrations={vendorRegistrations}
+          externalLoading={vendorRegistrationsLoading}
         />
 
         {/* Vendor Selections Pending Approval */}
@@ -625,8 +648,6 @@ const SupplyChainDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Recent Activities */}
-        <RecentActivities limit={10} />
       </div>
       </PullToRefresh>
 
