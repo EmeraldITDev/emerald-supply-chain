@@ -40,6 +40,8 @@ const SupplyChainDashboard = () => {
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+  const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
+  const [vendorRegistrationsLoading, setVendorRegistrationsLoading] = useState(true);
 
   // Fetch MRFs from backend API
   const fetchMRFs = useCallback(async () => {
