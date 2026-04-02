@@ -72,9 +72,9 @@ const VendorRegistrationsList = ({
     fetchRegistrations();
   }, [toast, useExternalData, externalRegistrations, externalLoading]);
 
-  const pendingRegistrations = registrations.filter(r => r.status === "Pending" || r.status === "Under Review");
-  const approvedRegistrations = registrations.filter(r => r.status === "Approved");
-  const rejectedRegistrations = registrations.filter(r => r.status === "Rejected");
+  const pendingRegistrations = registrations.filter(r => r.status?.toLowerCase() === "pending" || r.status?.toLowerCase() === "under review");
+  const approvedRegistrations = registrations.filter(r => r.status?.toLowerCase() === "approved");
+  const rejectedRegistrations = registrations.filter(r => r.status?.toLowerCase() === "rejected");
 
   const getStatusBadge = (status: string) => {
     switch (status) {

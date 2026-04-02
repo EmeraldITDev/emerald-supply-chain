@@ -18,7 +18,7 @@ import { RFQManagement } from "@/components/RFQManagement";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
-import { RecentActivities } from "@/components/RecentActivities";
+
 import type { MRFRequest } from "@/contexts/AppContext";
 import { dashboardApi, mrfApi, grnApi, rfqApi, quotationApi, vendorApi } from "@/services/api";
 import type { VendorRegistration, MRF } from "@/types";

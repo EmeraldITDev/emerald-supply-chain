@@ -648,8 +648,6 @@ const SupplyChainDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Recent Activities */}
-        <RecentActivities limit={10} />
       </div>
       </PullToRefresh>
 
