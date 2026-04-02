@@ -383,6 +383,11 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     setIsAwardingVendor(true);
     
     try {
+      const contractType =
+        (enhancedQuotationData?.mrf?.contractType || "").toString();
+      const isEmerald = contractType.toLowerCase().includes("emerald");
+      const approverName = isEmerald ? "Executive" : "Supply Chain Director";
+
       // Step 1: Select vendor via RFQ API (marks vendor as selected in RFQ)
       const selectResponse = await rfqApi.selectVendor(selectedRFQ.id, quotationId);
 
@@ -392,9 +397,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
         
         // Check for specific workflow state errors
         if (errorMessage.includes("not in procurement review") || errorMessage.includes("workflow state")) {
-          errorMessage = "This MRF is not in the correct workflow state for vendor selection. Please ensure the MRF has been approved by the Executive and is ready for procurement review.";
+          errorMessage = `This MRF is not in the correct workflow state for vendor selection. Please ensure the MRF has been approved by the ${approverName} and is ready for procurement review.`;
         } else if (errorMessage.includes("executive approval") || errorMessage.includes("not approved")) {
-          errorMessage = "Executive approval is required before selecting a vendor. Please wait for Executive approval.";
+          errorMessage = `${approverName} approval is required before selecting a vendor. Please wait for ${approverName} approval.`;
         } else if (errorMessage.includes("already selected") || errorMessage.includes("vendor already")) {
           errorMessage = "A vendor has already been selected for this RFQ.";
         }
@@ -429,7 +434,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
           if (errorMessage.includes("workflow state") || errorMessage.includes("not in")) {
             errorMessage = "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
           } else if (errorMessage.includes("executive approval")) {
-            errorMessage = "Executive approval is required before sending vendor for Supply Chain Director approval.";
+            errorMessage = isEmerald
+              ? "Executive approval is required before sending vendor for Supply Chain Director approval."
+              : "Supply Chain Director first approval is required before sending vendor for final approval.";
           }
           
           toast({

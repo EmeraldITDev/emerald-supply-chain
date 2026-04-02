@@ -26,6 +26,7 @@ import { OneDriveLink } from "@/components/OneDriveLink";
 import { SupplyChainActionButtons } from "@/components/SupplyChainActionButtons";
 import { SupplyChainVendorApprovalButtons } from "@/components/SupplyChainVendorApprovalButtons";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
+import { MRFApprovalDialog } from "@/components/MRFApprovalDialog";
 
 const SupplyChainDashboard = () => {
   const { user } = useAuth();
@@ -42,6 +43,10 @@ const SupplyChainDashboard = () => {
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
   const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
   const [vendorRegistrationsLoading, setVendorRegistrationsLoading] = useState(true);
+
+  // Non-Emerald contract: Supply Chain Director first approval (MRF approval)
+  const [mrfsForFirstApproval, setMrfsForFirstApproval] = useState<MRF | null>(null);
+  const [firstApprovalDialogOpen, setFirstApprovalDialogOpen] = useState(false);
 
   // Fetch MRFs from backend API
   const fetchMRFs = useCallback(async () => {
@@ -138,7 +143,33 @@ const SupplyChainDashboard = () => {
     return (mrf.workflow_state || mrf.workflowState || "").toLowerCase();
   };
 
+  const getMRFContractType = (mrf: MRF): string => {
+    const ct = (mrf as any).contract_type || (mrf as any).contractType || "";
+    return typeof ct === "string" ? ct : String(ct || "");
+  };
+
+  const isEmeraldContract = (mrf: MRF): boolean => {
+    return getMRFContractType(mrf).toLowerCase().includes("emerald");
+  };
+
+  const getCurrentStage = (mrf: MRF): string => {
+    return (mrf.current_stage || mrf.currentStage || "").toLowerCase();
+  };
+
   // Filter MRFs with vendor selections pending Supply Chain Director approval
+  const pendingFirstApprovals = useMemo(() => {
+    return mrfRequests.filter((mrf) => {
+      // Emerald contracts are first-approved by Executive, not Supply Chain Director
+      if (isEmeraldContract(mrf)) return false;
+
+      const stage = getCurrentStage(mrf);
+      const workflowState = getWorkflowState(mrf);
+
+      // Non-Emerald contracts wait for SCD first approval before moving to Procurement
+      return stage === "supply_chain_director_review" || workflowState === "supply_chain_director_review";
+    });
+  }, [mrfRequests]);
+
   const pendingVendorApprovals = useMemo(() => {
     return mrfRequests.filter(mrf => {
       const workflowState = getWorkflowState(mrf);
@@ -162,6 +193,52 @@ const SupplyChainDashboard = () => {
       );
     });
   }, [mrfRequests]);
+
+  const handleFirstApprovalApprove = async (remarks: string) => {
+    const target = mrfsForFirstApproval;
+    if (!target) return;
+
+    const mrfId = target.id;
+    setActionLoading(mrfId);
+    try {
+      const response = await mrfApi.supplyChainDirectorApprove(mrfId, remarks);
+      if (response.success) {
+        toast.success("MRF approved - routed to Procurement");
+      } else {
+        toast.error(response.error || "Failed to approve MRF");
+      }
+    } catch (error) {
+      toast.error("Failed to connect to server");
+    } finally {
+      setActionLoading(null);
+      setFirstApprovalDialogOpen(false);
+      setMrfsForFirstApproval(null);
+      await fetchMRFs();
+    }
+  };
+
+  const handleFirstApprovalReject = async (reason: string) => {
+    const target = mrfsForFirstApproval;
+    if (!target) return;
+
+    const mrfId = target.id;
+    setActionLoading(mrfId);
+    try {
+      const response = await mrfApi.supplyChainDirectorReject(mrfId, reason);
+      if (response.success) {
+        toast.error("MRF rejected - sent back to requester");
+      } else {
+        toast.error(response.error || "Failed to reject MRF");
+      }
+    } catch (error) {
+      toast.error("Failed to connect to server");
+    } finally {
+      setActionLoading(null);
+      setFirstApprovalDialogOpen(false);
+      setMrfsForFirstApproval(null);
+      await fetchMRFs();
+    }
+  };
 
   const handleUploadSignedPO = async (mrfId: string) => {
     const file = signedPOs[mrfId];
@@ -339,6 +416,63 @@ const SupplyChainDashboard = () => {
           externalRegistrations={vendorRegistrations}
           externalLoading={vendorRegistrationsLoading}
         />
+
+        {/* Non-Emerald First Approvals (Supply Chain Director approves MRF first) */}
+        {pendingFirstApprovals.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>MRFs Awaiting Supply Chain Director First Approval</CardTitle>
+              <CardDescription>Non-Emerald contracts move to Procurement only after this step is approved</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {pendingFirstApprovals.map((mrf) => {
+                  const estimatedCost = getEstimatedCost(mrf);
+                  const isActionLoading = actionLoading === mrf.id;
+                  return (
+                    <Card key={mrf.id} className="border-l-4 border-l-primary">
+                      <CardHeader className="p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <CardTitle className="text-base truncate">{mrf.title}</CardTitle>
+                            <CardDescription className="text-xs truncate">
+                              {mrf.id} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
+                            </CardDescription>
+                          </div>
+                          <Badge>₦{estimatedCost.toLocaleString()}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                          <p className="text-sm font-medium text-primary">
+                            First Approval: Supply Chain Director
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Contract Type: {getMRFContractType(mrf) || "N/A"}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isActionLoading}
+                            className="flex-1"
+                            onClick={() => {
+                              setMrfsForFirstApproval(mrf);
+                              setFirstApprovalDialogOpen(true);
+                            }}
+                          >
+                            Review & Approve / Reject
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Vendor Selections Pending Approval */}
         {pendingVendorApprovals.length > 0 && (
@@ -660,6 +794,19 @@ const SupplyChainDashboard = () => {
         onReject={handleRejectPO}
       />
 
+      {/* MRF First Approval Dialog (Non-Emerald contracts) */}
+      <MRFApprovalDialog
+        mrf={mrfsForFirstApproval as any}
+        open={firstApprovalDialogOpen}
+        onOpenChange={(open) => {
+          setFirstApprovalDialogOpen(open);
+          if (!open) setMrfsForFirstApproval(null);
+        }}
+        onApprove={handleFirstApprovalApprove}
+        onReject={handleFirstApprovalReject}
+        currentUserRole="supply_chain_director_review"
+      />
+
       {/* Complete Quotation Details Dialog */}
       <Dialog open={quotationDetailsDialogOpen} onOpenChange={(open) => {
         setQuotationDetailsDialogOpen(open);
@@ -801,7 +948,10 @@ const SupplyChainDashboard = () => {
             <div className="space-y-6 mt-4">
               {/* Progress Tracker */}
               {mrfFullDetails && (
-                <MRFProgressTracker mrfId={selectedMRFForDetails.id} />
+                <MRFProgressTracker
+                  mrfId={selectedMRFForDetails.id}
+                  contractType={(selectedMRFForDetails as any).contract_type || (selectedMRFForDetails as any).contractType}
+                />
               )}
 
               {/* MRF Basic Information */}

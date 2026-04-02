@@ -21,7 +21,9 @@ interface MRFApprovalDialogProps {
   onOpenChange: (open: boolean) => void;
   onApprove: (remarks: string) => void;
   onReject: (remarks: string) => void;
-  currentUserRole: "executive" | "finance" | "chairman";
+  // The dialog is driven by the backend-provided workflow stage (e.g. "executive_review").
+  // We keep this as a string to support non-standard stages like "supply_chain_director_review".
+  currentUserRole: string;
 }
 
 export function MRFApprovalDialog({
@@ -87,7 +89,11 @@ export function MRFApprovalDialog({
     return `${remainingHours}h`;
   };
 
-  const canApprove = mrf.currentStage === currentUserRole;
+  const currentStage =
+    (mrf.currentStage as string | undefined) ||
+    ((mrf as any).current_stage as string | undefined) ||
+    "";
+  const canApprove = currentStage.toLowerCase() === currentUserRole.toLowerCase();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -230,7 +236,9 @@ export function MRFApprovalDialog({
           <Separator />
           <div className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Current Stage:</span>
-            <span className="font-semibold capitalize">{mrf.currentStage}</span>
+            <span className="font-semibold capitalize">
+              {currentStage || "N/A"}
+            </span>
           </div>
 
           {/* Remarks Input */}

@@ -633,7 +633,10 @@ const DepartmentDashboard = () => {
                 </Card>
 
                 {/* Progress Tracker */}
-                <MRFProgressTracker mrfId={selectedMRFForDetails.id} />
+                <MRFProgressTracker
+                  mrfId={selectedMRFForDetails.id}
+                  contractType={(selectedMRFForDetails as any).contract_type || (selectedMRFForDetails as any).contractType}
+                />
 
                 {/* Timeline/History from full details */}
                 {mrfFullDetails?.timeline && mrfFullDetails.timeline.length > 0 && (

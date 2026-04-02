@@ -117,20 +117,29 @@ const ExecutiveDashboard = () => {
   };
 
   // Filter MRFs awaiting executive approval
+  const isEmeraldContract = (mrf: MRF): boolean => {
+    const ct = (mrf as any).contract_type || (mrf as any).contractType || "";
+    return String(ct).toLowerCase().includes("emerald");
+  };
+
   const pendingMRFs = useMemo(() => {
     return mrfRequests.filter((mrf) => {
       const status = (mrf.status || "").toLowerCase().trim();
       const currentStage = (mrf.current_stage || mrf.currentStage || "").toLowerCase().trim();
+      const emerald = isEmeraldContract(mrf);
       
       // Match backend status values
       return (
-        status === "executive_review" ||
-        currentStage === "executive_review" ||
-        currentStage === "executive" ||
-        status === "pending" ||
-        status === "submitted" ||
-        status.includes("pending executive") ||
-        status.includes("awaiting executive")
+        emerald &&
+        (
+          status === "executive_review" ||
+          currentStage === "executive_review" ||
+          currentStage === "executive" ||
+          status === "pending" ||
+          status === "submitted" ||
+          status.includes("pending executive") ||
+          status.includes("awaiting executive")
+        )
       );
     });
   }, [mrfRequests]);
@@ -533,7 +542,10 @@ const ExecutiveDashboard = () => {
             <div className="space-y-6 mt-4">
               {/* Progress Tracker */}
               {mrfFullDetails && (
-                <MRFProgressTracker mrfId={selectedMRFForDetails.id} />
+                <MRFProgressTracker
+                  mrfId={selectedMRFForDetails.id}
+                  contractType={(selectedMRFForDetails as any).contract_type || (selectedMRFForDetails as any).contractType}
+                />
               )}
 
               {/* MRF Basic Information */}

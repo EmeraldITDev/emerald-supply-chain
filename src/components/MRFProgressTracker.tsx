@@ -21,6 +21,8 @@ import { useToast } from "@/hooks/use-toast";
 interface MRFProgressTrackerProps {
   mrfId: string;
   showTitle?: boolean;
+  // Used to adjust workflow labels (e.g., Emerald Contract starts with Executive approval).
+  contractType?: string | null;
   onProgressUpdate?: (progress: number) => void;
 }
 
@@ -56,7 +58,7 @@ const stepNames: Record<number, string> = {
   6: "Process Complete",
 };
 
-export const MRFProgressTracker = ({ mrfId, showTitle = true, onProgressUpdate }: MRFProgressTrackerProps) => {
+export const MRFProgressTracker = ({ mrfId, showTitle = true, contractType, onProgressUpdate }: MRFProgressTrackerProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [progressData, setProgressData] = useState<{
@@ -65,6 +67,8 @@ export const MRFProgressTracker = ({ mrfId, showTitle = true, onProgressUpdate }
     currentStep: number;
     steps: ProgressStep[];
   } | null>(null);
+
+  const isEmeraldContract = (contractType || "").toLowerCase().includes("emerald");
 
   useEffect(() => {
     const fetchProgress = async () => {
@@ -229,7 +233,13 @@ export const MRFProgressTracker = ({ mrfId, showTitle = true, onProgressUpdate }
                   
                   <div className="flex-1 pt-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">{step.name}</span>
+                      <span className="font-medium">
+                        {step.step === 2
+                          ? isEmeraldContract
+                            ? "Executive Approval (Initial)"
+                            : "Supply Chain Director Approval (Initial)"
+                          : step.name}
+                      </span>
                       {isCurrent && (
                         <Badge variant="outline" className="text-xs">
                           Current

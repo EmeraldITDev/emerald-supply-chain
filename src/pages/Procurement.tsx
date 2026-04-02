@@ -212,6 +212,20 @@ const Procurement = () => {
   const getMRFRequester = (mrf: MRF) => mrf.requester_name || mrf.requester || "Unknown";
   const getMRFDate = (mrf: MRF) => mrf.created_at || mrf.date || "";
   const getMRFStage = (mrf: MRF) => (mrf.current_stage || mrf.currentStage || "").toLowerCase();
+
+  const getPrettyMRFStageLabel = (stage?: string): string => {
+    const raw = (stage || "").toString();
+    const s = raw.toLowerCase().trim();
+    if (!s) return "N/A";
+    if (s === "executive_review" || s === "executive") return "Executive Approval";
+    if (s === "supply_chain_director_review" || s === "supply_chain") return "Supply Chain Director Approval";
+    if (s === "procurement") return "Procurement Review";
+    if (s === "chairman_review" || s === "chairman_payment") return "Chairman Review";
+    return raw
+      .replace(/_/g, " ")
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  };
   const getMRFPOUrl = (mrf: MRF) => mrf.unsigned_po_url || mrf.unsignedPOUrl;
   const getMRFRejectionReason = (mrf: MRF) => mrf.po_rejection_reason || mrf.poRejectionReason;
   const getMRFPONumber = (mrf: MRF) => mrf.po_number || mrf.poNumber;
@@ -280,6 +294,15 @@ const Procurement = () => {
   // Get workflow state helper
   const getWorkflowState = (mrf: MRF) => {
     return (mrf.workflow_state || mrf.workflowState || "").toLowerCase();
+  };
+
+  const getMRFContractType = (mrf: MRF): string => {
+    const ct = (mrf as any).contract_type || (mrf as any).contractType || "";
+    return typeof ct === "string" ? ct : String(ct || "");
+  };
+
+  const isEmeraldContract = (mrf: MRF): boolean => {
+    return getMRFContractType(mrf).toLowerCase().includes("emerald");
   };
 
   // Helper to check if Supply Chain Director has approved vendor selection
@@ -365,11 +388,27 @@ const Procurement = () => {
     return false;
   };
 
+  // Non-Emerald contracts: Supply Chain Director gives the FIRST approval,
+  // after which the request is routed to Procurement for RFQ/quote sourcing.
+  const isSupplyChainDirectorInitialApproved = (mrf: MRF): boolean => {
+    const stage = getMRFStage(mrf);
+    // Before the final vendor selection approval step, SCD approval is not "final" yet.
+    return stage === "procurement" && !isSupplyChainApproved(mrf);
+  };
+
+  const isInitialApprovalApproved = (mrf: MRF): boolean => {
+    return isEmeraldContract(mrf) ? isExecutiveApproved(mrf) : isSupplyChainDirectorInitialApproved(mrf);
+  };
+
+  const getInitialApprovalApproverName = (mrf: MRF): string => {
+    return isEmeraldContract(mrf) ? "Executive" : "Supply Chain Director";
+  };
+
   // Procurement Manager can ONLY upload PO for Executive-approved MRFs
   const executiveApprovedMRFs = useMemo(() => {
     return mrfRequests.filter(mrf => {
       const hasNoUnsignedPO = !getMRFPOUrl(mrf);
-      return isExecutiveApproved(mrf as MRF) && hasNoUnsignedPO;
+      return isInitialApprovalApproved(mrf as MRF) && hasNoUnsignedPO;
     });
   }, [mrfRequests]);
 
@@ -550,12 +589,14 @@ const Procurement = () => {
   const handleGeneratePO = async (mrf: MRFRequest | MRF) => {
     // Check if MRF is Executive approved first (this is the main requirement)
     const mrfData = mrfRequests.find(m => m.id === mrf.id);
-    const isApproved = isExecutiveApproved(mrfData || (mrf as MRF));
+    const mrfToCheck = (mrfData || (mrf as MRF)) as MRF;
+    const isApproved = isInitialApprovalApproved(mrfToCheck);
+    const approverName = getInitialApprovalApproverName(mrfToCheck);
 
     if (!isApproved) {
       toast({
         title: "Request Not Ready",
-        description: "This MRF must be approved by Executive before sending request to vendors.",
+        description: `This MRF must be approved by ${approverName} before sending request to vendors.`,
         variant: "destructive",
       });
       return;
@@ -570,7 +611,7 @@ const Procurement = () => {
         if (!response.data.canGeneratePO && !isApproved) {
           toast({
             title: "Request Not Ready",
-            description: "This MRF must be approved by Executive before sending request to vendors.",
+            description: `This MRF must be approved by ${approverName} before sending request to vendors.`,
             variant: "destructive",
           });
           return;
@@ -635,12 +676,13 @@ const Procurement = () => {
   }) => {
     if (!selectedMRFForPO) return;
 
-    // Validate Executive approval before sending to vendors
+    // Validate the contract-type dependent initial approval before sending RFQs to vendors
     const mrfData = mrfRequests.find(m => m.id === selectedMRFForPO.id);
-    if (!mrfData || !isExecutiveApproved(mrfData)) {
+    const mrfToCheck = (mrfData || (selectedMRFForPO as any)) as MRF;
+    if (!mrfData || !isInitialApprovalApproved(mrfToCheck)) {
       toast({
         title: "Request Not Ready",
-        description: "This MRF must be approved by Executive before sending request to vendors.",
+        description: `This MRF must be approved by ${getInitialApprovalApproverName(mrfToCheck)} before sending request to vendors.`,
         variant: "destructive",
       });
       setPODialogOpen(false);
@@ -982,7 +1024,7 @@ const Procurement = () => {
           <StatCard
             title="Pending PO Upload"
             value={pendingPOUpload}
-            description="Executive approved, awaiting PO"
+            description="Initial approval completed, awaiting PO"
             icon={Clock}
             iconColor="text-warning"
             onClick={() => setTab("mrf")}
@@ -1416,7 +1458,7 @@ const Procurement = () => {
                               </div>
                               {request.currentStage && (
                                 <p className="text-xs text-muted-foreground">
-                                  Stage: <span className="capitalize font-medium">{request.currentStage}</span>
+                                  Stage: <span className="font-medium">{getPrettyMRFStageLabel(request.currentStage)}</span>
                                 </p>
                               )}
                                 {/* Invoice/PFI Access */}
@@ -1650,11 +1692,14 @@ const Procurement = () => {
                                                           } else {
                                                             // Enhanced error handling
                                                             let errorMessage = sendResponse.error || "Failed to send quotation for approval";
+                                                            const isEmerald = isEmeraldContract(request as MRF);
 
                                                             if (errorMessage.includes("workflow state") || errorMessage.includes("not in")) {
                                                               errorMessage = "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
                                                             } else if (errorMessage.includes("executive approval")) {
-                                                              errorMessage = "Executive approval is required before sending vendor for Supply Chain Director approval.";
+                                                              errorMessage = isEmerald
+                                                                ? "Executive approval is required before sending vendor for Supply Chain Director approval."
+                                                                : "Supply Chain Director first approval is required before sending vendor for final approval.";
                                                             }
 
                                                             toast({
@@ -1702,11 +1747,11 @@ const Procurement = () => {
                               </Badge>
                             </div>
                               <div className="flex items-center gap-2">
-                                {/* View Details button - Shown for procurement after Executive approval */}
+                                {/* View Details button - Shown for procurement after the FIRST required approval */}
                                 {(() => {
                                   const workflowState = getWorkflowState(request as MRF);
                                   const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager";
-                                  const canViewDetails = isProcurement && isExecutiveApproved(request as MRF);
+                                  const canViewDetails = isProcurement && isInitialApprovalApproved(request as MRF);
 
                                   if (canViewDetails) {
                                     return (
@@ -1765,19 +1810,19 @@ const Procurement = () => {
                                   }
                                   return null;
                                 })()}
-                                {/* Send Request to Vendors button - Shown after Executive approval */}
+                                {/* Send Request to Vendors button - Shown after the FIRST required approval */}
                                 {/* The handleGeneratePO function checks canGeneratePO before proceeding */}
-                                {/* Button shown for procurement role when MRF is approved by Executive */}
                                 {(() => {
                                   const workflowState = getWorkflowState(request as MRF);
                                   const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager";
                                   const isPendingPOUpload = workflowState === "pending_po_upload";
-                                  const canShowPOButton = isProcurement && !isPendingPOUpload && (
-                                    workflowState === "procurement_review" || // After Executive approval
+                                  const hasInitialApproval = isInitialApprovalApproved(request as MRF);
+                                  const canShowPOButton = isProcurement && !isPendingPOUpload && hasInitialApproval && (
+                                    workflowState === "procurement_review" || // After FIRST required approval
                                     workflowState === "vendor_selected" || // After vendor selection
                                     workflowState === "invoice_received" || // After invoice received
                                     workflowState === "invoice_approved" || // After Supply Chain Director approval
-                                    (getMRFStage(request as MRF) === "procurement" && isExecutiveApproved(request as MRF)) // Optimistic for list view
+                                    (getMRFStage(request as MRF) === "procurement" && hasInitialApproval) // Optimistic for list view
                                   );
 
                                   if (!canShowPOButton) return null;
@@ -2328,7 +2373,11 @@ const Procurement = () => {
           ) : selectedMRFForDetails && (
             <div className="space-y-6 mt-4">
               {/* Progress Tracker */}
-              <MRFProgressTracker mrfId={selectedMRFForDetails.id} showTitle={true} />
+              <MRFProgressTracker
+                mrfId={selectedMRFForDetails.id}
+                showTitle={true}
+                contractType={(selectedMRFForDetails as any).contract_type || (selectedMRFForDetails as any).contractType}
+              />
 
               {/* Basic Information */}
               <div className="grid grid-cols-2 gap-4">
