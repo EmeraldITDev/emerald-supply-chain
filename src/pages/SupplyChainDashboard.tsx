@@ -336,6 +336,8 @@ const SupplyChainDashboard = () => {
           maxItems={3} 
           showTabs={false} 
           title="Pending Vendor Registrations"
+          externalRegistrations={vendorRegistrations}
+          externalLoading={vendorRegistrationsLoading}
         />
 
         {/* Vendor Selections Pending Approval */}
