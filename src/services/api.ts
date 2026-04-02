@@ -1977,6 +1977,17 @@ export const vendorApi = {
   getRegistrations: async (): Promise<ApiResponse<VendorRegistration[]>> => {
     const response = await apiRequest<any[]>('/vendors/registrations');
     if (response.success && response.data) {
+      const normalizeStatus = (raw: unknown): VendorRegistration['status'] => {
+        const s = String(raw ?? '').trim().toLowerCase();
+        if (!s) return 'Pending';
+        if (s === 'pending' || s.includes('pending')) return 'Pending';
+        if (s === 'under_review' || s === 'under review' || s.includes('review')) return 'Under Review';
+        if (s === 'approved' || s.includes('approved')) return 'Approved';
+        if (s === 'rejected' || s.includes('rejected')) return 'Rejected';
+        // Default to Pending so it doesn't disappear from "pending" filters
+        return 'Pending';
+      };
+
       // Map snake_case backend fields to camelCase frontend interface
       response.data = response.data.map((reg: any) => ({
         id: reg.id,
@@ -1987,9 +1998,15 @@ export const vendorApi = {
         address: reg.address || '',
         taxId: reg.taxId || reg.tax_id || '',
         contactPerson: reg.contactPerson || reg.contact_person || '',
-        status: reg.status || 'Pending',
-        submittedDate: reg.submittedDate || reg.submitted_date || reg.createdAt || reg.created_at || '',
-        createdAt: reg.createdAt || reg.created_at || '',
+        status: normalizeStatus(reg.status ?? reg.approval_status ?? reg.approvalStatus),
+        submittedDate:
+          reg.submittedDate ||
+          reg.submitted_date ||
+          reg.createdAt ||
+          reg.created_at ||
+          reg.updated_at ||
+          '',
+        createdAt: reg.createdAt || reg.created_at || reg.updated_at || '',
         documents: reg.documents || [],
       })) as VendorRegistration[];
     }
