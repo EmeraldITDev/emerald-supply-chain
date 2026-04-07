@@ -30,7 +30,9 @@ const ExecutiveDashboard = () => {
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
   const [approvalRemarks, setApprovalRemarks] = useState<Record<string, string>>({});
+  const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [approvalRemarks, setApprovalRemarks] = useState<Record<string, string>>({});
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
 
