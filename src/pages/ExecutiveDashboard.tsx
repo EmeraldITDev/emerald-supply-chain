@@ -5,12 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, FileText, Loader2, RefreshCw, Download, Eye } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { AlertCircle, FileText, Loader2, RefreshCw, Download, Eye, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
-import { RecentActivities } from "@/components/RecentActivities";
-import { mrfApi, vendorApi } from "@/services/api";
+import { mrfApi } from "@/services/api";
+import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { MRF, VendorRegistration } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 
