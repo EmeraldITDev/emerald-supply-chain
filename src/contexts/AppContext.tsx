@@ -25,7 +25,7 @@ export interface MRFRequest {
   requester: string;
   department?: string;
   // Approval workflow fields
-  currentStage?: "submitted" | "procurement" | "executive" | "chairman" | "supply_chain" | "finance" | "approved" | "rejected" | "completed";
+  currentStage?: "draft" | "submitted" | "executive_review" | "director_review" | "procurement_review" | "rfq_sent" | "quotes_received" | "vendor_selected" | "final_approval" | "po_generated" | "completed" | "rejected";
   procurementManagerApprovalTime?: string;
   approvalHistory?: ApprovalAction[];
   rejectionReason?: string;

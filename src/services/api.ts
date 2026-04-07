@@ -1121,11 +1121,35 @@ export const mrfApi = {
     });
   },
 
+  // Executive rejects MRF
+  executiveReject: async (id: string, reason: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/executive-reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
   // Chairman approves MRF
   chairmanApprove: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
     return apiRequest<MRF>(`/mrfs/${id}/chairman-approve`, {
       method: 'POST',
       body: JSON.stringify({ remarks }),
+    });
+  },
+
+  // Supply Chain Director final approval (quote/vendor selection approval before PO)
+  supplyChainFinalApprove: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/supply-chain-final-approve`, {
+      method: 'POST',
+      body: JSON.stringify({ remarks }),
+    });
+  },
+
+  // Supply Chain Director final rejection (quote/vendor selection rejection)
+  supplyChainFinalReject: async (id: string, reason: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/supply-chain-final-reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
     });
   },
 };

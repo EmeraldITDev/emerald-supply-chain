@@ -44,10 +44,13 @@ export interface MRF {
   created_at?: string; // Backend snake_case variant
   department?: string;
   status: string; // Flexible to match backend workflow statuses
-  currentStage?: 'pending' | 'supply_chain_director_review' | 'procurement_review' | 'rfq_issued' | 'vendor_quotes_received' | 'vendor_selected' | 'po_generated' | 'completed' | 'rejected';
+  currentStage?: 'draft' | 'submitted' | 'executive_review' | 'director_review' | 'procurement_review' | 'rfq_sent' | 'quotes_received' | 'vendor_selected' | 'final_approval' | 'po_generated' | 'completed' | 'rejected';
   current_stage?: string; // Backend snake_case variant
-  workflowState?: 'mrf_created' | 'supply_chain_director_approved' | 'supply_chain_director_rejected' | 'rfq_issued' | 'vendor_quotes_received' | 'vendor_selected' | 'po_generated' | 'completed' | 'rejected';
+  workflowState?: 'draft' | 'submitted' | 'executive_review' | 'director_review' | 'procurement_review' | 'rfq_sent' | 'quotes_received' | 'vendor_selected' | 'final_approval' | 'po_generated' | 'completed' | 'rejected';
   workflow_state?: string; // Backend snake_case variant
+  // Contract type for routing (Emerald → Executive, others → SCD)
+  contract_type?: string;
+  contractType?: string;
   approvalHistory?: ApprovalHistoryEntry[];
   approval_history?: ApprovalHistoryEntry[]; // Backend snake_case variant
   rejectionReason?: string;
@@ -74,6 +77,8 @@ export interface MRF {
   poVersion?: number;
   po_version?: number; // Backend snake_case variant
   currency?: string;
+  // Procurement manager approval timing
+  procurementManagerApprovalTime?: string;
   // Executive approval fields from backend
   executive_approved?: boolean;
   executive_approved_by?: string;

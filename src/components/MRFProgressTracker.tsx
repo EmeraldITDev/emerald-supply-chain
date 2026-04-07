@@ -51,11 +51,13 @@ const stepIcons: Record<number, React.ReactNode> = {
 
 const stepNames: Record<number, string> = {
   1: "MRF Created",
-  2: "Supply Chain Director Approval",
-  3: "RFQ Issued to Vendors",
-  4: "Vendor Quotes Received",
-  5: "Vendor Selection & PO Generation",
-  6: "Process Complete",
+  2: "Initial Approval",
+  3: "Procurement Review",
+  4: "RFQ Sent to Vendors",
+  5: "Vendor Quotes Received",
+  6: "Final Approval (Vendor Selection)",
+  7: "PO Generated",
+  8: "Completed (Signed PO Uploaded)",
 };
 
 export const MRFProgressTracker = ({ mrfId, showTitle = true, contractType, onProgressUpdate }: MRFProgressTrackerProps) => {
