@@ -521,8 +521,6 @@ const ExecutiveDashboard = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Recent Activities */}
-        <RecentActivities limit={10} />
       </div>
       </PullToRefresh>
 
