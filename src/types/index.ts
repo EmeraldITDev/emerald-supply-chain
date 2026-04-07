@@ -44,9 +44,9 @@ export interface MRF {
   created_at?: string; // Backend snake_case variant
   department?: string;
   status: string; // Flexible to match backend workflow statuses
-  currentStage?: 'draft' | 'submitted' | 'executive_review' | 'director_review' | 'procurement_review' | 'rfq_sent' | 'quotes_received' | 'vendor_selected' | 'final_approval' | 'po_generated' | 'completed' | 'rejected';
+  currentStage?: 'draft' | 'submitted' | 'executive_review' | 'director_review' | 'procurement_review' | 'rfq_sent' | 'quotes_received' | 'vendor_selected' | 'final_approval' | 'po_generated' | 'completed' | 'rejected' | (string & {});
   current_stage?: string; // Backend snake_case variant
-  workflowState?: 'draft' | 'submitted' | 'executive_review' | 'director_review' | 'procurement_review' | 'rfq_sent' | 'quotes_received' | 'vendor_selected' | 'final_approval' | 'po_generated' | 'completed' | 'rejected';
+  workflowState?: 'draft' | 'submitted' | 'executive_review' | 'director_review' | 'procurement_review' | 'rfq_sent' | 'quotes_received' | 'vendor_selected' | 'final_approval' | 'po_generated' | 'completed' | 'rejected' | (string & {});
   workflow_state?: string; // Backend snake_case variant
   // Contract type for routing (Emerald → Executive, others → SCD)
   contract_type?: string;
