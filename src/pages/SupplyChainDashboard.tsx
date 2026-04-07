@@ -19,7 +19,8 @@ import { PORejectionDialog } from "@/components/PORejectionDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
-import { mrfApi, vendorApi } from "@/services/api";
+import { mrfApi } from "@/services/api";
+import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { VendorRegistration } from "@/types";
 import type { MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
@@ -73,11 +74,9 @@ const SupplyChainDashboard = () => {
     const fetchVendorRegistrations = async () => {
       setVendorRegistrationsLoading(true);
       try {
-        const response = await vendorApi.getRegistrations();
+        const response = await getPendingVendorRegistrations();
         if (response.success && response.data) {
-          setVendorRegistrations(
-            response.data.filter((reg) => reg.status?.toLowerCase() === "pending" || reg.status?.toLowerCase() === "under review")
-          );
+          setVendorRegistrations(response.data);
         }
       } catch (error) {
         // Silent fail - vendor registrations are supplementary
@@ -156,17 +155,21 @@ const SupplyChainDashboard = () => {
     return (mrf.current_stage || mrf.currentStage || "").toLowerCase();
   };
 
-  // Filter MRFs with vendor selections pending Supply Chain Director approval
+  // Non-Emerald contract: Supply Chain Director first approval
   const pendingFirstApprovals = useMemo(() => {
     return mrfRequests.filter((mrf) => {
-      // Emerald contracts are first-approved by Executive, not Supply Chain Director
       if (isEmeraldContract(mrf)) return false;
-
       const stage = getCurrentStage(mrf);
       const workflowState = getWorkflowState(mrf);
+      return stage === "director_review" || stage === "supply_chain_director_review" || workflowState === "supply_chain_director_review";
+    });
+  }, [mrfRequests]);
 
-      // Non-Emerald contracts wait for SCD first approval before moving to Procurement
-      return stage === "supply_chain_director_review" || workflowState === "supply_chain_director_review";
+  // Final approval: SCD approves vendor selection/quotes before PO generation
+  const pendingFinalApprovals = useMemo(() => {
+    return mrfRequests.filter((mrf) => {
+      const stage = getCurrentStage(mrf);
+      return stage === "final_approval";
     });
   }, [mrfRequests]);
 
