@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Trash2, Eye, Loader2 } from "lucide-react";
+import { FileText, Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Eye, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { mrfApi } from "@/services/api";
@@ -40,9 +40,7 @@ const DepartmentDashboard = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [mrfToDelete, setMrfToDelete] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  
   
   // MRF state - fetched from backend
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
@@ -118,79 +116,7 @@ const DepartmentDashboard = () => {
     rejected: departmentMRNs.filter(m => m.status === "Rejected").length,
   };
 
-  const handleDeleteMRF = async (mrfId: string) => {
-    setMrfToDelete(mrfId);
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDeleteMRF = async () => {
-    if (!mrfToDelete) return;
-    
-    // Check available actions from backend before proceeding
-    try {
-      const response = await mrfApi.getAvailableActions(mrfToDelete);
-      if (response.success && response.data) {
-        if (!response.data.canEdit) {
-          toast({
-            title: "Action Not Allowed",
-            description: "You do not have permission to delete this MRF. It may have already been processed or approved.",
-            variant: "destructive",
-          });
-          setDeleteDialogOpen(false);
-          setMrfToDelete(null);
-          return;
-        }
-      } else {
-        toast({
-          title: "Error",
-          description: "Could not verify permissions. Please try again.",
-          variant: "destructive",
-        });
-        setDeleteDialogOpen(false);
-        setMrfToDelete(null);
-        return;
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to check permissions. Please try again.",
-        variant: "destructive",
-      });
-      setDeleteDialogOpen(false);
-      setMrfToDelete(null);
-      return;
-    }
-    
-    setIsDeleting(true);
-    try {
-      const response = await mrfApi.delete(mrfToDelete);
-      if (response.success) {
-        toast({
-          title: "MRF Deleted",
-          description: "The Material Request Form has been deleted successfully",
-        });
-        if (refreshMRFs) {
-          await refreshMRFs();
-        }
-      } else {
-        toast({
-          title: "Error",
-          description: response.error || "Failed to delete MRF",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to connect to server",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(false);
-      setDeleteDialogOpen(false);
-      setMrfToDelete(null);
-    }
-  };
+  
 
   return (
     <DashboardLayout>
