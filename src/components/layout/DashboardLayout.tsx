@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -7,6 +8,10 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { AIChatbot } from "@/components/AIChatbot";
 import { useNavigate } from "react-router-dom";
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "@/hooks/use-toast";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
