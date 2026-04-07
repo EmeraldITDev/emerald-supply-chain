@@ -62,6 +62,16 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </div>
 
               <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 ml-auto">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  title="Refresh data from server"
+                  className="shrink-0"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
                 <GlobalSearch />
                 <NotificationCenter />
                 <ThemeToggle />
