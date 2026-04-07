@@ -311,18 +311,6 @@ const DepartmentDashboard = () => {
                     </div>
                   ) : (
                     mrfRequests.map((mrf) => {
-                      // Allow delete if:
-                      // 1. Status is pending or rejected (any user)
-                      // 2. OR requester's own MRF that hasn't progressed too far (no PO generated)
-                      const statusLower = (mrf.status || "").toLowerCase();
-                      const isPendingOrRejected = statusLower === "pending" || statusLower.includes("rejected");
-                      const noPOGenerated = !mrf.poNumber && !mrf.unsignedPOUrl;
-                      const notTooFarInWorkflow = !statusLower.includes("supply_chain") && 
-                                                   !statusLower.includes("finance") && 
-                                                   !statusLower.includes("paid") && 
-                                                   !statusLower.includes("completed");
-                      
-                      const canDelete = isPendingOrRejected || (noPOGenerated && notTooFarInWorkflow);
                       
                       return (
                         <Card key={mrf.id} className="hover:shadow-md transition-shadow">
@@ -374,16 +362,6 @@ const DepartmentDashboard = () => {
                                   <span className="hidden sm:inline">View Details</span>
                                   <span className="sm:hidden">View</span>
                                 </Button>
-                                {canDelete && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteMRF(mrf.id)}
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
                               </div>
                             </div>
                           </CardContent>
@@ -595,27 +573,6 @@ const DepartmentDashboard = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete MRF Request?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete this Material Request Form? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmDeleteMRF}
-                disabled={isDeleting}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {isDeleting ? "Deleting..." : "Delete"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     </DashboardLayout>
   );
