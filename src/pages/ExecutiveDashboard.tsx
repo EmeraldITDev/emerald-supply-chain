@@ -409,6 +409,81 @@ const ExecutiveDashboard = () => {
                               </div>
                             )}
 
+                            {/* Approval Actions for Emerald MRFs at executive_review */}
+                            {isEmeraldContract(mrf) && (
+                              (mrf.current_stage || mrf.currentStage || mrf.status || "").toLowerCase().includes("executive") && (
+                                <div className="space-y-3 border-t pt-3">
+                                  <Label className="text-sm font-medium">Remarks</Label>
+                                  <Textarea
+                                    placeholder="Add remarks (required for rejection)..."
+                                    value={approvalRemarks[mrf.id] || ""}
+                                    onChange={(e) => setApprovalRemarks(prev => ({ ...prev, [mrf.id]: e.target.value }))}
+                                    className="min-h-[60px]"
+                                  />
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      disabled={actionLoading === mrf.id}
+                                      onClick={async () => {
+                                        setActionLoading(mrf.id);
+                                        try {
+                                          const response = await mrfApi.executiveApprove(mrf.id, approvalRemarks[mrf.id] || "");
+                                          if (response.success) {
+                                            toast.success("MRF approved — routed to Procurement for sourcing");
+                                            setApprovalRemarks(prev => ({ ...prev, [mrf.id]: "" }));
+                                            await fetchMRFs();
+                                          } else {
+                                            toast.error(response.error || "Failed to approve MRF");
+                                          }
+                                        } catch {
+                                          toast.error("Failed to connect to server");
+                                        } finally {
+                                          setActionLoading(null);
+                                        }
+                                      }}
+                                    >
+                                      {actionLoading === mrf.id ? (
+                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                      ) : (
+                                        <CheckCircle className="h-4 w-4 mr-1" />
+                                      )}
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      disabled={actionLoading === mrf.id || !(approvalRemarks[mrf.id] || "").trim()}
+                                      onClick={async () => {
+                                        const reason = (approvalRemarks[mrf.id] || "").trim();
+                                        if (!reason) {
+                                          toast.error("Please provide a reason for rejection");
+                                          return;
+                                        }
+                                        setActionLoading(mrf.id);
+                                        try {
+                                          const response = await mrfApi.executiveReject(mrf.id, reason);
+                                          if (response.success) {
+                                            toast.error("MRF rejected — sent back to requester");
+                                            setApprovalRemarks(prev => ({ ...prev, [mrf.id]: "" }));
+                                            await fetchMRFs();
+                                          } else {
+                                            toast.error(response.error || "Failed to reject MRF");
+                                          }
+                                        } catch {
+                                          toast.error("Failed to connect to server");
+                                        } finally {
+                                          setActionLoading(null);
+                                        }
+                                      }}
+                                    >
+                                      <XCircle className="h-4 w-4 mr-1" />
+                                      Reject
+                                    </Button>
+                                  </div>
+                                </div>
+                              )
+                            )}
+
                             {/* View Details Button */}
                             <div className="flex gap-2 pt-2">
                               <Button
