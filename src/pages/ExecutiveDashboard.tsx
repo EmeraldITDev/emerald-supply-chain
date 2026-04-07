@@ -29,7 +29,8 @@ const ExecutiveDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
-  const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
+  const [approvalRemarks, setApprovalRemarks] = useState<Record<string, string>>({});
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
 
@@ -50,17 +51,13 @@ const ExecutiveDashboard = () => {
     }
   }, []);
 
-  // Fetch vendor registrations from backend API
+  // Fetch vendor registrations using shared service
   const fetchVendorRegistrations = useCallback(async () => {
     setLoadingVendors(true);
     try {
-      const response = await vendorApi.getRegistrations();
+      const response = await getPendingVendorRegistrations();
       if (response.success && response.data) {
-        // Filter only pending registrations
-        const pending = response.data.filter((reg: VendorRegistration) => 
-          reg.status === 'Pending' || reg.status === 'Under Review'
-        );
-        setVendorRegistrations(pending);
+        setVendorRegistrations(response.data);
       } else {
         console.error('Failed to load vendor registrations:', response.error);
       }
