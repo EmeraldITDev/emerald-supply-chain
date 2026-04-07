@@ -619,8 +619,109 @@ const SupplyChainDashboard = () => {
           </Card>
         )}
 
+        {/* Final Approval — SCD approves quotes/vendor selection before PO generation */}
+        {pendingFinalApprovals.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Final Quote Approval</CardTitle>
+              <CardDescription>Review vendor quotes and approve before PO generation</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {pendingFinalApprovals.map((mrf) => {
+                  const estimatedCost = getEstimatedCost(mrf);
+                  const isActionLoading = actionLoading === mrf.id;
+                  return (
+                    <Card key={mrf.id} className="border-l-4 border-l-primary">
+                      <CardHeader className="p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <CardTitle className="text-base truncate">{mrf.title}</CardTitle>
+                            <CardDescription className="text-xs truncate">
+                              {mrf.id} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
+                            </CardDescription>
+                          </div>
+                          <Badge>₦{estimatedCost.toLocaleString()}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                          <p className="text-sm font-medium text-primary">
+                            Final Approval: Review vendor selection before PO
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Contract Type: {getMRFContractType(mrf) || "N/A"}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              setSelectedMRFForDetails(mrf);
+                              setMrfDetailsDialogOpen(true);
+                              setLoadingFullDetails(true);
+                              try {
+                                const response = await mrfApi.getFullDetails(mrf.id);
+                                if (response.success && response.data) {
+                                  setMrfFullDetails(response.data);
+                                }
+                              } catch {
+                                toast.error("Failed to load MRF details");
+                              } finally {
+                                setLoadingFullDetails(false);
+                              }
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            View Details
+                          </Button>
+                          <Button
+                            size="sm"
+                            disabled={isActionLoading}
+                            onClick={async () => {
+                              setActionLoading(mrf.id);
+                              try {
+                                const response = await mrfApi.supplyChainFinalApprove(mrf.id, "Approved");
+                                if (response.success) {
+                                  toast.success("Final approval granted — Procurement can now generate PO");
+                                  await fetchMRFs();
+                                } else {
+                                  toast.error(response.error || "Failed to approve");
+                                }
+                              } catch {
+                                toast.error("Failed to connect to server");
+                              } finally {
+                                setActionLoading(null);
+                              }
+                            }}
+                          >
+                            {isActionLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={isActionLoading}
+                            onClick={() => {
+                              setSelectedMRFForRejection(mrf);
+                              setRejectDialogOpen(true);
+                            }}
+                          >
+                            <Upload className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* PO Management */}
+
         <Card>
           <CardHeader>
             <CardTitle>Purchase Orders</CardTitle>
