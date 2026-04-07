@@ -5,12 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, FileText, Loader2, RefreshCw, Download, Eye } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { AlertCircle, FileText, Loader2, RefreshCw, Download, Eye, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
-import { RecentActivities } from "@/components/RecentActivities";
-import { mrfApi, vendorApi } from "@/services/api";
+import { mrfApi } from "@/services/api";
+import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { MRF, VendorRegistration } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 
@@ -29,6 +30,8 @@ const ExecutiveDashboard = () => {
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [approvalRemarks, setApprovalRemarks] = useState<Record<string, string>>({});
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
 
@@ -49,17 +52,13 @@ const ExecutiveDashboard = () => {
     }
   }, []);
 
-  // Fetch vendor registrations from backend API
+  // Fetch vendor registrations using shared service
   const fetchVendorRegistrations = useCallback(async () => {
     setLoadingVendors(true);
     try {
-      const response = await vendorApi.getRegistrations();
+      const response = await getPendingVendorRegistrations();
       if (response.success && response.data) {
-        // Filter only pending registrations
-        const pending = response.data.filter((reg: VendorRegistration) => 
-          reg.status === 'Pending' || reg.status === 'Under Review'
-        );
-        setVendorRegistrations(pending);
+        setVendorRegistrations(response.data);
       } else {
         console.error('Failed to load vendor registrations:', response.error);
       }
@@ -410,6 +409,81 @@ const ExecutiveDashboard = () => {
                               </div>
                             )}
 
+                            {/* Approval Actions for Emerald MRFs at executive_review */}
+                            {isEmeraldContract(mrf) && (
+                              (mrf.current_stage || mrf.currentStage || mrf.status || "").toLowerCase().includes("executive") && (
+                                <div className="space-y-3 border-t pt-3">
+                                  <Label className="text-sm font-medium">Remarks</Label>
+                                  <Textarea
+                                    placeholder="Add remarks (required for rejection)..."
+                                    value={approvalRemarks[mrf.id] || ""}
+                                    onChange={(e) => setApprovalRemarks(prev => ({ ...prev, [mrf.id]: e.target.value }))}
+                                    className="min-h-[60px]"
+                                  />
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      disabled={actionLoading === mrf.id}
+                                      onClick={async () => {
+                                        setActionLoading(mrf.id);
+                                        try {
+                                          const response = await mrfApi.executiveApprove(mrf.id, approvalRemarks[mrf.id] || "");
+                                          if (response.success) {
+                                            toast.success("MRF approved — routed to Procurement for sourcing");
+                                            setApprovalRemarks(prev => ({ ...prev, [mrf.id]: "" }));
+                                            await fetchMRFs();
+                                          } else {
+                                            toast.error(response.error || "Failed to approve MRF");
+                                          }
+                                        } catch {
+                                          toast.error("Failed to connect to server");
+                                        } finally {
+                                          setActionLoading(null);
+                                        }
+                                      }}
+                                    >
+                                      {actionLoading === mrf.id ? (
+                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                      ) : (
+                                        <CheckCircle className="h-4 w-4 mr-1" />
+                                      )}
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      disabled={actionLoading === mrf.id || !(approvalRemarks[mrf.id] || "").trim()}
+                                      onClick={async () => {
+                                        const reason = (approvalRemarks[mrf.id] || "").trim();
+                                        if (!reason) {
+                                          toast.error("Please provide a reason for rejection");
+                                          return;
+                                        }
+                                        setActionLoading(mrf.id);
+                                        try {
+                                          const response = await mrfApi.executiveReject(mrf.id, reason);
+                                          if (response.success) {
+                                            toast.error("MRF rejected — sent back to requester");
+                                            setApprovalRemarks(prev => ({ ...prev, [mrf.id]: "" }));
+                                            await fetchMRFs();
+                                          } else {
+                                            toast.error(response.error || "Failed to reject MRF");
+                                          }
+                                        } catch {
+                                          toast.error("Failed to connect to server");
+                                        } finally {
+                                          setActionLoading(null);
+                                        }
+                                      }}
+                                    >
+                                      <XCircle className="h-4 w-4 mr-1" />
+                                      Reject
+                                    </Button>
+                                  </div>
+                                </div>
+                              )
+                            )}
+
                             {/* View Details Button */}
                             <div className="flex gap-2 pt-2">
                               <Button
@@ -522,8 +596,6 @@ const ExecutiveDashboard = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Recent Activities */}
-        <RecentActivities limit={10} />
       </div>
       </PullToRefresh>
 

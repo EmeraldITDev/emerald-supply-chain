@@ -9,21 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Trash2, Eye, Loader2 } from "lucide-react";
+import { FileText, Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Eye, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { mrfApi } from "@/services/api";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -40,9 +30,7 @@ const DepartmentDashboard = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [mrfToDelete, setMrfToDelete] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  
   
   // MRF state - fetched from backend
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
@@ -118,79 +106,7 @@ const DepartmentDashboard = () => {
     rejected: departmentMRNs.filter(m => m.status === "Rejected").length,
   };
 
-  const handleDeleteMRF = async (mrfId: string) => {
-    setMrfToDelete(mrfId);
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDeleteMRF = async () => {
-    if (!mrfToDelete) return;
-    
-    // Check available actions from backend before proceeding
-    try {
-      const response = await mrfApi.getAvailableActions(mrfToDelete);
-      if (response.success && response.data) {
-        if (!response.data.canEdit) {
-          toast({
-            title: "Action Not Allowed",
-            description: "You do not have permission to delete this MRF. It may have already been processed or approved.",
-            variant: "destructive",
-          });
-          setDeleteDialogOpen(false);
-          setMrfToDelete(null);
-          return;
-        }
-      } else {
-        toast({
-          title: "Error",
-          description: "Could not verify permissions. Please try again.",
-          variant: "destructive",
-        });
-        setDeleteDialogOpen(false);
-        setMrfToDelete(null);
-        return;
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to check permissions. Please try again.",
-        variant: "destructive",
-      });
-      setDeleteDialogOpen(false);
-      setMrfToDelete(null);
-      return;
-    }
-    
-    setIsDeleting(true);
-    try {
-      const response = await mrfApi.delete(mrfToDelete);
-      if (response.success) {
-        toast({
-          title: "MRF Deleted",
-          description: "The Material Request Form has been deleted successfully",
-        });
-        if (refreshMRFs) {
-          await refreshMRFs();
-        }
-      } else {
-        toast({
-          title: "Error",
-          description: response.error || "Failed to delete MRF",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to connect to server",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(false);
-      setDeleteDialogOpen(false);
-      setMrfToDelete(null);
-    }
-  };
+  
 
   return (
     <DashboardLayout>
@@ -385,18 +301,6 @@ const DepartmentDashboard = () => {
                     </div>
                   ) : (
                     mrfRequests.map((mrf) => {
-                      // Allow delete if:
-                      // 1. Status is pending or rejected (any user)
-                      // 2. OR requester's own MRF that hasn't progressed too far (no PO generated)
-                      const statusLower = (mrf.status || "").toLowerCase();
-                      const isPendingOrRejected = statusLower === "pending" || statusLower.includes("rejected");
-                      const noPOGenerated = !mrf.poNumber && !mrf.unsignedPOUrl;
-                      const notTooFarInWorkflow = !statusLower.includes("supply_chain") && 
-                                                   !statusLower.includes("finance") && 
-                                                   !statusLower.includes("paid") && 
-                                                   !statusLower.includes("completed");
-                      
-                      const canDelete = isPendingOrRejected || (noPOGenerated && notTooFarInWorkflow);
                       
                       return (
                         <Card key={mrf.id} className="hover:shadow-md transition-shadow">
@@ -448,16 +352,6 @@ const DepartmentDashboard = () => {
                                   <span className="hidden sm:inline">View Details</span>
                                   <span className="sm:hidden">View</span>
                                 </Button>
-                                {canDelete && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteMRF(mrf.id)}
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
                               </div>
                             </div>
                           </CardContent>
@@ -669,27 +563,6 @@ const DepartmentDashboard = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete MRF Request?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete this Material Request Form? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmDeleteMRF}
-                disabled={isDeleting}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {isDeleting ? "Deleting..." : "Delete"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     </DashboardLayout>
   );
