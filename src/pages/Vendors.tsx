@@ -846,53 +846,9 @@ const Vendors = () => {
           </Card>
         </div>
 
-        {/* Pending Vendor Registrations Section */}
-        {pendingKYC.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileCheck className="h-5 w-5" />
-                Pending Vendor Registrations
-              </CardTitle>
-              <CardDescription>
-                {pendingKYC.length} vendor{pendingKYC.length !== 1 ? 's' : ''} awaiting KYC review
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {pendingKYC.slice(0, 5).map((pending) => (
-                  <div key={pending.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="space-y-1">
-                      <p className="font-medium">{pending.name}</p>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>Category: {pending.category}</span>
-                        <span>Submitted: {pending.submitted}</span>
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setReviewingVendor(pending.registration);
-                        setKycReviewOpen(true);
-                      }}
-                    >
-                      Review
-                    </Button>
-                  </div>
-                ))}
-                {pendingKYC.length > 5 && (
-                  <p className="text-sm text-muted-foreground text-center">
-                    And {pendingKYC.length - 5} more... View all in the registrations section below.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Vendor Registrations Section */}
+        {/* Vendor Registrations Section - Pending Only */}
         <VendorRegistrationsList 
-          showTabs={true} 
+          showTabs={false} 
           title="Vendor Registrations"
           externalRegistrations={vendorRegistrations}
           externalLoading={loadingRegistrations}
