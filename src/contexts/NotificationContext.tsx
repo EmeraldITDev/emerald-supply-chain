@@ -133,12 +133,23 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const clearNotification = (id: string) => {
+  const clearNotification = async (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await notificationApi.delete(id);
+    } catch (error) {
+      console.error("Failed to delete notification", error);
+    }
   };
 
-  const clearAllNotifications = () => {
+  const clearAllNotifications = async () => {
+    const currentIds = notifications.map(n => n.id);
     setNotifications([]);
+    try {
+      await Promise.all(currentIds.map(id => notificationApi.delete(id)));
+    } catch (error) {
+      console.error("Failed to delete all notifications", error);
+    }
   };
 
   const updatePreferences = (newPreferences: Partial<NotificationPreferences>) => {
