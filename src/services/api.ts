@@ -618,7 +618,7 @@ export const mrfApi = {
   supplyChainDirectorApprove: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
     return apiRequest<MRF>(`/mrfs/${id}/supply-chain-director-approve`, {
       method: 'POST',
-      body: JSON.stringify({ remarks }),
+      body: JSON.stringify({ action: 'approve', remarks }),
     });
   },
 
