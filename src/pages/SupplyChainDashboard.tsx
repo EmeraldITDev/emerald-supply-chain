@@ -896,7 +896,98 @@ const SupplyChainDashboard = () => {
           </CardContent>
         </Card>
 
-      </div>
+          </TabsContent>
+
+          {/* All Requests Tab */}
+          <TabsContent value="all-requests" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All MRF Requests</CardTitle>
+                <CardDescription>View all material request forms across all stages</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : mrfRequests.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                    <p>No MRF requests found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {mrfRequests.map((mrf) => {
+                      const estimatedCost = getEstimatedCost(mrf);
+                      const stage = getCurrentStage(mrf);
+                      const workflowState = getWorkflowState(mrf);
+                      return (
+                        <Card key={mrf.id} className="hover:shadow-md transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold truncate">{mrf.title}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {mrf.id} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    Contract: {getMRFContractType(mrf) || "N/A"}
+                                  </span>
+                                  <span className="text-xs font-medium">
+                                    {estimatedCost > 0 ? `₦${estimatedCost.toLocaleString()}` : '-'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge>{mrf.status}</Badge>
+                                {mrf.last_action_by_role === 'supply_chain_director' && stage === 'procurement_review' && !isEmeraldContract(mrf) && (
+                                  <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-300">
+                                    SCD Approved
+                                  </Badge>
+                                )}
+                                {mrf.last_action_by_role === 'executive' && workflowState === 'rejected' && (
+                                  <Badge variant="destructive" className="flex items-center gap-1">
+                                    <XCircle className="h-3 w-3" />
+                                    Executive Rejected
+                                  </Badge>
+                                )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={async () => {
+                                    setSelectedMRFForDetails(mrf);
+                                    setMrfDetailsDialogOpen(true);
+                                    setLoadingFullDetails(true);
+                                    try {
+                                      const response = await mrfApi.getFullDetails(mrf.id);
+                                      if (response.success && response.data) {
+                                        setMrfFullDetails(response.data);
+                                      }
+                                    } catch {
+                                      toast.error("Failed to load MRF details");
+                                    } finally {
+                                      setLoadingFullDetails(false);
+                                    }
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  View Details
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        </div>
       </PullToRefresh>
 
       {/* PO Rejection Dialog */}
