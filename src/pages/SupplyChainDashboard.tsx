@@ -387,6 +387,15 @@ const SupplyChainDashboard = () => {
         {/* Dashboard Alerts */}
         <DashboardAlerts userRole="supply_chain" maxAlerts={5} />
 
+        {/* Tabs: Action Items vs All Requests */}
+        <Tabs defaultValue="action-items" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="action-items">Action Items</TabsTrigger>
+            <TabsTrigger value="all-requests">All Requests</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="action-items" className="space-y-6">
+
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
