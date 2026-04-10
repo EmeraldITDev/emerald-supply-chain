@@ -1075,36 +1075,100 @@ const Vendors = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {selectedVendor.documents.map((doc: any, index: number) => (
-                      <div
-                        key={doc.id || index}
-                        className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <FileText className="h-6 w-6 text-primary flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="font-medium truncate">{getDocumentLabel(doc.type) || doc.name || doc.fileName}</p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {doc.fileName || doc.name} {doc.fileSize || doc.size ? `• ${formatFileSize(doc.fileSize || doc.size)}` : ''}
-                            </p>
-                            {doc.expiryDate && (
-                              <p className="text-xs text-warning flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                Expires: {new Date(doc.expiryDate).toLocaleDateString()}
-                              </p>
-                            )}
+                    {selectedVendor.documents.map((doc: any, index: number) => {
+                      // URL expiry logic
+                      const urlExpiresAt = doc.url_expires_at || doc.urlExpiresAt;
+                      let expiryStatus: 'active' | 'expiring' | 'expired' = 'active';
+                      if (urlExpiresAt) {
+                        const expiryDate = new Date(urlExpiresAt);
+                        const now = new Date();
+                        const hoursRemaining = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+                        if (hoursRemaining <= 0) expiryStatus = 'expired';
+                        else if (hoursRemaining <= 48) expiryStatus = 'expiring';
+                      }
+
+                      // File type detection for preview
+                      const fileName = doc.fileName || doc.name || doc.file_name || '';
+                      const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
+                      const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt);
+                      const isPdf = fileExt === 'pdf';
+                      const fileUrl = doc.url || doc.file_url || doc.path;
+
+                      return (
+                        <div key={doc.id || index} className="rounded-lg border bg-card">
+                          {/* Inline preview for images and PDFs */}
+                          {fileUrl && expiryStatus !== 'expired' && isImage && (
+                            <div className="p-2 border-b">
+                              <img src={fileUrl} alt={fileName} className="max-h-40 rounded object-contain mx-auto" />
+                            </div>
+                          )}
+                          {fileUrl && expiryStatus !== 'expired' && isPdf && (
+                            <div className="p-2 border-b">
+                              <iframe src={fileUrl} title={fileName} className="w-full h-40 rounded" />
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <FileText className="h-6 w-6 text-primary flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{getDocumentLabel(doc.type) || doc.name || doc.fileName}</p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {fileName} {doc.fileSize || doc.size ? `• ${formatFileSize(doc.fileSize || doc.size)}` : ''}
+                                </p>
+                                {doc.expiryDate && (
+                                  <p className="text-xs text-warning flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    Expires: {new Date(doc.expiryDate).toLocaleDateString()}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {/* URL Expiry Badge */}
+                              {urlExpiresAt && expiryStatus === 'active' && (
+                                <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs">Active</Badge>
+                              )}
+                              {urlExpiresAt && expiryStatus === 'expiring' && (
+                                <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-xs">Expiring Soon</Badge>
+                              )}
+                              {urlExpiresAt && expiryStatus === 'expired' && (
+                                <Badge variant="destructive" className="text-xs">Expired</Badge>
+                              )}
+                              {expiryStatus === 'expired' ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={async () => {
+                                    // Re-fetch vendor to get fresh signed URLs
+                                    try {
+                                      const response = await vendorApi.getById(selectedVendor.id);
+                                      if (response.success && response.data) {
+                                        setSelectedVendor(response.data);
+                                        toast({ title: "URLs regenerated", description: "Document URLs have been refreshed." });
+                                      }
+                                    } catch {
+                                      toast({ title: "Failed to regenerate", description: "Could not refresh document URLs.", variant: "destructive" });
+                                    }
+                                  }}
+                                >
+                                  <Download className="h-4 w-4 mr-1" />
+                                  Regenerate URL
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDownloadDocument(doc)}
+                                >
+                                  <Download className="h-4 w-4 mr-1" />
+                                  Download
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDownloadDocument(doc)}
-                        >
-                          <Download className="h-4 w-4 mr-1" />
-                          Download
-                        </Button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
