@@ -113,8 +113,7 @@ export interface MRF {
   grn_url?: string; // Backend snake_case variant
   grnShareUrl?: string;
   grn_share_url?: string; // Backend snake_case variant
-  // Stage timestamps (from backend)
-  executive_approved_at?: string;
+  // Stage timestamps (from backend) — executive_approved_at already defined above
   director_approved_at?: string;
   procurement_review_started_at?: string;
   // Last action tracking (from backend)
