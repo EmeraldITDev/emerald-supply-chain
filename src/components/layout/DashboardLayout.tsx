@@ -12,6 +12,7 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
+import { useApp } from "@/contexts/AppContext";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -21,12 +22,19 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { refreshMRFs, refreshSRFs, refreshRFQs, refreshQuotations } = useApp();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await queryClient.invalidateQueries();
+      await Promise.all([
+        refreshMRFs(),
+        refreshSRFs(),
+        refreshRFQs(),
+        refreshQuotations(),
+        queryClient.invalidateQueries(),
+      ]);
       toast({
         title: "Data refreshed",
         description: "All data has been synced with the server.",
@@ -40,7 +48,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [queryClient]);
+  }, [queryClient, refreshMRFs, refreshSRFs, refreshRFQs, refreshQuotations]);
 
   const handleUserClick = () => {
     navigate('/settings');

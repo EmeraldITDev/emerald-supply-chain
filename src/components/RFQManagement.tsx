@@ -203,9 +203,10 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
           deliveryDays,
           items: item.items || [],
           fullData: item, // Store full data for details view
-          // Ensure payment_terms is included
           payment_terms: q.payment_terms || q.paymentTerms || q.payment_terms_text || '',
           paymentTerms: q.payment_terms || q.paymentTerms || q.payment_terms_text || '',
+          quotation_terms: q.quotation_terms || q.terms || '',
+          quotationTerms: q.quotation_terms || q.terms || '',
         };
       }).sort((a: any, b: any) => parseFloat(a.price || a.total_amount || '0') - parseFloat(b.price || b.total_amount || '0'));
     }
@@ -223,9 +224,10 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
           vendorOrders: vendor?.orders || 0,
           deliveryDays,
           delivery_days: deliveryDays,
-          // Ensure payment_terms is included
           payment_terms: (q as any).payment_terms || (q as any).paymentTerms || (q as any).payment_terms_text || '',
           paymentTerms: (q as any).payment_terms || (q as any).paymentTerms || (q as any).payment_terms_text || '',
+          quotation_terms: (q as any).quotation_terms || (q as any).terms || '',
+          quotationTerms: (q as any).quotation_terms || (q as any).terms || '',
         };
       })
       .sort((a, b) => parseFloat(a.price) - parseFloat(b.price));

@@ -3,7 +3,7 @@ export interface User {
   id: number;
   email: string;
   name: string;
-  role: 'employee' | 'procurement_manager' | 'procurement' | 'finance' | 'admin' | 'executive' | 'supply_chain_director' | 'chairman' | 'logistics_manager' | 'logistics' | 'finance_officer' | 'supply_chain' | 'regular_staff' | 'staff';
+  role: 'employee' | 'procurement_manager' | 'procurement' | 'finance' | 'admin' | 'executive' | 'supply_chain_director' | 'chairman' | 'logistics_manager' | 'logistics' | 'finance_officer' | 'supply_chain';
   department?: string | null;
   phone?: string | null;
   employeeId?: number;
@@ -113,6 +113,11 @@ export interface MRF {
   grn_url?: string; // Backend snake_case variant
   grnShareUrl?: string;
   grn_share_url?: string; // Backend snake_case variant
+  // Stage timestamps (from backend) — executive_approved_at already defined above
+  director_approved_at?: string;
+  procurement_review_started_at?: string;
+  // Last action tracking (from backend)
+  last_action_by_role?: string;
 }
 
 export interface CreateMRFData {

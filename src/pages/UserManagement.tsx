@@ -6,6 +6,7 @@ import type { User } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -464,9 +465,8 @@ const UserManagement = () => {
               {!selectedUser && (
                 <div className="space-y-2">
                   <Label htmlFor="password">Password *</Label>
-                  <Input
+                  <PasswordInput
                     id="password"
-                    type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder="Enter password"
@@ -476,9 +476,8 @@ const UserManagement = () => {
               {selectedUser && (
                 <div className="space-y-2">
                   <Label htmlFor="password">New Password (leave blank to keep current)</Label>
-                  <Input
+                  <PasswordInput
                     id="password"
-                    type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder="Enter new password"

@@ -159,6 +159,22 @@ export function AppSidebar() {
           ]
         }
       ];
+    } else if (user?.role === "logistics_manager") {
+      // Logistics Manager: same as logistics role
+      return [
+        {
+          label: "Main",
+          items: [
+            { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+          ]
+        },
+        {
+          label: "Operations",
+          items: [
+            { title: "Logistics", url: "/logistics", icon: Truck },
+          ]
+        }
+      ];
     }
     return [];
   };
