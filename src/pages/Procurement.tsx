@@ -376,13 +376,11 @@ const Procurement = () => {
     const stage = getMRFStage(mrf);
     const statusLower = (mrf.status || "").toLowerCase();
 
-    if (stage === "procurement" && statusLower === "procurement") {
-      // This means it's been approved and moved to procurement stage
+    if ((stage === "procurement" || stage === "procurement_review") && statusLower === "procurement") {
       return true;
     }
 
-    // Also check if status is "procurement" (backend sets this after executive approval for non-high-value items)
-    if (statusLower === "procurement" && stage === "procurement") {
+    if (statusLower === "procurement" && (stage === "procurement" || stage === "procurement_review")) {
       return true;
     }
 
@@ -394,7 +392,7 @@ const Procurement = () => {
   const isSupplyChainDirectorInitialApproved = (mrf: MRF): boolean => {
     const stage = getMRFStage(mrf);
     // Before the final vendor selection approval step, SCD approval is not "final" yet.
-    return stage === "procurement" && !isSupplyChainApproved(mrf);
+    return (stage === "procurement" || stage === "procurement_review") && !isSupplyChainApproved(mrf);
   };
 
   const isInitialApprovalApproved = (mrf: MRF): boolean => {
@@ -1748,7 +1746,7 @@ const Procurement = () => {
                                 {(() => {
                                   const workflowState = getWorkflowState(request as MRF);
                                   const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager";
-                                  const canViewDetails = isProcurement && isInitialApprovalApproved(request as MRF);
+                                  const canViewDetails = isProcurement;
 
                                   if (canViewDetails) {
                                     return (

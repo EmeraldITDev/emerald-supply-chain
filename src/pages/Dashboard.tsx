@@ -50,7 +50,7 @@ const Dashboard = () => {
     return <Navigate to="/procurement" replace />;
   }
 
-  if (user?.role === "logistics") {
+  if (user?.role === "logistics" || user?.role === "logistics_manager") {
     return <Navigate to="/logistics" replace />;
   }
 
