@@ -1,80 +1,89 @@
 
 
-# Revised Plan: MRF Workflow, Bug Fixes & Cleanup
+# Revised Implementation Plan — Three Corrections Applied
 
-Incorporates the three corrections from the user's feedback.
-
----
-
-## Frontend Changes
-
-### 1. Fix Build Error — `src/types/index.ts`
-- Add `procurementManagerApprovalTime?: string` to the `MRF` interface (fixes TS2339 on `MRFApprovalDialog.tsx` line 62)
-- Add `contract_type?: string` and `contractType?: string`
-- Update `currentStage` union to: `'draft' | 'submitted' | 'executive_review' | 'director_review' | 'procurement_review' | 'rfq_sent' | 'quotes_received' | 'vendor_selected' | 'final_approval' | 'po_generated' | 'completed' | 'rejected'`
-- Update `workflowState` union to match
-
-### 2. Update `currentStage` in AppContext — `src/contexts/AppContext.tsx`
-- Replace old union (`"submitted" | "procurement" | "executive" | "chairman" | "supply_chain" | "finance" | ...`) with the same set above. Removes `"finance"`.
-
-### 3. Update MRF Progress Tracker — `src/components/MRFProgressTracker.tsx`
-- 8 steps: MRF Created → Initial Approval (dynamic label: "Executive Approval" for Emerald, "SCD Approval" otherwise) → Procurement Review → RFQ Sent → Quotes Received → Final Approval → PO Generated → Completed
-
-### 4. Re-enable Executive Approval for Emerald MRFs — `src/pages/ExecutiveDashboard.tsx`
-- Show Approve/Reject buttons only when `isEmeraldContract(mrf) && status === 'executive_review'`
-- Approve calls `mrfApi.executiveApprove(id, remarks)`; Reject calls new `mrfApi.executiveReject(id, reason)`
-- Replace `vendorApi.getRegistrations()` with `getPendingVendorRegistrations()`
-
-### 5. Add Final Approval to Supply Chain Dashboard — `src/pages/SupplyChainDashboard.tsx`
-- Filter for `pendingFinalApprovals`: MRFs where `currentStage === "final_approval"` **only** — do NOT include `vendor_selected` (those haven't been escalated yet; `vendor_selected` and `final_approval` are distinct states per spec)
-- Add Approve/Reject UI calling `mrfApi.supplyChainFinalApprove` / `supplyChainFinalReject`
-- Replace `vendorApi.getRegistrations()` with `getPendingVendorRegistrations()`
-
-### 6. Remove Delete from Department Dashboard — `src/pages/DepartmentDashboard.tsx`
-- Remove all delete state, handlers, dialog, and button
-
-### 7. Remove Finance from MRF Workflow — `src/pages/FinanceDashboard.tsx`
-- Remove `handleMarkProcessed`, "Mark as Processed" button, `mrfApi.processPayment` call, GRN request logic, and `RecentActivities`
-- Keep page for Accounts Payable/Receivable navigation only
-
-### 8. Add API Methods — `src/services/api.ts`
-- `executiveReject`: `POST /mrfs/${id}/executive-reject` with `{ reason }`
-- `supplyChainFinalApprove`: `POST /mrfs/${id}/supply-chain-final-approve` with `{ remarks }`
-- `supplyChainFinalReject`: `POST /mrfs/${id}/supply-chain-final-reject` with `{ reason }`
+All three flags have been incorporated. No other changes to the plan.
 
 ---
 
-## Backend Bugs — For Laravel Team
+## Correction 1 — Remove badge fallback inference (Section 4/5 badge logic)
 
-**BUG 1 — Contract Type Schema Error**
-1. Run `php artisan migrate:status` to confirm the migration adding `contract_type` was applied.
-2. Check the column type: `SHOW COLUMNS FROM mrfs LIKE 'contract_type'`. If it is an `enum`, it likely only allows "Emerald" or a fixed set.
-3. **Fix**: Write a new migration: `DB::statement("ALTER TABLE mrfs MODIFY contract_type VARCHAR(255) NULL");` then run `php artisan migrate`. This allows any string value.
-4. Also check the MRF model's `$fillable` array and any FormRequest validator for hardcoded allowed values and remove or expand them.
-5. Verify by submitting an MRF with `contract_type = "Oando"`.
+**Previous:** "Use `mrf.last_action_by_role` if available, otherwise check `mrf.status` string for 'rejected' + contract type being Emerald to infer executive rejection."
 
-**BUG 2 — Missing Quotations Relationship**
-- Add `public function quotations() { return $this->hasMany(Quotation::class); }` to `App\Models\MRF`.
-- To resolve the foreign key name: check the `quotations` table migration file (`database/migrations/*_create_quotations_table.php`) for the actual foreign key column name. Use that name in the relationship if it differs from the default: `$this->hasMany(Quotation::class, 'actual_column_name')`. Do not guess between `mrf_id` and `m_r_f_id` — read the migration.
+**Revised:** Remove the fallback entirely. The badge renders **only** when `mrf.last_action_by_role` is present in the API response. If the field is absent or null, no role-specific badge appears — just the standard status badge. This prevents wrong badges from shipping if the backend migration is delayed.
 
-**BUG 3 — `toIso8601String()` on String**
-- Search the VendorRegistration model and its Resource/Transformer for `->toIso8601String()` calls. Identify the exact field.
-- Add that field to `protected $casts` as `'datetime'` in the VendorRegistration model.
-- If on first write the raw value is a string before Eloquent casts it, use a mutator: `public function setFieldNameAttribute($value) { $this->attributes['field_name'] = Carbon::parse($value); }`.
+Affected files:
+- `src/pages/SupplyChainDashboard.tsx` — purple "SCD Approved" badge: render only when `mrf.last_action_by_role === 'supply_chain_director'`
+- `src/pages/ExecutiveDashboard.tsx` — executive rejection icon: render only when `mrf.last_action_by_role === 'executive'` and `mrf.workflow_state === 'rejected'`
+- `src/pages/Procurement.tsx` — same logic
 
-**BUG 4 — Vendor Registrations Not Appearing**
-- Confirm the POST endpoint (registration form) and the GET endpoint (dashboard list) both read/write the same database table.
-- The frontend workaround (using the procurement dashboard endpoint) does not fix this — both endpoints must be verified independently.
+No conditional inference from contract type. No guessing. Field present = badge shown. Field absent = no badge.
 
 ---
 
-## Files to Edit
-1. `src/types/index.ts`
-2. `src/contexts/AppContext.tsx`
-3. `src/components/MRFProgressTracker.tsx`
-4. `src/pages/ExecutiveDashboard.tsx`
-5. `src/pages/SupplyChainDashboard.tsx`
-6. `src/pages/DepartmentDashboard.tsx`
-7. `src/pages/FinanceDashboard.tsx`
-8. `src/services/api.ts`
+## Correction 2 — Backend instruction: do not cache signed URLs (Section 12/13)
+
+Add this sentence to the backend instructions for Section 12:
+
+> **Do not cache signed S3 URLs.** The `GET /vendors/{id}` endpoint must generate a fresh signed URL for every document on every request. If signed URLs are cached (in Redis, model attributes, or database columns), the "Regenerate URL" button on the frontend will return the same expired URL. Generate URLs at response time using `Storage::disk('s3')->temporaryUrl($doc->s3_key, now()->addHours(24))` inside the controller or resource, never store the URL string permanently.
+
+---
+
+## Correction 3 — Split Section 15 backend notification steps
+
+**Previous:** "Confirm notification routes exist. Create notification records in each state transition."
+
+**Revised — two explicit steps:**
+
+**Step 1 — Confirm notification routes exist.** Open `routes/api.php` and verify these four routes are registered:
+```php
+Route::get('/notifications', [NotificationController::class, 'index']);
+Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
+```
+If any are missing, add them. Run `php artisan route:list | grep notification` to confirm.
+
+**Step 2 — Add `Notification::create()` calls inside every MRF state transition method.** Open `app/Http/Controllers/MRFController.php`. In every method that changes `workflow_state`, add a notification record **after** the state change and `save()`. Example for executive approval:
+```php
+// Inside executiveApprove() method, after $mrf->save():
+Notification::create([
+    'user_id' => $mrf->created_by,
+    'message' => "Your MRF {$mrf->mrf_number} has been approved by Executive.",
+    'is_read' => false,
+]);
+
+// Also notify the next approver:
+$procurementManager = User::where('role', 'procurement_manager')->first();
+if ($procurementManager) {
+    Notification::create([
+        'user_id' => $procurementManager->id,
+        'message' => "MRF {$mrf->mrf_number} requires procurement review.",
+        'is_read' => false,
+    ]);
+}
+```
+Repeat this pattern in: `supplyChainDirectorApprove`, `supplyChainDirectorReject`, `executiveReject`, `supplyChainFinalApprove`, `supplyChainFinalReject`, and any other transition method. Each must create at least one notification for the MRF submitter and one for the next responsible role.
+
+---
+
+## Complete File List (13 files, unchanged from prior plan)
+
+| # | File | Sections |
+|---|------|----------|
+| 1 | `src/pages/Procurement.tsx` | 1, 8, 9/10 |
+| 2 | `src/pages/DepartmentDashboard.tsx` | 1 |
+| 3 | `src/pages/ExecutiveDashboard.tsx` | 1, 4 |
+| 4 | `src/pages/SupplyChainDashboard.tsx` | 2, 4 |
+| 5 | `src/contexts/AuthContext.tsx` | 5 |
+| 6 | `src/types/index.ts` | 5 |
+| 7 | `src/pages/UserManagement.tsx` | 6, 7 |
+| 8 | `src/pages/Dashboard.tsx` | 6 |
+| 9 | `src/components/layout/AppSidebar.tsx` | 6 |
+| 10 | `src/pages/Settings.tsx` | 7 |
+| 11 | `src/pages/Vendors.tsx` | 12, 13 |
+| 12 | `src/components/layout/DashboardLayout.tsx` | 16 |
+| 13 | `src/components/RFQManagement.tsx` | 9/10 |
+
+All other plan details (Sections 1-3, 5-10, 11-14, 16, backend instructions) remain exactly as stated in the previous revision. Only the three corrections above are changed.
 
