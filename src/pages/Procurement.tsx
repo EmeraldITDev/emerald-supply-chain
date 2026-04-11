@@ -2625,7 +2625,7 @@ const Procurement = () => {
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div>
                                   <p className="text-muted-foreground">Total Amount</p>
-                                  <p className="font-semibold text-lg">₦{parseFloat(quotation.totalAmount || quotation.total_amount || quotation.price || '0').toLocaleString()}</p>
+                                  <p className="font-semibold text-lg">₦{parseFloat(quotation.totalAmount || quotation.total_amount || quotation.price || quotation.total_order_value || quotation.totalOrderValue || '0').toLocaleString()}</p>
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground">Delivery Days</p>
