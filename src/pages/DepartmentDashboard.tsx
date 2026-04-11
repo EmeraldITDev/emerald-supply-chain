@@ -349,6 +349,13 @@ const DepartmentDashboard = () => {
                               </div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
+                                {/* Rejected badge */}
+                                {(mrf.status || "").toLowerCase() === "rejected" && (
+                                  <Badge variant="destructive" className="flex items-center gap-1">
+                                    <XCircle className="h-3 w-3" />
+                                    Rejected
+                                  </Badge>
+                                )}
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -374,6 +381,30 @@ const DepartmentDashboard = () => {
                                   <span className="hidden sm:inline">View Details</span>
                                   <span className="sm:hidden">View</span>
                                 </Button>
+                                {/* Edit & Resubmit for rejected MRFs */}
+                                {(mrf.status || "").toLowerCase() === "rejected" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-700 dark:text-orange-300 dark:hover:bg-orange-950"
+                                    onClick={() => {
+                                      setSelectedMRFForResubmit(mrf);
+                                      setResubmitData({
+                                        title: mrf.title || "",
+                                        description: mrf.description || "",
+                                        quantity: String(mrf.quantity || ""),
+                                        estimated_cost: String(mrf.estimated_cost || mrf.estimatedCost || ""),
+                                        justification: mrf.justification || "",
+                                        category: mrf.category || "",
+                                      });
+                                      setResubmitDialogOpen(true);
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    <span className="hidden sm:inline">Edit & Resubmit</span>
+                                    <span className="sm:hidden">Resubmit</span>
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </CardContent>
