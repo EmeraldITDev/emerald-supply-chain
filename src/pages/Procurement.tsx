@@ -2246,12 +2246,12 @@ const Procurement = () => {
                       </div>
                       <div>
                         <Label className="text-muted-foreground">Delivery Days</Label>
-                        <p className="font-medium">{quotation.deliveryDays || quotation.delivery_days || 'N/A'} days</p>
+                        <p className="font-medium">{displayNumeric(quotation.deliveryDays ?? quotation.delivery_days, 'days')}</p>
                       </div>
                       <div>
                         <Label className="text-muted-foreground">Payment Terms</Label>
                         <p className="font-medium">
-                          {quotation.payment_terms || quotation.paymentTerms || quotation.payment_terms_text || 'N/A'}
+                          {displayString(quotation.paymentTerms ?? quotation.payment_terms)}
                         </p>
                       </div>
                       {quotation.currency && (
