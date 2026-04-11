@@ -1441,12 +1441,20 @@ const Procurement = () => {
                                     }
                                     return null;
                                   })()}
-                                  {/* SCD Approval Badge */}
-                                  {(request as any).last_action_by_role === 'supply_chain_director' && (
-                                    <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-300">
-                                      SCD Approved
-                                    </Badge>
-                                  )}
+                                   {/* SCD Approval Badge */}
+                                   {(() => {
+                                     const m = request as any;
+                                     const scdApproved = m.scd_approved || m.scdApproved || m.director_approved || m.directorApproved || m.supply_chain_approved || m.supplyChainApproved || m.last_action_by_role === 'supply_chain_director';
+                                     if (scdApproved) {
+                                       return (
+                                         <Badge className="bg-purple-500 text-white hover:bg-purple-600">
+                                           <CheckCircle2 className="h-3 w-3 mr-1" />
+                                           SCD Approved
+                                         </Badge>
+                                       );
+                                     }
+                                     return null;
+                                   })()}
                               </div>
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
                                 <span className="font-medium">{request.id}</span>
@@ -1964,11 +1972,19 @@ const Procurement = () => {
                                       Executive Approved
                                     </Badge>
                                   )}
-                                  {(mrf as any).last_action_by_role === 'supply_chain_director' && (
-                                    <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-300">
-                                      SCD Approved
-                                    </Badge>
-                                  )}
+                                   {(() => {
+                                     const m = mrf as any;
+                                     const scdApproved = m.scd_approved || m.scdApproved || m.director_approved || m.directorApproved || m.supply_chain_approved || m.supplyChainApproved || m.last_action_by_role === 'supply_chain_director';
+                                     if (scdApproved) {
+                                       return (
+                                         <Badge className="bg-purple-500 text-white hover:bg-purple-600">
+                                           <CheckCircle2 className="h-3 w-3 mr-1" />
+                                           SCD Approved
+                                         </Badge>
+                                       );
+                                     }
+                                     return null;
+                                   })()}
                                 </div>
                                 <p className="text-sm text-muted-foreground">
                                   {mrf.id} • {getMRFRequester(mrf)} • {mrf.department || "N/A"}
