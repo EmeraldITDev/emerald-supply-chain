@@ -22,6 +22,7 @@ import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrat
 
 import type { MRFRequest } from "@/contexts/AppContext";
 import { dashboardApi, mrfApi, grnApi, rfqApi, quotationApi, vendorApi } from "@/services/api";
+import { normalizeQuotation, displayNumeric, displayString } from "@/utils/normalizeQuotation";
 import type { VendorRegistration, MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
