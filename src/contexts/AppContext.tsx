@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { mrfApi, srfApi, rfqApi, quotationApi } from "@/services/api";
+import { mrfApi, srfApi, rfqApi } from "@/services/api";
+import { normalizeQuotation } from "@/utils/normalizeQuotation";
 import type { MRF, SRF, RFQ as RFQType } from "@/types";
 
 // Types
@@ -422,40 +423,56 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return [];
   };
 
-  // Fetch Quotations from API
-  const refreshQuotations = async () => {
+  // Fetch Quotations from API — uses per-RFQ endpoint to avoid broken /api/quotations
+  const refreshQuotations = async (rfqList?: RFQ[]) => {
+    const list = rfqList || rfqs;
+    if (list.length === 0) {
+      setQuotationsState([]);
+      return;
+    }
     try {
-      const response = await quotationApi.getAll();
-      if (response.success && response.data) {
-        const rawData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.quotations || [];
-        // Convert API Quotation type to AppContext Quotation type
-        const converted = rawData.map((q: any) => ({
-          id: q.id,
-          rfqId: q.rfq_id || q.rfqId || "",
-          vendorId: q.vendor_id || q.vendorId || "",
-          vendorName: q.vendor?.name || q.vendor?.company_name || q.vendor_name || "Unknown Vendor",
-          price: String(q.price || q.total_amount || q.amount || "0"),
-          deliveryDate: q.delivery_date || q.deliveryDate || "",
-          notes: q.notes || "",
-          status: (q.status || "Pending") as "Pending" | "Approved" | "Rejected",
-          submittedDate: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt || "",
-          documentUrl: q.document_url || q.documentUrl,
-          // Include additional fields for statistics and display
-          deliveryDays: q.delivery_days || q.deliveryDays,
-          delivery_days: q.delivery_days || q.deliveryDays,
-          // Payment terms - include all variants
-          paymentTerms: q.payment_terms || q.paymentTerms || q.payment_terms_text || "",
-          payment_terms: q.payment_terms || q.paymentTerms || q.payment_terms_text || "",
-          payment_terms_text: q.payment_terms || q.paymentTerms || q.payment_terms_text || "",
-          // Additional fields that might be needed
-          total_amount: q.total_amount || q.totalAmount || q.price || "0",
-          totalAmount: q.total_amount || q.totalAmount || q.price || "0",
-          currency: q.currency || "NGN",
-          validity_days: q.validity_days || q.validityDays,
-          warranty_period: q.warranty_period || q.warrantyPeriod,
-        }));
-        setQuotationsState(converted);
+      const allQuotations: Quotation[] = [];
+      const seenIds = new Set<string>();
+
+      for (const rfq of list) {
+        try {
+          const response = await rfqApi.getQuotations(rfq.id);
+          if (response.success && response.data?.quotations) {
+            for (const item of response.data.quotations) {
+              const n = normalizeQuotation(item, rfq.id);
+              if (n.id && !seenIds.has(n.id)) {
+                seenIds.add(n.id);
+                allQuotations.push({
+                  id: n.id,
+                  rfqId: n.rfqId,
+                  vendorId: n.vendorId,
+                  vendorName: n.vendorName,
+                  price: n.price,
+                  deliveryDate: n.deliveryDate ?? '',
+                  notes: n.notes,
+                  status: (n.status || 'Pending') as 'Pending' | 'Approved' | 'Rejected',
+                  submittedDate: n.submittedAt,
+                  documentUrl: n.documentUrl,
+                  deliveryDays: n.deliveryDays,
+                  delivery_days: n.deliveryDays,
+                  paymentTerms: n.paymentTerms ?? '',
+                  payment_terms: n.paymentTerms ?? '',
+                  payment_terms_text: n.paymentTerms ?? '',
+                  total_amount: n.price,
+                  totalAmount: n.price,
+                  currency: n.currency,
+                  validity_days: n.validityDays,
+                  validityDays: n.validityDays,
+                  warranty_period: n.warrantyPeriod,
+                } as any);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to fetch quotations for RFQ ${rfq.id}:`, error);
+        }
       }
+      setQuotationsState(allQuotations);
     } catch (error) {
       console.error("Failed to fetch quotations:", error);
     }
