@@ -50,6 +50,19 @@ const DepartmentDashboard = () => {
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+  
+  // Edit & Resubmit dialog state
+  const [resubmitDialogOpen, setResubmitDialogOpen] = useState(false);
+  const [selectedMRFForResubmit, setSelectedMRFForResubmit] = useState<MRF | null>(null);
+  const [resubmitData, setResubmitData] = useState({
+    title: "",
+    description: "",
+    quantity: "",
+    estimated_cost: "",
+    justification: "",
+    category: "",
+  });
+  const [isResubmitting, setIsResubmitting] = useState(false);
 
   // Fetch MRFs from backend
   const fetchMRFs = useCallback(async () => {
