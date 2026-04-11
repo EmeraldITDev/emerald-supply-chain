@@ -95,6 +95,7 @@ export function AppSidebar() {
             { title: "My Requests", url: "/dashboard", icon: FileText },
             { title: "New MRF", url: "/new-mrf", icon: FileText },
             { title: "New SRF", url: "/new-srf", icon: FileText },
+            { title: "Annual Planning", url: "/department?tab=annual", icon: Calendar },
           ]
         }
       ];

@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { authApi } from "@/services/api";
 
-export type UserRole = "employee" | "general_employee" | "procurement_manager" | "finance" | "executive" | "supply_chain_director" | "supply_chain" | "chairman" | "logistics_manager" | "procurement" | "logistics";
+export type UserRole = "employee" | "general_employee" | "regular_staff" | "staff" | "procurement_manager" | "finance" | "executive" | "supply_chain_director" | "supply_chain" | "chairman" | "logistics_manager" | "procurement" | "logistics";
 
 // Helper to check if a role is a staff/employee role
 export const isEmployeeRole = (role?: string): boolean => {
-  return role === "employee" || role === "general_employee";
+  return role === "employee" || role === "general_employee" || role === "regular_staff" || role === "staff";
 };
 
 export interface AuthUser {
