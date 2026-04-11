@@ -998,11 +998,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                               <div>
                                 <p className="text-sm text-muted-foreground">Delivery</p>
                                 <p className="text-xl font-bold">
-                                  {quote.deliveryDays !== null && quote.deliveryDays !== undefined
-                                    ? `${Math.round(quote.deliveryDays)} days`
-                                    : quote.delivery_days !== null && quote.delivery_days !== undefined
-                                      ? `${Math.round(quote.delivery_days)} days`
-                                      : 'N/A'}
+                                  {displayNumeric(quote.deliveryDays ?? quote.delivery_days, 'days')}
                                 </p>
                               </div>
                               <div>
@@ -1136,11 +1132,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                 <div>
                   <Label className="text-muted-foreground">Delivery Days</Label>
                   <p className="font-medium">
-                    {selectedQuotation.deliveryDays !== null && selectedQuotation.deliveryDays !== undefined
-                      ? `${Math.round(selectedQuotation.deliveryDays)} days`
-                      : selectedQuotation.delivery_days !== null && selectedQuotation.delivery_days !== undefined
-                        ? `${Math.round(selectedQuotation.delivery_days)} days`
-                        : 'N/A'}
+                    {displayNumeric(selectedQuotation.deliveryDays ?? selectedQuotation.delivery_days, 'days')}
                   </p>
                 </div>
                 <div>
@@ -1154,12 +1146,12 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                 <div>
                   <Label className="text-muted-foreground">Payment Terms</Label>
                   <p className="font-medium">
-                    {selectedQuotation.payment_terms || selectedQuotation.paymentTerms || selectedQuotation.payment_terms_text || (selectedQuotation as any).payment_terms_text || 'N/A'}
+                    {displayString(selectedQuotation.paymentTerms ?? selectedQuotation.payment_terms)}
                   </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Validity Period</Label>
-                  <p className="font-medium">{selectedQuotation.validity_days || selectedQuotation.validityDays || 'N/A'} days</p>
+                  <p className="font-medium">{displayNumeric(selectedQuotation.validityDays ?? selectedQuotation.validity_days, 'days')}</p>
                 </div>
                 {selectedQuotation.warranty_period && (
                   <div>
@@ -1300,8 +1292,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
             // Get delivery days and payment terms from quotations (not RFQ)
             // Use the first quotation or the selected/awarded quotation if available
             const selectedQuotation = rfqQuotations.find((q: any) => q.status === 'approved' || q.status === 'awarded') || rfqQuotations[0] || null;
-            const deliveryDays = selectedQuotation?.deliveryDays || selectedQuotation?.delivery_days || null;
-            const paymentTerms = selectedQuotation?.payment_terms || selectedQuotation?.paymentTerms || selectedQuotation?.payment_terms_text || null;
+            const deliveryDays = selectedQuotation?.deliveryDays ?? selectedQuotation?.delivery_days ?? null;
+            const paymentTerms = selectedQuotation?.paymentTerms ?? selectedQuotation?.payment_terms ?? null;
             
             // Get vendor count from RFQ details or fallback to vendorIds array
             const vendorCount = rfqDetailsData?.vendorIds?.length || 
@@ -1436,17 +1428,13 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                   <div>
                                     <p className="text-muted-foreground">Delivery Days</p>
                                     <p className="font-medium">
-                                      {quotation.deliveryDays !== null && quotation.deliveryDays !== undefined
-                                        ? `${Math.round(quotation.deliveryDays)} days`
-                                        : quotation.delivery_days !== null && quotation.delivery_days !== undefined
-                                          ? `${Math.round(quotation.delivery_days)} days`
-                                          : 'N/A'}
+                                      {displayNumeric(quotation.deliveryDays ?? quotation.delivery_days, 'days')}
                                     </p>
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Payment Terms</p>
                                     <p className="font-medium">
-                                      {quotation.payment_terms || quotation.paymentTerms || quotation.payment_terms_text || (quotation as any).payment_terms_text || 'N/A'}
+                                      {displayString(quotation.paymentTerms ?? quotation.payment_terms)}
                                     </p>
                                   </div>
                                 </div>
