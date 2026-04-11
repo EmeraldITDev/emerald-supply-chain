@@ -187,7 +187,7 @@ const DepartmentDashboard = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="mrns" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="mrns">Material Request Notes</TabsTrigger>
             <TabsTrigger value="mrf">Material Request Forms (MRF)</TabsTrigger>
