@@ -1485,47 +1485,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                           const quotationsResponse = await rfqApi.getQuotations(selectedRFQ.id);
                                           if (quotationsResponse.success && quotationsResponse.data?.quotations) {
                                             const formattedQuotations = quotationsResponse.data.quotations.map((item: any) => {
-                                              const q = item.quotation || item;
-                                              const vendor = item.vendor || q.vendor || {};
-                                              
-                                              // Calculate delivery days using helper function
-                                              const deliveryDays = getDeliveryDays(q);
-                                              
-                                              const paymentTerms = q.payment_terms ?? 
-                                                                  q.paymentTerms ?? 
-                                                                  q.payment_terms_text ?? 
-                                                                  (q as any).payment_terms_text ?? 
-                                                                  null;
-                                              
-                                              return {
-                                                ...q,
-                                                vendorName: vendor?.name || vendor?.company_name || q.vendorName || 'Unknown Vendor',
-                                                vendorId: vendor?.id || vendor?.vendor_id || q.vendorId,
-                                                vendorRating: vendor?.rating || q.vendorRating || 0,
-                                                vendorOrders: vendor?.total_orders || vendor?.orders || q.vendorOrders || 0,
-                                                vendorEmail: vendor?.email || q.vendorEmail,
-                                                items: item.items || q.items || [],
-                                                deliveryDays: deliveryDays,
-                                                delivery_days: deliveryDays,
-                                                deliveryDate: q.delivery_date || q.deliveryDate,
-                                                delivery_date: q.delivery_date || q.deliveryDate,
-                                                payment_terms: paymentTerms,
-                                                paymentTerms: paymentTerms,
-                                                payment_terms_text: paymentTerms,
-                                                price: q.total_amount || q.totalAmount || q.price || '0',
-                                                total_amount: q.total_amount || q.totalAmount || q.price || '0',
-                                                totalAmount: q.total_amount || q.totalAmount || q.price || '0',
-                                                status: q.status || 'submitted',
-                                                submittedDate: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
-                                                submitted_date: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
-                                                createdAt: q.created_at || q.createdAt,
-                                                created_at: q.created_at || q.createdAt,
-                                                validity_days: q.validity_days || q.validityDays,
-                                                validityDays: q.validity_days || q.validityDays,
-                                                warranty_period: q.warranty_period || q.warrantyPeriod,
-                                                notes: q.notes || q.remarks || '',
-                                                currency: q.currency || 'NGN',
-                                              };
+                                              const n = normalizeQuotation(item, selectedRFQ.id);
+                                              return { ...n, delivery_days: n.deliveryDays, delivery_date: n.deliveryDate, payment_terms: n.paymentTerms, payment_terms_text: n.paymentTerms, total_amount: n.price, totalAmount: n.price, submitted_date: n.submittedAt, submittedDate: n.submittedAt, created_at: n.submittedAt, createdAt: n.submittedAt, validity_days: n.validityDays, warranty_period: n.warrantyPeriod };
                                             });
                                             setRfqDetailsQuotations(formattedQuotations);
                                           }
@@ -1570,47 +1531,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                           const quotationsResponse = await rfqApi.getQuotations(selectedRFQ.id);
                                           if (quotationsResponse.success && quotationsResponse.data?.quotations) {
                                             const formattedQuotations = quotationsResponse.data.quotations.map((item: any) => {
-                                              const q = item.quotation || item;
-                                              const vendor = item.vendor || q.vendor || {};
-                                              
-                                              // Calculate delivery days using helper function
-                                              const deliveryDays = getDeliveryDays(q);
-                                              
-                                              const paymentTerms = q.payment_terms ?? 
-                                                                  q.paymentTerms ?? 
-                                                                  q.payment_terms_text ?? 
-                                                                  (q as any).payment_terms_text ?? 
-                                                                  null;
-                                              
-                                              return {
-                                                ...q,
-                                                vendorName: vendor?.name || vendor?.company_name || q.vendorName || 'Unknown Vendor',
-                                                vendorId: vendor?.id || vendor?.vendor_id || q.vendorId,
-                                                vendorRating: vendor?.rating || q.vendorRating || 0,
-                                                vendorOrders: vendor?.total_orders || vendor?.orders || q.vendorOrders || 0,
-                                                vendorEmail: vendor?.email || q.vendorEmail,
-                                                items: item.items || q.items || [],
-                                                deliveryDays: deliveryDays,
-                                                delivery_days: deliveryDays,
-                                                deliveryDate: q.delivery_date || q.deliveryDate,
-                                                delivery_date: q.delivery_date || q.deliveryDate,
-                                                payment_terms: paymentTerms,
-                                                paymentTerms: paymentTerms,
-                                                payment_terms_text: paymentTerms,
-                                                price: q.total_amount || q.totalAmount || q.price || '0',
-                                                total_amount: q.total_amount || q.totalAmount || q.price || '0',
-                                                totalAmount: q.total_amount || q.totalAmount || q.price || '0',
-                                                status: q.status || 'submitted',
-                                                submittedDate: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
-                                                submitted_date: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
-                                                createdAt: q.created_at || q.createdAt,
-                                                created_at: q.created_at || q.createdAt,
-                                                validity_days: q.validity_days || q.validityDays,
-                                                validityDays: q.validity_days || q.validityDays,
-                                                warranty_period: q.warranty_period || q.warrantyPeriod,
-                                                notes: q.notes || q.remarks || '',
-                                                currency: q.currency || 'NGN',
-                                              };
+                                              const n = normalizeQuotation(item, selectedRFQ.id);
+                                              return { ...n, delivery_days: n.deliveryDays, delivery_date: n.deliveryDate, payment_terms: n.paymentTerms, payment_terms_text: n.paymentTerms, total_amount: n.price, totalAmount: n.price, submitted_date: n.submittedAt, submittedDate: n.submittedAt, created_at: n.submittedAt, createdAt: n.submittedAt, validity_days: n.validityDays, warranty_period: n.warrantyPeriod };
                                             });
                                             setRfqDetailsQuotations(formattedQuotations);
                                           }
