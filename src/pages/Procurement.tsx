@@ -2583,6 +2583,47 @@ const Procurement = () => {
                 return null;
               })()}
 
+              {/* SCD Approval Section - Highlighted in Purple */}
+              {(() => {
+                const scdApprovedBy = (selectedMRFForDetails as any).scd_approved_by ||
+                  (selectedMRFForDetails as any).director_approved_by ||
+                  (selectedMRFForDetails as any).supply_chain_approved_by;
+                const scdApprovedAt = (selectedMRFForDetails as any).scd_approved_at ||
+                  (selectedMRFForDetails as any).director_approved_at ||
+                  (selectedMRFForDetails as any).supply_chain_approved_at;
+                const scdRemarks = (selectedMRFForDetails as any).scd_remarks ||
+                  (selectedMRFForDetails as any).director_remarks ||
+                  (selectedMRFForDetails as any).supply_chain_remarks;
+
+                if (scdApprovedBy) {
+                  return (
+                    <div className="p-4 bg-purple-50 dark:bg-purple-950 border-2 border-purple-500 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                        <Label className="text-purple-900 dark:text-purple-100 font-semibold">Supply Chain Director Approval</Label>
+                        <Badge className="bg-purple-500 text-white">Approved</Badge>
+                      </div>
+                      {scdApprovedAt && (
+                        <p className="text-sm text-purple-800 dark:text-purple-200">
+                          Approved on: {formatMRFDate(scdApprovedAt)}
+                        </p>
+                      )}
+                      <p className="text-sm text-purple-800 dark:text-purple-200">
+                        Approved by: {typeof scdApprovedBy === 'object' && scdApprovedBy !== null
+                          ? scdApprovedBy.name || scdApprovedBy.email || 'Unknown'
+                          : scdApprovedBy}
+                      </p>
+                      {scdRemarks && (
+                        <p className="text-sm text-purple-800 dark:text-purple-200 mt-2">
+                          <span className="font-semibold">Remarks:</span> {scdRemarks}
+                        </p>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               {/* Full Approval History */}
               {(() => {
                 const approvalHistory = (selectedMRFForDetails as any).approval_history || (selectedMRFForDetails as any).approvalHistory || [];
