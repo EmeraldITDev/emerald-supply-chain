@@ -15,6 +15,8 @@ import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, FileText, Award, X, Filter, Loader2 } from "lucide-react";
 import { vendorApi, rfqApi, quotationApi } from "@/services/api";
+import { normalizeQuotation, displayNumeric, displayString, displayCurrency } from "@/utils/normalizeQuotation";
+import type { NormalizedQuotation } from "@/utils/normalizeQuotation";
 import type { MRFRequest, RFQ, Quotation } from "@/contexts/AppContext";
 
 interface Vendor {
