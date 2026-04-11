@@ -1441,6 +1441,12 @@ const Procurement = () => {
                                     }
                                     return null;
                                   })()}
+                                  {/* SCD Approval Badge */}
+                                  {(request as any).last_action_by_role === 'supply_chain_director' && (
+                                    <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-300">
+                                      SCD Approved
+                                    </Badge>
+                                  )}
                               </div>
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
                                 <span className="font-medium">{request.id}</span>
