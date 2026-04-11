@@ -1924,7 +1924,83 @@ const Procurement = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="srf" className="space-y-4">
+          {/* All MRFs Tab - Read-only view of every MRF */}
+          <TabsContent value="all-mrfs" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Material Request Forms</CardTitle>
+                <CardDescription>Complete list of all MRFs across all stages</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {mrfLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : mrfRequests.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                    <p>No MRFs found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {mrfRequests.map((mrf) => {
+                      const cost = parseFloat(getMRFEstimatedCost(mrf));
+                      return (
+                        <Card key={mrf.id} className="hover:shadow-md transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-semibold truncate">{mrf.title}</h3>
+                                  {((mrf as any).executive_approved || (mrf as any).executiveApproved) && (
+                                    <Badge className="bg-green-500 text-white hover:bg-green-600">
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Executive Approved
+                                    </Badge>
+                                  )}
+                                  {(mrf as any).last_action_by_role === 'supply_chain_director' && (
+                                    <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-300">
+                                      SCD Approved
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  {mrf.id} • {getMRFRequester(mrf)} • {mrf.department || "N/A"}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatDateLagos(getMRFDate(mrf), { includeTime: false, format: 'medium' })}
+                                  </span>
+                                  <span className="text-xs font-medium">
+                                    {cost > 0 ? `₦${cost.toLocaleString()}` : '-'}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Contract: {getMRFContractType(mrf) || "N/A"}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleMRFClick(mrf)}
+                                >
+                                  <FileText className="h-4 w-4 mr-1" />
+                                  View Details
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
             <Card>
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
