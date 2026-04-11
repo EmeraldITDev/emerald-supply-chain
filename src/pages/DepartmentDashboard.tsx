@@ -616,6 +616,126 @@ const DepartmentDashboard = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Edit & Resubmit Dialog */}
+        <Dialog open={resubmitDialogOpen} onOpenChange={setResubmitDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit & Resubmit MRF</DialogTitle>
+              <DialogDescription>
+                Update the rejected MRF and resubmit for approval. MRF: {selectedMRFForResubmit?.id}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="resubmit-title">Title</Label>
+                <Input
+                  id="resubmit-title"
+                  value={resubmitData.title}
+                  onChange={(e) => setResubmitData(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="resubmit-description">Description</Label>
+                <Textarea
+                  id="resubmit-description"
+                  value={resubmitData.description}
+                  onChange={(e) => setResubmitData(prev => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="resubmit-quantity">Quantity</Label>
+                  <Input
+                    id="resubmit-quantity"
+                    type="number"
+                    value={resubmitData.quantity}
+                    onChange={(e) => setResubmitData(prev => ({ ...prev, quantity: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="resubmit-cost">Estimated Cost (₦)</Label>
+                  <Input
+                    id="resubmit-cost"
+                    type="number"
+                    value={resubmitData.estimated_cost}
+                    onChange={(e) => setResubmitData(prev => ({ ...prev, estimated_cost: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="resubmit-category">Category</Label>
+                <Input
+                  id="resubmit-category"
+                  value={resubmitData.category}
+                  onChange={(e) => setResubmitData(prev => ({ ...prev, category: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="resubmit-justification">Justification</Label>
+                <Textarea
+                  id="resubmit-justification"
+                  value={resubmitData.justification}
+                  onChange={(e) => setResubmitData(prev => ({ ...prev, justification: e.target.value }))}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setResubmitDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={isResubmitting}
+                onClick={async () => {
+                  if (!selectedMRFForResubmit) return;
+                  setIsResubmitting(true);
+                  try {
+                    const response = await mrfApi.resubmit(selectedMRFForResubmit.id, {
+                      title: resubmitData.title,
+                      description: resubmitData.description,
+                      quantity: resubmitData.quantity ? parseInt(resubmitData.quantity) : undefined,
+                      estimated_cost: resubmitData.estimated_cost ? parseFloat(resubmitData.estimated_cost) : undefined,
+                      justification: resubmitData.justification,
+                      category: resubmitData.category,
+                    });
+                    if (response.success) {
+                      toast({
+                        title: "MRF Resubmitted",
+                        description: "Your updated MRF has been resubmitted for approval",
+                      });
+                      setResubmitDialogOpen(false);
+                      setSelectedMRFForResubmit(null);
+                      fetchMRFs();
+                    } else {
+                      toast({
+                        title: "Resubmission Failed",
+                        description: response.error || "The resubmit endpoint may not be available yet. Please contact your administrator.",
+                        variant: "destructive",
+                      });
+                    }
+                  } catch (error) {
+                    toast({
+                      title: "Resubmission Failed",
+                      description: "Failed to connect to server. The resubmit endpoint may not be available yet.",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsResubmitting(false);
+                  }
+                }}
+              >
+                {isResubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Resubmitting...
+                  </>
+                ) : (
+                  "Resubmit MRF"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </DashboardLayout>
   );
