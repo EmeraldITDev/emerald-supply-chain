@@ -12,7 +12,8 @@ import {
   FolderKanban,
   Receipt,
   DollarSign,
-  BarChart3
+  BarChart3,
+  Calendar
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
