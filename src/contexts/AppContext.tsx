@@ -394,7 +394,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Fetch RFQs from API
+  // Fetch RFQs from API — returns the fetched array so callers can use it
   const refreshRFQs = async () => {
     try {
       const response = await rfqApi.getAll();
@@ -411,14 +411,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           deadline: rfq.deadline,
           status: rfq.status as "Open" | "Closed" | "Awarded",
           createdDate: rfq.created_at || rfq.createdAt || "",
-          // Get vendorIds from API response instead of hardcoding []
           vendorIds: rfq.vendor_ids || rfq.vendorIds || rfq.vendors?.map((v: any) => v.id || v.vendor_id) || [],
         }));
         setRfqsState(converted);
+        return converted;
       }
     } catch (error) {
       console.error("Failed to fetch RFQs:", error);
     }
+    return [];
   };
 
   // Fetch Quotations from API
