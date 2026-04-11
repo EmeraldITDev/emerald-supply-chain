@@ -1063,7 +1063,7 @@ const Procurement = () => {
 
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 h-auto gap-1">
+          <TabsList className="grid w-full grid-cols-6 h-auto gap-1">
             <TabsTrigger value="mrn" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3 flex-col sm:flex-row gap-1">
               <span className="hidden sm:inline">Material Requests (MRN)</span>
               <span className="sm:hidden">MRN</span>
@@ -1076,6 +1076,10 @@ const Procurement = () => {
             <TabsTrigger value="mrf" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
               <span className="hidden sm:inline">MRF (Official)</span>
               <span className="sm:hidden">MRF</span>
+            </TabsTrigger>
+            <TabsTrigger value="all-mrfs" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
+              <span className="hidden sm:inline">All MRFs</span>
+              <span className="sm:hidden">All</span>
             </TabsTrigger>
             <TabsTrigger value="rfq" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
               <span className="hidden sm:inline">RFQ Management</span>
