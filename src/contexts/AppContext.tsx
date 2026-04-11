@@ -489,12 +489,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (regularToken || !vendorToken) {
       const fetchAllData = async () => {
         setLoading(true);
-        await Promise.all([
+        // Fetch MRFs, SRFs, and RFQs in parallel
+        const [, , rfqList] = await Promise.all([
           refreshMRFs(),
           refreshSRFs(),
           refreshRFQs(),
-          refreshQuotations(),
         ]);
+        // Quotations depend on RFQ list being available
+        await refreshQuotations(rfqList || []);
         setLoading(false);
       };
       
