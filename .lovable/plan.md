@@ -1,16 +1,19 @@
 
 
-# Implementation Order Note — DepartmentDashboard.tsx
+# Acknowledged — `items: any[]` Type Boundary
 
-The user's observation is correct. The three changes to `DepartmentDashboard.tsx` are independent and should be implemented in this order:
+The observation is valid. The `items: any[]` field in `NormalizedQuotation` is a pragmatic compromise — quotation line items have inconsistent shapes from the backend and typing them now would add scope without immediate benefit.
 
-1. **Tab query param reading** — Read `?tab=` from URL, use as default tab value. Smallest change, no dependencies, easy to verify by navigating to `/department?tab=annual`.
+**What changes in the implementation:**
 
-2. **Rejected badge** — Add red "Rejected" badge with XCircle icon on MRF cards where status is "rejected". Pure display logic, no backend dependency.
+A `// TODO:` comment will be added above the `items` field in the `NormalizedQuotation` interface:
 
-3. **Edit & Resubmit dialog** — Build the pre-populated edit form and wire it to `mrfApi.resubmit()`. Backend-blocked — the dialog renders but submit will fail until `POST /mrfs/{id}/resubmit` exists.
+```ts
+// TODO: Type this as NormalizedQuotationItem[] once line item shape stabilizes from backend
+items: any[];
+```
 
-This ordering ensures each piece can be tested in isolation. If the Edit & Resubmit dialog has issues, the tab routing and rejected badge are already confirmed working.
+This marks the `any` boundary explicitly so future developers know where to tighten the type. No other changes to the plan.
 
-No other changes to the plan. Ready to execute all 9 files in the order specified, with DepartmentDashboard following this sub-sequence.
+**Ready to execute all four files as specified in the revised plan.**
 
