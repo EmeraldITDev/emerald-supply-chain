@@ -146,15 +146,15 @@ const Procurement = () => {
           if (response.success && response.data && response.data.quotations) {
             // The response includes quotations with vendor info
             response.data.quotations.forEach((item: any) => {
-              const quotationId = item.quotation?.id || item.id;
-              // Only add if we haven't seen this quotation ID before (prevent duplicates)
-              if (quotationId && !quotationIds.has(quotationId)) {
-                quotationIds.add(quotationId);
+              const n = normalizeQuotation(item, rfq.id);
+              if (n.id && !quotationIds.has(n.id)) {
+                quotationIds.add(n.id);
                 allQuotations.push({
-                  ...item.quotation,
-                  vendorName: item.vendor?.name || item.vendor?.company_name,
-                  vendorId: item.vendor?.id || item.vendor?.vendor_id,
-                  rfqId: rfq.id,
+                  ...n,
+                  delivery_days: n.deliveryDays,
+                  payment_terms: n.paymentTerms,
+                  total_amount: n.price,
+                  totalAmount: n.price,
                 });
               }
             });
