@@ -30,9 +30,15 @@ const DepartmentDashboard = () => {
   const { user } = useAuth();
   const { mrns, annualPlans, srfRequests, refreshMRFs } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  
+  // Read tab from URL query param, default to "mrns"
+  const tabFromUrl = searchParams.get("tab");
+  const defaultTab = tabFromUrl && ["mrns", "mrf", "srf", "annual"].includes(tabFromUrl) ? tabFromUrl : "mrns";
+  const [activeTab, setActiveTab] = useState(defaultTab);
   
   
   // MRF state - fetched from backend
