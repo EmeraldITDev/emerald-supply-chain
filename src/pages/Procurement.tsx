@@ -22,6 +22,7 @@ import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrat
 
 import type { MRFRequest } from "@/contexts/AppContext";
 import { dashboardApi, mrfApi, grnApi, rfqApi, quotationApi, vendorApi } from "@/services/api";
+import { normalizeQuotation, displayNumeric, displayString } from "@/utils/normalizeQuotation";
 import type { VendorRegistration, MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
@@ -146,15 +147,15 @@ const Procurement = () => {
           if (response.success && response.data && response.data.quotations) {
             // The response includes quotations with vendor info
             response.data.quotations.forEach((item: any) => {
-              const quotationId = item.quotation?.id || item.id;
-              // Only add if we haven't seen this quotation ID before (prevent duplicates)
-              if (quotationId && !quotationIds.has(quotationId)) {
-                quotationIds.add(quotationId);
+              const n = normalizeQuotation(item, rfq.id);
+              if (n.id && !quotationIds.has(n.id)) {
+                quotationIds.add(n.id);
                 allQuotations.push({
-                  ...item.quotation,
-                  vendorName: item.vendor?.name || item.vendor?.company_name,
-                  vendorId: item.vendor?.id || item.vendor?.vendor_id,
-                  rfqId: rfq.id,
+                  ...n,
+                  delivery_days: n.deliveryDays,
+                  payment_terms: n.paymentTerms,
+                  total_amount: n.price,
+                  totalAmount: n.price,
                 });
               }
             });
@@ -2245,12 +2246,12 @@ const Procurement = () => {
                       </div>
                       <div>
                         <Label className="text-muted-foreground">Delivery Days</Label>
-                        <p className="font-medium">{quotation.deliveryDays || quotation.delivery_days || 'N/A'} days</p>
+                        <p className="font-medium">{displayNumeric(quotation.deliveryDays ?? quotation.delivery_days, 'days')}</p>
                       </div>
                       <div>
                         <Label className="text-muted-foreground">Payment Terms</Label>
                         <p className="font-medium">
-                          {quotation.payment_terms || quotation.paymentTerms || quotation.payment_terms_text || 'N/A'}
+                          {displayString(quotation.paymentTerms ?? quotation.payment_terms)}
                         </p>
                       </div>
                       {quotation.currency && (

@@ -15,6 +15,8 @@ import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, FileText, Award, X, Filter, Loader2 } from "lucide-react";
 import { vendorApi, rfqApi, quotationApi } from "@/services/api";
+import { normalizeQuotation, displayNumeric, displayString, displayCurrency } from "@/utils/normalizeQuotation";
+import type { NormalizedQuotation } from "@/utils/normalizeQuotation";
 import type { MRFRequest, RFQ, Quotation } from "@/contexts/AppContext";
 
 interface Vendor {
@@ -189,26 +191,17 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     // If we have enhanced data, use it
     if (enhancedQuotationData && enhancedQuotationData.quotations) {
       return enhancedQuotationData.quotations.map((item: any) => {
-        const q = item.quotation;
-        const vendor = item.vendor;
-        const deliveryDays = getDeliveryDays(q);
-        
+        const n = normalizeQuotation(item, selectedRFQ.id);
         return {
-          ...q,
-          vendorName: vendor?.name || vendor?.company_name || 'Unknown Vendor',
-          vendorId: vendor?.id || vendor?.vendor_id,
-          vendorRating: vendor?.rating || 0,
-          vendorOrders: vendor?.total_orders || vendor?.orders || 0,
-          vendorEmail: vendor?.email,
-          deliveryDays,
-          items: item.items || [],
-          fullData: item, // Store full data for details view
-          payment_terms: q.payment_terms || q.paymentTerms || q.payment_terms_text || '',
-          paymentTerms: q.payment_terms || q.paymentTerms || q.payment_terms_text || '',
-          quotation_terms: q.quotation_terms || q.terms || '',
-          quotationTerms: q.quotation_terms || q.terms || '',
+          ...n,
+          fullData: item,
+          // Keep duplicate keys for backward compat with display code
+          delivery_days: n.deliveryDays,
+          payment_terms: n.paymentTerms,
+          quotation_terms: n.quotationTerms,
+          quotationTerms: n.quotationTerms,
         };
-      }).sort((a: any, b: any) => parseFloat(a.price || a.total_amount || '0') - parseFloat(b.price || b.total_amount || '0'));
+      }).sort((a: any, b: any) => parseFloat(a.price || '0') - parseFloat(b.price || '0'));
     }
     
     // Fallback to context quotations
@@ -630,65 +623,22 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                         // Fetch quotations
                         const response = await rfqApi.getQuotations(rfq.id);
                         if (response.success && response.data?.quotations) {
-                          const formattedQuotations = response.data.quotations.map((item: any) => {
-                            // Handle both nested structure (item.quotation) and flat structure
-                            const q = item.quotation || item;
-                            const vendor = item.vendor || q.vendor || {};
-                            
-                            // Calculate delivery days using helper function
-                            const deliveryDays = getDeliveryDays(q);
-                            
-                            // Extract payment terms from all possible fields
-                            const paymentTerms = q.payment_terms ?? 
-                                                q.paymentTerms ?? 
-                                                q.payment_terms_text ?? 
-                                                (q as any).payment_terms_text ?? 
-                                                null;
-                            
-                            // Build comprehensive quotation object
+                        const formattedQuotations = response.data.quotations.map((item: any) => {
+                            const n = normalizeQuotation(item, rfq.id);
                             return {
-                              ...q,
-                              // Vendor information
-                              vendorName: vendor?.name || vendor?.company_name || q.vendorName || 'Unknown Vendor',
-                              vendorId: vendor?.id || vendor?.vendor_id || q.vendorId,
-                              vendorRating: vendor?.rating || q.vendorRating || 0,
-                              vendorOrders: vendor?.total_orders || vendor?.orders || q.vendorOrders || 0,
-                              vendorEmail: vendor?.email || q.vendorEmail,
-                              
-                              // Quotation items
-                              items: item.items || q.items || [],
-                              
-                              // Delivery information - ensure both formats are available
-                              deliveryDays: deliveryDays,
-                              delivery_days: deliveryDays,
-                              deliveryDate: q.delivery_date || q.deliveryDate,
-                              delivery_date: q.delivery_date || q.deliveryDate,
-                              
-                              // Payment terms - ensure all formats are available
-                              payment_terms: paymentTerms,
-                              paymentTerms: paymentTerms,
-                              payment_terms_text: paymentTerms,
-                              
-                              // Price fields - normalize to ensure we have the value
-                              price: q.total_amount || q.totalAmount || q.price || q.total_order_value || q.totalOrderValue || '0',
-                              total_amount: q.total_amount || q.totalAmount || q.price || q.total_order_value || q.totalOrderValue || '0',
-                              totalAmount: q.total_amount || q.totalAmount || q.price || q.total_order_value || q.totalOrderValue || '0',
-                              
-                              // Status
-                              status: q.status || 'submitted',
-                              
-                              // Dates - check all possible fields
-                              submittedDate: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
-                              submitted_date: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
-                              createdAt: q.created_at || q.createdAt,
-                              created_at: q.created_at || q.createdAt,
-                              
-                              // Other fields
-                              validity_days: q.validity_days || q.validityDays,
-                              validityDays: q.validity_days || q.validityDays,
-                              warranty_period: q.warranty_period || q.warrantyPeriod,
-                              notes: q.notes || q.remarks || '',
-                              currency: q.currency || 'NGN',
+                              ...n,
+                              delivery_days: n.deliveryDays,
+                              delivery_date: n.deliveryDate,
+                              payment_terms: n.paymentTerms,
+                              payment_terms_text: n.paymentTerms,
+                              total_amount: n.price,
+                              totalAmount: n.price,
+                              submitted_date: n.submittedAt,
+                              submittedDate: n.submittedAt,
+                              created_at: n.submittedAt,
+                              createdAt: n.submittedAt,
+                              validity_days: n.validityDays,
+                              warranty_period: n.warrantyPeriod,
                             };
                           });
                           setRfqDetailsQuotations(formattedQuotations);
@@ -1048,11 +998,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                               <div>
                                 <p className="text-sm text-muted-foreground">Delivery</p>
                                 <p className="text-xl font-bold">
-                                  {quote.deliveryDays !== null && quote.deliveryDays !== undefined
-                                    ? `${Math.round(quote.deliveryDays)} days`
-                                    : quote.delivery_days !== null && quote.delivery_days !== undefined
-                                      ? `${Math.round(quote.delivery_days)} days`
-                                      : 'N/A'}
+                                  {displayNumeric(quote.deliveryDays ?? quote.delivery_days, 'days')}
                                 </p>
                               </div>
                               <div>
@@ -1186,11 +1132,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                 <div>
                   <Label className="text-muted-foreground">Delivery Days</Label>
                   <p className="font-medium">
-                    {selectedQuotation.deliveryDays !== null && selectedQuotation.deliveryDays !== undefined
-                      ? `${Math.round(selectedQuotation.deliveryDays)} days`
-                      : selectedQuotation.delivery_days !== null && selectedQuotation.delivery_days !== undefined
-                        ? `${Math.round(selectedQuotation.delivery_days)} days`
-                        : 'N/A'}
+                    {displayNumeric(selectedQuotation.deliveryDays ?? selectedQuotation.delivery_days, 'days')}
                   </p>
                 </div>
                 <div>
@@ -1204,12 +1146,12 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                 <div>
                   <Label className="text-muted-foreground">Payment Terms</Label>
                   <p className="font-medium">
-                    {selectedQuotation.payment_terms || selectedQuotation.paymentTerms || selectedQuotation.payment_terms_text || (selectedQuotation as any).payment_terms_text || 'N/A'}
+                    {displayString(selectedQuotation.paymentTerms ?? selectedQuotation.payment_terms)}
                   </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Validity Period</Label>
-                  <p className="font-medium">{selectedQuotation.validity_days || selectedQuotation.validityDays || 'N/A'} days</p>
+                  <p className="font-medium">{displayNumeric(selectedQuotation.validityDays ?? selectedQuotation.validity_days, 'days')}</p>
                 </div>
                 {selectedQuotation.warranty_period && (
                   <div>
@@ -1350,8 +1292,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
             // Get delivery days and payment terms from quotations (not RFQ)
             // Use the first quotation or the selected/awarded quotation if available
             const selectedQuotation = rfqQuotations.find((q: any) => q.status === 'approved' || q.status === 'awarded') || rfqQuotations[0] || null;
-            const deliveryDays = selectedQuotation?.deliveryDays || selectedQuotation?.delivery_days || null;
-            const paymentTerms = selectedQuotation?.payment_terms || selectedQuotation?.paymentTerms || selectedQuotation?.payment_terms_text || null;
+            const deliveryDays = selectedQuotation?.deliveryDays ?? selectedQuotation?.delivery_days ?? null;
+            const paymentTerms = selectedQuotation?.paymentTerms ?? selectedQuotation?.payment_terms ?? null;
             
             // Get vendor count from RFQ details or fallback to vendorIds array
             const vendorCount = rfqDetailsData?.vendorIds?.length || 
@@ -1486,17 +1428,13 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                   <div>
                                     <p className="text-muted-foreground">Delivery Days</p>
                                     <p className="font-medium">
-                                      {quotation.deliveryDays !== null && quotation.deliveryDays !== undefined
-                                        ? `${Math.round(quotation.deliveryDays)} days`
-                                        : quotation.delivery_days !== null && quotation.delivery_days !== undefined
-                                          ? `${Math.round(quotation.delivery_days)} days`
-                                          : 'N/A'}
+                                      {displayNumeric(quotation.deliveryDays ?? quotation.delivery_days, 'days')}
                                     </p>
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Payment Terms</p>
                                     <p className="font-medium">
-                                      {quotation.payment_terms || quotation.paymentTerms || quotation.payment_terms_text || (quotation as any).payment_terms_text || 'N/A'}
+                                      {displayString(quotation.paymentTerms ?? quotation.payment_terms)}
                                     </p>
                                   </div>
                                 </div>
@@ -1535,47 +1473,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                           const quotationsResponse = await rfqApi.getQuotations(selectedRFQ.id);
                                           if (quotationsResponse.success && quotationsResponse.data?.quotations) {
                                             const formattedQuotations = quotationsResponse.data.quotations.map((item: any) => {
-                                              const q = item.quotation || item;
-                                              const vendor = item.vendor || q.vendor || {};
-                                              
-                                              // Calculate delivery days using helper function
-                                              const deliveryDays = getDeliveryDays(q);
-                                              
-                                              const paymentTerms = q.payment_terms ?? 
-                                                                  q.paymentTerms ?? 
-                                                                  q.payment_terms_text ?? 
-                                                                  (q as any).payment_terms_text ?? 
-                                                                  null;
-                                              
-                                              return {
-                                                ...q,
-                                                vendorName: vendor?.name || vendor?.company_name || q.vendorName || 'Unknown Vendor',
-                                                vendorId: vendor?.id || vendor?.vendor_id || q.vendorId,
-                                                vendorRating: vendor?.rating || q.vendorRating || 0,
-                                                vendorOrders: vendor?.total_orders || vendor?.orders || q.vendorOrders || 0,
-                                                vendorEmail: vendor?.email || q.vendorEmail,
-                                                items: item.items || q.items || [],
-                                                deliveryDays: deliveryDays,
-                                                delivery_days: deliveryDays,
-                                                deliveryDate: q.delivery_date || q.deliveryDate,
-                                                delivery_date: q.delivery_date || q.deliveryDate,
-                                                payment_terms: paymentTerms,
-                                                paymentTerms: paymentTerms,
-                                                payment_terms_text: paymentTerms,
-                                                price: q.total_amount || q.totalAmount || q.price || '0',
-                                                total_amount: q.total_amount || q.totalAmount || q.price || '0',
-                                                totalAmount: q.total_amount || q.totalAmount || q.price || '0',
-                                                status: q.status || 'submitted',
-                                                submittedDate: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
-                                                submitted_date: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
-                                                createdAt: q.created_at || q.createdAt,
-                                                created_at: q.created_at || q.createdAt,
-                                                validity_days: q.validity_days || q.validityDays,
-                                                validityDays: q.validity_days || q.validityDays,
-                                                warranty_period: q.warranty_period || q.warrantyPeriod,
-                                                notes: q.notes || q.remarks || '',
-                                                currency: q.currency || 'NGN',
-                                              };
+                                              const n = normalizeQuotation(item, selectedRFQ.id);
+                                              return { ...n, delivery_days: n.deliveryDays, delivery_date: n.deliveryDate, payment_terms: n.paymentTerms, payment_terms_text: n.paymentTerms, total_amount: n.price, totalAmount: n.price, submitted_date: n.submittedAt, submittedDate: n.submittedAt, created_at: n.submittedAt, createdAt: n.submittedAt, validity_days: n.validityDays, warranty_period: n.warrantyPeriod };
                                             });
                                             setRfqDetailsQuotations(formattedQuotations);
                                           }
@@ -1620,47 +1519,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                           const quotationsResponse = await rfqApi.getQuotations(selectedRFQ.id);
                                           if (quotationsResponse.success && quotationsResponse.data?.quotations) {
                                             const formattedQuotations = quotationsResponse.data.quotations.map((item: any) => {
-                                              const q = item.quotation || item;
-                                              const vendor = item.vendor || q.vendor || {};
-                                              
-                                              // Calculate delivery days using helper function
-                                              const deliveryDays = getDeliveryDays(q);
-                                              
-                                              const paymentTerms = q.payment_terms ?? 
-                                                                  q.paymentTerms ?? 
-                                                                  q.payment_terms_text ?? 
-                                                                  (q as any).payment_terms_text ?? 
-                                                                  null;
-                                              
-                                              return {
-                                                ...q,
-                                                vendorName: vendor?.name || vendor?.company_name || q.vendorName || 'Unknown Vendor',
-                                                vendorId: vendor?.id || vendor?.vendor_id || q.vendorId,
-                                                vendorRating: vendor?.rating || q.vendorRating || 0,
-                                                vendorOrders: vendor?.total_orders || vendor?.orders || q.vendorOrders || 0,
-                                                vendorEmail: vendor?.email || q.vendorEmail,
-                                                items: item.items || q.items || [],
-                                                deliveryDays: deliveryDays,
-                                                delivery_days: deliveryDays,
-                                                deliveryDate: q.delivery_date || q.deliveryDate,
-                                                delivery_date: q.delivery_date || q.deliveryDate,
-                                                payment_terms: paymentTerms,
-                                                paymentTerms: paymentTerms,
-                                                payment_terms_text: paymentTerms,
-                                                price: q.total_amount || q.totalAmount || q.price || '0',
-                                                total_amount: q.total_amount || q.totalAmount || q.price || '0',
-                                                totalAmount: q.total_amount || q.totalAmount || q.price || '0',
-                                                status: q.status || 'submitted',
-                                                submittedDate: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
-                                                submitted_date: q.submitted_date || q.submittedDate || q.submitted_at || q.submittedAt || q.created_at || q.createdAt,
-                                                createdAt: q.created_at || q.createdAt,
-                                                created_at: q.created_at || q.createdAt,
-                                                validity_days: q.validity_days || q.validityDays,
-                                                validityDays: q.validity_days || q.validityDays,
-                                                warranty_period: q.warranty_period || q.warrantyPeriod,
-                                                notes: q.notes || q.remarks || '',
-                                                currency: q.currency || 'NGN',
-                                              };
+                                              const n = normalizeQuotation(item, selectedRFQ.id);
+                                              return { ...n, delivery_days: n.deliveryDays, delivery_date: n.deliveryDate, payment_terms: n.paymentTerms, payment_terms_text: n.paymentTerms, total_amount: n.price, totalAmount: n.price, submitted_date: n.submittedAt, submittedDate: n.submittedAt, created_at: n.submittedAt, createdAt: n.submittedAt, validity_days: n.validityDays, warranty_period: n.warrantyPeriod };
                                             });
                                             setRfqDetailsQuotations(formattedQuotations);
                                           }
