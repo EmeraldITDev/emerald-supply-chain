@@ -2001,6 +2001,7 @@ const Procurement = () => {
             </Card>
           </TabsContent>
 
+          <TabsContent value="srf" className="space-y-4">
             <Card>
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
