@@ -1063,7 +1063,7 @@ const Procurement = () => {
 
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 h-auto gap-1">
+          <TabsList className="grid w-full grid-cols-6 h-auto gap-1">
             <TabsTrigger value="mrn" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3 flex-col sm:flex-row gap-1">
               <span className="hidden sm:inline">Material Requests (MRN)</span>
               <span className="sm:hidden">MRN</span>
@@ -1076,6 +1076,10 @@ const Procurement = () => {
             <TabsTrigger value="mrf" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
               <span className="hidden sm:inline">MRF (Official)</span>
               <span className="sm:hidden">MRF</span>
+            </TabsTrigger>
+            <TabsTrigger value="all-mrfs" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
+              <span className="hidden sm:inline">All MRFs</span>
+              <span className="sm:hidden">All</span>
             </TabsTrigger>
             <TabsTrigger value="rfq" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
               <span className="hidden sm:inline">RFQ Management</span>
@@ -1437,6 +1441,12 @@ const Procurement = () => {
                                     }
                                     return null;
                                   })()}
+                                  {/* SCD Approval Badge */}
+                                  {(request as any).last_action_by_role === 'supply_chain_director' && (
+                                    <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-300">
+                                      SCD Approved
+                                    </Badge>
+                                  )}
                               </div>
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
                                 <span className="font-medium">{request.id}</span>
@@ -1916,6 +1926,83 @@ const Procurement = () => {
                     })}
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* All MRFs Tab - Read-only view of every MRF */}
+          <TabsContent value="all-mrfs" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Material Request Forms</CardTitle>
+                <CardDescription>Complete list of all MRFs across all stages</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {mrfLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : mrfRequests.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                    <p>No MRFs found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {mrfRequests.map((mrf) => {
+                      const cost = parseFloat(getMRFEstimatedCost(mrf));
+                      return (
+                        <Card key={mrf.id} className="hover:shadow-md transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-semibold truncate">{mrf.title}</h3>
+                                  {((mrf as any).executive_approved || (mrf as any).executiveApproved) && (
+                                    <Badge className="bg-green-500 text-white hover:bg-green-600">
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Executive Approved
+                                    </Badge>
+                                  )}
+                                  {(mrf as any).last_action_by_role === 'supply_chain_director' && (
+                                    <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-300">
+                                      SCD Approved
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  {mrf.id} • {getMRFRequester(mrf)} • {mrf.department || "N/A"}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatDateLagos(getMRFDate(mrf), { includeTime: false, format: 'medium' })}
+                                  </span>
+                                  <span className="text-xs font-medium">
+                                    {cost > 0 ? `₦${cost.toLocaleString()}` : '-'}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Contract: {getMRFContractType(mrf) || "N/A"}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleMRFClick(mrf)}
+                                >
+                                  <FileText className="h-4 w-4 mr-1" />
+                                  View Details
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -2502,6 +2589,47 @@ const Procurement = () => {
                 return null;
               })()}
 
+              {/* SCD Approval Section - Highlighted in Purple */}
+              {(() => {
+                const scdApprovedBy = (selectedMRFForDetails as any).scd_approved_by ||
+                  (selectedMRFForDetails as any).director_approved_by ||
+                  (selectedMRFForDetails as any).supply_chain_approved_by;
+                const scdApprovedAt = (selectedMRFForDetails as any).scd_approved_at ||
+                  (selectedMRFForDetails as any).director_approved_at ||
+                  (selectedMRFForDetails as any).supply_chain_approved_at;
+                const scdRemarks = (selectedMRFForDetails as any).scd_remarks ||
+                  (selectedMRFForDetails as any).director_remarks ||
+                  (selectedMRFForDetails as any).supply_chain_remarks;
+
+                if (scdApprovedBy) {
+                  return (
+                    <div className="p-4 bg-purple-50 dark:bg-purple-950 border-2 border-purple-500 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                        <Label className="text-purple-900 dark:text-purple-100 font-semibold">Supply Chain Director Approval</Label>
+                        <Badge className="bg-purple-500 text-white">Approved</Badge>
+                      </div>
+                      {scdApprovedAt && (
+                        <p className="text-sm text-purple-800 dark:text-purple-200">
+                          Approved on: {formatMRFDate(scdApprovedAt)}
+                        </p>
+                      )}
+                      <p className="text-sm text-purple-800 dark:text-purple-200">
+                        Approved by: {typeof scdApprovedBy === 'object' && scdApprovedBy !== null
+                          ? scdApprovedBy.name || scdApprovedBy.email || 'Unknown'
+                          : scdApprovedBy}
+                      </p>
+                      {scdRemarks && (
+                        <p className="text-sm text-purple-800 dark:text-purple-200 mt-2">
+                          <span className="font-semibold">Remarks:</span> {scdRemarks}
+                        </p>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               {/* Full Approval History */}
               {(() => {
                 const approvalHistory = (selectedMRFForDetails as any).approval_history || (selectedMRFForDetails as any).approvalHistory || [];
@@ -2625,7 +2753,7 @@ const Procurement = () => {
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div>
                                   <p className="text-muted-foreground">Total Amount</p>
-                                  <p className="font-semibold text-lg">₦{parseFloat(quotation.totalAmount || quotation.total_amount || quotation.price || '0').toLocaleString()}</p>
+                                  <p className="font-semibold text-lg">₦{parseFloat(quotation.totalAmount || quotation.total_amount || quotation.price || quotation.total_order_value || quotation.totalOrderValue || '0').toLocaleString()}</p>
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground">Delivery Days</p>

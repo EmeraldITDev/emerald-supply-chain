@@ -670,9 +670,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                               payment_terms_text: paymentTerms,
                               
                               // Price fields - normalize to ensure we have the value
-                              price: q.total_amount || q.totalAmount || q.price || '0',
-                              total_amount: q.total_amount || q.totalAmount || q.price || '0',
-                              totalAmount: q.total_amount || q.totalAmount || q.price || '0',
+                              price: q.total_amount || q.totalAmount || q.price || q.total_order_value || q.totalOrderValue || '0',
+                              total_amount: q.total_amount || q.totalAmount || q.price || q.total_order_value || q.totalOrderValue || '0',
+                              totalAmount: q.total_amount || q.totalAmount || q.price || q.total_order_value || q.totalOrderValue || '0',
                               
                               // Status
                               status: q.status || 'submitted',

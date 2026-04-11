@@ -12,7 +12,8 @@ import {
   FolderKanban,
   Receipt,
   DollarSign,
-  BarChart3
+  BarChart3,
+  Calendar
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
@@ -95,6 +96,7 @@ export function AppSidebar() {
             { title: "My Requests", url: "/dashboard", icon: FileText },
             { title: "New MRF", url: "/new-mrf", icon: FileText },
             { title: "New SRF", url: "/new-srf", icon: FileText },
+            { title: "Annual Planning", url: "/department?tab=annual", icon: Calendar },
           ]
         }
       ];

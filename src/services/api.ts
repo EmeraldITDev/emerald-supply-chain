@@ -610,6 +610,21 @@ export const mrfApi = {
     });
   },
 
+  // Resubmit a rejected MRF with updated data
+  resubmit: async (id: string, data: {
+    title?: string;
+    description?: string;
+    quantity?: number;
+    estimated_cost?: number;
+    justification?: string;
+    category?: string;
+  }): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/resubmit`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   // ==========================================
   // Phase 2: Updated MRF Workflow Endpoints
   // ==========================================

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Eye, Loader2 } from "lucide-react";
+import { FileText, Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Eye, Loader2, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { mrfApi } from "@/services/api";
@@ -20,16 +20,25 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import type { MRF } from "@/types";
 
 const DepartmentDashboard = () => {
   const { user } = useAuth();
   const { mrns, annualPlans, srfRequests, refreshMRFs } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  
+  // Read tab from URL query param, default to "mrns"
+  const tabFromUrl = searchParams.get("tab");
+  const defaultTab = tabFromUrl && ["mrns", "mrf", "srf", "annual"].includes(tabFromUrl) ? tabFromUrl : "mrns";
+  const [activeTab, setActiveTab] = useState(defaultTab);
   
   
   // MRF state - fetched from backend
@@ -41,6 +50,19 @@ const DepartmentDashboard = () => {
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+  
+  // Edit & Resubmit dialog state
+  const [resubmitDialogOpen, setResubmitDialogOpen] = useState(false);
+  const [selectedMRFForResubmit, setSelectedMRFForResubmit] = useState<MRF | null>(null);
+  const [resubmitData, setResubmitData] = useState({
+    title: "",
+    description: "",
+    quantity: "",
+    estimated_cost: "",
+    justification: "",
+    category: "",
+  });
+  const [isResubmitting, setIsResubmitting] = useState(false);
 
   // Fetch MRFs from backend
   const fetchMRFs = useCallback(async () => {
@@ -165,7 +187,7 @@ const DepartmentDashboard = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="mrns" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="mrns">Material Request Notes</TabsTrigger>
             <TabsTrigger value="mrf">Material Request Forms (MRF)</TabsTrigger>
@@ -327,6 +349,13 @@ const DepartmentDashboard = () => {
                               </div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
+                                {/* Rejected badge */}
+                                {(mrf.status || "").toLowerCase() === "rejected" && (
+                                  <Badge variant="destructive" className="flex items-center gap-1">
+                                    <XCircle className="h-3 w-3" />
+                                    Rejected
+                                  </Badge>
+                                )}
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -352,6 +381,30 @@ const DepartmentDashboard = () => {
                                   <span className="hidden sm:inline">View Details</span>
                                   <span className="sm:hidden">View</span>
                                 </Button>
+                                {/* Edit & Resubmit for rejected MRFs */}
+                                {(mrf.status || "").toLowerCase() === "rejected" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-700 dark:text-orange-300 dark:hover:bg-orange-950"
+                                    onClick={() => {
+                                      setSelectedMRFForResubmit(mrf);
+                                      setResubmitData({
+                                        title: mrf.title || "",
+                                        description: mrf.description || "",
+                                        quantity: String(mrf.quantity || ""),
+                                        estimated_cost: String(mrf.estimated_cost || mrf.estimatedCost || ""),
+                                        justification: mrf.justification || "",
+                                        category: mrf.category || "",
+                                      });
+                                      setResubmitDialogOpen(true);
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    <span className="hidden sm:inline">Edit & Resubmit</span>
+                                    <span className="sm:hidden">Resubmit</span>
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </CardContent>
@@ -560,6 +613,126 @@ const DepartmentDashboard = () => {
                 )}
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit & Resubmit Dialog */}
+        <Dialog open={resubmitDialogOpen} onOpenChange={setResubmitDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit & Resubmit MRF</DialogTitle>
+              <DialogDescription>
+                Update the rejected MRF and resubmit for approval. MRF: {selectedMRFForResubmit?.id}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="resubmit-title">Title</Label>
+                <Input
+                  id="resubmit-title"
+                  value={resubmitData.title}
+                  onChange={(e) => setResubmitData(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="resubmit-description">Description</Label>
+                <Textarea
+                  id="resubmit-description"
+                  value={resubmitData.description}
+                  onChange={(e) => setResubmitData(prev => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="resubmit-quantity">Quantity</Label>
+                  <Input
+                    id="resubmit-quantity"
+                    type="number"
+                    value={resubmitData.quantity}
+                    onChange={(e) => setResubmitData(prev => ({ ...prev, quantity: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="resubmit-cost">Estimated Cost (₦)</Label>
+                  <Input
+                    id="resubmit-cost"
+                    type="number"
+                    value={resubmitData.estimated_cost}
+                    onChange={(e) => setResubmitData(prev => ({ ...prev, estimated_cost: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="resubmit-category">Category</Label>
+                <Input
+                  id="resubmit-category"
+                  value={resubmitData.category}
+                  onChange={(e) => setResubmitData(prev => ({ ...prev, category: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="resubmit-justification">Justification</Label>
+                <Textarea
+                  id="resubmit-justification"
+                  value={resubmitData.justification}
+                  onChange={(e) => setResubmitData(prev => ({ ...prev, justification: e.target.value }))}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setResubmitDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={isResubmitting}
+                onClick={async () => {
+                  if (!selectedMRFForResubmit) return;
+                  setIsResubmitting(true);
+                  try {
+                    const response = await mrfApi.resubmit(selectedMRFForResubmit.id, {
+                      title: resubmitData.title,
+                      description: resubmitData.description,
+                      quantity: resubmitData.quantity ? parseInt(resubmitData.quantity) : undefined,
+                      estimated_cost: resubmitData.estimated_cost ? parseFloat(resubmitData.estimated_cost) : undefined,
+                      justification: resubmitData.justification,
+                      category: resubmitData.category,
+                    });
+                    if (response.success) {
+                      toast({
+                        title: "MRF Resubmitted",
+                        description: "Your updated MRF has been resubmitted for approval",
+                      });
+                      setResubmitDialogOpen(false);
+                      setSelectedMRFForResubmit(null);
+                      fetchMRFs();
+                    } else {
+                      toast({
+                        title: "Resubmission Failed",
+                        description: response.error || "The resubmit endpoint may not be available yet. Please contact your administrator.",
+                        variant: "destructive",
+                      });
+                    }
+                  } catch (error) {
+                    toast({
+                      title: "Resubmission Failed",
+                      description: "Failed to connect to server. The resubmit endpoint may not be available yet.",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsResubmitting(false);
+                  }
+                }}
+              >
+                {isResubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Resubmitting...
+                  </>
+                ) : (
+                  "Resubmit MRF"
+                )}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
