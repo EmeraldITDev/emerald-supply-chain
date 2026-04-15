@@ -15,7 +15,7 @@ import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, FileText, Award, X, Filter, Loader2 } from "lucide-react";
 import { vendorApi, rfqApi, quotationApi } from "@/services/api";
-import { normalizeQuotation, displayNumeric, displayString, displayCurrency } from "@/utils/normalizeQuotation";
+import { normalizeQuotation, displayNumeric, displayString, displayCurrency, formatDays, formatAmount } from "@/utils/normalizeQuotation";
 import type { NormalizedQuotation } from "@/utils/normalizeQuotation";
 import type { MRFRequest, RFQ, Quotation } from "@/contexts/AppContext";
 
@@ -993,12 +993,12 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                             <div className="grid grid-cols-4 gap-4 mb-4">
                               <div>
                                 <p className="text-sm text-muted-foreground">Quote Price</p>
-                                <p className="text-xl font-bold">₦{parseInt(quote.price).toLocaleString()}</p>
+                                <p className="text-xl font-bold">{formatAmount(quote.total ?? quote.price, quote.currency)}</p>
                               </div>
                               <div>
                                 <p className="text-sm text-muted-foreground">Delivery</p>
                                 <p className="text-xl font-bold">
-                                  {displayNumeric(quote.deliveryDays ?? quote.delivery_days, 'days')}
+                                  {formatDays(quote.deliveryDays)}
                                 </p>
                               </div>
                               <div>
@@ -1123,7 +1123,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Total Amount</Label>
-                  <p className="font-semibold text-lg">₦{parseFloat(selectedQuotation.price || selectedQuotation.total_amount || '0').toLocaleString()}</p>
+                  <p className="font-semibold text-lg">{formatAmount(selectedQuotation.total, selectedQuotation.currency)}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Currency</Label>
@@ -1132,7 +1132,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                 <div>
                   <Label className="text-muted-foreground">Delivery Days</Label>
                   <p className="font-medium">
-                    {displayNumeric(selectedQuotation.deliveryDays ?? selectedQuotation.delivery_days, 'days')}
+                    {formatDays(selectedQuotation.deliveryDays)}
                   </p>
                 </div>
                 <div>
@@ -1146,19 +1146,17 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                 <div>
                   <Label className="text-muted-foreground">Payment Terms</Label>
                   <p className="font-medium">
-                    {displayString(selectedQuotation.paymentTerms ?? selectedQuotation.payment_terms)}
+                    {displayString(selectedQuotation.paymentTerms)}
                   </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Validity Period</Label>
-                  <p className="font-medium">{displayNumeric(selectedQuotation.validityDays ?? selectedQuotation.validity_days, 'days')}</p>
+                  <p className="font-medium">{formatDays(selectedQuotation.validityDays)}</p>
                 </div>
-                {selectedQuotation.warranty_period && (
-                  <div>
-                    <Label className="text-muted-foreground">Warranty Period</Label>
-                    <p className="font-medium">{selectedQuotation.warranty_period}</p>
-                  </div>
-                )}
+                <div>
+                  <Label className="text-muted-foreground">Warranty Period</Label>
+                  <p className="font-medium">{displayString(selectedQuotation.warrantyPeriod)}</p>
+                </div>
               </div>
 
               {/* Items */}
@@ -1185,12 +1183,10 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               )}
 
               {/* Notes */}
-              {selectedQuotation.notes && (
-                <div>
-                  <Label className="text-muted-foreground">Notes</Label>
-                  <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedQuotation.notes}</p>
-                </div>
-              )}
+              <div>
+                <Label className="text-muted-foreground">Notes</Label>
+                <p className="text-sm mt-1 p-3 bg-muted rounded-md">{displayString(selectedQuotation.notes)}</p>
+              </div>
 
               {/* Attachments */}
               {selectedQuotation.attachments && selectedQuotation.attachments.length > 0 && (
@@ -1423,18 +1419,18 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                 <div className="grid grid-cols-3 gap-4 text-sm">
                                   <div>
                                     <p className="text-muted-foreground">Amount</p>
-                                    <p className="font-medium">₦{parseFloat(quotation.price || quotation.total_amount || '0').toLocaleString()}</p>
+                                    <p className="font-medium">{formatAmount(quotation.total ?? quotation.price, quotation.currency)}</p>
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Delivery Days</p>
                                     <p className="font-medium">
-                                      {displayNumeric(quotation.deliveryDays ?? quotation.delivery_days, 'days')}
+                                      {formatDays(quotation.deliveryDays)}
                                     </p>
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground">Payment Terms</p>
                                     <p className="font-medium">
-                                      {displayString(quotation.paymentTerms ?? quotation.payment_terms)}
+                                      {displayString(quotation.paymentTerms)}
                                     </p>
                                   </div>
                                 </div>

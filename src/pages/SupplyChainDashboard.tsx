@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { formatAmount, formatDays, displayString } from "@/utils/normalizeQuotation";
 import { PORejectionDialog } from "@/components/PORejectionDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
@@ -1096,14 +1097,14 @@ const SupplyChainDashboard = () => {
               <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
                 <h4 className="font-semibold mb-3 text-purple-900 dark:text-purple-100">Quotation Details</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><Label className="text-muted-foreground">Total Amount</Label><p className="font-bold text-lg">₦{parseFloat(mrfFullDetails.selectedQuotation.price || mrfFullDetails.selectedQuotation.total_amount || "0").toLocaleString()}</p></div>
-                  <div><Label className="text-muted-foreground">Payment Terms</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.payment_terms || "N/A"}</p></div>
-                  <div><Label className="text-muted-foreground">Delivery Date</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.delivery_date || "N/A"}</p></div>
-                  <div><Label className="text-muted-foreground">Validity Days</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.validity_days || "N/A"} days</p></div>
-                  {mrfFullDetails.selectedQuotation.warranty_period && <div><Label className="text-muted-foreground">Warranty Period</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.warranty_period}</p></div>}
+                  <div><Label className="text-muted-foreground">Total Amount</Label><p className="font-bold text-lg">{formatAmount(mrfFullDetails.selectedQuotation.price ?? mrfFullDetails.selectedQuotation.total_amount, mrfFullDetails.selectedQuotation.currency ?? 'NGN')}</p></div>
+                  <div><Label className="text-muted-foreground">Payment Terms</Label><p className="font-medium">{displayString(mrfFullDetails.selectedQuotation.payment_terms)}</p></div>
+                  <div><Label className="text-muted-foreground">Delivery Date</Label><p className="font-medium">{displayString(mrfFullDetails.selectedQuotation.delivery_date)}</p></div>
+                  <div><Label className="text-muted-foreground">Validity Days</Label><p className="font-medium">{formatDays(mrfFullDetails.selectedQuotation.validity_days)}</p></div>
+                  <div><Label className="text-muted-foreground">Warranty Period</Label><p className="font-medium">{displayString(mrfFullDetails.selectedQuotation.warranty_period)}</p></div>
                   {mrfFullDetails.selectedQuotation.scopeOfWork && <div className="col-span-2"><Label className="text-muted-foreground">Scope of Work</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.scopeOfWork}</p></div>}
                   {mrfFullDetails.selectedQuotation.specifications && <div className="col-span-2"><Label className="text-muted-foreground">Specifications</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.specifications}</p></div>}
-                  {mrfFullDetails.selectedQuotation.notes && <div className="col-span-2"><Label className="text-muted-foreground">Notes</Label><p className="font-medium">{mrfFullDetails.selectedQuotation.notes}</p></div>}
+                  <div className="col-span-2"><Label className="text-muted-foreground">Notes</Label><p className="font-medium">{displayString(mrfFullDetails.selectedQuotation.notes)}</p></div>
                 </div>
               </div>
 
