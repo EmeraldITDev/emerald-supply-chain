@@ -345,12 +345,10 @@ const FinanceDashboard = () => {
                                 <span className="text-muted-foreground">Total Amount: </span>
                                 <span className="font-bold text-lg">₦{typeof quotationAmount === 'number' ? quotationAmount.toLocaleString() : parseFloat(String(quotationAmount)).toLocaleString()}</span>
                               </div>
-                              {quotation.payment_terms && (
-                                <div>
-                                  <span className="text-muted-foreground">Payment Terms: </span>
-                                  <span className="font-medium">{quotation.payment_terms}</span>
-                                </div>
-                              )}
+                              <div>
+                                <span className="text-muted-foreground">Payment Terms: </span>
+                                <span className="font-medium">{displayString(quotation.payment_terms)}</span>
+                              </div>
                             </div>
                           </div>
                         )}

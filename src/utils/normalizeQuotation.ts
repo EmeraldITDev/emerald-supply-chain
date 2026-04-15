@@ -111,7 +111,7 @@ export function normalizeQuotation(item: any, fallbackRfqId?: string): Normalize
     submittedAt: q.submitted_at ?? q.submittedDate ?? q.submitted_date ?? q.created_at ?? q.createdAt ?? '',
     quotationTerms: q.quotation_terms ?? q.terms ?? null,
     status: q.status ?? 'Pending',
-    notes: q.notes ?? q.remarks ?? '',
+    notes: q.notes ?? q.note ?? q.remarks ?? '',
     items,
     documentUrl: q.document_url ?? q.documentUrl,
   };
@@ -144,10 +144,34 @@ export function displayString(value: string | null | undefined): string {
 }
 
 /**
- * Formats a currency amount for display.
+ * Formats a currency amount for display (simple symbol prefix).
  */
 export function displayCurrency(value: number | null | undefined, currency: string = 'NGN'): string {
   if (value == null) return 'N/A';
   const symbol = currency === 'NGN' ? '₦' : currency === 'USD' ? '$' : currency;
   return `${symbol}${value.toLocaleString()}`;
+}
+
+/**
+ * Formats a day-count field for display.
+ * Preserves 0 as "0 days", uses singular "day" for 1.
+ */
+export function formatDays(value: number | null | undefined): string {
+  if (value == null) return 'N/A';
+  if (value === 1) return '1 day';
+  return `${value} days`;
+}
+
+/**
+ * Formats a currency amount using Intl.NumberFormat for proper locale-aware display.
+ */
+export function formatAmount(value: number | string | null | undefined, currency: string = 'NGN'): string {
+  if (value == null) return 'N/A';
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return 'N/A';
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+  }).format(num);
 }

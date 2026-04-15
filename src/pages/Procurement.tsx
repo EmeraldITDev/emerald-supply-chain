@@ -22,7 +22,7 @@ import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrat
 
 import type { MRFRequest } from "@/contexts/AppContext";
 import { dashboardApi, mrfApi, grnApi, rfqApi, quotationApi, vendorApi } from "@/services/api";
-import { normalizeQuotation, displayNumeric, displayString } from "@/utils/normalizeQuotation";
+import { normalizeQuotation, displayNumeric, displayString, formatDays, formatAmount } from "@/utils/normalizeQuotation";
 import type { VendorRegistration, MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
@@ -2242,11 +2242,11 @@ const Procurement = () => {
                       </div>
                       <div>
                         <Label className="text-muted-foreground">Total Amount</Label>
-                        <p className="font-medium">₦{parseFloat(quotation.total_amount || quotation.totalAmount || quotation.price || '0').toLocaleString()}</p>
+                        <p className="font-medium">{formatAmount(quotation.total, quotation.currency)}</p>
                       </div>
                       <div>
                         <Label className="text-muted-foreground">Delivery Days</Label>
-                        <p className="font-medium">{displayNumeric(quotation.deliveryDays ?? quotation.delivery_days, 'days')}</p>
+                        <p className="font-medium">{formatDays(quotation.deliveryDays)}</p>
                       </div>
                       <div>
                         <Label className="text-muted-foreground">Payment Terms</Label>
@@ -2770,42 +2770,21 @@ const Procurement = () => {
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div>
                                   <p className="text-muted-foreground">Total Amount</p>
-                                  <p className="font-semibold text-lg">₦{parseFloat(quotation.totalAmount || quotation.total_amount || quotation.price || quotation.total_order_value || quotation.totalOrderValue || '0').toLocaleString()}</p>
+                                  <p className="font-semibold text-lg">{formatAmount(quotation.total, quotation.currency)}</p>
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground">Delivery Days</p>
-                                  <p className="font-medium">
-                                    {(() => {
-                                      // Check for delivery_days or deliveryDays first
-                                      const deliveryDays = quotation.delivery_days || quotation.deliveryDays;
-                                      if (deliveryDays !== null && deliveryDays !== undefined && deliveryDays !== '') {
-                                        return deliveryDays;
-                                      }
-                                      // If not available, calculate from delivery_date or deliveryDate
-                                      const deliveryDate = quotation.delivery_date || quotation.deliveryDate;
-                                      if (deliveryDate) {
-                                        try {
-                                          const days = Math.ceil(
-                                            (new Date(deliveryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-                                          );
-                                          return days > 0 ? days : 'N/A';
-                                        } catch {
-                                          return 'N/A';
-                                        }
-                                      }
-                                      return 'N/A';
-                                    })()}
-                                  </p>
+                                  <p className="font-medium">{formatDays(quotation.deliveryDays)}</p>
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground">Payment Terms</p>
                                   <p className="font-medium">
-                                    {quotation.payment_terms || quotation.paymentTerms || quotation.payment_terms_text || 'N/A'}
+                                    {displayString(quotation.paymentTerms)}
                                   </p>
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground">Validity</p>
-                                  <p className="font-medium">{quotation.validity_days || quotation.validityDays || 'N/A'} days</p>
+                                  <p className="font-medium">{formatDays(quotation.validityDays)}</p>
                                 </div>
                               </div>
                               {quotation.notes && (
