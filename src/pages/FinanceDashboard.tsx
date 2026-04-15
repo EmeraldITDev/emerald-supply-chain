@@ -8,7 +8,7 @@ import { dashboardApi } from "@/services/api";
 import type { MRF } from "@/types";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { OneDriveLink } from "@/components/OneDriveLink";
-import { displayString } from "@/utils/normalizeQuotation";
+import { displayString, formatAmount } from "@/utils/normalizeQuotation";
 import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import {
@@ -112,9 +112,9 @@ const FinanceDashboard = () => {
     // Amount filter
     if (minAmount || maxAmount) {
       filtered = filtered.filter((item: any) => {
-        const quotation = item.quotation;
-        const amount = quotation?.price || quotation?.total_amount || 0;
-        const numAmount = typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0;
+        const q = item.quotation ?? item;
+        const rawAmount = q.totalAmount ?? q.total_amount ?? q.total_order_value ?? q.totalOrderValue ?? q.price;
+        const numAmount = rawAmount != null && rawAmount !== '' ? Number(rawAmount) : 0;
         const min = minAmount ? parseFloat(minAmount) : 0;
         const max = maxAmount ? parseFloat(maxAmount) : Infinity;
         return numAmount >= min && numAmount <= max;
@@ -258,9 +258,12 @@ const FinanceDashboard = () => {
                 filteredRequests.map((item: any) => {
                   const mrf = item.mrf || item;
                   const vendor = item.vendor || {};
-                  const quotation = item.quotation || {};
+                  const q = item.quotation ?? item;
+                  const quotation = item.quotation ?? {};
                   const po = item.po || {};
-                  const quotationAmount = quotation?.price || quotation?.total_amount || getEstimatedCost(mrf);
+                  const rawAmount = q.totalAmount ?? q.total_amount ?? q.total_order_value ?? q.totalOrderValue ?? q.price;
+                  const quotationAmount = rawAmount != null && rawAmount !== '' ? Number(rawAmount) : null;
+                  const hasQuotationAmount = quotationAmount !== null && !Number.isNaN(quotationAmount);
                   const executiveApproved = mrf.executive_approved || mrf.executiveApproved;
                   
                   return (
@@ -338,13 +341,13 @@ const FinanceDashboard = () => {
                         )}
 
                         {/* Quotation Details */}
-                        {quotation && Object.keys(quotation).length > 0 && (quotation.price || quotation.total_amount) && (
+                        {hasQuotationAmount && (
                           <div className="bg-success/5 border border-success/20 rounded-lg p-3 mb-4">
                             <p className="text-sm font-semibold mb-2">Quotation Details</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm">
                               <div>
                                 <span className="text-muted-foreground">Total Amount: </span>
-                                <span className="font-bold text-lg">₦{typeof quotationAmount === 'number' ? quotationAmount.toLocaleString() : parseFloat(String(quotationAmount)).toLocaleString()}</span>
+                                <span className="font-bold text-lg">{formatAmount(quotationAmount, q.currency ?? q.currency_code ?? 'NGN')}</span>
                               </div>
                               <div>
                                 <span className="text-muted-foreground">Payment Terms: </span>
