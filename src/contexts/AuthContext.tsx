@@ -14,7 +14,12 @@ export const isEmployeeRole = (role?: string): boolean => {
 
   const hrisRoles = [
     "corporate_hr",
-    "logistics"
+    "logistics",
+    "hr_manager",
+    "line_manager",
+    "contract_employee",
+    "general_employee",
+    "finance_manager"
   ];
 
   return role ? [...employeeRoles, ...hrisRoles].includes(role) : false;
