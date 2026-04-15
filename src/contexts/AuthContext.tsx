@@ -5,7 +5,15 @@ export type UserRole = "employee" | "general_employee" | "regular_staff" | "staf
 
 // Helper to check if a role is a staff/employee role
 export const isEmployeeRole = (role?: string): boolean => {
-  return role === "employee" || role === "general_employee" || role === "regular_staff" || role === "staff";
+  const employeeRoles = [
+    "employee",
+    "general_employee",
+    "regular_staff",
+    "staff",
+    "corporate_hr"
+  ];
+
+  return role ? employeeRoles.includes(role) : false;
 };
 
 export interface AuthUser {
