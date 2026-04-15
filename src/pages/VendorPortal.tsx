@@ -2056,7 +2056,8 @@ const VendorPortal = () => {
                       <p>No registration documents available</p>
                       <p className="text-xs mt-1">Documents submitted during registration will appear here</p>
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 {/* Account Settings */}
