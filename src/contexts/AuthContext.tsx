@@ -10,10 +10,13 @@ export const isEmployeeRole = (role?: string): boolean => {
     "general_employee",
     "regular_staff",
     "staff",
-    "corporate_hr"
   ];
 
-  return role ? employeeRoles.includes(role) : false;
+  const hrisRoles = [
+    "corporate_hr",
+  ];
+
+  return role ? [...employeeRoles, ...hrisRoles].includes(role) : false;
 };
 
 export interface AuthUser {
