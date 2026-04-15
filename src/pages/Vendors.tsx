@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send } from "lucide-react";
+import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send, AlertTriangle } from "lucide-react";
 import { VENDOR_DOCUMENT_REQUIREMENTS } from "@/types/vendor-registration";
 import { Textarea } from "@/components/ui/textarea";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
