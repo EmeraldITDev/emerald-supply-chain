@@ -203,11 +203,7 @@ const Procurement = () => {
     }
   }, [rfqs, fetchQuotations]);
 
-  useEffect(() => {
-    if (rfqs.length > 0) {
-      fetchQuotations();
-    }
-  }, [rfqs]);
+
 
   // Helper functions for MRF field access (handles both camelCase and snake_case)
   const getMRFEstimatedCost = (mrf: MRF) => String(mrf.estimated_cost || mrf.estimatedCost || "0");
@@ -560,17 +556,62 @@ const Procurement = () => {
 
   const getApprovalTimerColor = (mrf: MRFRequest | MRF) => {
     const stage = getMRFStage(mrf as MRF);
-    if (!((mrf as any).procurementManagerApprovalTime) || stage === "completed" || stage === "rejected") {
+    if (stage === "completed" || stage === "rejected") {
+      return null;
+    }
+
+    // Use procurementManagerApprovalTime if available
+    let startTimeStr = (mrf as any).procurementManagerApprovalTime;
+
+    // For SCD stage, use the timestamp when MRF entered SCD review
+    if (!startTimeStr && (stage === "supply_chain" || stage === "supply_chain_director_review")) {
+      startTimeStr = (mrf as any).executive_approval_date ||
+        (mrf as any).executive_approved_at ||
+        (mrf as any).submitted_at ||
+        (mrf as any).created_at;
+    }
+
+    if (!startTimeStr) {
       return null;
     }
     
-    const startTime = new Date((mrf as any).procurementManagerApprovalTime);
+    const startTime = new Date(startTimeStr);
     const now = new Date();
     const hoursElapsed = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
     
     if (hoursElapsed <= 48) return "text-emerald-600 dark:text-emerald-400";
     if (hoursElapsed <= 72) return "text-amber-600 dark:text-amber-400";
     return "text-destructive";
+  };
+
+  const getElapsedTimeText = (mrf: MRFRequest | MRF): string | null => {
+    const stage = getMRFStage(mrf as MRF);
+    if (stage === "completed" || stage === "rejected") return null;
+
+    let startTimeStr = (mrf as any).procurementManagerApprovalTime;
+
+    if (!startTimeStr && (stage === "supply_chain" || stage === "supply_chain_director_review")) {
+      startTimeStr = (mrf as any).executive_approval_date ||
+        (mrf as any).executive_approved_at ||
+        (mrf as any).submitted_at ||
+        (mrf as any).created_at;
+    }
+
+    if (!startTimeStr) return null;
+
+    const startTime = new Date(startTimeStr);
+    const now = new Date();
+    const totalMinutes = Math.floor((now.getTime() - startTime.getTime()) / (1000 * 60));
+
+    if (totalMinutes < 60) return `${totalMinutes}m`;
+    const hours = Math.floor(totalMinutes / 60);
+    if (hours < 24) {
+      const mins = totalMinutes % 60;
+      return `${hours}h ${mins}m`;
+    }
+    const days = Math.floor(hours / 24);
+    const remHours = hours % 24;
+    return `${days}d ${remHours}h`;
   };
 
   const handleMRFClick = (mrf: MRFRequest | MRF) => {
@@ -1431,7 +1472,8 @@ const Procurement = () => {
                                   {/* Executive Approval Indicator */}
                                   {(() => {
                                     const executiveApproved = (request as any).executiveApproved ||
-                                      (request as any).executive_approved;
+                                      (request as any).executive_approved ||
+                                      isExecutiveApproved(request as MRF);
                                     if (executiveApproved) {
                                       return (
                                         <Badge className="bg-green-500 text-white hover:bg-green-600">
@@ -1445,7 +1487,7 @@ const Procurement = () => {
                                    {/* SCD Approval Badge */}
                                    {(() => {
                                      const m = request as any;
-                                     const scdApproved = m.scd_approved || m.scdApproved || m.director_approved || m.directorApproved || m.supply_chain_approved || m.supplyChainApproved || m.last_action_by_role === 'supply_chain_director';
+                                     const scdApproved = m.scd_approved || m.scdApproved || m.director_approved || m.directorApproved || m.supply_chain_approved || m.supplyChainApproved || m.last_action_by_role === 'supply_chain_director' || isSupplyChainApproved(request as MRF);
                                      if (scdApproved) {
                                        return (
                                          <Badge className="bg-purple-500 text-white hover:bg-purple-600">
@@ -1753,7 +1795,14 @@ const Procurement = () => {
                           </div>
                           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-center">
                             <div className="flex items-center gap-2">
-                              {timerColor && <Clock className={`h-4 w-4 ${timerColor}`} />}
+                              {timerColor && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className={`h-4 w-4 ${timerColor}`} />
+                                  {getElapsedTimeText(request) && (
+                                    <span className={`text-xs font-medium ${timerColor}`}>{getElapsedTimeText(request)}</span>
+                                  )}
+                                </span>
+                              )}
                               {getMRFStage(request as MRF) === "completed" && <CheckCircle2 className="h-5 w-5 text-success" />}
                               {getMRFStage(request as MRF) === "rejected" && <XCircle className="h-5 w-5 text-destructive" />}
                               <Badge className={getStatusColor(request.status)}>
@@ -1830,7 +1879,7 @@ const Procurement = () => {
                                   const workflowState = getWorkflowState(request as MRF);
                                   const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager";
                                   const isPendingPOUpload = workflowState === "pending_po_upload";
-                                  const hasInitialApproval = isInitialApprovalApproved(request as MRF);
+                                  const hasInitialApproval = isInitialApprovalApproved(request as MRF) || isSupplyChainApproved(request as MRF);
                                   const canShowPOButton = isProcurement && !isPendingPOUpload && hasInitialApproval && (
                                     workflowState === "procurement_review" || // After FIRST required approval
                                     workflowState === "vendor_selected" || // After vendor selection

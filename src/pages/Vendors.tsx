@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send } from "lucide-react";
+import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send, AlertTriangle } from "lucide-react";
 import { VENDOR_DOCUMENT_REQUIREMENTS } from "@/types/vendor-registration";
 import { Textarea } from "@/components/ui/textarea";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
@@ -1115,6 +1115,31 @@ const Vendors = () => {
                                 <p className="text-xs text-muted-foreground truncate">
                                   {fileName} {doc.fileSize || doc.size ? `• ${formatFileSize(doc.fileSize || doc.size)}` : ''}
                                 </p>
+                                {/* Document-level expiry badge */}
+                                {(() => {
+                                  const docExpiry = doc.expiryDate || doc.expiry_date;
+                                  if (docExpiry) {
+                                    const expiryDate = new Date(docExpiry);
+                                    const now = new Date();
+                                    const daysRemaining = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+                                    if (daysRemaining <= 0) {
+                                      return (
+                                        <Badge variant="destructive" className="text-xs">
+                                          <AlertTriangle className="h-3 w-3 mr-1" />
+                                          Document Expired
+                                        </Badge>
+                                      );
+                                    } else if (daysRemaining <= 30) {
+                                      return (
+                                        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-xs">
+                                          <AlertTriangle className="h-3 w-3 mr-1" />
+                                          Expiring Soon
+                                        </Badge>
+                                      );
+                                    }
+                                  }
+                                  return null;
+                                })()}
                                 {doc.expiryDate && (
                                   <p className="text-xs text-warning flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />

@@ -408,6 +408,15 @@ const VendorPortal = () => {
         vendorAuthApi.getProfile().then((response) => {
           if (response.success && response.data) {
             const fullVendor = response.data as any;
+            if (import.meta.env.DEV) {
+              console.log('[VendorPortal] Profile response keys:', Object.keys(fullVendor));
+              console.log('[VendorPortal] Document fields:', {
+                documents: fullVendor.documents,
+                registration_documents: fullVendor.registration_documents,
+                kyc_documents: fullVendor.kyc_documents,
+                files: fullVendor.files,
+              });
+            }
             setCurrentVendor(fullVendor);
             localStorage.setItem('vendorData', JSON.stringify(fullVendor));
             
@@ -756,13 +765,19 @@ const VendorPortal = () => {
     : quotations.filter(q => q.vendorId === currentVendorId);
   // Use vendor-specific RFQs fetched from API, filter to only show Open ones
   // Also include RFQs that don't have a status set (assume they're open)
-  const openVendorRfqs = vendorRfqs.filter(r => 
-    !r.status || 
-    r.status === "Open" || 
-    r.status === "open" || 
-    r.status.toLowerCase() === "open" ||
-    (!r.has_submitted_quote && !r.responded) // If vendor hasn't responded, it's still open
-  );
+  const openVendorRfqs = vendorRfqs.filter(r => {
+    // Hide RFQs the vendor already submitted a non-draft quotation for
+    const alreadySubmitted = vendorQuotations.some(
+      q => q.rfqId === r.id && !q.isDraft
+    );
+    if (alreadySubmitted) return false;
+
+    return !r.status || 
+      r.status === "Open" || 
+      r.status === "open" || 
+      r.status.toLowerCase() === "open" ||
+      (!r.has_submitted_quote && !r.responded);
+  });
   const newRfqCount = openVendorRfqs.filter(r => !r.viewed_at || !r.responded).length;
 
   const getStatusColor = (status: string) => {
@@ -1499,9 +1514,11 @@ const VendorPortal = () => {
                     localStorage.removeItem(draftKey);
                     
                     // Create quote object for immediate display
+                    const matchingRfq = vendorRfqs.find(r => r.id === quote.rfqId);
                     const submittedQuoteData = {
                       id: response.data.id || `QUOTE-${Date.now()}`,
                   rfqId: quote.rfqId,
+                      rfqTitle: matchingRfq?.title || quote.rfqId,
                       vendorId: currentVendorId,
                       vendorName: currentVendor?.name || "Vendor",
                   price: quote.price,
@@ -1615,7 +1632,7 @@ const VendorPortal = () => {
                     {vendorQuotations.map((quotation) => {
                       const rfq = rfqs.find(r => r.id === quotation.rfqId);
                       // Use rfqTitle from quotation object if available (from backend), otherwise fallback to rfq.mrfTitle or "Unknown RFQ"
-                      const rfqTitle = quotation.rfqTitle || rfq?.mrfTitle || "Unknown RFQ";
+                      const rfqTitle = quotation.rfqTitle || quotation.rfq_title || quotation.title || (rfq as any)?.mrfTitle || (rfq as any)?.title || quotation.rfqId || "Unknown RFQ";
                       return (
                         <div key={quotation.id} className="p-4 border rounded-lg">
                           <div className="flex items-start justify-between mb-3">
@@ -2000,9 +2017,14 @@ const VendorPortal = () => {
                     <FileText className="h-4 w-4" />
                     Registration Documents
                   </h4>
-                  {(currentVendor as any)?.documents && (currentVendor as any).documents.length > 0 ? (
+                  {(() => {
+                    const vendorDocs = (currentVendor as any)?.documents || 
+                      (currentVendor as any)?.registration_documents || 
+                      (currentVendor as any)?.kyc_documents || 
+                      (currentVendor as any)?.files || [];
+                    return vendorDocs.length > 0 ? (
                     <div className="space-y-2">
-                      {(currentVendor as any).documents.map((doc: any, idx: number) => (
+                      {vendorDocs.map((doc: any, idx: number) => (
                         <div key={idx} className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
                           <div className="flex items-center gap-3">
                             <FileText className="h-5 w-5 text-primary" />
@@ -2014,11 +2036,11 @@ const VendorPortal = () => {
                               </p>
                             </div>
                           </div>
-                          {(doc.file_url || doc.file_path) && (
+                          {(doc.file_url || doc.file_path || doc.url || doc.path || doc.s3_url) && (
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => window.open(doc.file_url || doc.file_path, '_blank')}
+                              onClick={() => window.open(doc.file_url || doc.file_path || doc.url || doc.path || doc.s3_url, '_blank')}
                               className="gap-2"
                             >
                               <Download className="h-4 w-4" />
@@ -2034,7 +2056,8 @@ const VendorPortal = () => {
                       <p>No registration documents available</p>
                       <p className="text-xs mt-1">Documents submitted during registration will appear here</p>
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 {/* Account Settings */}
