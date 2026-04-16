@@ -660,7 +660,7 @@ const VendorRegistrationReview = () => {
                               <p className="text-xs text-muted-foreground truncate">
                                 {doc.fileName || doc.name} • {formatFileSize(doc.fileSize)}
                               </p>
-                              {doc.expiryDate && (
+                              {doc.expiryDate ? (
                                 <>
                                   <div className={`text-xs flex items-center gap-1 mt-1 font-semibold ${getExpiryStatusColor(doc)}`}>
                                     <Clock className="h-3 w-3" />
@@ -672,7 +672,25 @@ const VendorRegistrationReview = () => {
                                     </p>
                                   )}
                                 </>
-                              )}
+                              ) : (() => {
+                                const resolvedUrl = (doc as any).file_share_url || (doc as any).fileShareUrl || (doc as any).file_url || (doc as any).fileUrl;
+                                if (import.meta.env.DEV && index === 0 && resolvedUrl) {
+                                  console.log('[VendorRegistrationReview] Sample doc URL:', resolvedUrl);
+                                }
+                                if (!resolvedUrl) return null;
+                                const status = getS3UrlExpiryStatus(resolvedUrl);
+                                if (!status) return null;
+                                return (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant={status.variant} className="text-[10px] px-1.5 py-0">
+                                      {status.label}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      Expires: {formatExpiryDate(status.expiryDate)}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                           
