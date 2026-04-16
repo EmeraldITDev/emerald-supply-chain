@@ -283,6 +283,49 @@ const VendorRegistrationReview = () => {
     return `Expires: ${new Date(document.expiryDate).toLocaleDateString()}`;
   };
 
+  // ============ S3 URL Expiry Utilities ============
+
+  const parseS3UrlExpiry = (url: string): Date | null => {
+    try {
+      const params = new URLSearchParams(new URL(url).search);
+      const amzDate = params.get('X-Amz-Date');
+      const amzExpires = params.get('X-Amz-Expires');
+      if (!amzDate || !amzExpires) return null;
+
+      const year = parseInt(amzDate.substring(0, 4));
+      const month = parseInt(amzDate.substring(4, 6)) - 1;
+      const day = parseInt(amzDate.substring(6, 8));
+      const hour = parseInt(amzDate.substring(9, 11));
+      const minute = parseInt(amzDate.substring(11, 13));
+      const second = parseInt(amzDate.substring(13, 15));
+
+      const signDate = new Date(Date.UTC(year, month, day, hour, minute, second));
+      const expiryDate = new Date(signDate.getTime() + parseInt(amzExpires) * 1000);
+      return isNaN(expiryDate.getTime()) ? null : expiryDate;
+    } catch {
+      return null;
+    }
+  };
+
+  const formatExpiryDate = (date: Date): string => {
+    return date.toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+    }) + ' at ' + date.toLocaleTimeString('en-US', {
+      hour: 'numeric', minute: '2-digit', hour12: true,
+    });
+  };
+
+  const getS3UrlExpiryStatus = (url: string): { label: string; variant: 'destructive' | 'outline' | 'default'; expiryDate: Date } | null => {
+    const expiryDate = parseS3UrlExpiry(url);
+    if (!expiryDate) return null;
+
+    const hoursLeft = (expiryDate.getTime() - Date.now()) / (1000 * 60 * 60);
+
+    if (hoursLeft <= 0) return { label: 'Expired', variant: 'destructive', expiryDate };
+    if (hoursLeft <= 24) return { label: 'Expiring Soon', variant: 'outline', expiryDate };
+    return { label: 'Active', variant: 'default', expiryDate };
+  };
+
   // ============ Document Download Handler ============
   
   const handleDownloadDocument = async (document: VendorDocument) => {
@@ -617,7 +660,7 @@ const VendorRegistrationReview = () => {
                               <p className="text-xs text-muted-foreground truncate">
                                 {doc.fileName || doc.name} • {formatFileSize(doc.fileSize)}
                               </p>
-                              {doc.expiryDate && (
+                              {doc.expiryDate ? (
                                 <>
                                   <div className={`text-xs flex items-center gap-1 mt-1 font-semibold ${getExpiryStatusColor(doc)}`}>
                                     <Clock className="h-3 w-3" />
@@ -629,7 +672,25 @@ const VendorRegistrationReview = () => {
                                     </p>
                                   )}
                                 </>
-                              )}
+                              ) : (() => {
+                                const resolvedUrl = (doc as any).file_share_url || (doc as any).fileShareUrl || (doc as any).file_url || (doc as any).fileUrl;
+                                if (import.meta.env.DEV && index === 0 && resolvedUrl) {
+                                  console.log('[VendorRegistrationReview] Sample doc URL:', resolvedUrl);
+                                }
+                                if (!resolvedUrl) return null;
+                                const status = getS3UrlExpiryStatus(resolvedUrl);
+                                if (!status) return null;
+                                return (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant={status.variant} className="text-[10px] px-1.5 py-0">
+                                      {status.label}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      Expires: {formatExpiryDate(status.expiryDate)}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                           
