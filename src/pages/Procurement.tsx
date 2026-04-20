@@ -1574,15 +1574,7 @@ const Procurement = () => {
                                             <div className="flex-1">
                                               <p className="text-sm font-medium">{quotation.vendorName || quotation.vendor_name || 'Vendor'}</p>
                                               <p className="text-xs text-muted-foreground">
-                                                Price: ₦{parseFloat(
-                                                  quotation.vendor_price ||
-                                                  quotation.vendorPrice ||
-                                                  quotation.total_amount ||
-                                                  quotation.totalAmount ||
-                                                  quotation.price ||
-                                                  quotation.amount ||
-                                                  '0'
-                                                ).toLocaleString()}
+                                                Price: {formatAmount(quotation.total ?? Number(quotation.price), quotation.currency ?? 'NGN')}
                                                 {(quotation.deliveryDate || quotation.delivery_date) && ` • Delivery: ${new Date(quotation.deliveryDate || quotation.delivery_date).toLocaleDateString()}`}
                                               </p>
                                             </div>
@@ -2024,7 +2016,7 @@ const Procurement = () => {
                                   )}
                                    {(() => {
                                      const m = mrf as any;
-                                     const scdApproved = m.scd_approved || m.scdApproved || m.director_approved || m.directorApproved || m.supply_chain_approved || m.supplyChainApproved || m.last_action_by_role === 'supply_chain_director';
+                                     const scdApproved = m.scd_approved || m.scdApproved || m.director_approved || m.directorApproved || m.supply_chain_approved || m.supplyChainApproved || m.last_action_by_role === 'supply_chain_director' || isSupplyChainApproved(mrf as MRF);
                                      if (scdApproved) {
                                        return (
                                          <Badge className="bg-purple-500 text-white hover:bg-purple-600">
@@ -2053,14 +2045,6 @@ const Procurement = () => {
                               </div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleMRFClick(mrf)}
-                                >
-                                  <FileText className="h-4 w-4 mr-1" />
-                                  View Details
-                                </Button>
                               </div>
                             </div>
                           </CardContent>
@@ -2790,6 +2774,7 @@ const Procurement = () => {
                       <Label className="text-muted-foreground mb-2 block">All Vendor Quotations ({mrfFullDetails.quotations.length})</Label>
                       <div className="space-y-3">
                         {mrfFullDetails.quotations.map((item: any) => {
+                          const n = normalizeQuotation(item);
                           const quotation = item.quotation || item;
                           const vendor = item.vendor || {};
                           return (
@@ -2797,7 +2782,7 @@ const Procurement = () => {
                               <div className="flex justify-between items-start mb-3">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-2">
-                                    <p className="font-semibold">{vendor.name || vendor.company_name || 'Unknown Vendor'}</p>
+                                    <p className="font-semibold">{n.vendorName || vendor.name || vendor.company_name || 'Unknown Vendor'}</p>
                                     {vendor.rating && (
                                       <div className="flex items-center gap-1">
                                         <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
@@ -2819,21 +2804,21 @@ const Procurement = () => {
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div>
                                   <p className="text-muted-foreground">Total Amount</p>
-                                  <p className="font-semibold text-lg">{formatAmount(quotation.total, quotation.currency)}</p>
+                                  <p className="font-semibold text-lg">{formatAmount(n.total, n.currency)}</p>
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground">Delivery Days</p>
-                                  <p className="font-medium">{formatDays(quotation.deliveryDays)}</p>
+                                  <p className="font-medium">{formatDays(n.deliveryDays)}</p>
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground">Payment Terms</p>
                                   <p className="font-medium">
-                                    {displayString(quotation.paymentTerms)}
+                                    {displayString(n.paymentTerms)}
                                   </p>
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground">Validity</p>
-                                  <p className="font-medium">{formatDays(quotation.validityDays)}</p>
+                                  <p className="font-medium">{formatDays(n.validityDays)}</p>
                                 </div>
                               </div>
                               {quotation.notes && (
