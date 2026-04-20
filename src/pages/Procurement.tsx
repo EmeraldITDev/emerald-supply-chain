@@ -1574,15 +1574,7 @@ const Procurement = () => {
                                             <div className="flex-1">
                                               <p className="text-sm font-medium">{quotation.vendorName || quotation.vendor_name || 'Vendor'}</p>
                                               <p className="text-xs text-muted-foreground">
-                                                Price: ₦{parseFloat(
-                                                  quotation.vendor_price ||
-                                                  quotation.vendorPrice ||
-                                                  quotation.total_amount ||
-                                                  quotation.totalAmount ||
-                                                  quotation.price ||
-                                                  quotation.amount ||
-                                                  '0'
-                                                ).toLocaleString()}
+                                                Price: {formatAmount(quotation.total ?? Number(quotation.price), quotation.currency ?? 'NGN')}
                                                 {(quotation.deliveryDate || quotation.delivery_date) && ` • Delivery: ${new Date(quotation.deliveryDate || quotation.delivery_date).toLocaleDateString()}`}
                                               </p>
                                             </div>
