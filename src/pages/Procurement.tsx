@@ -2024,7 +2024,7 @@ const Procurement = () => {
                                   )}
                                    {(() => {
                                      const m = mrf as any;
-                                     const scdApproved = m.scd_approved || m.scdApproved || m.director_approved || m.directorApproved || m.supply_chain_approved || m.supplyChainApproved || m.last_action_by_role === 'supply_chain_director';
+                                     const scdApproved = m.scd_approved || m.scdApproved || m.director_approved || m.directorApproved || m.supply_chain_approved || m.supplyChainApproved || m.last_action_by_role === 'supply_chain_director' || isSupplyChainApproved(mrf as MRF);
                                      if (scdApproved) {
                                        return (
                                          <Badge className="bg-purple-500 text-white hover:bg-purple-600">
@@ -2053,14 +2053,6 @@ const Procurement = () => {
                               </div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleMRFClick(mrf)}
-                                >
-                                  <FileText className="h-4 w-4 mr-1" />
-                                  View Details
-                                </Button>
                               </div>
                             </div>
                           </CardContent>
