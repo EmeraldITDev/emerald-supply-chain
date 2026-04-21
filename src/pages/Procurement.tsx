@@ -165,6 +165,24 @@ const Procurement = () => {
         }
       }
       setQuotations(allQuotations);
+      if (import.meta.env.DEV) {
+        console.log('[Procurement.fetchQuotations]', {
+          rfqsCount: rfqs.length,
+          rfqsSample: rfqs.slice(0, 3).map((r: any) => ({
+            id: r.id,
+            mrf_id: r.mrf_id,
+            mrfId: r.mrfId,
+            keys: Object.keys(r),
+          })),
+          quotationsCount: allQuotations.length,
+          quotationsSample: allQuotations.slice(0, 3).map((q: any) => ({
+            id: q.id,
+            rfqId: q.rfqId,
+            vendorName: q.vendorName,
+            total: q.total,
+          })),
+        });
+      }
     } catch (error) {
       console.error("Failed to fetch quotations:", error);
     }
@@ -1868,6 +1886,18 @@ const Procurement = () => {
                                 {/* Send Request to Vendors button - Shown after the FIRST required approval */}
                                 {/* The handleGeneratePO function checks canGeneratePO before proceeding */}
                                 {(() => {
+                                  if (import.meta.env.DEV) {
+                                    console.log('[Procurement.SendRFQButton:inputs]', {
+                                      mrfId: request.id,
+                                      contract_type: (request as any).contract_type ?? (request as any).contractType,
+                                      stage: getMRFStage(request as MRF),
+                                      status: request.status,
+                                      workflowState: getWorkflowState(request as MRF),
+                                      isInitialApprovalApproved: isInitialApprovalApproved(request as MRF),
+                                      isSupplyChainApproved: isSupplyChainApproved(request as MRF),
+                                      isSupplyChainDirectorInitialApproved: isSupplyChainDirectorInitialApproved(request as MRF),
+                                    });
+                                  }
                                   const workflowState = getWorkflowState(request as MRF);
                                   const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager";
                                   const isPendingPOUpload = workflowState === "pending_po_upload";
@@ -1879,6 +1909,16 @@ const Procurement = () => {
                                     workflowState === "invoice_approved" || // After Supply Chain Director approval
                                     (getMRFStage(request as MRF) === "procurement" && hasInitialApproval) // Optimistic for list view
                                   );
+
+                                  if (import.meta.env.DEV) {
+                                    console.log('[Procurement.SendRFQButton:decision]', {
+                                      mrfId: request.id,
+                                      isProcurement,
+                                      isPendingPOUpload,
+                                      hasInitialApproval,
+                                      canShowPOButton,
+                                    });
+                                  }
 
                                   if (!canShowPOButton) return null;
 
