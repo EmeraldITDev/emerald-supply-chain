@@ -36,7 +36,7 @@ const VendorPortal = () => {
   const [showRegistration, setShowRegistration] = useState(false);
   const [currentVendor, setCurrentVendor] = useState<VendorData | null>(null);
     useEffect(() => {
-    console.log("Vendor Portal currentVendor object:", currentVendor);
+    console.log("Vendors Portal currentVendor object:", currentVendor);
   }, [currentVendor]);
   const [currentVendorId, setCurrentVendorId] = useState("");
   const [activeTab, setActiveTab] = useState("rfqs");
