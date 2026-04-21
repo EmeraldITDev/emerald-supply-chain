@@ -406,8 +406,28 @@ const Procurement = () => {
   // after which the request is routed to Procurement for RFQ/quote sourcing.
   const isSupplyChainDirectorInitialApproved = (mrf: MRF): boolean => {
     const stage = getMRFStage(mrf);
-    // Before the final vendor selection approval step, SCD approval is not "final" yet.
-    return (stage === "procurement" || stage === "procurement_review") && !isSupplyChainApproved(mrf);
+    const workflowState = getWorkflowState(mrf);
+    
+    // Initial SCD approval is at procurement_review stage with workflow_state NOT indicating final approval
+    // Final SCD approval is at invoice_approved (which means SCD approved the invoice after vendor selection)
+    if ((stage === "procurement" || stage === "procurement_review") && 
+        workflowState !== "invoice_approved" &&
+        workflowState !== "pending_po_upload" &&
+        workflowState !== "vendor_approved") {
+      // This is at the initial stage. Check if there's ANY SCD approval in history (initial approval)
+      const approvalHistory = mrf.approval_history || mrf.approvalHistory || [];
+      const hasSCDApproval = approvalHistory.some((entry: any) =>
+        entry.action === "approved" &&
+        (entry.role === "supply_chain" || 
+         entry.approved_by_role === "supply_chain" || 
+         entry.stage === "supply_chain" ||
+         entry.role === "supply chain director" ||
+         entry.approved_by_role === "supply chain director")
+      );
+      return hasSCDApproval;
+    }
+    
+    return false;
   };
 
   const isInitialApprovalApproved = (mrf: MRF): boolean => {
@@ -1505,7 +1525,22 @@ const Procurement = () => {
                                    {/* SCD Approval Badge */}
                                    {(() => {
                                      const m = request as any;
-                                     const scdApproved = m.scd_approved || m.scdApproved || m.director_approved || m.directorApproved || m.supply_chain_approved || m.supplyChainApproved || m.last_action_by_role === 'supply_chain_director' || isSupplyChainApproved(request as MRF);
+                                     // Show SCD badge for:
+                                     // 1. Explicit SCD approval fields from backend
+                                     // 2. Last action was by supply_chain_director
+                                     // 3. At procurement_review stage with any SCD approval (initial approval)
+                                     // 4. At later stages that indicate SCD approval (final approval like invoice_approved)
+                                     const stage = getMRFStage(request as MRF);
+                                     const workflowState = getWorkflowState(request as MRF);
+                                     
+                                     const scdApproved = 
+                                       m.scd_approved || m.scdApproved || 
+                                       m.director_approved || m.directorApproved || 
+                                       m.supply_chain_approved || m.supplyChainApproved || 
+                                       m.last_action_by_role === 'supply_chain_director' ||
+                                       (stage === "procurement" || stage === "procurement_review") && isSupplyChainDirectorInitialApproved(request as MRF) ||
+                                       isSupplyChainApproved(request as MRF);
+                                     
                                      if (scdApproved) {
                                        return (
                                          <Badge className="bg-purple-500 text-white hover:bg-purple-600">
