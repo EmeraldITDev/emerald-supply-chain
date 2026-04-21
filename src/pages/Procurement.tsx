@@ -165,6 +165,24 @@ const Procurement = () => {
         }
       }
       setQuotations(allQuotations);
+      if (import.meta.env.DEV) {
+        console.log('[Procurement.fetchQuotations]', {
+          rfqsCount: rfqs.length,
+          rfqsSample: rfqs.slice(0, 3).map((r: any) => ({
+            id: r.id,
+            mrf_id: r.mrf_id,
+            mrfId: r.mrfId,
+            keys: Object.keys(r),
+          })),
+          quotationsCount: allQuotations.length,
+          quotationsSample: allQuotations.slice(0, 3).map((q: any) => ({
+            id: q.id,
+            rfqId: q.rfqId,
+            vendorName: q.vendorName,
+            total: q.total,
+          })),
+        });
+      }
     } catch (error) {
       console.error("Failed to fetch quotations:", error);
     }
