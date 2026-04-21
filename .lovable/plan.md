@@ -1,59 +1,70 @@
 
 
-# Plan — Procurement Bugs 1, 4, 6 (Execute Now) + Bugs 2, 3, 5 (Blocked)
+# Plan — Diagnostic Logs for Bugs 2 & 3 (with IIFE scope verification)
 
-## Pre-execution verification
+## IIFE scope verification (Bug 2)
 
-**Bug 1 scope check:** `isSupplyChainApproved` is already used inside the same component at line 1488 — same render scope. Safe to use at line 2025-2037.
+The IIFE at line 1870 in `src/pages/Procurement.tsx` is the inline arrow function that computes `canShowPOButton` and conditionally returns the "Send RFQ to Vendors" button. It is invoked **inside the per-MRF card render loop** for every MRF (Emerald and non-Emerald, every workflow state). The IIFE itself runs unconditionally — only the JSX it *returns* is conditional on `canShowPOButton`. So a `console.log` placed at the top of the IIFE body, **before** the `canShowPOButton` evaluation, fires once per MRF render regardless of state. This is the correct placement.
 
-**Bug 4 Spot B state-shape check:** `fetchQuotations` at line ~150 builds `quotations` via `{...n, ...metadata}` where `n = normalizeQuotation(item)` and `metadata` only adds vendor/RFQ display props — it does **not** overwrite `total`, `currency`, `deliveryDays`. So `quotation.total` at line 1577 is the normalized number. Verified safe.
+To make this guarantee explicit, the log will be the **first statement** inside the IIFE — above any early returns, above `isPendingPOUpload`, above `hasInitialApproval`, above `canShowPOButton`. This way every MRF card emits one diagnostic line, including the affected non-Emerald MRF.
 
-## File: `src/pages/Procurement.tsx` — three surgical edits
+## Edit 1 — Bug 3 diagnostic log
 
-### Edit 1 — Bug 1 (SCD badge on All MRFs tab, lines 2025-2037)
+**File:** `src/pages/Procurement.tsx`
+**Function:** `fetchQuotations` (after the loop, just before `setQuotations(allQuotations)` at ~line 167)
 
-Replace the existing SCD badge block with the same pattern used on the MRF tab (line 1488-1500), adding the `isSupplyChainApproved(mrf as MRF)` fallback to the field-name chain. Executive badge above is **not touched**. Color stays purple, label stays "SCD Approved".
-
-### Edit 2 — Bug 4 (Total Amount N/A)
-
-**Spot A — All Vendor Quotations map (lines 2792-2822):**
-Wrap each item in `const n = normalizeQuotation(item)` at the top of the map callback. Replace raw reads with normalized fields:
-- `Total Amount` → `formatAmount(n.total, n.currency)`
-- `Delivery Days` → `formatDays(n.deliveryDays)`
-- `Payment Terms` → `displayString(n.paymentTerms)`
-- `Validity` → `formatDays(n.validityDays)`
-- Vendor name → `n.vendorName || vendor.name || 'Unknown Vendor'`
-
-**Spot B — Inline mini-card (lines 1577-1585):**
-Replace the `||` chain on numeric fields with the normalized field directly:
 ```ts
-Price: {formatAmount(quotation.total ?? Number(quotation.price), quotation.currency ?? 'NGN')}
+if (import.meta.env.DEV) {
+  console.log('[Procurement.fetchQuotations]', {
+    rfqsCount: rfqs.length,
+    rfqsSample: rfqs.slice(0, 3).map((r: any) => ({
+      id: r.id,
+      mrf_id: r.mrf_id,
+      mrfId: r.mrfId,
+      keys: Object.keys(r),
+    })),
+    quotationsCount: allQuotations.length,
+    quotationsSample: allQuotations.slice(0, 3).map((q: any) => ({
+      id: q.id,
+      rfqId: q.rfqId,
+      vendorName: q.vendorName,
+      total: q.total,
+    })),
+  });
+}
 ```
-No `||` on numeric fields anywhere — preserves legitimate `0`.
 
-### Edit 3 — Bug 6 (Remove non-functional View Details button, lines 2056-2063)
+## Edit 2 — Bug 2 diagnostic log (unconditional, fires per MRF)
 
-Delete only the `<Button variant="outline" size="sm" onClick={() => handleMRFClick(mrf)}>...View Details</Button>` element on the All MRFs tab. The wrapping `<div className="flex items-center gap-2 flex-wrap">` and the status `<Badge>` at line 2055 stay. `handleMRFClick` itself is **not** modified (still used by the MRF Official tab card click at line 1458).
+**File:** `src/pages/Procurement.tsx`
+**Location:** First statement inside the IIFE at line 1870, before `isPendingPOUpload` / `hasInitialApproval` / `canShowPOButton` are computed.
 
-## Bugs 2, 3, 5 — Blocked pending answers
+```ts
+if (import.meta.env.DEV) {
+  console.log('[Procurement.SendRFQButton]', {
+    mrfId: request.id,
+    contract_type: (request as any).contract_type ?? (request as any).contractType,
+    stage: getMRFStage(request as MRF),
+    status: request.status,
+    workflowState,
+    isInitialApprovalApproved: isInitialApprovalApproved(request as MRF),
+    isSupplyChainApproved: isSupplyChainApproved(request as MRF),
+    isSupplyChainDirectorInitialApproved: isSupplyChainDirectorInitialApproved(request as MRF),
+  });
+}
+```
 
-These are **not executed**. Two open questions remain from the prior turn:
+`isPendingPOUpload`, `hasInitialApproval`, and `canShowPOButton` will be computed on the lines below as they currently are — and a second log line will be appended **after** those computations capturing those three values, so a single MRF emits two clearly-named lines (`SendRFQButton:inputs` and `SendRFQButton:decision`). This guarantees the inputs are visible even if a later evaluation throws.
 
-1. **Bug 3** — please provide either:
-   - (a) the commit/file where the RFQ call was removed, or
-   - (b) approval to add a one-shot `import.meta.env.DEV`-gated `console.log` inside `fetchQuotations` to confirm whether the cause is `mrf_id` field mismatch, response shape mismatch, or dedup collision.
+## Out of scope
 
-2. **Bug 2** — please provide a sample MRF id (and contract type, Emerald or Non-Emerald) where "Send RFQ to Vendors" does not appear after SCD initial approval, so the cause can be identified as logic vs data without speculation.
+- No rendering changes
+- No condition changes
+- No changes to `isSupplyChainApproved`, `isSupplyChainDirectorInitialApproved`, `isInitialApprovalApproved`, `getWorkflowState`
+- No backend / API changes
+- Bug 5 still blocked on Bug 3 results
 
-**Bug 5** is auto-resolved by the Bug 3 fix (the select-quotation button is rendered inside the inline quotation list).
+## Next step after the logs are in
 
-## Out of scope (will not change)
-
-- Executive badge logic, styles, colors, or labels
-- View Details button on any tab other than All MRFs
-- `handleMRFClick` itself
-- `normalizeQuotation` utility
-- Any backend contract, endpoint, or response shape
-- Any auth/role logic
-- The SCD approval state machine (`isSupplyChainApproved`, `isExecutiveApproved`, `isSupplyChainDirectorInitialApproved`)
+User loads Procurement → Overview with the affected non-Emerald MRF visible, opens DevTools console, and shares both the `[Procurement.fetchQuotations]` line and the per-MRF `[Procurement.SendRFQButton]` lines. A targeted one-line fix will then be proposed.
 
