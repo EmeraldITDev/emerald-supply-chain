@@ -1552,6 +1552,16 @@ const Vendors = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <VendorProfileEditDialog
+        open={profileEditOpen}
+        onOpenChange={setProfileEditOpen}
+        vendorId={profileEditVendor?.id ?? null}
+        vendorName={profileEditVendor?.name}
+        onSaved={() => {
+          fetchVendors();
+        }}
+      />
     </DashboardLayout>
   );
 };
