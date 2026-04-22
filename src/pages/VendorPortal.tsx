@@ -921,6 +921,8 @@ const VendorPortal = () => {
                 return;
               }
 
+              console.log("VENDOR REGISTRATION PAYLOAD:", registrationPayload);
+              
               const response = await vendorApi.registerSimple(registrationPayload);
 
               if (response.success) {
