@@ -3,10 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send, AlertTriangle } from "lucide-react";
+import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send, AlertTriangle, Pencil, AlertCircle } from "lucide-react";
 import { VENDOR_DOCUMENT_REQUIREMENTS } from "@/types/vendor-registration";
 import { Textarea } from "@/components/ui/textarea";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
+import VendorProfileEditDialog from "@/components/VendorProfileEditDialog";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -40,6 +42,9 @@ const Vendors = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { vendors: contextVendors } = useApp();
+  const { user } = useAuth();
+  const canEditProfileDetails =
+    user?.role === "procurement_manager" || user?.role === "supply_chain_director";
   const [vendors, setVendors] = useState(contextVendors);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
@@ -60,6 +65,11 @@ const Vendors = () => {
   const [deleteVendorDialogOpen, setDeleteVendorDialogOpen] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState<any>(null);
   const [isDeletingVendor, setIsDeletingVendor] = useState(false);
+
+  // Admin profile-edit dialog (backfill of legacy NULL fields)
+  const [profileEditOpen, setProfileEditOpen] = useState(false);
+  const [profileEditVendor, setProfileEditVendor] = useState<{ id: string | number; name?: string } | null>(null);
+  const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
   
   // Rating and comments state
   const [vendorComments, setVendorComments] = useState<Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string | { id: number; name: string; email: string } }>>([]);
@@ -372,45 +382,44 @@ const Vendors = () => {
   }, [toast]);
 
   // Fetch approved vendors
-  useEffect(() => {
-    const fetchVendors = async () => {
-      setLoadingVendors(true);
-      try {
-        const response = await vendorApi.getAll();
-        if (response.success && response.data) {
-          // Transform API vendor data to match frontend Vendor type
-          // Log raw API response for debugging
-          console.log('Raw vendor data from API:', response.data);
-          
-          const transformedVendors = response.data.map((vendor: any) => ({
-            // Use numeric id for API calls, vendor_id for display
-            id: vendor.id, // Always use the actual database ID for API calls
-            displayId: vendor.vendor_id || `V${String(vendor.id).padStart(3, '0')}`, // Display ID
-            name: vendor.name || vendor.company_name,
-            category: vendor.category || 'Unknown',
-            status: vendor.status || 'Active',
-            kyc: vendor.kyc_status || 'Verified',
-            rating: vendor.rating || 0,
-            orders: vendor.total_orders || 0,
-            email: vendor.email || '',
-            phone: vendor.phone || '',
-            address: vendor.address || '',
-            taxId: vendor.tax_id || vendor.taxId || '',
-            contactPerson: vendor.contact_person || vendor.contactPerson || '',
-            documents: vendor.documents || [],
-          }));
-          console.log('Transformed vendors:', transformedVendors);
-          setVendors(transformedVendors);
-        }
-      } catch (error) {
-        // Fallback to context vendors if API fails
-        setVendors(contextVendors);
-      } finally {
-        setLoadingVendors(false);
+  const fetchVendors = async () => {
+    setLoadingVendors(true);
+    try {
+      const response = await vendorApi.getAll();
+      if (response.success && response.data) {
+        const transformedVendors = response.data.map((vendor: any) => ({
+          id: vendor.id,
+          displayId: vendor.vendor_id || `V${String(vendor.id).padStart(3, '0')}`,
+          name: vendor.name || vendor.company_name,
+          category: vendor.category || 'Unknown',
+          status: vendor.status || 'Active',
+          kyc: vendor.kyc_status || 'Verified',
+          rating: vendor.rating || 0,
+          orders: vendor.total_orders || 0,
+          email: vendor.email || '',
+          phone: vendor.phone || '',
+          address: vendor.address || '',
+          taxId: vendor.tax_id || vendor.taxId || '',
+          contactPerson: vendor.contact_person || vendor.contactPerson || '',
+          documents: vendor.documents || [],
+          // Surface the four backfill-target fields so the "Profile incomplete" filter works against the list response.
+          annualRevenue: vendor.annual_revenue ?? vendor.annualRevenue ?? null,
+          numberOfEmployees: vendor.number_of_employees ?? vendor.numberOfEmployees ?? null,
+          yearEstablished: vendor.year_established ?? vendor.yearEstablished ?? null,
+          website: vendor.website ?? null,
+        }));
+        setVendors(transformedVendors);
       }
-    };
+    } catch (error) {
+      setVendors(contextVendors);
+    } finally {
+      setLoadingVendors(false);
+    }
+  };
 
+  useEffect(() => {
     fetchVendors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contextVendors]);
 
   // Handle approval
@@ -888,12 +897,41 @@ const Vendors = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Vendor Directory</CardTitle>
-            <CardDescription>Complete list of registered vendors</CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <CardTitle>Vendor Directory</CardTitle>
+                <CardDescription>Complete list of registered vendors</CardDescription>
+              </div>
+              {canEditProfileDetails && (
+                <Button
+                  variant={showIncompleteOnly ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowIncompleteOnly((v) => !v)}
+                  className="gap-2 self-start sm:self-auto"
+                >
+                  <AlertCircle className="h-4 w-4" />
+                  {showIncompleteOnly ? "Showing incomplete only" : "Profile incomplete"}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {vendors.map((vendor) => (
+              {vendors
+                .filter((vendor: any) => {
+                  if (!showIncompleteOnly) return true;
+                  return (
+                    vendor.annualRevenue == null ||
+                    vendor.annualRevenue === "" ||
+                    vendor.numberOfEmployees == null ||
+                    vendor.numberOfEmployees === "" ||
+                    vendor.yearEstablished == null ||
+                    vendor.yearEstablished === "" ||
+                    vendor.website == null ||
+                    vendor.website === ""
+                  );
+                })
+                .map((vendor) => (
                 <div key={vendor.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg">
                   <div className="space-y-2 flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -910,14 +948,29 @@ const Vendors = () => {
                       </span>
                     </div>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleViewVendorProfile(vendor)}
-                    className="self-start sm:self-center"
-                  >
-                    View Profile
-                  </Button>
+                  <div className="flex flex-wrap gap-2 self-start sm:self-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewVendorProfile(vendor)}
+                    >
+                      View Profile
+                    </Button>
+                    {canEditProfileDetails && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setProfileEditVendor({ id: vendor.id, name: vendor.name });
+                          setProfileEditOpen(true);
+                        }}
+                        className="gap-1"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit Profile
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1499,6 +1552,16 @@ const Vendors = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <VendorProfileEditDialog
+        open={profileEditOpen}
+        onOpenChange={setProfileEditOpen}
+        vendorId={profileEditVendor?.id ?? null}
+        vendorName={profileEditVendor?.name}
+        onSaved={() => {
+          fetchVendors();
+        }}
+      />
     </DashboardLayout>
   );
 };

@@ -2089,6 +2089,23 @@ export const vendorApi = {
     });
   },
 
+  // Admin update for vendor profile fields missing on legacy registrations.
+  // Backend whitelists exactly these four snake_case fields; others are ignored.
+  updateAdmin: async (
+    vendorId: string,
+    data: {
+      annual_revenue?: string;
+      number_of_employees?: string;
+      year_established?: number;
+      website?: string;
+    }
+  ): Promise<ApiResponse<Vendor>> => {
+    return apiRequest<Vendor>(`/vendors/${vendorId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
   // Get vendor profile (for logged-in vendor)
   getProfile: async (): Promise<ApiResponse<Vendor>> => {
     return apiRequest<Vendor>('/vendors/profile');
