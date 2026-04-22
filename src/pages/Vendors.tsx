@@ -962,7 +962,7 @@ const Vendors = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          setProfileEditVendor({ id: vendor.id, name: vendor.name });
+                          setProfileEditVendor({ id: Number(vendor.id), name: vendor.name });
                           setProfileEditOpen(true);
                         }}
                         className="gap-1"

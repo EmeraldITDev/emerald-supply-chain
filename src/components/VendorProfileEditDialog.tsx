@@ -44,9 +44,11 @@ export function VendorProfileEditDialog({
       .then((res) => {
         const v = res.data;
         setForm({
-          annualRevenue: v.annualRevenue ?? "",
-          numberOfEmployees: v.numberOfEmployees ?? "",
-          yearEstablished: v.yearEstablished ? String(v.yearEstablished) : "",
+          annualRevenue: v.annual_revenue ?? "",
+          numberOfEmployees: v.number_of_employees ?? "",
+          yearEstablished: v.year_established 
+            ? String(v.year_established) 
+            : "",
           website: v.website ?? "",
         });
       })
@@ -78,7 +80,9 @@ export function VendorProfileEditDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) onClose();
+    }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Profile — {vendorName}</DialogTitle>

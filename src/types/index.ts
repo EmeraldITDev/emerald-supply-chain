@@ -218,6 +218,10 @@ export interface Vendor {
   address?: string;
   taxId?: string;
   contactPerson?: string;
+  annual_revenue?: string | null;
+  number_of_employees?: string | null;
+  year_established?: number | null;
+  website?: string | null;
 }
 
 export interface VendorRegistration {
