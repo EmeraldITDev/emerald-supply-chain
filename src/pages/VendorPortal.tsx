@@ -411,6 +411,7 @@ const VendorPortal = () => {
         vendorAuthApi.getProfile().then((response) => {
           if (response.success && response.data) {
             const fullVendor = response.data as any;
+              console.log("FULL PROFILE RESPONSE:", fullVendor);
             if (import.meta.env.DEV) {
               console.log('[VendorPortal] Profile response keys:', Object.keys(fullVendor));
               console.log('[VendorPortal] Document fields:', {
