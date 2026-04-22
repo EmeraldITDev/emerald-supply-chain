@@ -898,6 +898,10 @@ const VendorPortal = () => {
                 address: (fullAddress || registration.address)?.trim() || undefined,
                 taxId: registration.taxId?.trim() || undefined,
                 contactPerson: registration.contactPerson?.trim() || undefined,
+                website: registration.website?.trim() || undefined,
+                annual_revenue: registration.annualRevenue ? String(registration.annualRevenue).trim() : undefined,
+                number_of_employees: registration.numberOfEmployees ? String(registration.numberOfEmployees).trim() : undefined,
+                year_established: registration.yearEstablished ? Number(registration.yearEstablished) : undefined,
                 financialInfo: registration.financialInfo
                   ? {
                       bankName: registration.financialInfo.bankName,
