@@ -382,45 +382,44 @@ const Vendors = () => {
   }, [toast]);
 
   // Fetch approved vendors
-  useEffect(() => {
-    const fetchVendors = async () => {
-      setLoadingVendors(true);
-      try {
-        const response = await vendorApi.getAll();
-        if (response.success && response.data) {
-          // Transform API vendor data to match frontend Vendor type
-          // Log raw API response for debugging
-          console.log('Raw vendor data from API:', response.data);
-          
-          const transformedVendors = response.data.map((vendor: any) => ({
-            // Use numeric id for API calls, vendor_id for display
-            id: vendor.id, // Always use the actual database ID for API calls
-            displayId: vendor.vendor_id || `V${String(vendor.id).padStart(3, '0')}`, // Display ID
-            name: vendor.name || vendor.company_name,
-            category: vendor.category || 'Unknown',
-            status: vendor.status || 'Active',
-            kyc: vendor.kyc_status || 'Verified',
-            rating: vendor.rating || 0,
-            orders: vendor.total_orders || 0,
-            email: vendor.email || '',
-            phone: vendor.phone || '',
-            address: vendor.address || '',
-            taxId: vendor.tax_id || vendor.taxId || '',
-            contactPerson: vendor.contact_person || vendor.contactPerson || '',
-            documents: vendor.documents || [],
-          }));
-          console.log('Transformed vendors:', transformedVendors);
-          setVendors(transformedVendors);
-        }
-      } catch (error) {
-        // Fallback to context vendors if API fails
-        setVendors(contextVendors);
-      } finally {
-        setLoadingVendors(false);
+  const fetchVendors = async () => {
+    setLoadingVendors(true);
+    try {
+      const response = await vendorApi.getAll();
+      if (response.success && response.data) {
+        const transformedVendors = response.data.map((vendor: any) => ({
+          id: vendor.id,
+          displayId: vendor.vendor_id || `V${String(vendor.id).padStart(3, '0')}`,
+          name: vendor.name || vendor.company_name,
+          category: vendor.category || 'Unknown',
+          status: vendor.status || 'Active',
+          kyc: vendor.kyc_status || 'Verified',
+          rating: vendor.rating || 0,
+          orders: vendor.total_orders || 0,
+          email: vendor.email || '',
+          phone: vendor.phone || '',
+          address: vendor.address || '',
+          taxId: vendor.tax_id || vendor.taxId || '',
+          contactPerson: vendor.contact_person || vendor.contactPerson || '',
+          documents: vendor.documents || [],
+          // Surface the four backfill-target fields so the "Profile incomplete" filter works against the list response.
+          annualRevenue: vendor.annual_revenue ?? vendor.annualRevenue ?? null,
+          numberOfEmployees: vendor.number_of_employees ?? vendor.numberOfEmployees ?? null,
+          yearEstablished: vendor.year_established ?? vendor.yearEstablished ?? null,
+          website: vendor.website ?? null,
+        }));
+        setVendors(transformedVendors);
       }
-    };
+    } catch (error) {
+      setVendors(contextVendors);
+    } finally {
+      setLoadingVendors(false);
+    }
+  };
 
+  useEffect(() => {
     fetchVendors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contextVendors]);
 
   // Handle approval
