@@ -1,70 +1,70 @@
 
 
-# Plan — Diagnostic Logs for Bugs 2 & 3 (with IIFE scope verification)
+# Plan — Backfill Decision (Revised after verification)
 
-## IIFE scope verification (Bug 2)
+## Verification results
 
-The IIFE at line 1870 in `src/pages/Procurement.tsx` is the inline arrow function that computes `canShowPOButton` and conditionally returns the "Send RFQ to Vendors" button. It is invoked **inside the per-MRF card render loop** for every MRF (Emerald and non-Emerald, every workflow state). The IIFE itself runs unconditionally — only the JSX it *returns* is conditional on `canShowPOButton`. So a `console.log` placed at the top of the IIFE body, **before** the `canShowPOButton` evaluation, fires once per MRF render regardless of state. This is the correct placement.
+**Endpoint check (gap 1):** Searched `src/services/api.ts` end-to-end. There is **no admin endpoint** to update another vendor's profile fields:
+- `vendorApi.updateCredentials` → only `email` / `resetPassword` (line 2085).
+- `vendorApi.updateProfile` → `PUT /vendors/profile`, vendor-self only, no `{id}` (line 2098).
+- `vendorAuthApi.updateProfile` → vendor-self, whitelisted to `contact_person`, `phone`, `address` only (line 2245).
 
-To make this guarantee explicit, the log will be the **first statement** inside the IIFE — above any early returns, above `isPendingPOUpload`, above `hasInitialApproval`, above `canShowPOButton`. This way every MRF card emits one diagnostic line, including the affected non-Emerald MRF.
+The four target fields (`annual_revenue`, `number_of_employees`, `year_established`, `website`) are accepted on `POST /vendors/register` (line 1810-1813) but there is no PUT/PATCH path that accepts them for an existing vendor as an admin. **Frontend work is blocked on backend until an admin update endpoint is added.**
 
-## Edit 1 — Bug 3 diagnostic log
+**Type check (gap 2):** In the existing `vendorApi.register` payload (line 1812), `numberOfEmployees: string` and `annualRevenue: string`. The original registration form sends them as strings (likely range labels like `"11-50"`). So the database column is almost certainly `varchar`, not `integer`. Any admin edit dialog must mirror that contract: string for both. `yearEstablished: number` (line 1811).
 
-**File:** `src/pages/Procurement.tsx`
-**Function:** `fetchQuotations` (after the loop, just before `setQuotations(allQuotations)` at ~line 167)
+**State-source check (gap 3, observation):** Confirmed via `src/services/api.ts` — `vendorApi.getById` (`GET /vendors/{id}`, line 1782) exists and returns the full `Vendor`. Any edit dialog must call `getById` on open, not read from the list cache.
 
-```ts
-if (import.meta.env.DEV) {
-  console.log('[Procurement.fetchQuotations]', {
-    rfqsCount: rfqs.length,
-    rfqsSample: rfqs.slice(0, 3).map((r: any) => ({
-      id: r.id,
-      mrf_id: r.mrf_id,
-      mrfId: r.mrfId,
-      keys: Object.keys(r),
-    })),
-    quotationsCount: allQuotations.length,
-    quotationsSample: allQuotations.slice(0, 3).map((q: any) => ({
-      id: q.id,
-      rfqId: q.rfqId,
-      vendorName: q.vendorName,
-      total: q.total,
-    })),
-  });
-}
-```
+## Revised recommendation
 
-## Edit 2 — Bug 2 diagnostic log (unconditional, fires per MRF)
+**Option B is still correct, but it is two-phase and the first phase is backend-side.**
 
-**File:** `src/pages/Procurement.tsx`
-**Location:** First statement inside the IIFE at line 1870, before `isPendingPOUpload` / `hasInitialApproval` / `canShowPOButton` are computed.
+### Phase 1 — Backend (blocker, not in this repo)
+Backend team adds:
+- `PUT /api/vendors/{uuid}` (admin-only) accepting `annual_revenue` (string), `number_of_employees` (string), `year_established` (integer 1900–current year), `website` (url string, nullable).
+- Validator must reject unknown fields and enforce the same column types used by `register`.
+- Authorization: `procurement_manager` or `supply_chain_director` only.
 
-```ts
-if (import.meta.env.DEV) {
-  console.log('[Procurement.SendRFQButton]', {
-    mrfId: request.id,
-    contract_type: (request as any).contract_type ?? (request as any).contractType,
-    stage: getMRFStage(request as MRF),
-    status: request.status,
-    workflowState,
-    isInitialApprovalApproved: isInitialApprovalApproved(request as MRF),
-    isSupplyChainApproved: isSupplyChainApproved(request as MRF),
-    isSupplyChainDirectorInitialApproved: isSupplyChainDirectorInitialApproved(request as MRF),
-  });
-}
-```
+Until this exists, no frontend dialog can save successfully. Do not build the dialog against a non-existent endpoint.
 
-`isPendingPOUpload`, `hasInitialApproval`, and `canShowPOButton` will be computed on the lines below as they currently are — and a second log line will be appended **after** those computations capturing those three values, so a single MRF emits two clearly-named lines (`SendRFQButton:inputs` and `SendRFQButton:decision`). This guarantees the inputs are visible even if a later evaluation throws.
+### Phase 2 — Frontend (this repo, after Phase 1 ships)
+
+1. **`src/services/api.ts`** — add one method:
+   ```ts
+   updateAdmin: async (id: string, data: {
+     annualRevenue?: string;
+     numberOfEmployees?: string;
+     yearEstablished?: number;
+     website?: string;
+   }): Promise<ApiResponse<Vendor>> =>
+     apiRequest<Vendor>(`/vendors/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+   ```
+
+2. **`src/pages/Vendors.tsx`** — add an "Edit Profile Details" action per row, visible only to `procurement_manager` and `supply_chain_director` (use existing role guards already in this file).
+
+3. **New dialog** `src/components/VendorProfileEditDialog.tsx`:
+   - On open: call `vendorApi.getById(uuid)` to fetch the full record. Do **not** read from the list state.
+   - Four inputs:
+     - `annualRevenue` — text input (string, currency-formatted display only).
+     - `numberOfEmployees` — text input (string). **Free text, not a select**, to match what `register` already sends and what the column stores. If the original registration form used a range select, replicate the same options here for consistency, but the value submitted is the string label.
+     - `yearEstablished` — number input, min 1900, max current year.
+     - `website` — url input, optional.
+   - Empty values render as blank, not "N/A".
+   - Submit calls `vendorApi.updateAdmin(uuid, payload)`. On success, refresh the list and close.
+
+4. **"Profile incomplete" filter chip** on `Vendors.tsx` — flags vendors where any of the four fields is null on the list response. Lets admins triage the legacy backlog.
 
 ## Out of scope
+- No bulk migration, no Laravel artisan command (backend's call).
+- No change to `N/A` display logic — it correctly shows when data is null and disappears once backfilled.
+- No vendor self-service re-entry flow.
+- The four `Procurement.tsx` diagnostic-log bugs are unaffected.
 
-- No rendering changes
-- No condition changes
-- No changes to `isSupplyChainApproved`, `isSupplyChainDirectorInitialApproved`, `isInitialApprovalApproved`, `getWorkflowState`
-- No backend / API changes
-- Bug 5 still blocked on Bug 3 results
+## Decision needed
 
-## Next step after the logs are in
+Confirm one of:
 
-User loads Procurement → Overview with the affected non-Emerald MRF visible, opens DevTools console, and shares both the `[Procurement.fetchQuotations]` line and the per-MRF `[Procurement.SendRFQButton]` lines. A targeted one-line fix will then be proposed.
+- **B1** — Proceed in two phases as above. I will pause until backend confirms `PUT /api/vendors/{uuid}` exists with the four whitelisted fields, then implement Phase 2.
+- **B2** — Backend already has this endpoint and I missed it. Provide the exact route and accepted field names; I will wire Phase 2 directly.
+- **A** — Skip the dialog. Accept legacy `N/A` for pre-fix vendors. Close the thread.
 
