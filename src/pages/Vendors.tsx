@@ -897,12 +897,41 @@ const Vendors = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Vendor Directory</CardTitle>
-            <CardDescription>Complete list of registered vendors</CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <CardTitle>Vendor Directory</CardTitle>
+                <CardDescription>Complete list of registered vendors</CardDescription>
+              </div>
+              {canEditProfileDetails && (
+                <Button
+                  variant={showIncompleteOnly ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowIncompleteOnly((v) => !v)}
+                  className="gap-2 self-start sm:self-auto"
+                >
+                  <AlertCircle className="h-4 w-4" />
+                  {showIncompleteOnly ? "Showing incomplete only" : "Profile incomplete"}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {vendors.map((vendor) => (
+              {vendors
+                .filter((vendor: any) => {
+                  if (!showIncompleteOnly) return true;
+                  return (
+                    vendor.annualRevenue == null ||
+                    vendor.annualRevenue === "" ||
+                    vendor.numberOfEmployees == null ||
+                    vendor.numberOfEmployees === "" ||
+                    vendor.yearEstablished == null ||
+                    vendor.yearEstablished === "" ||
+                    vendor.website == null ||
+                    vendor.website === ""
+                  );
+                })
+                .map((vendor) => (
                 <div key={vendor.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg">
                   <div className="space-y-2 flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -919,14 +948,29 @@ const Vendors = () => {
                       </span>
                     </div>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleViewVendorProfile(vendor)}
-                    className="self-start sm:self-center"
-                  >
-                    View Profile
-                  </Button>
+                  <div className="flex flex-wrap gap-2 self-start sm:self-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewVendorProfile(vendor)}
+                    >
+                      View Profile
+                    </Button>
+                    {canEditProfileDetails && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setProfileEditVendor({ id: vendor.id, name: vendor.name });
+                          setProfileEditOpen(true);
+                        }}
+                        className="gap-1"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit Profile
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
