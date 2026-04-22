@@ -2091,18 +2091,25 @@ export const vendorApi = {
 
   // Admin update for vendor profile fields missing on legacy registrations.
   // Backend whitelists exactly these four snake_case fields; others are ignored.
+  // Admin update for vendor profile fields missing on legacy registrations.
+  // This version maps camelCase frontend fields to the snake_case backend fields.
   updateAdmin: async (
-    vendorId: string,
-    data: {
-      annual_revenue?: string;
-      number_of_employees?: string;
-      year_established?: number;
+    id: string | number, 
+    data: { 
+      annualRevenue?: string; 
+      numberOfEmployees?: string; 
+      yearEstablished?: number; 
       website?: string;
     }
   ): Promise<ApiResponse<Vendor>> => {
-    return apiRequest<Vendor>(`/vendors/${vendorId}`, {
+    return apiRequest<Vendor>(`/vendors/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        annual_revenue: data.annualRevenue,
+        number_of_employees: data.numberOfEmployees,
+        year_established: data.yearEstablished,
+        website: data.website,
+      }),
     });
   },
 
