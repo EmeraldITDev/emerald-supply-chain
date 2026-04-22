@@ -42,6 +42,9 @@ const Vendors = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { vendors: contextVendors } = useApp();
+  const { user } = useAuth();
+  const canEditProfileDetails =
+    user?.role === "procurement_manager" || user?.role === "supply_chain_director";
   const [vendors, setVendors] = useState(contextVendors);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
@@ -62,6 +65,11 @@ const Vendors = () => {
   const [deleteVendorDialogOpen, setDeleteVendorDialogOpen] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState<any>(null);
   const [isDeletingVendor, setIsDeletingVendor] = useState(false);
+
+  // Admin profile-edit dialog (backfill of legacy NULL fields)
+  const [profileEditOpen, setProfileEditOpen] = useState(false);
+  const [profileEditVendor, setProfileEditVendor] = useState<{ id: string | number; name?: string } | null>(null);
+  const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
   
   // Rating and comments state
   const [vendorComments, setVendorComments] = useState<Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string | { id: number; name: string; email: string } }>>([]);
