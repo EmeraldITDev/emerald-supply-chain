@@ -1,231 +1,154 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { vendorApi } from "@/services/api";
+import { toast } from "@/hooks/use-toast";
 
-interface VendorProfileEditDialogProps {
+interface Props {
+  vendorId: number;
+  vendorName: string;
   open: boolean;
-  onOpenChange: (open: boolean) => void;
-  vendorId: string | number | null;
-  vendorName?: string;
-  onSaved?: () => void;
+  onClose: () => void;
+  onSaved: () => void;
 }
 
-const CURRENT_YEAR = new Date().getFullYear();
-
-const VendorProfileEditDialog = ({
-  open,
-  onOpenChange,
+export function VendorProfileEditDialog({
   vendorId,
   vendorName,
+  open,
+  onClose,
   onSaved,
-}: VendorProfileEditDialogProps) => {
-  const { toast } = useToast();
+}: Props) {
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [annualRevenue, setAnnualRevenue] = useState("");
-  const [numberOfEmployees, setNumberOfEmployees] = useState("");
-  const [yearEstablished, setYearEstablished] = useState("");
-  const [website, setWebsite] = useState("");
+  const [fetching, setFetching] = useState(false);
+  const [form, setForm] = useState({
+    annualRevenue: "",
+    numberOfEmployees: "",
+    yearEstablished: "",
+    website: "",
+  });
 
-  // Fetch full vendor record on open — list cache may omit these fields.
+  // Fetch full vendor record when dialog opens
   useEffect(() => {
-    if (!open || !vendorId) return;
-    let cancelled = false;
-    setLoading(true);
-    vendorApi
-      .getById(String(vendorId))
+    if (!open) return;
+    setFetching(true);
+    vendorApi.getById(String(vendorId))
       .then((res) => {
-        if (cancelled) return;
-        if (res.success && res.data) {
-          const v: any = res.data;
-          setAnnualRevenue(v.annual_revenue ?? v.annualRevenue ?? "");
-          setNumberOfEmployees(v.number_of_employees ?? v.numberOfEmployees ?? "");
-          setYearEstablished(
-            v.year_established != null
-              ? String(v.year_established)
-              : v.yearEstablished != null
-              ? String(v.yearEstablished)
-              : "",
-          );
-          setWebsite(v.website ?? "");
-        } else {
-          toast({
-            title: "Failed to load vendor",
-            description: res.error || "Could not fetch vendor profile.",
-            variant: "destructive",
-          });
-        }
+        const v = res.data;
+        setForm({
+          annualRevenue: v.annualRevenue ?? "",
+          numberOfEmployees: v.numberOfEmployees ?? "",
+          yearEstablished: v.yearEstablished ? String(v.yearEstablished) : "",
+          website: v.website ?? "",
+        });
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, vendorId, toast]);
+      .finally(() => setFetching(false));
+  }, [open, vendorId]);
 
-  const handleSave = async () => {
-    if (!vendorId) return;
-
-    // Validate year if provided
-    if (yearEstablished.trim()) {
-      const yr = Number(yearEstablished);
-      if (!Number.isInteger(yr) || yr < 1900 || yr > CURRENT_YEAR) {
-        toast({
-          title: "Invalid year",
-          description: `Year established must be between 1900 and ${CURRENT_YEAR}.`,
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    // Validate URL if provided
-    if (website.trim()) {
-      try {
-        // eslint-disable-next-line no-new
-        new URL(website.trim());
-      } catch {
-        toast({
-          title: "Invalid website",
-          description: "Website must be a valid URL (include https://).",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    const payload: {
-      annual_revenue?: string;
-      number_of_employees?: string;
-      year_established?: number;
-      website?: string;
-    } = {};
-    if (annualRevenue.trim()) payload.annual_revenue = annualRevenue.trim();
-    if (numberOfEmployees.trim()) payload.number_of_employees = numberOfEmployees.trim();
-    if (yearEstablished.trim()) payload.year_established = Number(yearEstablished);
-    if (website.trim()) payload.website = website.trim();
-
-    setSaving(true);
+  const handleSubmit = async () => {
+    setLoading(true);
     try {
-      const res = await vendorApi.updateAdmin(String(vendorId), payload);
-      if (res.success) {
-        toast({
-          title: "Profile updated",
-          description: "Vendor profile details saved successfully.",
-        });
-        onSaved?.();
-        onOpenChange(false);
-      } else {
-        toast({
-          title: "Update failed",
-          description: res.error || "Could not save vendor profile.",
-          variant: "destructive",
-        });
-      }
+      await vendorApi.updateAdmin(vendorId, {
+        annualRevenue: form.annualRevenue || undefined,
+        numberOfEmployees: form.numberOfEmployees || undefined,
+        yearEstablished: form.yearEstablished
+          ? Number(form.yearEstablished)
+          : undefined,
+        website: form.website || undefined,
+      });
+      toast({ title: "Vendor profile updated successfully" });
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast({
+        title: "Failed to update vendor profile",
+        variant: "destructive",
+      });
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Profile Details</DialogTitle>
-          <DialogDescription>
-            {vendorName ? `Backfill missing profile fields for ${vendorName}.` : "Backfill missing profile fields."}
-          </DialogDescription>
+          <DialogTitle>Edit Profile — {vendorName}</DialogTitle>
         </DialogHeader>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <span className="ml-2 text-sm text-muted-foreground">Loading vendor profile…</span>
-          </div>
+        {fetching ? (
+          <p className="text-sm text-muted-foreground py-4">
+            Loading vendor data...
+          </p>
         ) : (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="annual_revenue">Annual Revenue</Label>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Annual Revenue</Label>
               <Input
-                id="annual_revenue"
-                placeholder="e.g. 5,000,000"
-                value={annualRevenue}
-                onChange={(e) => setAnnualRevenue(e.target.value)}
-                maxLength={50}
+                placeholder="e.g. 5000000"
+                value={form.annualRevenue}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, annualRevenue: e.target.value }))
+                }
               />
-              <p className="text-xs text-muted-foreground">Stored as text. Use the format the vendor reports.</p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="number_of_employees">Number of Employees</Label>
+            <div>
+              <Label>Number of Employees</Label>
               <Input
-                id="number_of_employees"
-                placeholder="e.g. 250 or 11-50"
-                value={numberOfEmployees}
-                onChange={(e) => setNumberOfEmployees(e.target.value)}
-                maxLength={50}
+                placeholder="e.g. 11-50"
+                value={form.numberOfEmployees}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, numberOfEmployees: e.target.value }))
+                }
               />
-              <p className="text-xs text-muted-foreground">Free text — exact count or range label.</p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="year_established">Year Established</Label>
+            <div>
+              <Label>Year Established</Label>
               <Input
-                id="year_established"
                 type="number"
-                min={1900}
-                max={CURRENT_YEAR}
                 placeholder="e.g. 2015"
-                value={yearEstablished}
-                onChange={(e) => setYearEstablished(e.target.value)}
+                min={1900}
+                max={new Date().getFullYear()}
+                value={form.yearEstablished}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, yearEstablished: e.target.value }))
+                }
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="website">Website</Label>
+            <div>
+              <Label>Website</Label>
               <Input
-                id="website"
                 type="url"
-                placeholder="https://company.com"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                maxLength={255}
+                placeholder="https://example.com"
+                value={form.website}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, website: e.target.value }))
+                }
               />
             </div>
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={loading || saving}>
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving…
-              </>
-            ) : (
-              "Save"
-            )}
+          <Button onClick={handleSubmit} disabled={loading || fetching}>
+            {loading ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-};
-
-export default VendorProfileEditDialog;
+}

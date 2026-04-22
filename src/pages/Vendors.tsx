@@ -7,7 +7,7 @@ import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, M
 import { VENDOR_DOCUMENT_REQUIREMENTS } from "@/types/vendor-registration";
 import { Textarea } from "@/components/ui/textarea";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
-import VendorProfileEditDialog from "@/components/VendorProfileEditDialog";
+import { VendorProfileEditDialog } from "@/components/VendorProfileEditDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -67,8 +67,9 @@ const Vendors = () => {
   const [isDeletingVendor, setIsDeletingVendor] = useState(false);
 
   // Admin profile-edit dialog (backfill of legacy NULL fields)
+  const [editVendor, setEditVendor] = useState<{ id: number; name: string } | null>(null);
+  const [profileEditVendor, setProfileEditVendor] = useState<{ id: number; name: string } | null>(null);
   const [profileEditOpen, setProfileEditOpen] = useState(false);
-  const [profileEditVendor, setProfileEditVendor] = useState<{ id: string | number; name?: string } | null>(null);
   const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
   
   // Rating and comments state
@@ -1555,9 +1556,9 @@ const Vendors = () => {
 
       <VendorProfileEditDialog
         open={profileEditOpen}
-        onOpenChange={setProfileEditOpen}
-        vendorId={profileEditVendor?.id ?? null}
-        vendorName={profileEditVendor?.name}
+        onClose={() => setProfileEditOpen(false)}
+        vendorId={profileEditVendor?.id ?? 0}
+        vendorName={profileEditVendor?.name ?? ""}
         onSaved={() => {
           fetchVendors();
         }}
