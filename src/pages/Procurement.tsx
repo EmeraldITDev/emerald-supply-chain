@@ -1649,19 +1649,17 @@ const Procurement = () => {
                                               </p>
                                             </div>
                                             {(() => {
-                                              // Check if Supply Chain Director has approved
+                                              // Gate "Generate PO" strictly on workflow state.
+                                              // Initial SCD approval moves MRF to procurement_review (quotation selection).
+                                              // Final SCD sign-off / vendor approval moves it to PO generation states.
+                                              const wfState = getWorkflowState(request as MRF);
+                                              const showGeneratePO = (
+                                                wfState === 'invoice_approved' ||
+                                                wfState === 'pending_po_upload' ||
+                                                wfState === 'vendor_approved'
+                                              );
 
-                                              // Add this right before line 1422
-                                              console.log('MRF Debug:', {
-                                                id: request.id,
-                                                workflow_state: getWorkflowState(request as MRF),
-                                                status: request.status,
-                                                approval_history: request.approval_history || request.approvalHistory,
-                                                scdApproved: isSupplyChainApproved(request as MRF)
-                                              });
-                                              const scdApproved = isSupplyChainApproved(request as MRF);
-
-                                              if (scdApproved) {
+                                              if (showGeneratePO) {
                                                 // Show "Generate PO" button after SCD approval
                                                 return (
                                                   <Button
