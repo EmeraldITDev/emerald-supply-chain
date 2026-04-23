@@ -1972,7 +1972,7 @@ const VendorPortal = () => {
                         <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
                         <div>
                           <Label className="text-muted-foreground text-xs">Website</Label>
-                          <p className="font-medium">{(currentVendor as any)?.website || 'N/A'}</p>
+                          <p className="font-medium">{(currentVendor as any)?.website || '—'}</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-2 md:col-span-2">
@@ -1999,15 +1999,15 @@ const VendorPortal = () => {
                     </div>
                     <div>
                       <Label className="text-muted-foreground text-xs">Year Established</Label>
-                      <p className="font-medium">{(currentVendor as any)?.year_established || (currentVendor as any)?.yearEstablished || 'N/A'}</p>
+                      <p className="font-medium">{(currentVendor as any)?.year_established || (currentVendor as any)?.yearEstablished || '—'}</p>
                     </div>
                     <div>
                       <Label className="text-muted-foreground text-xs">Number of Employees</Label>
-                      <p className="font-medium">{(currentVendor as any)?.number_of_employees || (currentVendor as any)?.numberOfEmployees || 'N/A'}</p>
+                      <p className="font-medium">{(currentVendor as any)?.number_of_employees || (currentVendor as any)?.numberOfEmployees || '—'}</p>
                     </div>
                     <div>
                       <Label className="text-muted-foreground text-xs">Annual Revenue</Label>
-                      <p className="font-medium">{(currentVendor as any)?.annual_revenue || (currentVendor as any)?.annualRevenue || 'N/A'}</p>
+                      <p className="font-medium">{(currentVendor as any)?.annual_revenue || (currentVendor as any)?.annualRevenue || '—'}</p>
                     </div>
                     <div>
                       <Label className="text-muted-foreground text-xs">Registration Date</Label>
