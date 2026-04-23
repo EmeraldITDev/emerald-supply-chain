@@ -1103,7 +1103,7 @@ const Vendors = () => {
                       const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
                       const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt);
                       const isPdf = fileExt === 'pdf';
-                      const fileUrl = doc.url || doc.file_url || doc.path;
+                      const fileUrl = doc.file_share_url || doc.url || doc.file_url || doc.path;
 
                       return (
                         <div key={doc.id || index} className="rounded-lg border bg-card">
