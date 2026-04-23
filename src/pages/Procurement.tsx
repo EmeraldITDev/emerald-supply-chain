@@ -429,13 +429,9 @@ const Procurement = () => {
       return true;
     }
 
-    // Initial SCD approval is at procurement_review stage with workflow_state NOT indicating final approval
-    // Final SCD approval is at invoice_approved (which means SCD approved the invoice after vendor selection)
-    if ((stage === "procurement" || stage === "procurement_review") && 
-        workflowState !== "invoice_approved" &&
-        workflowState !== "pending_po_upload" &&
-        workflowState !== "vendor_approved") {
-      // This is at the initial stage. Check if there's ANY SCD approval in history (initial approval)
+    // At procurement/procurement_review stage, check approval history for SCD initial approval
+    if ((stage === "procurement" || stage === "procurement_review")) {
+      // Check if there's ANY SCD approval in history (initial approval)
       const approvalHistory = mrf.approval_history || mrf.approvalHistory || [];
       const hasSCDApproval = approvalHistory.some((entry: any) =>
         entry.action === "approved" &&
