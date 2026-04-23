@@ -3,11 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send, AlertTriangle, Pencil, AlertCircle } from "lucide-react";
+import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send, AlertTriangle, AlertCircle } from "lucide-react";
 import { VENDOR_DOCUMENT_REQUIREMENTS } from "@/types/vendor-registration";
 import { Textarea } from "@/components/ui/textarea";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
-import { VendorProfileEditDialog } from "@/components/VendorProfileEditDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -68,9 +67,6 @@ const Vendors = () => {
 
   // Admin profile-edit dialog (backfill of legacy NULL fields)
   const [editVendor, setEditVendor] = useState<{ id: number; name: string } | null>(null);
-  const [profileEditVendor, setProfileEditVendor] = useState<{ id: number; name: string } | null>(null);
-  const [profileEditOpen, setProfileEditOpen] = useState(false);
-  const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
   
   // Rating and comments state
   const [vendorComments, setVendorComments] = useState<Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string | { id: number; name: string; email: string } }>>([]);
@@ -903,36 +899,11 @@ const Vendors = () => {
                 <CardTitle>Vendor Directory</CardTitle>
                 <CardDescription>Complete list of registered vendors</CardDescription>
               </div>
-              {canEditProfileDetails && (
-                <Button
-                  variant={showIncompleteOnly ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowIncompleteOnly((v) => !v)}
-                  className="gap-2 self-start sm:self-auto"
-                >
-                  <AlertCircle className="h-4 w-4" />
-                  {showIncompleteOnly ? "Showing incomplete only" : "Profile incomplete"}
-                </Button>
-              )}
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {vendors
-                .filter((vendor: any) => {
-                  if (!showIncompleteOnly) return true;
-                  return (
-                    vendor.annualRevenue == null ||
-                    vendor.annualRevenue === "" ||
-                    vendor.numberOfEmployees == null ||
-                    vendor.numberOfEmployees === "" ||
-                    vendor.yearEstablished == null ||
-                    vendor.yearEstablished === "" ||
-                    vendor.website == null ||
-                    vendor.website === ""
-                  );
-                })
-                .map((vendor) => (
+              {vendors.map((vendor) => (
                 <div key={vendor.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg">
                   <div className="space-y-2 flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -957,20 +928,6 @@ const Vendors = () => {
                     >
                       View Profile
                     </Button>
-                    {canEditProfileDetails && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setProfileEditVendor({ id: Number(vendor.id), name: vendor.name });
-                          setProfileEditOpen(true);
-                        }}
-                        className="gap-1"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Edit Profile
-                      </Button>
-                    )}
                   </div>
                 </div>
               ))}
@@ -1553,16 +1510,6 @@ const Vendors = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <VendorProfileEditDialog
-        open={profileEditOpen}
-        onClose={() => setProfileEditOpen(false)}
-        vendorId={profileEditVendor?.id ?? 0}
-        vendorName={profileEditVendor?.name ?? ""}
-        onSaved={() => {
-          fetchVendors();
-        }}
-      />
     </DashboardLayout>
   );
 };

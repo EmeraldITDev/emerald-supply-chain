@@ -321,13 +321,24 @@ const Procurement = () => {
     return getMRFContractType(mrf).toLowerCase().includes("emerald");
   };
 
-  // Helper to check if Supply Chain Director has approved vendor selection
+  // Helper to check if Supply Chain Director has approved (either initial MRF approval or vendor selection approval)
   const isSupplyChainApproved = (mrf: MRF): boolean => {
     const workflowState = getWorkflowState(mrf);
-      const status = (mrf.status || "").toLowerCase();
+    const status = (mrf.status || "").toLowerCase();
 
-    // Check if workflow state indicates SCD approval
-    // Updated to include "invoice_approved" which is what the backend sets
+    // CRITICAL FIX: Check for initial SCD approval first (this was missing!)
+    // Backend sets workflow_state = "supply_chain_director_approved" after initial MRF approval
+    if (workflowState === "supply_chain_director_approved") {
+      return true;
+    }
+
+    // Check if direct SCD approval fields are populated (backend returns these after approval)
+    const scdApprovedBy = (mrf as any).scd_approved_by || (mrf as any).scdApprovedBy;
+    if (scdApprovedBy) {
+      return true;
+    }
+
+    // Check if workflow state indicates vendor selection approval by SCD
     if (workflowState === "pending_po_upload" || 
         workflowState === "vendor_approved" || 
         workflowState === "invoice_approved") {
@@ -335,7 +346,6 @@ const Procurement = () => {
     }
 
     // Check status for SCD approval indicators
-    // Updated to handle both underscore and space variations
     const statusLower = status.replace(/_/g, " "); // Convert underscores to spaces for comparison
     if (statusLower.includes("vendor approved") || 
         statusLower.includes("supply chain approved") || 
@@ -408,6 +418,17 @@ const Procurement = () => {
     const stage = getMRFStage(mrf);
     const workflowState = getWorkflowState(mrf);
     
+    // Check for explicit SCD initial approval field from backend
+    const scdApprovedBy = (mrf as any).scd_approved_by || (mrf as any).scdApprovedBy;
+    if (scdApprovedBy) {
+      return true;
+    }
+
+    // Check if workflow state indicates SCD initial approval
+    if (workflowState === "supply_chain_director_approved") {
+      return true;
+    }
+
     // Initial SCD approval is at procurement_review stage with workflow_state NOT indicating final approval
     // Final SCD approval is at invoice_approved (which means SCD approved the invoice after vendor selection)
     if ((stage === "procurement" || stage === "procurement_review") && 
