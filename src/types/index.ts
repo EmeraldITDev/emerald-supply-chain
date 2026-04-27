@@ -265,6 +265,10 @@ export interface CreateVendorRegistrationData {
   contactPerson: string;
   /** Optional financial / banking information */
   financialInfo?: VendorRegistrationFinancialInfo;
+  website?: string;
+  annualRevenue?: string | number;
+  numberOfEmployees?: string | number;
+  yearEstablished?: string | number;
 }
 
 // Approval History
