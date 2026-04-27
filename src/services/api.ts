@@ -1833,13 +1833,7 @@ export const vendorApi = {
   },
 
   // Legacy register method for simple registrations
-  registerSimple: async (data: CreateVendorRegistrationData & {
-    documents?: Array<{ file: File; type: string; name: string }> | File[];
-    website?: string;
-    annual_revenue?: string;
-    number_of_employees?: string;
-    year_established?: number | string;
-  }): Promise<ApiResponse<VendorRegistration>> => {
+  registerSimple: async (data: CreateVendorRegistrationData & { documents?: Array<{ file: File; type: string; name: string }> | File[] }): Promise<ApiResponse<VendorRegistration>> => {
     const formData = new FormData();
     
     // Required fields - always append
@@ -1860,21 +1854,19 @@ export const vendorApi = {
     if (data.contactPerson && data.contactPerson.trim()) {
       formData.append('contactPerson', data.contactPerson);
     }
-
-    // Optional business profile fields (snake_case as expected by backend)
-    if (data.website != null && String(data.website).trim()) {
+    if (data.website && String(data.website).trim()) {
       formData.append('website', String(data.website).trim());
     }
-    if (data.annual_revenue != null && String(data.annual_revenue).trim()) {
-      formData.append('annual_revenue', String(data.annual_revenue).trim());
+    if (data.annualRevenue != null && String(data.annualRevenue).trim()) {
+      formData.append('annual_revenue', String(data.annualRevenue).trim());
     }
-    if (data.number_of_employees != null && String(data.number_of_employees).trim()) {
-      formData.append('number_of_employees', String(data.number_of_employees).trim());
+    if (data.numberOfEmployees != null && String(data.numberOfEmployees).trim()) {
+      formData.append('number_of_employees', String(data.numberOfEmployees).trim());
     }
-    if (data.year_established != null && String(data.year_established).trim()) {
-      formData.append('year_established', String(data.year_established).trim());
+    if (data.yearEstablished != null && String(data.yearEstablished).trim()) {
+      formData.append('year_established', String(data.yearEstablished).trim());
     }
-
+    
     // Optional financial information
     if (data.financialInfo && typeof data.financialInfo === 'object') {
       const fi = data.financialInfo;
