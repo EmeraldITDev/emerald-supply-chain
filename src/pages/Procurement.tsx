@@ -1953,11 +1953,12 @@ const Procurement = () => {
                                   const isPendingPOUpload = workflowState === "pending_po_upload";
                                   const hasInitialApproval = isInitialApprovalApproved(request as MRF) || isSupplyChainApproved(request as MRF);
                                   const canShowPOButton = isProcurement && !isPendingPOUpload && hasInitialApproval && (
-                                    workflowState === "procurement_review" || // After FIRST required approval
-                                    workflowState === "vendor_selected" || // After vendor selection
-                                    workflowState === "invoice_received" || // After invoice received
-                                    workflowState === "invoice_approved" || // After Supply Chain Director approval
-                                    (getMRFStage(request as MRF) === "procurement" && hasInitialApproval) // Optimistic for list view
+                                    workflowState === "procurement_review" ||
+                                    workflowState === "supply_chain_director_approved" ||
+                                    workflowState === "vendor_selected" ||
+                                    workflowState === "invoice_received" ||
+                                    workflowState === "invoice_approved" ||
+                                    (getMRFStage(request as MRF) === "procurement" && hasInitialApproval)
                                   );
 
                                   if (import.meta.env.DEV) {
