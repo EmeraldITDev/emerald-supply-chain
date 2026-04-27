@@ -273,13 +273,6 @@ const Procurement = () => {
     fetchRFQs();
   }, [fetchMRFs, fetchRFQs]);
 
-  // Fetch quotations whenever RFQs change
-  useEffect(() => {
-    if (rfqs.length > 0) {
-      fetchQuotations();
-    }
-  }, [rfqs, fetchQuotations]);
-
   // Helper functions for MRF field access (handles both camelCase and snake_case)
   const getMRFEstimatedCost = (mrf: MRF) =>
     String(mrf.estimated_cost || mrf.estimatedCost || "0");
