@@ -399,8 +399,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const refreshRFQs = async () => {
     try {
       const response = await rfqApi.getAll();
+      console.log('[DEBUG] rfqApi.getAll raw response:', response);  // ← add this
       if (response.success && response.data) {
         const rawData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.rfqs || [];
+        console.log('[DEBUG] rfqApi.getAll raw response:', response);  // ← add this
         // Convert API RFQ type to AppContext RFQ type
         const converted = rawData.map((rfq: any) => ({
           id: rfq.id,
