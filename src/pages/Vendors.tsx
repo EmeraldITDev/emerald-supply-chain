@@ -1022,14 +1022,14 @@ const Vendors = () => {
                     <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div>
                       <Label className="text-muted-foreground text-xs">Website</Label>
-                      <p className="font-medium">{selectedVendor.website || 'N/A'}</p>
+                      <p className="font-medium">{selectedVendor.website || '—'}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2 md:col-span-2">
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div>
                       <Label className="text-muted-foreground text-xs">Address</Label>
-                      <p className="font-medium">{selectedVendor.address || 'N/A'}</p>
+                      <p className="font-medium">{selectedVendor.address || '—'}</p>
                     </div>
                   </div>
                 </div>
@@ -1044,27 +1044,27 @@ const Vendors = () => {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div>
                     <Label className="text-muted-foreground text-xs">Tax ID</Label>
-                    <p className="font-medium">{selectedVendor.taxId || selectedVendor.tax_id || 'N/A'}</p>
+                     <p className="font-medium">{selectedVendor.taxId || selectedVendor.tax_id || '—'}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground text-xs">Year Established</Label>
-                    <p className="font-medium">{selectedVendor.yearEstablished || selectedVendor.year_established || 'N/A'}</p>
+                     <p className="font-medium">{selectedVendor.yearEstablished || selectedVendor.year_established || '—'}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground text-xs">Number of Employees</Label>
-                    <p className="font-medium">{selectedVendor.numberOfEmployees || selectedVendor.number_of_employees || 'N/A'}</p>
+                     <p className="font-medium">{selectedVendor.numberOfEmployees || selectedVendor.number_of_employees || '—'}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground text-xs">Annual Revenue</Label>
-                    <p className="font-medium">{selectedVendor.annualRevenue || selectedVendor.annual_revenue || 'N/A'}</p>
+                     <p className="font-medium">{selectedVendor.annualRevenue || selectedVendor.annual_revenue || '—'}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground text-xs">Registration Date</Label>
                     <p className="font-medium flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      {selectedVendor.createdAt || selectedVendor.created_at 
-                        ? new Date(selectedVendor.createdAt || selectedVendor.created_at).toLocaleDateString()
-                        : 'N/A'}
+                       {selectedVendor.createdAt || selectedVendor.created_at 
+                         ? new Date(selectedVendor.createdAt || selectedVendor.created_at).toLocaleDateString()
+                         : '—'}
                     </p>
                   </div>
                 </div>
