@@ -441,6 +441,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       for (const rfq of list) {
         try {
           const response = await rfqApi.getQuotations(rfq.id);
+          console.log(`[DEBUG] response.data:`, response.data);
+          console.log(`[DEBUG] response.data?.quotations:`, response.data?.quotations);
           console.log(`[DEBUG] quotations response for ${rfq.id}:`, response); // ← add this
           if (response.success && response.data?.quotations) {
             for (const item of response.data.quotations) {
