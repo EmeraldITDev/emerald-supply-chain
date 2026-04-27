@@ -250,6 +250,12 @@ const Procurement = () => {
     const mrfRfqs = rfqs.filter(
       (rfq) => rfq.mrfId === mrfId || rfq.mrf_id === mrfId,
     );
+      
+    console.log('[DEBUG] mrfId:', mrfId);
+    console.log('[DEBUG] all rfqs:', rfqs);
+    console.log('[DEBUG] matched rfqs:', mrfRfqs);
+    console.log('[DEBUG] all quotations:', quotations);
+
     if (mrfRfqs.length === 0) return [];
 
     const mrfQuotations: any[] = [];
