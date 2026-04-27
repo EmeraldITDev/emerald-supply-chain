@@ -428,6 +428,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Fetch Quotations from API — uses per-RFQ endpoint to avoid broken /api/quotations
   const refreshQuotations = async (rfqList?: RFQ[]) => {
+    
     const list = rfqList || rfqs;
     if (list.length === 0) {
       setQuotationsState([]);
@@ -440,6 +441,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       for (const rfq of list) {
         try {
           const response = await rfqApi.getQuotations(rfq.id);
+          console.log(`[DEBUG] quotations response for ${rfq.id}:`, response); // ← add this
           if (response.success && response.data?.quotations) {
             for (const item of response.data.quotations) {
               const n = normalizeQuotation(item, rfq.id);
