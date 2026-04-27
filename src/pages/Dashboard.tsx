@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatRelativeTime as formatRelativeTimeUtil } from "@/utils/dateUtils";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -334,7 +335,7 @@ console.log("SCM isEmployeeRole:", isEmployeeRole(user?.role));
                     >
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{activity.title}</p>
-                        <p className="text-xs sm:text-sm text-muted-foreground">{activity.type} • {formatRelativeTime(activity.date)}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{activity.type} • {formatRelativeTimeUtil(activity.date)}</p>
                       </div>
                       <span
                         className={`text-xs px-2 py-1 rounded-full self-start sm:self-center whitespace-nowrap ${
