@@ -94,7 +94,7 @@ export function normalizeQuotation(item: any, fallbackRfqId?: string): Normalize
 
   return {
     id: q.id ?? '',
-    rfqId: q.rfq_id ?? q.rfqId ?? fallbackRfqId ?? '',
+    rfqId: fallbackRfqId ?? q.rfq_id ?? q.rfqId ?? '',
     vendorId: vendor?.id ?? vendor?.vendor_id ?? q.vendor_id ?? q.vendorId ?? '',
     vendorName: vendor?.name ?? vendor?.company_name ?? q.vendor_name ?? q.vendorName ?? 'Unknown Vendor',
     vendorRating: vendor?.rating ?? q.vendorRating ?? 0,
