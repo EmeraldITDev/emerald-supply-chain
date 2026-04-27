@@ -159,15 +159,20 @@ export interface CreateSRFData {
 // RFQ (Request for Quotation) Types
 export interface RFQ {
   id: string;
-  mrfId: string;
+  mrfId: string;       // camelCase (if ever transformed)
+  mrf_id: string;      // snake_case — what Laravel actually returns
   mrfTitle: string;
+  mrf_title: string;
   description: string;
   quantity: string;
   estimatedCost: string;
+  estimated_cost: string;
   deadline: string;
   status: 'Open' | 'Closed' | 'Awarded';
   vendorIds: string[];
+  vendor_ids: string[];
   createdAt: string;
+  created_at: string;
 }
 
 export interface CreateRFQData {

@@ -1,7 +1,30 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, FileText, Package, ShoppingCart, Clock, CheckCircle2, XCircle, Download, Calendar, AlertCircle, Upload, Send, Loader2, RefreshCw, Trash2, Star } from "lucide-react";
+import {
+  Plus,
+  FileText,
+  Package,
+  ShoppingCart,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Download,
+  Calendar,
+  AlertCircle,
+  Upload,
+  Send,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  Star,
+} from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
@@ -21,8 +44,21 @@ import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 
 import type { MRFRequest } from "@/contexts/AppContext";
-import { dashboardApi, mrfApi, grnApi, rfqApi, quotationApi, vendorApi } from "@/services/api";
-import { normalizeQuotation, displayNumeric, displayString, formatDays, formatAmount } from "@/utils/normalizeQuotation";
+import {
+  dashboardApi,
+  mrfApi,
+  grnApi,
+  rfqApi,
+  quotationApi,
+  vendorApi,
+} from "@/services/api";
+import {
+  normalizeQuotation,
+  displayNumeric,
+  displayString,
+  formatDays,
+  formatAmount,
+} from "@/utils/normalizeQuotation";
 import type { VendorRegistration, MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
@@ -56,36 +92,50 @@ const Procurement = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { srfRequests, purchaseOrders, mrns, updateMRN, convertMRNToMRF, addPO } = useApp();
+  const {
+    srfRequests,
+    purchaseOrders,
+    mrns,
+    updateMRN,
+    convertMRNToMRF,
+    addPO,
+  } = useApp();
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   // MRF requests from backend API
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
   const [mrfLoading, setMrfLoading] = useState(true);
   const [poGenerating, setPoGenerating] = useState(false);
   const [rfqs, setRfqs] = useState<any[]>([]);
   const [quotations, setQuotations] = useState<any[]>([]);
-  
+
   const [poDialogOpen, setPODialogOpen] = useState(false);
-  const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(null);
+  const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(
+    null,
+  );
   const [grnCompletionDialogOpen, setGrnCompletionDialogOpen] = useState(false);
   const [selectedMRFForGRN, setSelectedMRFForGRN] = useState<MRF | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [mrfToDelete, setMrfToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletePODialogOpen, setDeletePODialogOpen] = useState(false);
-  const [selectedMRFForPODelete, setSelectedMRFForPODelete] = useState<MRF | null>(null);
+  const [selectedMRFForPODelete, setSelectedMRFForPODelete] =
+    useState<MRF | null>(null);
   const [isDeletingPO, setIsDeletingPO] = useState(false);
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
-  const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
+  const [selectedMRFForDetails, setSelectedMRFForDetails] =
+    useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
-  
+
   // Vendor registrations from dashboard API
-  const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
-  const [vendorRegistrationsLoading, setVendorRegistrationsLoading] = useState(true);
-  
+  const [vendorRegistrations, setVendorRegistrations] = useState<
+    VendorRegistration[]
+  >([]);
+  const [vendorRegistrationsLoading, setVendorRegistrationsLoading] =
+    useState(true);
+
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -166,7 +216,7 @@ const Procurement = () => {
       }
       setQuotations(allQuotations);
       if (import.meta.env.DEV) {
-        console.log('[Procurement.fetchQuotations]', {
+        console.log("[Procurement.fetchQuotations]", {
           rfqsCount: rfqs.length,
           rfqsSample: rfqs.slice(0, 3).map((r: any) => ({
             id: r.id,
@@ -191,21 +241,24 @@ const Procurement = () => {
   // Helper to check if MRF has an RFQ
   const getRFQForMRF = (mrfId: string) => {
     // Get the first RFQ for this MRF
-    return rfqs.find(rfq => rfq.mrfId === mrfId || rfq.mrf_id === mrfId) || null;
+    return (
+      rfqs.find((rfq) => rfq.mrfId === mrfId || rfq.mrf_id === mrfId) || null
+    );
   };
 
   const getQuotationsForMRF = (mrfId: string) => {
-    // Get all RFQs for this MRF (in case there are multiple)
-    const mrfRfqs = rfqs.filter(rfq => rfq.mrfId === mrfId || rfq.mrf_id === mrfId);
+    const mrfRfqs = rfqs.filter(
+      (rfq) => rfq.mrfId === mrfId || rfq.mrf_id === mrfId,
+    );
     if (mrfRfqs.length === 0) return [];
 
-    // Get quotations for all RFQs associated with this MRF
     const mrfQuotations: any[] = [];
-    mrfRfqs.forEach(rfq => {
-      const rfqQuotations = quotations.filter(q => q.rfqId === rfq.id);
+    mrfRfqs.forEach((rfq) => {
+      const rfqQuotations = quotations.filter(
+        (q) => q.rfqId === rfq.id || (q as any).rfq_id === rfq.id,  // ← add fallback
+      );
       mrfQuotations.push(...rfqQuotations);
     });
-
     return mrfQuotations;
   };
 
@@ -221,54 +274,68 @@ const Procurement = () => {
     }
   }, [rfqs, fetchQuotations]);
 
-
-
   // Helper functions for MRF field access (handles both camelCase and snake_case)
-  const getMRFEstimatedCost = (mrf: MRF) => String(mrf.estimated_cost || mrf.estimatedCost || "0");
-  const getMRFRequester = (mrf: MRF) => mrf.requester_name || mrf.requester || "Unknown";
+  const getMRFEstimatedCost = (mrf: MRF) =>
+    String(mrf.estimated_cost || mrf.estimatedCost || "0");
+  const getMRFRequester = (mrf: MRF) =>
+    mrf.requester_name || mrf.requester || "Unknown";
   const getMRFDate = (mrf: MRF) => mrf.created_at || mrf.date || "";
-  const getMRFStage = (mrf: MRF) => (mrf.current_stage || mrf.currentStage || "").toLowerCase();
+  const getMRFStage = (mrf: MRF) =>
+    (mrf.current_stage || mrf.currentStage || "").toLowerCase();
 
   const getPrettyMRFStageLabel = (stage?: string): string => {
     const raw = (stage || "").toString();
     const s = raw.toLowerCase().trim();
     if (!s) return "N/A";
-    if (s === "executive_review" || s === "executive") return "Executive Approval";
-    if (s === "supply_chain_director_review" || s === "supply_chain") return "Supply Chain Director Approval";
+    if (s === "executive_review" || s === "executive")
+      return "Executive Approval";
+    if (s === "supply_chain_director_review" || s === "supply_chain")
+      return "Supply Chain Director Approval";
     if (s === "procurement") return "Procurement Review";
-    if (s === "chairman_review" || s === "chairman_payment") return "Chairman Review";
+    if (s === "chairman_review" || s === "chairman_payment")
+      return "Chairman Review";
     return raw
       .replace(/_/g, " ")
       .replace(/-/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase());
   };
   const getMRFPOUrl = (mrf: MRF) => mrf.unsigned_po_url || mrf.unsignedPOUrl;
-  const getMRFRejectionReason = (mrf: MRF) => mrf.po_rejection_reason || mrf.poRejectionReason;
+  const getMRFRejectionReason = (mrf: MRF) =>
+    mrf.po_rejection_reason || mrf.poRejectionReason;
   const getMRFPONumber = (mrf: MRF) => mrf.po_number || mrf.poNumber;
   const getMRFPOVersion = (mrf: MRF) => mrf.po_version || mrf.poVersion || 1;
-  const getMRFPOShareUrl = (mrf: MRF) => mrf.unsigned_po_share_url || mrf.unsignedPOShareUrl || getMRFPOUrl(mrf);
-  const getMRFSignedPOShareUrl = (mrf: MRF) => mrf.signed_po_share_url || mrf.signedPOShareUrl || (mrf.signed_po_url || mrf.signedPOUrl);
+  const getMRFPOShareUrl = (mrf: MRF) =>
+    mrf.unsigned_po_share_url || mrf.unsignedPOShareUrl || getMRFPOUrl(mrf);
+  const getMRFSignedPOShareUrl = (mrf: MRF) =>
+    mrf.signed_po_share_url ||
+    mrf.signedPOShareUrl ||
+    mrf.signed_po_url ||
+    mrf.signedPOUrl;
   const getMRFPFIUrl = (mrf: MRF) => {
     // Check all possible document URL fields
-    return (mrf as any).invoice_onedrive_url ||
+    return (
+      (mrf as any).invoice_onedrive_url ||
       (mrf as any).invoiceOneDriveUrl ||
       mrf.pfi_share_url ||
       mrf.pfiShareUrl ||
       mrf.pfi_url ||
       mrf.pfiUrl ||
       (mrf as any).invoice_url ||
-      (mrf as any).invoiceUrl;
+      (mrf as any).invoiceUrl
+    );
   };
 
   // Handle PFI/Invoice download
   const handleDownloadPFI = (mrf: MRF) => {
     const pfiUrl = getMRFPFIUrl(mrf);
     if (pfiUrl) {
-      if (pfiUrl.startsWith('http')) {
-        window.open(pfiUrl, '_blank');
+      if (pfiUrl.startsWith("http")) {
+        window.open(pfiUrl, "_blank");
       } else {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
-        window.open(`${baseUrl.replace('/api', '')}/${pfiUrl}`, '_blank');
+        const baseUrl =
+          import.meta.env.VITE_API_BASE_URL ||
+          "https://supply-chain-backend-hwh6.onrender.com/api";
+        window.open(`${baseUrl.replace("/api", "")}/${pfiUrl}`, "_blank");
       }
     } else {
       toast({
@@ -333,36 +400,43 @@ const Procurement = () => {
     }
 
     // Check if direct SCD approval fields are populated (backend returns these after approval)
-    const scdApprovedBy = (mrf as any).scd_approved_by || (mrf as any).scdApprovedBy;
+    const scdApprovedBy =
+      (mrf as any).scd_approved_by || (mrf as any).scdApprovedBy;
     if (scdApprovedBy) {
       return true;
     }
 
     // Check if workflow state indicates vendor selection approval by SCD
-    if (workflowState === "pending_po_upload" || 
-        workflowState === "vendor_approved" || 
-        workflowState === "invoice_approved") {
+    if (
+      workflowState === "pending_po_upload" ||
+      workflowState === "vendor_approved" ||
+      workflowState === "invoice_approved"
+    ) {
       return true;
     }
 
     // Check status for SCD approval indicators
     const statusLower = status.replace(/_/g, " "); // Convert underscores to spaces for comparison
-    if (statusLower.includes("vendor approved") || 
-        statusLower.includes("supply chain approved") || 
-        statusLower.includes("pending po upload") ||
-        status === "pending_po_upload") { // Also check exact match with underscores
+    if (
+      statusLower.includes("vendor approved") ||
+      statusLower.includes("supply chain approved") ||
+      statusLower.includes("pending po upload") ||
+      status === "pending_po_upload"
+    ) {
+      // Also check exact match with underscores
       return true;
     }
 
     // Check approval history for Supply Chain Director approval
     const approvalHistory = mrf.approval_history || mrf.approvalHistory || [];
-    const hasSCDApproval = approvalHistory.some((entry: any) =>
-      entry.action === "approved" &&
-      (entry.role === "supply_chain" || 
-       entry.approved_by_role === "supply_chain" || 
-       entry.stage === "supply_chain" ||
-       entry.role === "supply chain director" ||
-       entry.approved_by_role === "supply chain director")
+    const hasSCDApproval = approvalHistory.some(
+      (entry: any) =>
+        entry.action === "approved" &&
+        (entry.role === "supply_chain" ||
+          entry.approved_by_role === "supply_chain" ||
+          entry.stage === "supply_chain" ||
+          entry.role === "supply chain director" ||
+          entry.approved_by_role === "supply chain director"),
     );
 
     return hasSCDApproval;
@@ -377,16 +451,21 @@ const Procurement = () => {
 
     // Check status string
     const status = (mrf.status || "").toLowerCase();
-    if (status.includes("approved by executive") ||
-      status.includes("executive approved")) {
+    if (
+      status.includes("approved by executive") ||
+      status.includes("executive approved")
+    ) {
       return true;
     }
 
     // Check approval history for executive approval
     const approvalHistory = mrf.approval_history || mrf.approvalHistory || [];
-    const hasExecutiveApproval = approvalHistory.some((entry: any) =>
-      entry.action === "approved" &&
-      (entry.role === "executive" || entry.approved_by_role === "executive" || entry.stage === "executive_review")
+    const hasExecutiveApproval = approvalHistory.some(
+      (entry: any) =>
+        entry.action === "approved" &&
+        (entry.role === "executive" ||
+          entry.approved_by_role === "executive" ||
+          entry.stage === "executive_review"),
     );
 
     if (hasExecutiveApproval) {
@@ -394,18 +473,24 @@ const Procurement = () => {
     }
 
     // After executive approval (for items <= 1M), backend sets:
-    // - status = 'procurement' 
+    // - status = 'procurement'
     // - current_stage = 'procurement'
     // - executive_approved = true
     // So if stage is "procurement" and status is "procurement" (not "pending"), it's executive-approved
     const stage = getMRFStage(mrf);
     const statusLower = (mrf.status || "").toLowerCase();
 
-    if ((stage === "procurement" || stage === "procurement_review") && statusLower === "procurement") {
+    if (
+      (stage === "procurement" || stage === "procurement_review") &&
+      statusLower === "procurement"
+    ) {
       return true;
     }
 
-    if (statusLower === "procurement" && (stage === "procurement" || stage === "procurement_review")) {
+    if (
+      statusLower === "procurement" &&
+      (stage === "procurement" || stage === "procurement_review")
+    ) {
       return true;
     }
 
@@ -417,9 +502,10 @@ const Procurement = () => {
   const isSupplyChainDirectorInitialApproved = (mrf: MRF): boolean => {
     const stage = getMRFStage(mrf);
     const workflowState = getWorkflowState(mrf);
-    
+
     // Check for explicit SCD initial approval field from backend
-    const scdApprovedBy = (mrf as any).scd_approved_by || (mrf as any).scdApprovedBy;
+    const scdApprovedBy =
+      (mrf as any).scd_approved_by || (mrf as any).scdApprovedBy;
     if (scdApprovedBy) {
       return true;
     }
@@ -430,25 +516,28 @@ const Procurement = () => {
     }
 
     // At procurement/procurement_review stage, check approval history for SCD initial approval
-    if ((stage === "procurement" || stage === "procurement_review")) {
+    if (stage === "procurement" || stage === "procurement_review") {
       // Check if there's ANY SCD approval in history (initial approval)
       const approvalHistory = mrf.approval_history || mrf.approvalHistory || [];
-      const hasSCDApproval = approvalHistory.some((entry: any) =>
-        entry.action === "approved" &&
-        (entry.role === "supply_chain" || 
-         entry.approved_by_role === "supply_chain" || 
-         entry.stage === "supply_chain" ||
-         entry.role === "supply chain director" ||
-         entry.approved_by_role === "supply chain director")
+      const hasSCDApproval = approvalHistory.some(
+        (entry: any) =>
+          entry.action === "approved" &&
+          (entry.role === "supply_chain" ||
+            entry.approved_by_role === "supply_chain" ||
+            entry.stage === "supply_chain" ||
+            entry.role === "supply chain director" ||
+            entry.approved_by_role === "supply chain director"),
       );
       return hasSCDApproval;
     }
-    
+
     return false;
   };
 
   const isInitialApprovalApproved = (mrf: MRF): boolean => {
-    return isEmeraldContract(mrf) ? isExecutiveApproved(mrf) : isSupplyChainDirectorInitialApproved(mrf);
+    return isEmeraldContract(mrf)
+      ? isExecutiveApproved(mrf)
+      : isSupplyChainDirectorInitialApproved(mrf);
   };
 
   const getInitialApprovalApproverName = (mrf: MRF): string => {
@@ -457,7 +546,7 @@ const Procurement = () => {
 
   // Procurement Manager can ONLY upload PO for Executive-approved MRFs
   const executiveApprovedMRFs = useMemo(() => {
-    return mrfRequests.filter(mrf => {
+    return mrfRequests.filter((mrf) => {
       const hasNoUnsignedPO = !getMRFPOUrl(mrf);
       return isInitialApprovalApproved(mrf as MRF) && hasNoUnsignedPO;
     });
@@ -465,11 +554,11 @@ const Procurement = () => {
 
   // POs rejected by Supply Chain Director
   const rejectedPOs = useMemo(() => {
-    return mrfRequests.filter(mrf => {
+    return mrfRequests.filter((mrf) => {
       const stage = getMRFStage(mrf);
       const status = (mrf.status || "").toLowerCase();
       const rejectionReason = getMRFRejectionReason(mrf);
-      
+
       return (
         stage === "procurement" &&
         status.includes("rejected") &&
@@ -480,7 +569,7 @@ const Procurement = () => {
 
   // Filter MRFs that need GRN completion
   const grnRequestedMRFs = useMemo(() => {
-    return mrfRequests.filter(mrf => {
+    return mrfRequests.filter((mrf) => {
       const workflowState = getWorkflowState(mrf);
       const grnRequested = mrf.grn_requested || mrf.grnRequested;
       const grnCompleted = mrf.grn_completed || mrf.grnCompleted;
@@ -494,11 +583,15 @@ const Procurement = () => {
 
   const [tab, setTab] = useState<string>(vendorFilter ? "po" : "mrf");
   const [poDetailsDialogOpen, setPODetailsDialogOpen] = useState(false);
-  const [selectedMRFForPODetails, setSelectedMRFForPODetails] = useState<MRFRequest | null>(null);
+  const [selectedMRFForPODetails, setSelectedMRFForPODetails] =
+    useState<MRFRequest | null>(null);
 
   useEffect(() => {
     if (vendorFromState && !vendorFromQuery) {
-      setSearchParams({ vendor: vendorFromState } as any, { replace: true } as any);
+      setSearchParams(
+        { vendor: vendorFromState } as any,
+        { replace: true } as any,
+      );
     }
   }, [vendorFromState]);
 
@@ -512,7 +605,8 @@ const Procurement = () => {
       setVendorRegistrationsLoading(true);
       try {
         const response = await getPendingVendorRegistrations();
-        if (response.success && response.data) setVendorRegistrations(response.data);
+        if (response.success && response.data)
+          setVendorRegistrations(response.data);
       } catch (error) {
         toast({
           title: "Error",
@@ -528,10 +622,14 @@ const Procurement = () => {
   }, [toast]);
 
   // Stats
-  const pendingMRNs = mrns.filter(mrn => mrn.status === "Pending" || mrn.status === "Under Review");
+  const pendingMRNs = mrns.filter(
+    (mrn) => mrn.status === "Pending" || mrn.status === "Under Review",
+  );
   const pendingPOUpload = executiveApprovedMRFs.length;
   const rejectedPOCount = rejectedPOs.length;
-  const inSupplyChain = mrfRequests.filter(mrf => mrf.currentStage === "supply_chain_director_review").length;
+  const inSupplyChain = mrfRequests.filter(
+    (mrf) => mrf.currentStage === "supply_chain_director_review",
+  ).length;
   const totalPOs = purchaseOrders.length;
 
   // Filtered data
@@ -539,31 +637,36 @@ const Procurement = () => {
     let filtered = [...mrfRequests];
 
     if (searchQuery) {
-      filtered = filtered.filter(mrf =>
-        mrf.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        mrf.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        getMRFRequester(mrf).toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(
+        (mrf) =>
+          mrf.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          mrf.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          getMRFRequester(mrf)
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()),
       );
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter(mrf => {
+      filtered = filtered.filter((mrf) => {
         const stage = getMRFStage(mrf);
         if (statusFilter === "pending") return stage === "procurement";
         if (statusFilter === "approved") return stage === "completed";
         if (statusFilter === "rejected") return stage === "rejected";
         if (statusFilter === "finance") return stage === "finance";
-        if (statusFilter === "chairman") return stage === "chairman" || stage === "chairman_review";
+        if (statusFilter === "chairman")
+          return stage === "chairman" || stage === "chairman_review";
         return true;
       });
     }
 
     if (dateFilter !== "all") {
       const now = new Date();
-      filtered = filtered.filter(mrf => {
+      filtered = filtered.filter((mrf) => {
         const mrfDate = new Date(getMRFDate(mrf));
-        const daysDiff = (now.getTime() - mrfDate.getTime()) / (1000 * 60 * 60 * 24);
-        
+        const daysDiff =
+          (now.getTime() - mrfDate.getTime()) / (1000 * 60 * 60 * 24);
+
         if (dateFilter === "today") return daysDiff < 1;
         if (dateFilter === "week") return daysDiff < 7;
         if (dateFilter === "month") return daysDiff < 30;
@@ -576,9 +679,11 @@ const Procurement = () => {
       const dateB = getMRFDate(b);
       const costA = parseFloat(getMRFEstimatedCost(a));
       const costB = parseFloat(getMRFEstimatedCost(b));
-      
-      if (sortBy === "date-desc") return new Date(dateB).getTime() - new Date(dateA).getTime();
-      if (sortBy === "date-asc") return new Date(dateA).getTime() - new Date(dateB).getTime();
+
+      if (sortBy === "date-desc")
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      if (sortBy === "date-asc")
+        return new Date(dateA).getTime() - new Date(dateB).getTime();
       if (sortBy === "amount-desc") return costB - costA;
       if (sortBy === "amount-asc") return costA - costB;
       return 0;
@@ -587,7 +692,9 @@ const Procurement = () => {
     return filtered;
   }, [mrfRequests, searchQuery, statusFilter, dateFilter, sortBy]);
 
-  const filteredPOs = purchaseOrders.filter((po) => !vendorFilter || po.vendor === vendorFilter);
+  const filteredPOs = purchaseOrders.filter(
+    (po) => !vendorFilter || po.vendor === vendorFilter,
+  );
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -619,8 +726,12 @@ const Procurement = () => {
     let startTimeStr = (mrf as any).procurementManagerApprovalTime;
 
     // For SCD stage, use the timestamp when MRF entered SCD review
-    if (!startTimeStr && (stage === "supply_chain" || stage === "supply_chain_director_review")) {
-      startTimeStr = (mrf as any).executive_approval_date ||
+    if (
+      !startTimeStr &&
+      (stage === "supply_chain" || stage === "supply_chain_director_review")
+    ) {
+      startTimeStr =
+        (mrf as any).executive_approval_date ||
         (mrf as any).executive_approved_at ||
         (mrf as any).submitted_at ||
         (mrf as any).created_at;
@@ -629,11 +740,12 @@ const Procurement = () => {
     if (!startTimeStr) {
       return null;
     }
-    
+
     const startTime = new Date(startTimeStr);
     const now = new Date();
-    const hoursElapsed = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-    
+    const hoursElapsed =
+      (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+
     if (hoursElapsed <= 48) return "text-emerald-600 dark:text-emerald-400";
     if (hoursElapsed <= 72) return "text-amber-600 dark:text-amber-400";
     return "text-destructive";
@@ -645,8 +757,12 @@ const Procurement = () => {
 
     let startTimeStr = (mrf as any).procurementManagerApprovalTime;
 
-    if (!startTimeStr && (stage === "supply_chain" || stage === "supply_chain_director_review")) {
-      startTimeStr = (mrf as any).executive_approval_date ||
+    if (
+      !startTimeStr &&
+      (stage === "supply_chain" || stage === "supply_chain_director_review")
+    ) {
+      startTimeStr =
+        (mrf as any).executive_approval_date ||
         (mrf as any).executive_approved_at ||
         (mrf as any).submitted_at ||
         (mrf as any).created_at;
@@ -656,7 +772,9 @@ const Procurement = () => {
 
     const startTime = new Date(startTimeStr);
     const now = new Date();
-    const totalMinutes = Math.floor((now.getTime() - startTime.getTime()) / (1000 * 60));
+    const totalMinutes = Math.floor(
+      (now.getTime() - startTime.getTime()) / (1000 * 60),
+    );
 
     if (totalMinutes < 60) return `${totalMinutes}m`;
     const hours = Math.floor(totalMinutes / 60);
@@ -673,14 +791,15 @@ const Procurement = () => {
     // Procurement can only view MRFs, not approve them
     toast({
       title: "View Only",
-      description: "Procurement can view MRFs but cannot approve. Only Executive has approval authority.",
+      description:
+        "Procurement can view MRFs but cannot approve. Only Executive has approval authority.",
       variant: "default",
     });
   };
 
   const handleGeneratePO = async (mrf: MRFRequest | MRF) => {
     // Check if MRF is Executive approved first (this is the main requirement)
-    const mrfData = mrfRequests.find(m => m.id === mrf.id);
+    const mrfData = mrfRequests.find((m) => m.id === mrf.id);
     const mrfToCheck = (mrfData || (mrf as MRF)) as MRF;
     const isApproved = isInitialApprovalApproved(mrfToCheck);
     const approverName = getInitialApprovalApproverName(mrfToCheck);
@@ -709,8 +828,8 @@ const Procurement = () => {
           return;
         }
         // Proceed with opening PO generation dialog
-    setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
-    setPODialogOpen(true);
+        setSelectedMRFForPO(convertToMRFRequest(mrf as MRF));
+        setPODialogOpen(true);
       } else {
         // Fallback: If Executive approved, allow proceeding
         if (isApproved) {
@@ -743,7 +862,8 @@ const Procurement = () => {
   const handleApprove = (remarks: string) => {
     toast({
       title: "Access Denied",
-      description: "Only Executive can approve MRFs. You can view and generate POs.",
+      description:
+        "Only Executive can approve MRFs. You can view and generate POs.",
       variant: "destructive",
     });
   };
@@ -751,11 +871,11 @@ const Procurement = () => {
   const handleReject = (remarks: string) => {
     toast({
       title: "Access Denied",
-      description: "Only Executive can reject MRFs. You can view and generate POs.",
+      description:
+        "Only Executive can reject MRFs. You can view and generate POs.",
       variant: "destructive",
     });
   };
-
 
   const handlePOGeneration = async (poData: {
     vendors: string[];
@@ -769,7 +889,7 @@ const Procurement = () => {
     if (!selectedMRFForPO) return;
 
     // Validate the contract-type dependent initial approval before sending RFQs to vendors
-    const mrfData = mrfRequests.find(m => m.id === selectedMRFForPO.id);
+    const mrfData = mrfRequests.find((m) => m.id === selectedMRFForPO.id);
     const mrfToCheck = (mrfData || (selectedMRFForPO as any)) as MRF;
     if (!mrfData || !isInitialApprovalApproved(mrfToCheck)) {
       toast({
@@ -785,7 +905,8 @@ const Procurement = () => {
     if (poData.vendors.length === 0) {
       toast({
         title: "Validation Error",
-        description: "Please select at least one vendor to send the request to.",
+        description:
+          "Please select at least one vendor to send the request to.",
         variant: "destructive",
       });
       return;
@@ -795,7 +916,8 @@ const Procurement = () => {
     if (!poData.deliveryDate) {
       toast({
         title: "Validation Error",
-        description: "Please select an expected delivery date (this will be used as RFQ deadline).",
+        description:
+          "Please select an expected delivery date (this will be used as RFQ deadline).",
         variant: "destructive",
       });
       return;
@@ -808,24 +930,26 @@ const Procurement = () => {
       // Calculate deadline (7 days before delivery date, or 30 days from now if delivery date is too soon)
       const deliveryDateObj = new Date(poData.deliveryDate);
       const today = new Date();
-      const daysUntilDelivery = Math.ceil((deliveryDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntilDelivery = Math.ceil(
+        (deliveryDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+      );
       const deadlineDays = Math.max(7, Math.floor(daysUntilDelivery * 0.7)); // 70% of delivery time, minimum 7 days
       const deadlineDate = new Date(today);
       deadlineDate.setDate(deadlineDate.getDate() + deadlineDays);
-      const deadline = deadlineDate.toISOString().split('T')[0];
+      const deadline = deadlineDate.toISOString().split("T")[0];
 
       // Create RFQ with all relevant details (title, category, payment terms, estimated budget)
       const rfqResponse = await rfqApi.create({
         mrfId: selectedMRFForPO.id,
-        title: selectedMRFForPO.title || 'RFQ Request',
-        category: selectedMRFForPO.category || '',
-        description: poData.items || selectedMRFForPO.description || '',
-        quantity: selectedMRFForPO.quantity || '1',
-        estimatedCost: poData.amount || selectedMRFForPO.estimatedCost || '0',
+        title: selectedMRFForPO.title || "RFQ Request",
+        category: selectedMRFForPO.category || "",
+        description: poData.items || selectedMRFForPO.description || "",
+        quantity: selectedMRFForPO.quantity || "1",
+        estimatedCost: poData.amount || selectedMRFForPO.estimatedCost || "0",
         deadline: deadline,
         vendorIds: poData.vendors,
-        paymentTerms: poData.paymentTerms || '',
-        notes: poData.notes || '',
+        paymentTerms: poData.paymentTerms || "",
+        notes: poData.notes || "",
       });
 
       if (rfqResponse.success) {
@@ -836,7 +960,7 @@ const Procurement = () => {
 
         setPODialogOpen(false);
         setSelectedMRFForPO(null);
-        
+
         // Refresh MRFs and RFQs from backend to get updated status
         await fetchMRFs();
         await fetchRFQs();
@@ -845,18 +969,23 @@ const Procurement = () => {
           fetchQuotations();
         }, 500);
       } else {
-        console.error('RFQ Creation Error:', rfqResponse.error);
+        console.error("RFQ Creation Error:", rfqResponse.error);
         toast({
           title: "Failed to Send Request",
-          description: rfqResponse.error || "Failed to send request to vendors. Please try again.",
+          description:
+            rfqResponse.error ||
+            "Failed to send request to vendors. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('RFQ Creation Exception:', error);
+      console.error("RFQ Creation Exception:", error);
       toast({
         title: "Network Error",
-        description: error instanceof Error ? error.message : "Failed to connect to server. Please check your connection.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to connect to server. Please check your connection.",
         variant: "destructive",
       });
     } finally {
@@ -877,7 +1006,8 @@ const Procurement = () => {
     // This could save to localStorage or a backend draft endpoint
     toast({
       title: "RFQ Draft Saved",
-      description: "Your RFQ draft has been saved. You can continue editing and send it to vendors later.",
+      description:
+        "Your RFQ draft has been saved. You can continue editing and send it to vendors later.",
     });
     setPODialogOpen(false);
   };
@@ -897,24 +1027,28 @@ const Procurement = () => {
 
   const handleDownloadPO = async (mrf: MRF) => {
     // Check for signed PO first (preferred), then unsigned PO
-    const signedPOUrl = mrf.signed_po_url || mrf.signedPOUrl || mrf.signed_po_share_url || mrf.signedPOShareUrl;
+    const signedPOUrl =
+      mrf.signed_po_url ||
+      mrf.signedPOUrl ||
+      mrf.signed_po_share_url ||
+      mrf.signedPOShareUrl;
     const unsignedPOUrl = getMRFPOShareUrl(mrf) || getMRFPOUrl(mrf);
-    
+
     // If it's an external URL (OneDrive, etc.), open it directly
-    if (signedPOUrl && signedPOUrl.startsWith('http')) {
-      window.open(signedPOUrl, '_blank');
+    if (signedPOUrl && signedPOUrl.startsWith("http")) {
+      window.open(signedPOUrl, "_blank");
       return;
     }
-    
-    if (unsignedPOUrl && unsignedPOUrl.startsWith('http')) {
-      window.open(unsignedPOUrl, '_blank');
+
+    if (unsignedPOUrl && unsignedPOUrl.startsWith("http")) {
+      window.open(unsignedPOUrl, "_blank");
       return;
     }
 
     // Try to download from backend API
     // Prefer signed PO if available, otherwise unsigned
-    const poType = signedPOUrl ? 'signed' : 'unsigned';
-    
+    const poType = signedPOUrl ? "signed" : "unsigned";
+
     // Check if PO exists before attempting download
     if (!signedPOUrl && !unsignedPOUrl) {
       toast({
@@ -927,7 +1061,7 @@ const Procurement = () => {
 
     try {
       const response = await mrfApi.downloadPO(mrf.id, poType);
-      
+
       if (response.success) {
         toast({
           title: "Download Started",
@@ -937,11 +1071,13 @@ const Procurement = () => {
         // If API download fails, try direct URL approach as fallback
         const fallbackUrl = signedPOUrl || unsignedPOUrl;
         if (fallbackUrl) {
-          const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
-          const fullUrl = fallbackUrl.startsWith('http') 
-            ? fallbackUrl 
-            : `${baseUrl.replace('/api', '')}/${fallbackUrl}`;
-          window.open(fullUrl, '_blank');
+          const baseUrl =
+            import.meta.env.VITE_API_BASE_URL ||
+            "https://supply-chain-backend-hwh6.onrender.com/api";
+          const fullUrl = fallbackUrl.startsWith("http")
+            ? fallbackUrl
+            : `${baseUrl.replace("/api", "")}/${fallbackUrl}`;
+          window.open(fullUrl, "_blank");
           toast({
             title: "Opening PO",
             description: "Opening PO document in a new window",
@@ -955,15 +1091,17 @@ const Procurement = () => {
         }
       }
     } catch (error) {
-      console.error('Error downloading PO:', error);
+      console.error("Error downloading PO:", error);
       // Fallback to direct URL if API fails
       const fallbackUrl = signedPOUrl || unsignedPOUrl;
       if (fallbackUrl) {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
-        const fullUrl = fallbackUrl.startsWith('http') 
-          ? fallbackUrl 
-          : `${baseUrl.replace('/api', '')}/${fallbackUrl}`;
-        window.open(fullUrl, '_blank');
+        const baseUrl =
+          import.meta.env.VITE_API_BASE_URL ||
+          "https://supply-chain-backend-hwh6.onrender.com/api";
+        const fullUrl = fallbackUrl.startsWith("http")
+          ? fallbackUrl
+          : `${baseUrl.replace("/api", "")}/${fallbackUrl}`;
+        window.open(fullUrl, "_blank");
         toast({
           title: "Opening PO",
           description: "Opening PO document in a new window",
@@ -971,7 +1109,8 @@ const Procurement = () => {
       } else {
         toast({
           title: "Download Failed",
-          description: "Unable to download PO document. Please try again later.",
+          description:
+            "Unable to download PO document. Please try again later.",
           variant: "destructive",
         });
       }
@@ -1029,7 +1168,8 @@ const Procurement = () => {
       if (response.success) {
         toast({
           title: "MRF Deleted",
-          description: "The Material Request Form has been deleted successfully",
+          description:
+            "The Material Request Form has been deleted successfully",
         });
         await fetchMRFs();
       } else {
@@ -1053,7 +1193,7 @@ const Procurement = () => {
   };
 
   const handleConvertMRNToMRF = (mrnId: string) => {
-    const mrn = mrns.find(m => m.id === mrnId);
+    const mrn = mrns.find((m) => m.id === mrnId);
     if (!mrn) return;
 
     convertMRNToMRF(mrnId, user?.name || "Procurement Manager");
@@ -1088,445 +1228,620 @@ const Procurement = () => {
     { label: "Rejected", value: "rejected" },
   ];
 
-  const activeFiltersCount = (statusFilter !== "all" ? 1 : 0) + (dateFilter !== "all" ? 1 : 0);
+  const activeFiltersCount =
+    (statusFilter !== "all" ? 1 : 0) + (dateFilter !== "all" ? 1 : 0);
 
   return (
     <DashboardLayout>
-      <PullToRefresh onRefresh={async () => {
-        toast({
-          title: "Refreshing data...",
-          description: "Please wait",
-        });
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        toast({
-          title: "Data refreshed",
-          description: "All data is up to date",
-        });
-      }}>
+      <PullToRefresh
+        onRefresh={async () => {
+          toast({
+            title: "Refreshing data...",
+            description: "Please wait",
+          });
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          toast({
+            title: "Data refreshed",
+            description: "All data is up to date",
+          });
+        }}
+      >
         <div className="space-y-6">
-        <div className="flex flex-col gap-2 sm:gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Procurement Dashboard</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage material and service requests</p>
+          <div className="flex flex-col gap-2 sm:gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
+                Procurement Dashboard
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Manage material and service requests
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Stats */}
+          {/* Stats */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Pending PO Upload"
-            value={pendingPOUpload}
-            description="Initial approval completed, awaiting PO"
-            icon={Clock}
-            iconColor="text-warning"
-            onClick={() => setTab("mrf")}
+            <StatCard
+              title="Pending PO Upload"
+              value={pendingPOUpload}
+              description="Initial approval completed, awaiting PO"
+              icon={Clock}
+              iconColor="text-warning"
+              onClick={() => setTab("mrf")}
+            />
+            <StatCard
+              title="Rejected POs"
+              value={rejectedPOCount}
+              description="Need revision & resubmission"
+              icon={XCircle}
+              iconColor="text-destructive"
+              onClick={() => setTab("mrf")}
+            />
+            <StatCard
+              title="Pending MRNs"
+              value={pendingMRNs.length}
+              description="Awaiting review"
+              icon={FileText}
+              iconColor="text-info"
+              onClick={() => setTab("mrn")}
+            />
+            <StatCard
+              title="In Supply Chain"
+              value={inSupplyChain}
+              description="With Supply Chain Director"
+              icon={Package}
+              iconColor="text-success"
+            />
+          </div>
+
+          {/* Dashboard Alerts */}
+          <DashboardAlerts
+            userRole={user?.role || "procurement"}
+            maxAlerts={5}
           />
-          <StatCard
-            title="Rejected POs"
-            value={rejectedPOCount}
-            description="Need revision & resubmission"
-            icon={XCircle}
-            iconColor="text-destructive"
-            onClick={() => setTab("mrf")}
+
+          {/* Vendor Registrations Section */}
+          <VendorRegistrationsList
+            maxItems={3}
+            showTabs={false}
+            title="Pending Vendor Registrations"
+            externalRegistrations={vendorRegistrations}
+            externalLoading={vendorRegistrationsLoading}
           />
-          <StatCard
-            title="Pending MRNs"
-            value={pendingMRNs.length}
-            description="Awaiting review"
-            icon={FileText}
-            iconColor="text-info"
-            onClick={() => setTab("mrn")}
-          />
-          <StatCard
-            title="In Supply Chain"
-            value={inSupplyChain}
-            description="With Supply Chain Director"
-            icon={Package}
-            iconColor="text-success"
-          />
-        </div>
 
-        {/* Dashboard Alerts */}
-        <DashboardAlerts userRole={user?.role || 'procurement'} maxAlerts={5} />
+          <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+            <TabsList className="grid w-full grid-cols-6 h-auto gap-1">
+              <TabsTrigger
+                value="mrn"
+                className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3 flex-col sm:flex-row gap-1"
+              >
+                <span className="hidden sm:inline">
+                  Material Requests (MRN)
+                </span>
+                <span className="sm:hidden">MRN</span>
+                {pendingMRNs.length > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="ml-0 sm:ml-2 text-[8px] sm:text-xs h-4 sm:h-5 px-1"
+                  >
+                    {pendingMRNs.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger
+                value="mrf"
+                className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3"
+              >
+                <span className="hidden sm:inline">MRF (Official)</span>
+                <span className="sm:hidden">MRF</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="all-mrfs"
+                className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3"
+              >
+                <span className="hidden sm:inline">All MRFs</span>
+                <span className="sm:hidden">All</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="rfq"
+                className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3"
+              >
+                <span className="hidden sm:inline">RFQ Management</span>
+                <span className="sm:hidden">RFQ</span>
+                <Send className="h-3 w-3 ml-1 hidden sm:inline" />
+              </TabsTrigger>
+              <TabsTrigger
+                value="srf"
+                className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3"
+              >
+                <span className="hidden sm:inline">Service Requests</span>
+                <span className="sm:hidden">SRF</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="po"
+                className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3"
+              >
+                <span className="hidden sm:inline">Purchase Orders</span>
+                <span className="sm:hidden">PO</span>
+              </TabsTrigger>
+            </TabsList>
 
-        {/* Vendor Registrations Section */}
-        <VendorRegistrationsList 
-          maxItems={3} 
-          showTabs={false} 
-          title="Pending Vendor Registrations"
-          externalRegistrations={vendorRegistrations}
-          externalLoading={vendorRegistrationsLoading}
-        />
+            {/* RFQ Management Tab */}
+            <TabsContent value="rfq" className="space-y-4">
+              <RFQManagement
+                onVendorSelected={(vendorId, rfqId) => {
+                  // Vendor selection is now handled in RFQManagement component
+                  // It automatically sends vendor to Supply Chain Director for approval
+                  // Refresh MRF list to see updated workflow state
+                  fetchMRFs();
+                  setTab("mrf");
+                }}
+              />
+            </TabsContent>
 
-
-        <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6 h-auto gap-1">
-            <TabsTrigger value="mrn" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3 flex-col sm:flex-row gap-1">
-              <span className="hidden sm:inline">Material Requests (MRN)</span>
-              <span className="sm:hidden">MRN</span>
-              {pendingMRNs.length > 0 && (
-                <Badge variant="destructive" className="ml-0 sm:ml-2 text-[8px] sm:text-xs h-4 sm:h-5 px-1">
-                  {pendingMRNs.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="mrf" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
-              <span className="hidden sm:inline">MRF (Official)</span>
-              <span className="sm:hidden">MRF</span>
-            </TabsTrigger>
-            <TabsTrigger value="all-mrfs" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
-              <span className="hidden sm:inline">All MRFs</span>
-              <span className="sm:hidden">All</span>
-            </TabsTrigger>
-            <TabsTrigger value="rfq" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
-              <span className="hidden sm:inline">RFQ Management</span>
-              <span className="sm:hidden">RFQ</span>
-              <Send className="h-3 w-3 ml-1 hidden sm:inline" />
-            </TabsTrigger>
-            <TabsTrigger value="srf" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
-              <span className="hidden sm:inline">Service Requests</span>
-              <span className="sm:hidden">SRF</span>
-            </TabsTrigger>
-            <TabsTrigger value="po" className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3">
-              <span className="hidden sm:inline">Purchase Orders</span>
-              <span className="sm:hidden">PO</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {/* RFQ Management Tab */}
-          <TabsContent value="rfq" className="space-y-4">
-            <RFQManagement onVendorSelected={(vendorId, rfqId) => {
-                // Vendor selection is now handled in RFQManagement component
-                // It automatically sends vendor to Supply Chain Director for approval
-                // Refresh MRF list to see updated workflow state
-                fetchMRFs();
-              setTab("mrf");
-            }} />
-          </TabsContent>
-
-          <TabsContent value="mrn" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
-                    <CardTitle>Material Request Notes (MRN)</CardTitle>
-                    <CardDescription>Review department requests and convert to official MRFs</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {mrns.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No material request notes submitted yet</p>
+            <TabsContent value="mrn" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <CardTitle>Material Request Notes (MRN)</CardTitle>
+                      <CardDescription>
+                        Review department requests and convert to official MRFs
+                      </CardDescription>
                     </div>
-                  ) : (
-                    mrns.map((mrn) => (
-                      <Card key={mrn.id} className="overflow-hidden">
-                        <CardContent className="p-6">
-                          <div className="flex justify-between items-start mb-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="font-mono text-sm font-semibold">{mrn.controlNumber}</span>
-                                <Badge className={
-                                  mrn.status === "Pending" ? "bg-yellow-500" :
-                                  mrn.status === "Under Review" ? "bg-blue-500" :
-                                  mrn.status === "Converted to MRF" ? "bg-green-500" :
-                                  "bg-red-500"
-                                }>
-                                  {mrn.status}
-                                </Badge>
-                                <Badge variant={mrn.urgency === "High" ? "destructive" : "secondary"}>
-                                  {mrn.urgency}
-                                </Badge>
-                              </div>
-                              <h3 className="text-lg font-semibold">{mrn.title}</h3>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                Requested by {mrn.requesterName} • {mrn.department} • {new Date(mrn.submittedDate).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="space-y-3 mb-4">
-                            <div>
-                              <strong className="text-sm">Justification:</strong>
-                              <p className="text-sm text-muted-foreground">{mrn.justification}</p>
-                            </div>
-
-                            <div>
-                              <strong className="text-sm">Items Requested ({mrn.items.length}):</strong>
-                              <div className="mt-2 space-y-2">
-                                {mrn.items.map((item, idx) => (
-                                  <div key={idx} className="bg-muted p-3 rounded-md">
-                                    <div className="flex justify-between items-start">
-                                      <div className="flex-1">
-                                        <p className="font-medium">{item.name}</p>
-                                        {item.description && (
-                                          <p className="text-sm text-muted-foreground">{item.description}</p>
-                                        )}
-                                      </div>
-                                      <div className="text-right ml-4">
-                                        <p className="text-sm">Qty: {item.quantity}</p>
-                                        <p className="text-sm font-semibold">₦{parseFloat(item.estimatedUnitCost).toLocaleString()}/unit</p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div className="bg-primary/5 p-3 rounded-md">
-                              <strong className="text-sm">Total Estimated Cost:</strong>
-                              <p className="text-lg font-bold">
-                                ₦{mrn.items.reduce((sum, item) => 
-                                  sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.estimatedUnitCost) || 0), 0
-                                ).toLocaleString()}
-                              </p>
-                            </div>
-
-                            {mrn.reviewNotes && (
-                              <div className="bg-muted p-3 rounded-md">
-                                <strong className="text-sm">Review Notes:</strong>
-                                <p className="text-sm text-muted-foreground mt-1">{mrn.reviewNotes}</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Reviewed by {mrn.reviewedBy} on {mrn.reviewDate && new Date(mrn.reviewDate).toLocaleDateString()}
-                                </p>
-                              </div>
-                            )}
-
-                            {mrn.convertedMRFId && (
-                              <div className="bg-green-500/10 p-3 rounded-md">
-                                <p className="text-sm text-green-700 dark:text-green-400">
-                                  ✓ Converted to MRF: <span className="font-mono font-semibold">{mrn.convertedMRFId}</span>
-                                </p>
-                              </div>
-                            )}
-                          </div>
-
-                          {mrn.status === "Pending" || mrn.status === "Under Review" ? (
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => handleConvertMRNToMRF(mrn.id)}
-                                className="flex-1"
-                              >
-                                <CheckCircle2 className="mr-2 h-4 w-4" />
-                                Convert to MRF
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                onClick={() => {
-                                  const reason = prompt("Enter rejection reason:");
-                                  if (reason) handleRejectMRN(mrn.id, reason);
-                                }}
-                              >
-                                <XCircle className="mr-2 h-4 w-4" />
-                                Reject
-                              </Button>
-                            </div>
-                          ) : null}
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="mrf" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
-                    <CardTitle>Material Request Forms</CardTitle>
-                    <CardDescription>Review and approve material requisitions</CardDescription>
                   </div>
-                    {/* Only employees can create MRF */}
-                    {(user?.role === "employee" || user?.role === "general_employee") && (
-                  <Button onClick={() => navigate("/procurement/mrf/new")} size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    New MRF
-                  </Button>
-                    )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                  {/* Rejected POs - Need Resubmission - Only visible to Procurement Managers */}
-                  {rejectedPOs.length > 0 && (user?.role === "procurement" || user?.role === "procurement_manager") && (
-                  <div className="mb-6 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
-                    <div className="flex items-center gap-2 mb-4">
-                      <XCircle className="h-5 w-5 text-destructive" />
-                      <h3 className="font-semibold text-lg">POs Rejected by Supply Chain</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {rejectedPOs.length} PO(s) rejected and need revision
-                    </p>
-                    <div className="space-y-3">
-                      {rejectedPOs.map((mrf) => (
-                        <Card key={mrf.id} className="bg-card border-destructive/50">
-                          <CardContent className="p-4">
-                            <div className="flex flex-col gap-3">
-                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <h4 className="font-semibold">{mrf.title}</h4>
-                                    <Badge variant="destructive">Rejected</Badge>
-                                    <Badge variant="outline">{mrf.poNumber}</Badge>
-                                    {mrf.poVersion && (
-                                      <Badge variant="secondary" className="text-xs">
-                                        v{mrf.poVersion}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="text-sm text-muted-foreground space-y-1">
-                                    <p>MRF ID: <span className="font-medium">{mrf.id}</span></p>
-                                    <p>Requester: {mrf.requester}</p>
-                                    <p>Amount: <span className="font-semibold">₦{parseInt(mrf.estimatedCost).toLocaleString()}</span></p>
-                                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {mrns.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No material request notes submitted yet</p>
+                      </div>
+                    ) : (
+                      mrns.map((mrn) => (
+                        <Card key={mrn.id} className="overflow-hidden">
+                          <CardContent className="p-6">
+                            <div className="flex justify-between items-start mb-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="font-mono text-sm font-semibold">
+                                    {mrn.controlNumber}
+                                  </span>
+                                  <Badge
+                                    className={
+                                      mrn.status === "Pending"
+                                        ? "bg-yellow-500"
+                                        : mrn.status === "Under Review"
+                                          ? "bg-blue-500"
+                                          : mrn.status === "Converted to MRF"
+                                            ? "bg-green-500"
+                                            : "bg-red-500"
+                                    }
+                                  >
+                                    {mrn.status}
+                                  </Badge>
+                                  <Badge
+                                    variant={
+                                      mrn.urgency === "High"
+                                        ? "destructive"
+                                        : "secondary"
+                                    }
+                                  >
+                                    {mrn.urgency}
+                                  </Badge>
                                 </div>
-                                  {/* Regenerate PO button - Only for Procurement Managers */}
-                                  {(user?.role === "procurement" || user?.role === "procurement_manager") && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleGeneratePO(mrf)}
-                              >
-                                <FileText className="h-4 w-4 mr-2" />
-                                Regenerate PO
-                              </Button>
-                                  )}
+                                <h3 className="text-lg font-semibold">
+                                  {mrn.title}
+                                </h3>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Requested by {mrn.requesterName} •{" "}
+                                  {mrn.department} •{" "}
+                                  {new Date(
+                                    mrn.submittedDate,
+                                  ).toLocaleDateString()}
+                                </p>
                               </div>
-                              
-                              {/* Rejection Details */}
-                              <div className="p-3 bg-destructive/10 rounded-md">
-                                <p className="text-xs font-semibold text-destructive mb-1">Rejection Reason:</p>
-                                <p className="text-sm text-foreground">{mrf.poRejectionReason}</p>
-                                {mrf.supplyChainComments && (
-                                  <>
-                                    <p className="text-xs font-semibold text-muted-foreground mt-2 mb-1">Additional Comments:</p>
-                                    <p className="text-sm text-foreground">{mrf.supplyChainComments}</p>
-                                  </>
-                                )}
+                            </div>
+
+                            <div className="space-y-3 mb-4">
+                              <div>
+                                <strong className="text-sm">
+                                  Justification:
+                                </strong>
+                                <p className="text-sm text-muted-foreground">
+                                  {mrn.justification}
+                                </p>
                               </div>
 
-                                {/* Invoice/PFI Access */}
-                                {getMRFPFIUrl(mrf as MRF) && (
-                                  <div className="flex flex-col gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg mt-3">
-                                    <div className="flex items-center gap-2">
-                                      <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                      <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Supporting Document Submitted by Staff</span>
-                    </div>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                              <Button
-                                        variant="outline"
-                                size="sm"
-                                        onClick={() => handleDownloadPFI(mrf as MRF)}
-                                        className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
-                              >
-                                        <Download className="h-4 w-4 mr-2" />
-                                        View Invoice
-                              </Button>
-                                      {(() => {
-                                        const docUrl = getMRFPFIUrl(mrf as MRF);
-                                        const shareUrl = (mrf as any).invoice_onedrive_url ||
-                                          (mrf as any).invoiceOneDriveUrl ||
-                                          mrf.pfi_share_url ||
-                                          mrf.pfiShareUrl;
-                                        return shareUrl && (
-                                          <OneDriveLink
-                                            webUrl={shareUrl}
-                                            fileName="Supporting Document"
-                                            variant="badge"
-                                          />
-                                        );
-                                      })()}
+                              <div>
+                                <strong className="text-sm">
+                                  Items Requested ({mrn.items.length}):
+                                </strong>
+                                <div className="mt-2 space-y-2">
+                                  {mrn.items.map((item, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="bg-muted p-3 rounded-md"
+                                    >
+                                      <div className="flex justify-between items-start">
+                                        <div className="flex-1">
+                                          <p className="font-medium">
+                                            {item.name}
+                                          </p>
+                                          {item.description && (
+                                            <p className="text-sm text-muted-foreground">
+                                              {item.description}
+                                            </p>
+                                          )}
+                                        </div>
+                                        <div className="text-right ml-4">
+                                          <p className="text-sm">
+                                            Qty: {item.quantity}
+                                          </p>
+                                          <p className="text-sm font-semibold">
+                                            ₦
+                                            {parseFloat(
+                                              item.estimatedUnitCost,
+                                            ).toLocaleString()}
+                                            /unit
+                                          </p>
+                                        </div>
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="bg-primary/5 p-3 rounded-md">
+                                <strong className="text-sm">
+                                  Total Estimated Cost:
+                                </strong>
+                                <p className="text-lg font-bold">
+                                  ₦
+                                  {mrn.items
+                                    .reduce(
+                                      (sum, item) =>
+                                        sum +
+                                        (parseFloat(item.quantity) || 0) *
+                                          (parseFloat(item.estimatedUnitCost) ||
+                                            0),
+                                      0,
+                                    )
+                                    .toLocaleString()}
+                                </p>
+                              </div>
+
+                              {mrn.reviewNotes && (
+                                <div className="bg-muted p-3 rounded-md">
+                                  <strong className="text-sm">
+                                    Review Notes:
+                                  </strong>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {mrn.reviewNotes}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Reviewed by {mrn.reviewedBy} on{" "}
+                                    {mrn.reviewDate &&
+                                      new Date(
+                                        mrn.reviewDate,
+                                      ).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              )}
+
+                              {mrn.convertedMRFId && (
+                                <div className="bg-green-500/10 p-3 rounded-md">
+                                  <p className="text-sm text-green-700 dark:text-green-400">
+                                    ✓ Converted to MRF:{" "}
+                                    <span className="font-mono font-semibold">
+                                      {mrn.convertedMRFId}
+                                    </span>
+                                  </p>
+                                </div>
+                              )}
                             </div>
+
+                            {mrn.status === "Pending" ||
+                            mrn.status === "Under Review" ? (
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => handleConvertMRNToMRF(mrn.id)}
+                                  className="flex-1"
+                                >
+                                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                                  Convert to MRF
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => {
+                                    const reason = prompt(
+                                      "Enter rejection reason:",
+                                    );
+                                    if (reason) handleRejectMRN(mrn.id, reason);
+                                  }}
+                                >
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  Reject
+                                </Button>
+                              </div>
+                            ) : null}
                           </CardContent>
                         </Card>
-                      ))}
-                    </div>
+                      ))
+                    )}
                   </div>
-                )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-
-                <div className="space-y-4">
-                  <FilterBar
-                    searchQuery={searchQuery}
-                    onSearchChange={setSearchQuery}
-                    statusFilter={statusFilter}
-                    onStatusFilterChange={setStatusFilter}
-                    statusOptions={statusOptions}
-                    placeholder="Search by title, ID, or requester..."
-                    activeFiltersCount={activeFiltersCount}
-                    onClearFilters={() => {
-                      setStatusFilter("all");
-                      setDateFilter("all");
-                    }}
-                    additionalFilters={
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Date Range</label>
-                          <Select value={dateFilter} onValueChange={setDateFilter}>
-                            <SelectTrigger>
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4" />
-                                <SelectValue />
-                              </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Time</SelectItem>
-                              <SelectItem value="today">Today</SelectItem>
-                              <SelectItem value="week">This Week</SelectItem>
-                              <SelectItem value="month">This Month</SelectItem>
-                            </SelectContent>
-                          </Select>
+            <TabsContent value="mrf" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <CardTitle>Material Request Forms</CardTitle>
+                      <CardDescription>
+                        Review and approve material requisitions
+                      </CardDescription>
+                    </div>
+                    {/* Only employees can create MRF */}
+                    {(user?.role === "employee" ||
+                      user?.role === "general_employee") && (
+                      <Button
+                        onClick={() => navigate("/procurement/mrf/new")}
+                        size="sm"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        New MRF
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {/* Rejected POs - Need Resubmission - Only visible to Procurement Managers */}
+                  {rejectedPOs.length > 0 &&
+                    (user?.role === "procurement" ||
+                      user?.role === "procurement_manager") && (
+                      <div className="mb-6 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
+                        <div className="flex items-center gap-2 mb-4">
+                          <XCircle className="h-5 w-5 text-destructive" />
+                          <h3 className="font-semibold text-lg">
+                            POs Rejected by Supply Chain
+                          </h3>
                         </div>
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Sort By</label>
-                          <Select value={sortBy} onValueChange={setSortBy}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="date-desc">Newest First</SelectItem>
-                              <SelectItem value="date-asc">Oldest First</SelectItem>
-                              <SelectItem value="amount-desc">Highest Amount</SelectItem>
-                              <SelectItem value="amount-asc">Lowest Amount</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          {rejectedPOs.length} PO(s) rejected and need revision
+                        </p>
+                        <div className="space-y-3">
+                          {rejectedPOs.map((mrf) => (
+                            <Card
+                              key={mrf.id}
+                              className="bg-card border-destructive/50"
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex flex-col gap-3">
+                                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <h4 className="font-semibold">
+                                          {mrf.title}
+                                        </h4>
+                                        <Badge variant="destructive">
+                                          Rejected
+                                        </Badge>
+                                        <Badge variant="outline">
+                                          {mrf.poNumber}
+                                        </Badge>
+                                        {mrf.poVersion && (
+                                          <Badge
+                                            variant="secondary"
+                                            className="text-xs"
+                                          >
+                                            v{mrf.poVersion}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <div className="text-sm text-muted-foreground space-y-1">
+                                        <p>
+                                          MRF ID:{" "}
+                                          <span className="font-medium">
+                                            {mrf.id}
+                                          </span>
+                                        </p>
+                                        <p>Requester: {mrf.requester}</p>
+                                        <p>
+                                          Amount:{" "}
+                                          <span className="font-semibold">
+                                            ₦
+                                            {parseInt(
+                                              mrf.estimatedCost,
+                                            ).toLocaleString()}
+                                          </span>
+                                        </p>
+                                      </div>
+                                    </div>
+                                    {/* Regenerate PO button - Only for Procurement Managers */}
+                                    {(user?.role === "procurement" ||
+                                      user?.role === "procurement_manager") && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleGeneratePO(mrf)}
+                                      >
+                                        <FileText className="h-4 w-4 mr-2" />
+                                        Regenerate PO
+                                      </Button>
+                                    )}
+                                  </div>
+
+                                  {/* Rejection Details */}
+                                  <div className="p-3 bg-destructive/10 rounded-md">
+                                    <p className="text-xs font-semibold text-destructive mb-1">
+                                      Rejection Reason:
+                                    </p>
+                                    <p className="text-sm text-foreground">
+                                      {mrf.poRejectionReason}
+                                    </p>
+                                    {mrf.supplyChainComments && (
+                                      <>
+                                        <p className="text-xs font-semibold text-muted-foreground mt-2 mb-1">
+                                          Additional Comments:
+                                        </p>
+                                        <p className="text-sm text-foreground">
+                                          {mrf.supplyChainComments}
+                                        </p>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  {/* Invoice/PFI Access */}
+                                  {getMRFPFIUrl(mrf as MRF) && (
+                                    <div className="flex flex-col gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg mt-3">
+                                      <div className="flex items-center gap-2">
+                                        <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                        <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                                          Supporting Document Submitted by Staff
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() =>
+                                            handleDownloadPFI(mrf as MRF)
+                                          }
+                                          className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
+                                        >
+                                          <Download className="h-4 w-4 mr-2" />
+                                          View Invoice
+                                        </Button>
+                                        {(() => {
+                                          const docUrl = getMRFPFIUrl(
+                                            mrf as MRF,
+                                          );
+                                          const shareUrl =
+                                            (mrf as any).invoice_onedrive_url ||
+                                            (mrf as any).invoiceOneDriveUrl ||
+                                            mrf.pfi_share_url ||
+                                            mrf.pfiShareUrl;
+                                          return (
+                                            shareUrl && (
+                                              <OneDriveLink
+                                                webUrl={shareUrl}
+                                                fileName="Supporting Document"
+                                                variant="badge"
+                                              />
+                                            )
+                                          );
+                                        })()}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
                         </div>
                       </div>
-                    }
-                  />
+                    )}
 
-                  {/* Results */}
-                  <div className="space-y-3 mt-4">
-                    {filteredMRFs.map((request) => {
-                      const timerColor = getApprovalTimerColor(request);
-                      return (
-                        <div
-                          key={request.id}
-                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
-                          onClick={() => handleMRFClick(request)}
-                        >
-                          <div className="flex items-start gap-4 min-w-0 flex-1">
-                            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <Package className="h-6 w-6 text-primary" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-lg">{request.title}</h3>
-                                {request.isResubmission && (
-                                  <Badge variant="outline" className="text-xs">
-                                    Resubmission
-                                  </Badge>
-                                )}
+                  <div className="space-y-4">
+                    <FilterBar
+                      searchQuery={searchQuery}
+                      onSearchChange={setSearchQuery}
+                      statusFilter={statusFilter}
+                      onStatusFilterChange={setStatusFilter}
+                      statusOptions={statusOptions}
+                      placeholder="Search by title, ID, or requester..."
+                      activeFiltersCount={activeFiltersCount}
+                      onClearFilters={() => {
+                        setStatusFilter("all");
+                        setDateFilter("all");
+                      }}
+                      additionalFilters={
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">
+                              Date Range
+                            </label>
+                            <Select
+                              value={dateFilter}
+                              onValueChange={setDateFilter}
+                            >
+                              <SelectTrigger>
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4" />
+                                  <SelectValue />
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Time</SelectItem>
+                                <SelectItem value="today">Today</SelectItem>
+                                <SelectItem value="week">This Week</SelectItem>
+                                <SelectItem value="month">
+                                  This Month
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">
+                              Sort By
+                            </label>
+                            <Select value={sortBy} onValueChange={setSortBy}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="date-desc">
+                                  Newest First
+                                </SelectItem>
+                                <SelectItem value="date-asc">
+                                  Oldest First
+                                </SelectItem>
+                                <SelectItem value="amount-desc">
+                                  Highest Amount
+                                </SelectItem>
+                                <SelectItem value="amount-asc">
+                                  Lowest Amount
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      }
+                    />
+
+                    {/* Results */}
+                    <div className="space-y-3 mt-4">
+                      {filteredMRFs.map((request) => {
+                        const timerColor = getApprovalTimerColor(request);
+                        return (
+                          <div
+                            key={request.id}
+                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
+                            onClick={() => handleMRFClick(request)}
+                          >
+                            <div className="flex items-start gap-4 min-w-0 flex-1">
+                              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                                <Package className="h-6 w-6 text-primary" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-semibold text-lg">
+                                    {request.title}
+                                  </h3>
+                                  {request.isResubmission && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
+                                      Resubmission
+                                    </Badge>
+                                  )}
                                   {/* Executive Approval Indicator */}
                                   {(() => {
-                                    const executiveApproved = (request as any).executiveApproved ||
+                                    const executiveApproved =
+                                      (request as any).executiveApproved ||
                                       (request as any).executive_approved ||
                                       isExecutiveApproved(request as MRF);
                                     if (executiveApproved) {
@@ -1539,54 +1854,77 @@ const Procurement = () => {
                                     }
                                     return null;
                                   })()}
-                                   {/* SCD Approval Badge */}
-                                   {(() => {
-                                     const m = request as any;
-                                     // Show SCD badge for:
-                                     // 1. Explicit SCD approval fields from backend
-                                     // 2. Last action was by supply_chain_director
-                                     // 3. At procurement_review stage with any SCD approval (initial approval)
-                                     // 4. At later stages that indicate SCD approval (final approval like invoice_approved)
-                                     const stage = getMRFStage(request as MRF);
-                                     const workflowState = getWorkflowState(request as MRF);
-                                     
-                                     const scdApproved = 
-                                       m.scd_approved || m.scdApproved || 
-                                       m.director_approved || m.directorApproved || 
-                                       m.supply_chain_approved || m.supplyChainApproved || 
-                                       m.last_action_by_role === 'supply_chain_director' ||
-                                       (stage === "procurement" || stage === "procurement_review") && isSupplyChainDirectorInitialApproved(request as MRF) ||
-                                       isSupplyChainApproved(request as MRF);
-                                     
-                                     if (scdApproved) {
-                                       return (
-                                         <Badge className="bg-purple-500 text-white hover:bg-purple-600">
-                                           <CheckCircle2 className="h-3 w-3 mr-1" />
-                                           SCD Approved
-                                         </Badge>
-                                       );
-                                     }
-                                     return null;
-                                   })()}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
-                                <span className="font-medium">{request.id}</span>
-                                <span>•</span>
-                                <span>{request.requester}</span>
-                                <span>•</span>
-                                  <span>{formatDateLagos(getMRFDate(request), { includeTime: false, format: 'medium' })}</span>
-                                <span>•</span>
-                                <span className="font-semibold text-foreground">
-                                  {parseFloat(request.estimatedCost || '0') > 0 
-                                    ? `₦${parseInt(request.estimatedCost).toLocaleString()}`
-                                    : '-'}
-                                </span>
-                              </div>
-                              {request.currentStage && (
-                                <p className="text-xs text-muted-foreground">
-                                  Stage: <span className="font-medium">{getPrettyMRFStageLabel(request.currentStage)}</span>
-                                </p>
-                              )}
+                                  {/* SCD Approval Badge */}
+                                  {(() => {
+                                    const m = request as any;
+                                    // Show SCD badge for:
+                                    // 1. Explicit SCD approval fields from backend
+                                    // 2. Last action was by supply_chain_director
+                                    // 3. At procurement_review stage with any SCD approval (initial approval)
+                                    // 4. At later stages that indicate SCD approval (final approval like invoice_approved)
+                                    const stage = getMRFStage(request as MRF);
+                                    const workflowState = getWorkflowState(
+                                      request as MRF,
+                                    );
+
+                                    const scdApproved =
+                                      m.scd_approved ||
+                                      m.scdApproved ||
+                                      m.director_approved ||
+                                      m.directorApproved ||
+                                      m.supply_chain_approved ||
+                                      m.supplyChainApproved ||
+                                      m.last_action_by_role ===
+                                        "supply_chain_director" ||
+                                      ((stage === "procurement" ||
+                                        stage === "procurement_review") &&
+                                        isSupplyChainDirectorInitialApproved(
+                                          request as MRF,
+                                        )) ||
+                                      isSupplyChainApproved(request as MRF);
+
+                                    if (scdApproved) {
+                                      return (
+                                        <Badge className="bg-purple-500 text-white hover:bg-purple-600">
+                                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                                          SCD Approved
+                                        </Badge>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
+                                  <span className="font-medium">
+                                    {request.id}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{request.requester}</span>
+                                  <span>•</span>
+                                  <span>
+                                    {formatDateLagos(getMRFDate(request), {
+                                      includeTime: false,
+                                      format: "medium",
+                                    })}
+                                  </span>
+                                  <span>•</span>
+                                  <span className="font-semibold text-foreground">
+                                    {parseFloat(request.estimatedCost || "0") >
+                                    0
+                                      ? `₦${parseInt(request.estimatedCost).toLocaleString()}`
+                                      : "-"}
+                                  </span>
+                                </div>
+                                {request.currentStage && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Stage:{" "}
+                                    <span className="font-medium">
+                                      {getPrettyMRFStageLabel(
+                                        request.currentStage,
+                                      )}
+                                    </span>
+                                  </p>
+                                )}
                                 {/* Invoice/PFI Access */}
                                 {getMRFPFIUrl(request as MRF) && (
                                   <div className="mt-2 flex items-center gap-2 flex-wrap">
@@ -1603,26 +1941,32 @@ const Procurement = () => {
                                       View Invoice
                                     </Button>
                                     {(() => {
-                                      const shareUrl = (request as any).invoice_onedrive_url ||
+                                      const shareUrl =
+                                        (request as any).invoice_onedrive_url ||
                                         (request as any).invoiceOneDriveUrl ||
                                         (request as MRF).pfi_share_url ||
                                         (request as MRF).pfiShareUrl;
-                                      return shareUrl && (
-                                        <OneDriveLink
-                                          webUrl={shareUrl}
-                                          fileName="Supporting Document"
-                                          variant="badge"
-                                          size="sm"
-                                        />
+                                      return (
+                                        shareUrl && (
+                                          <OneDriveLink
+                                            webUrl={shareUrl}
+                                            fileName="Supporting Document"
+                                            variant="badge"
+                                            size="sm"
+                                          />
+                                        )
                                       );
                                     })()}
                                   </div>
                                 )}
                                 {/* Quotations Section - Show if RFQ exists and has quotations */}
                                 {(() => {
-                                  const mrfQuotations = getQuotationsForMRF(request.id);
+                                  const mrfQuotations = getQuotationsForMRF(
+                                    request.id,
+                                  );
                                   const rfq = getRFQForMRF(request.id);
-                                  if (!rfq || mrfQuotations.length === 0) return null;
+                                  if (!rfq || mrfQuotations.length === 0)
+                                    return null;
 
                                   return (
                                     <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
@@ -1630,7 +1974,8 @@ const Procurement = () => {
                                         <div className="flex items-center gap-2">
                                           <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                           <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                                            Vendor Quotations ({mrfQuotations.length})
+                                            Vendor Quotations (
+                                            {mrfQuotations.length})
                                           </span>
                                         </div>
                                       </div>
@@ -1642,22 +1987,36 @@ const Procurement = () => {
                                             onClick={(e) => e.stopPropagation()}
                                           >
                                             <div className="flex-1">
-                                              <p className="text-sm font-medium">{quotation.vendorName || quotation.vendor_name || 'Vendor'}</p>
+                                              <p className="text-sm font-medium">
+                                                {quotation.vendorName ||
+                                                  quotation.vendor_name ||
+                                                  "Vendor"}
+                                              </p>
                                               <p className="text-xs text-muted-foreground">
-                                                Price: {formatAmount(quotation.total ?? Number(quotation.price), quotation.currency ?? 'NGN')}
-                                                {(quotation.deliveryDate || quotation.delivery_date) && ` • Delivery: ${new Date(quotation.deliveryDate || quotation.delivery_date).toLocaleDateString()}`}
+                                                Price:{" "}
+                                                {formatAmount(
+                                                  quotation.total ??
+                                                    Number(quotation.price),
+                                                  quotation.currency ?? "NGN",
+                                                )}
+                                                {(quotation.deliveryDate ||
+                                                  quotation.delivery_date) &&
+                                                  ` • Delivery: ${new Date(quotation.deliveryDate || quotation.delivery_date).toLocaleDateString()}`}
                                               </p>
                                             </div>
                                             {(() => {
                                               // Gate "Generate PO" strictly on workflow state.
                                               // Initial SCD approval moves MRF to procurement_review (quotation selection).
                                               // Final SCD sign-off / vendor approval moves it to PO generation states.
-                                              const wfState = getWorkflowState(request as MRF);
-                                              const showGeneratePO = (
-                                                wfState === 'invoice_approved' ||
-                                                wfState === 'pending_po_upload' ||
-                                                wfState === 'vendor_approved'
+                                              const wfState = getWorkflowState(
+                                                request as MRF,
                                               );
+                                              const showGeneratePO =
+                                                wfState ===
+                                                  "invoice_approved" ||
+                                                wfState ===
+                                                  "pending_po_upload" ||
+                                                wfState === "vendor_approved";
 
                                               if (showGeneratePO) {
                                                 // Show "Generate PO" button after SCD approval
@@ -1672,78 +2031,193 @@ const Procurement = () => {
                                                       try {
                                                         // Auto-generate PO number: PO-YYYY-MMDD-XXX format
                                                         const now = new Date();
-                                                        const year = now.getFullYear();
-                                                        const month = String(now.getMonth() + 1).padStart(2, '0');
-                                                        const day = String(now.getDate()).padStart(2, '0');
-                                                        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+                                                        const year =
+                                                          now.getFullYear();
+                                                        const month = String(
+                                                          now.getMonth() + 1,
+                                                        ).padStart(2, "0");
+                                                        const day = String(
+                                                          now.getDate(),
+                                                        ).padStart(2, "0");
+                                                        const random =
+                                                          Math.floor(
+                                                            Math.random() *
+                                                              1000,
+                                                          )
+                                                            .toString()
+                                                            .padStart(3, "0");
                                                         const poNumber = `PO-${year}-${month}${day}-${random}`;
 
                                                         // Get approved quotation with items
-                                                        const mrfQuotations = getQuotationsForMRF(request.id);
-                                                        const approvedQuotation = mrfQuotations.find((q: any) => 
-                                                          q.status === 'Approved' || q.status === 'approved' || q.status === 'awarded'
-                                                        );
-                                                        
+                                                        const mrfQuotations =
+                                                          getQuotationsForMRF(
+                                                            request.id,
+                                                          );
+                                                        const approvedQuotation =
+                                                          mrfQuotations.find(
+                                                            (q: any) =>
+                                                              q.status ===
+                                                                "Approved" ||
+                                                              q.status ===
+                                                                "approved" ||
+                                                              q.status ===
+                                                                "awarded",
+                                                          );
+
                                                         // Fetch quotation details with items from API
-                                                        let quotationItems: any[] = [];
+                                                        let quotationItems: any[] =
+                                                          [];
                                                         if (approvedQuotation) {
-                                                          const rfq = getRFQForMRF(request.id);
+                                                          const rfq =
+                                                            getRFQForMRF(
+                                                              request.id,
+                                                            );
                                                           if (rfq) {
                                                             try {
-                                                              const quotationResponse = await rfqApi.getQuotations(rfq.id);
-                                                              if (quotationResponse.success && quotationResponse.data?.quotations) {
-                                                                // Find the approved quotation in the response
-                                                                const fullQuotation = quotationResponse.data.quotations.find(
-                                                                  (item: any) => 
-                                                                    item.quotation?.id === approvedQuotation.id || 
-                                                                    item.quotation?.id === approvedQuotation.quotationId ||
-                                                                    (item.quotation && approvedQuotation.id && item.quotation.id === approvedQuotation.id)
+                                                              const quotationResponse =
+                                                                await rfqApi.getQuotations(
+                                                                  rfq.id,
                                                                 );
-                                                                
+                                                              if (
+                                                                quotationResponse.success &&
+                                                                quotationResponse
+                                                                  .data
+                                                                  ?.quotations
+                                                              ) {
+                                                                // Find the approved quotation in the response
+                                                                const fullQuotation =
+                                                                  quotationResponse.data.quotations.find(
+                                                                    (
+                                                                      item: any,
+                                                                    ) =>
+                                                                      item
+                                                                        .quotation
+                                                                        ?.id ===
+                                                                        approvedQuotation.id ||
+                                                                      item
+                                                                        .quotation
+                                                                        ?.id ===
+                                                                        approvedQuotation.quotationId ||
+                                                                      (item.quotation &&
+                                                                        approvedQuotation.id &&
+                                                                        item
+                                                                          .quotation
+                                                                          .id ===
+                                                                          approvedQuotation.id),
+                                                                  );
+
                                                                 // Extract items from the quotation
-                                                                if (fullQuotation) {
-                                                                  const fqAny = fullQuotation as any;
-                                                                  if (fqAny.items && Array.isArray(fqAny.items) && fqAny.items.length > 0) {
-                                                                    quotationItems = fqAny.items;
-                                                                  } else if (fqAny.quotation?.items && Array.isArray(fqAny.quotation.items) && fqAny.quotation.items.length > 0) {
-                                                                    quotationItems = fqAny.quotation.items;
+                                                                if (
+                                                                  fullQuotation
+                                                                ) {
+                                                                  const fqAny =
+                                                                    fullQuotation as any;
+                                                                  if (
+                                                                    fqAny.items &&
+                                                                    Array.isArray(
+                                                                      fqAny.items,
+                                                                    ) &&
+                                                                    fqAny.items
+                                                                      .length >
+                                                                      0
+                                                                  ) {
+                                                                    quotationItems =
+                                                                      fqAny.items;
+                                                                  } else if (
+                                                                    fqAny
+                                                                      .quotation
+                                                                      ?.items &&
+                                                                    Array.isArray(
+                                                                      fqAny
+                                                                        .quotation
+                                                                        .items,
+                                                                    ) &&
+                                                                    fqAny
+                                                                      .quotation
+                                                                      .items
+                                                                      .length >
+                                                                      0
+                                                                  ) {
+                                                                    quotationItems =
+                                                                      fqAny
+                                                                        .quotation
+                                                                        .items;
                                                                   }
                                                                 }
-                                                                
+
                                                                 // If still no items, try to get from context quotation (cast to any to access items)
-                                                                const quotationWithItems = approvedQuotation as any;
-                                                                if (quotationItems.length === 0 && quotationWithItems.items && Array.isArray(quotationWithItems.items)) {
-                                                                  quotationItems = quotationWithItems.items;
+                                                                const quotationWithItems =
+                                                                  approvedQuotation as any;
+                                                                if (
+                                                                  quotationItems.length ===
+                                                                    0 &&
+                                                                  quotationWithItems.items &&
+                                                                  Array.isArray(
+                                                                    quotationWithItems.items,
+                                                                  )
+                                                                ) {
+                                                                  quotationItems =
+                                                                    quotationWithItems.items;
                                                                 }
                                                               }
                                                             } catch (error) {
-                                                              console.warn('Failed to fetch quotation items:', error);
+                                                              console.warn(
+                                                                "Failed to fetch quotation items:",
+                                                                error,
+                                                              );
                                                               // Fallback to items from context if available
-                                                              const quotationWithItems = approvedQuotation as any;
-                                                              if (quotationWithItems.items && Array.isArray(quotationWithItems.items)) {
-                                                                quotationItems = quotationWithItems.items;
+                                                              const quotationWithItems =
+                                                                approvedQuotation as any;
+                                                              if (
+                                                                quotationWithItems.items &&
+                                                                Array.isArray(
+                                                                  quotationWithItems.items,
+                                                                )
+                                                              ) {
+                                                                quotationItems =
+                                                                  quotationWithItems.items;
                                                               }
                                                             }
                                                           }
                                                         }
-                                                        
+
                                                         // Log items for debugging
-                                                        if (quotationItems.length === 0) {
-                                                          console.warn('No items found for quotation:', {
-                                                            quotationId: approvedQuotation?.id,
-                                                            rfqId: rfq?.id,
-                                                            mrfId: request.id,
-                                                            approvedQuotation: approvedQuotation,
-                                                          });
+                                                        if (
+                                                          quotationItems.length ===
+                                                          0
+                                                        ) {
+                                                          console.warn(
+                                                            "No items found for quotation:",
+                                                            {
+                                                              quotationId:
+                                                                approvedQuotation?.id,
+                                                              rfqId: rfq?.id,
+                                                              mrfId: request.id,
+                                                              approvedQuotation:
+                                                                approvedQuotation,
+                                                            },
+                                                          );
                                                         } else {
-                                                          console.log('Found quotation items:', quotationItems.length, quotationItems);
+                                                          console.log(
+                                                            "Found quotation items:",
+                                                            quotationItems.length,
+                                                            quotationItems,
+                                                          );
                                                         }
 
                                                         // Create PO record - no document generation, just create the PO and move to Purchase Orders
                                                         // Backend will create the PO record with the PO number and update workflow state
                                                         // Include items if available
-                                                        const poResponse = await mrfApi.generatePO(request.id, poNumber, undefined, quotationItems);
-                                                        if (poResponse.success) {
+                                                        const poResponse =
+                                                          await mrfApi.generatePO(
+                                                            request.id,
+                                                            poNumber,
+                                                            undefined,
+                                                            quotationItems,
+                                                          );
+                                                        if (
+                                                          poResponse.success
+                                                        ) {
                                                           toast({
                                                             title: "PO Created",
                                                             description: `Purchase Order ${poNumber} has been created and added to Purchase Orders.`,
@@ -1755,21 +2229,37 @@ const Procurement = () => {
                                                           await fetchQuotations();
                                                         } else {
                                                           // Show detailed error message from backend
-                                                          const errorMessage = poResponse.error || "Failed to create PO";
-                                                          console.error('PO creation error:', errorMessage);
+                                                          const errorMessage =
+                                                            poResponse.error ||
+                                                            "Failed to create PO";
+                                                          console.error(
+                                                            "PO creation error:",
+                                                            errorMessage,
+                                                          );
                                                           toast({
-                                                            title: "Error Creating PO",
-                                                            description: errorMessage,
-                                                            variant: "destructive",
+                                                            title:
+                                                              "Error Creating PO",
+                                                            description:
+                                                              errorMessage,
+                                                            variant:
+                                                              "destructive",
                                                           });
                                                         }
                                                       } catch (error) {
-                                                        console.error('PO creation exception:', error);
-                                                        const errorMessage = error instanceof Error ? error.message : "Failed to create PO";
+                                                        console.error(
+                                                          "PO creation exception:",
+                                                          error,
+                                                        );
+                                                        const errorMessage =
+                                                          error instanceof Error
+                                                            ? error.message
+                                                            : "Failed to create PO";
                                                         toast({
                                                           title: "Error",
-                                                          description: errorMessage,
-                                                          variant: "destructive",
+                                                          description:
+                                                            errorMessage,
+                                                          variant:
+                                                            "destructive",
                                                         });
                                                       }
                                                     }}
@@ -1789,53 +2279,91 @@ const Procurement = () => {
                                                       // Select quotation and send to Supply Chain Director
                                                       try {
                                                         // First select vendor in RFQ
-                                                        const selectResponse = await rfqApi.selectVendor(rfq.id, quotation.id);
-                                                        if (selectResponse.success) {
-                                                          // Then send to Supply Chain Director
-                                                          const sendResponse = await mrfApi.sendVendorForApproval(
-                                                            request.id,
-                                                            quotation.vendorId || quotation.vendor_id,
-                                                            quotation.id
+                                                        const selectResponse =
+                                                          await rfqApi.selectVendor(
+                                                            rfq.id,
+                                                            quotation.id,
                                                           );
-                                                          if (sendResponse.success) {
+                                                        if (
+                                                          selectResponse.success
+                                                        ) {
+                                                          // Then send to Supply Chain Director
+                                                          const sendResponse =
+                                                            await mrfApi.sendVendorForApproval(
+                                                              request.id,
+                                                              quotation.vendorId ||
+                                                                quotation.vendor_id,
+                                                              quotation.id,
+                                                            );
+                                                          if (
+                                                            sendResponse.success
+                                                          ) {
                                                             toast({
-                                                              title: "Quotation Selected",
-                                                              description: "Vendor quotation has been selected and sent to Supply Chain Director for approval.",
+                                                              title:
+                                                                "Quotation Selected",
+                                                              description:
+                                                                "Vendor quotation has been selected and sent to Supply Chain Director for approval.",
                                                             });
                                                             await fetchMRFs();
                                                             await fetchRFQs();
                                                             await fetchQuotations();
                                                           } else {
                                                             // Enhanced error handling
-                                                            let errorMessage = sendResponse.error || "Failed to send quotation for approval";
-                                                            const isEmerald = isEmeraldContract(request as MRF);
+                                                            let errorMessage =
+                                                              sendResponse.error ||
+                                                              "Failed to send quotation for approval";
+                                                            const isEmerald =
+                                                              isEmeraldContract(
+                                                                request as MRF,
+                                                              );
 
-                                                            if (errorMessage.includes("workflow state") || errorMessage.includes("not in")) {
-                                                              errorMessage = "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
-                                                            } else if (errorMessage.includes("executive approval")) {
-                                                              errorMessage = isEmerald
-                                                                ? "Executive approval is required before sending vendor for Supply Chain Director approval."
-                                                                : "Supply Chain Director first approval is required before sending vendor for final approval.";
+                                                            if (
+                                                              errorMessage.includes(
+                                                                "workflow state",
+                                                              ) ||
+                                                              errorMessage.includes(
+                                                                "not in",
+                                                              )
+                                                            ) {
+                                                              errorMessage =
+                                                                "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
+                                                            } else if (
+                                                              errorMessage.includes(
+                                                                "executive approval",
+                                                              )
+                                                            ) {
+                                                              errorMessage =
+                                                                isEmerald
+                                                                  ? "Executive approval is required before sending vendor for Supply Chain Director approval."
+                                                                  : "Supply Chain Director first approval is required before sending vendor for final approval.";
                                                             }
 
                                                             toast({
-                                                              title: "Approval Request Failed",
-                                                              description: errorMessage,
-                                                              variant: "destructive",
+                                                              title:
+                                                                "Approval Request Failed",
+                                                              description:
+                                                                errorMessage,
+                                                              variant:
+                                                                "destructive",
                                                             });
                                                           }
                                                         } else {
                                                           toast({
                                                             title: "Error",
-                                                            description: selectResponse.error || "Failed to select quotation",
-                                                            variant: "destructive",
+                                                            description:
+                                                              selectResponse.error ||
+                                                              "Failed to select quotation",
+                                                            variant:
+                                                              "destructive",
                                                           });
                                                         }
                                                       } catch (error) {
                                                         toast({
                                                           title: "Error",
-                                                          description: "Failed to process quotation selection",
-                                                          variant: "destructive",
+                                                          description:
+                                                            "Failed to process quotation selection",
+                                                          variant:
+                                                            "destructive",
                                                         });
                                                       }
                                                     }}
@@ -1851,29 +2379,46 @@ const Procurement = () => {
                                     </div>
                                   );
                                 })()}
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-center">
-                            <div className="flex items-center gap-2">
-                              {timerColor && (
-                                <span className="flex items-center gap-1">
-                                  <Clock className={`h-4 w-4 ${timerColor}`} />
-                                  {getElapsedTimeText(request) && (
-                                    <span className={`text-xs font-medium ${timerColor}`}>{getElapsedTimeText(request)}</span>
-                                  )}
-                                </span>
-                              )}
-                              {getMRFStage(request as MRF) === "completed" && <CheckCircle2 className="h-5 w-5 text-success" />}
-                              {getMRFStage(request as MRF) === "rejected" && <XCircle className="h-5 w-5 text-destructive" />}
-                              <Badge className={getStatusColor(request.status)}>
-                                {request.status}
-                              </Badge>
-                            </div>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-center">
+                              <div className="flex items-center gap-2">
+                                {timerColor && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock
+                                      className={`h-4 w-4 ${timerColor}`}
+                                    />
+                                    {getElapsedTimeText(request) && (
+                                      <span
+                                        className={`text-xs font-medium ${timerColor}`}
+                                      >
+                                        {getElapsedTimeText(request)}
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
+                                {getMRFStage(request as MRF) ===
+                                  "completed" && (
+                                  <CheckCircle2 className="h-5 w-5 text-success" />
+                                )}
+                                {getMRFStage(request as MRF) === "rejected" && (
+                                  <XCircle className="h-5 w-5 text-destructive" />
+                                )}
+                                <Badge
+                                  className={getStatusColor(request.status)}
+                                >
+                                  {request.status}
+                                </Badge>
+                              </div>
                               <div className="flex items-center gap-2">
                                 {/* View Details button - Shown for procurement after the FIRST required approval */}
                                 {(() => {
-                                  const workflowState = getWorkflowState(request as MRF);
-                                  const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager";
+                                  const workflowState = getWorkflowState(
+                                    request as MRF,
+                                  );
+                                  const isProcurement =
+                                    user?.role === "procurement" ||
+                                    user?.role === "procurement_manager";
                                   const canViewDetails = isProcurement;
 
                                   if (canViewDetails) {
@@ -1884,18 +2429,29 @@ const Procurement = () => {
                                         className="text-xs"
                                         onClick={async (e) => {
                                           e.stopPropagation();
-                                          setSelectedMRFForDetails(request as MRF);
+                                          setSelectedMRFForDetails(
+                                            request as MRF,
+                                          );
                                           setMrfDetailsDialogOpen(true);
 
                                           // Fetch full details
                                           setLoadingFullDetails(true);
                                           try {
-                                            const response = await mrfApi.getFullDetails(request.id);
-                                            if (response.success && response.data) {
+                                            const response =
+                                              await mrfApi.getFullDetails(
+                                                request.id,
+                                              );
+                                            if (
+                                              response.success &&
+                                              response.data
+                                            ) {
                                               setMrfFullDetails(response.data);
                                             }
                                           } catch (error) {
-                                            console.error('Failed to fetch full details:', error);
+                                            console.error(
+                                              "Failed to fetch full details:",
+                                              error,
+                                            );
                                           } finally {
                                             setLoadingFullDetails(false);
                                           }
@@ -1910,9 +2466,14 @@ const Procurement = () => {
                                 })()}
                                 {/* Upload PO button - Shown when status is pending_po_upload */}
                                 {(() => {
-                                  const workflowState = getWorkflowState(request as MRF);
-                                  const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager";
-                                  const isPendingPOUpload = workflowState === "pending_po_upload";
+                                  const workflowState = getWorkflowState(
+                                    request as MRF,
+                                  );
+                                  const isProcurement =
+                                    user?.role === "procurement" ||
+                                    user?.role === "procurement_manager";
+                                  const isPendingPOUpload =
+                                    workflowState === "pending_po_upload";
 
                                   if (isProcurement && isPendingPOUpload) {
                                     return (
@@ -1922,7 +2483,9 @@ const Procurement = () => {
                                         className="text-xs bg-primary hover:bg-primary/90"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setSelectedMRFForPO(convertToMRFRequest(request as MRF));
+                                          setSelectedMRFForPO(
+                                            convertToMRFRequest(request as MRF),
+                                          );
                                           setPODialogOpen(true);
                                         }}
                                       >
@@ -1937,57 +2500,88 @@ const Procurement = () => {
                                 {/* The handleGeneratePO function checks canGeneratePO before proceeding */}
                                 {(() => {
                                   if (import.meta.env.DEV) {
-                                    console.log('[Procurement.SendRFQButton:inputs]', {
-                                      mrfId: request.id,
-                                      contract_type: (request as any).contract_type ?? (request as any).contractType,
-                                      stage: getMRFStage(request as MRF),
-                                      status: request.status,
-                                      workflowState: getWorkflowState(request as MRF),
-                                      isInitialApprovalApproved: isInitialApprovalApproved(request as MRF),
-                                      isSupplyChainApproved: isSupplyChainApproved(request as MRF),
-                                      isSupplyChainDirectorInitialApproved: isSupplyChainDirectorInitialApproved(request as MRF),
-                                    });
+                                    console.log(
+                                      "[Procurement.SendRFQButton:inputs]",
+                                      {
+                                        mrfId: request.id,
+                                        contract_type:
+                                          (request as any).contract_type ??
+                                          (request as any).contractType,
+                                        stage: getMRFStage(request as MRF),
+                                        status: request.status,
+                                        workflowState: getWorkflowState(
+                                          request as MRF,
+                                        ),
+                                        isInitialApprovalApproved:
+                                          isInitialApprovalApproved(
+                                            request as MRF,
+                                          ),
+                                        isSupplyChainApproved:
+                                          isSupplyChainApproved(request as MRF),
+                                        isSupplyChainDirectorInitialApproved:
+                                          isSupplyChainDirectorInitialApproved(
+                                            request as MRF,
+                                          ),
+                                      },
+                                    );
                                   }
-                                  const workflowState = getWorkflowState(request as MRF);
-                                  const isProcurement = user?.role === "procurement" || user?.role === "procurement_manager";
-                                  const isPendingPOUpload = workflowState === "pending_po_upload";
-                                  const hasInitialApproval = isInitialApprovalApproved(request as MRF) || isSupplyChainApproved(request as MRF);
-                                  const canShowPOButton = isProcurement && !isPendingPOUpload && hasInitialApproval && (
-                                    workflowState === "procurement_review" ||
-                                    workflowState === "supply_chain_director_approved" ||
-                                    workflowState === "vendor_selected" ||
-                                    workflowState === "invoice_received" ||
-                                    workflowState === "invoice_approved" ||
-                                    (getMRFStage(request as MRF) === "procurement" && hasInitialApproval)
+                                  const workflowState = getWorkflowState(
+                                    request as MRF,
                                   );
+                                  const isProcurement =
+                                    user?.role === "procurement" ||
+                                    user?.role === "procurement_manager";
+                                  const isPendingPOUpload =
+                                    workflowState === "pending_po_upload";
+                                  const hasInitialApproval =
+                                    isInitialApprovalApproved(request as MRF) ||
+                                    isSupplyChainApproved(request as MRF);
+                                  const canShowPOButton =
+                                    isProcurement &&
+                                    !isPendingPOUpload &&
+                                    hasInitialApproval &&
+                                    (workflowState === "procurement_review" ||
+                                      workflowState ===
+                                        "supply_chain_director_approved" ||
+                                      workflowState === "vendor_selected" ||
+                                      workflowState === "invoice_received" ||
+                                      workflowState === "invoice_approved" ||
+                                      (getMRFStage(request as MRF) ===
+                                        "procurement" &&
+                                        hasInitialApproval));
 
                                   if (import.meta.env.DEV) {
-                                    console.log('[Procurement.SendRFQButton:decision]', {
-                                      mrfId: request.id,
-                                      isProcurement,
-                                      isPendingPOUpload,
-                                      hasInitialApproval,
-                                      canShowPOButton,
-                                    });
+                                    console.log(
+                                      "[Procurement.SendRFQButton:decision]",
+                                      {
+                                        mrfId: request.id,
+                                        isProcurement,
+                                        isPendingPOUpload,
+                                        hasInitialApproval,
+                                        canShowPOButton,
+                                      },
+                                    );
                                   }
 
                                   if (!canShowPOButton) return null;
 
                                   // Check if RFQ already exists for this MRF
                                   const existingRFQ = getRFQForMRF(request.id);
-                                  const buttonText = existingRFQ ? "Send RFQ to Vendors Again" : "Send RFQ to Vendors";
+                                  const buttonText = existingRFQ
+                                    ? "Send RFQ to Vendors Again"
+                                    : "Send RFQ to Vendors";
 
                                   return (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                className="text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleGeneratePO(request);
-                                }}
-                              >
-                                <ShoppingCart className="h-3 w-3 mr-1" />
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      className="text-xs"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleGeneratePO(request);
+                                      }}
+                                    >
+                                      <ShoppingCart className="h-3 w-3 mr-1" />
                                       {buttonText}
                                     </Button>
                                   );
@@ -2008,7 +2602,8 @@ const Procurement = () => {
                                       Download PO
                                     </Button>
                                     {/* Delete PO button - only for procurement managers */}
-                                    {(user?.role === 'procurement_manager' || user?.role === 'procurement') && (
+                                    {(user?.role === "procurement_manager" ||
+                                      user?.role === "procurement") && (
                                       <Button
                                         size="sm"
                                         variant="ghost"
@@ -2020,28 +2615,36 @@ const Procurement = () => {
                                       >
                                         <Trash2 className="h-3 w-3 mr-1" />
                                         Delete PO
-                              </Button>
-                            )}
+                                      </Button>
+                                    )}
                                   </>
                                 )}
                                 {/* Allow delete for procurement managers - MRFs without PO and in early stages */}
                                 {(() => {
-                                  const isProcurementManager = user?.role === 'procurement_manager' || user?.role === 'procurement';
+                                  const isProcurementManager =
+                                    user?.role === "procurement_manager" ||
+                                    user?.role === "procurement";
                                   if (!isProcurementManager) return null;
 
-                                  const status = (request.status || "").toLowerCase();
-                                  const currentStage = (request.currentStage || "").toLowerCase();
-                                  const poNumber = getMRFPONumber(request as MRF);
-                                  const hasPO = poNumber && poNumber !== "N/A";
-                                  const isEarlyStage = !hasPO && (
-                                    status === "pending" ||
-                                    status.includes("rejected") ||
-                                    status === "procurement" ||
-                                    status === "executive_review" ||
-                                    status === "chairman_review" ||
-                                    currentStage === "pending" ||
-                                    currentStage === "procurement"
+                                  const status = (
+                                    request.status || ""
+                                  ).toLowerCase();
+                                  const currentStage = (
+                                    request.currentStage || ""
+                                  ).toLowerCase();
+                                  const poNumber = getMRFPONumber(
+                                    request as MRF,
                                   );
+                                  const hasPO = poNumber && poNumber !== "N/A";
+                                  const isEarlyStage =
+                                    !hasPO &&
+                                    (status === "pending" ||
+                                      status.includes("rejected") ||
+                                      status === "procurement" ||
+                                      status === "executive_review" ||
+                                      status === "chairman_review" ||
+                                      currentStage === "pending" ||
+                                      currentStage === "procurement");
 
                                   if (!isEarlyStage) return null;
 
@@ -2061,232 +2664,286 @@ const Procurement = () => {
                                   );
                                 })()}
                               </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* All MRFs Tab - Read-only view of every MRF */}
+            <TabsContent value="all-mrfs" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Material Request Forms</CardTitle>
+                  <CardDescription>
+                    Complete list of all MRFs across all stages
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {mrfLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : mrfRequests.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                      <p>No MRFs found</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {mrfRequests.map((mrf) => {
+                        const cost = parseFloat(getMRFEstimatedCost(mrf));
+                        return (
+                          <Card
+                            key={mrf.id}
+                            className="hover:shadow-md transition-shadow"
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="font-semibold truncate">
+                                      {mrf.title}
+                                    </h3>
+                                    {((mrf as any).executive_approved ||
+                                      (mrf as any).executiveApproved) && (
+                                      <Badge className="bg-green-500 text-white hover:bg-green-600">
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Executive Approved
+                                      </Badge>
+                                    )}
+                                    {(() => {
+                                      const m = mrf as any;
+                                      const scdApproved =
+                                        m.scd_approved ||
+                                        m.scdApproved ||
+                                        m.director_approved ||
+                                        m.directorApproved ||
+                                        m.supply_chain_approved ||
+                                        m.supplyChainApproved ||
+                                        m.last_action_by_role ===
+                                          "supply_chain_director" ||
+                                        isSupplyChainApproved(mrf as MRF);
+                                      if (scdApproved) {
+                                        return (
+                                          <Badge className="bg-purple-500 text-white hover:bg-purple-600">
+                                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                                            SCD Approved
+                                          </Badge>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">
+                                    {mrf.id} • {getMRFRequester(mrf)} •{" "}
+                                    {mrf.department || "N/A"}
+                                  </p>
+                                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                                    <span className="text-xs text-muted-foreground">
+                                      {formatDateLagos(getMRFDate(mrf), {
+                                        includeTime: false,
+                                        format: "medium",
+                                      })}
+                                    </span>
+                                    <span className="text-xs font-medium">
+                                      {cost > 0
+                                        ? `₦${cost.toLocaleString()}`
+                                        : "-"}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      Contract:{" "}
+                                      {getMRFContractType(mrf) || "N/A"}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge className={getStatusColor(mrf.status)}>
+                                    {mrf.status}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="srf" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <CardTitle>Service Request Forms</CardTitle>
+                      <CardDescription>
+                        List of all service requisition requests
+                      </CardDescription>
+                    </div>
+                    {/* Only employees can create SRF */}
+                    {(user?.role === "employee" ||
+                      user?.role === "general_employee") && (
+                      <Button
+                        onClick={() => navigate("/procurement/srf/new")}
+                        size="sm"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        New SRF
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {srfRequests.map((request) => (
+                      <div
+                        key={request.id}
+                        className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                            <FileText className="h-6 w-6 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-lg">
+                              {request.title}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {request.id} • {request.requester} •{" "}
+                              {request.date}
+                            </p>
                           </div>
                         </div>
-                      );
-                    })}
+                        <Badge className={getStatusColor(request.status)}>
+                          {request.status}
+                        </Badge>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          {/* All MRFs Tab - Read-only view of every MRF */}
-          <TabsContent value="all-mrfs" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Material Request Forms</CardTitle>
-                <CardDescription>Complete list of all MRFs across all stages</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {mrfLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-                ) : mrfRequests.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                    <p>No MRFs found</p>
-                  </div>
-                ) : (
+            <TabsContent value="po" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Purchase Orders</CardTitle>
+                  <CardDescription>List of all purchase orders</CardDescription>
+                </CardHeader>
+                <CardContent>
                   <div className="space-y-3">
-                    {mrfRequests.map((mrf) => {
-                      const cost = parseFloat(getMRFEstimatedCost(mrf));
-                      return (
-                        <Card key={mrf.id} className="hover:shadow-md transition-shadow">
-                          <CardContent className="p-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h3 className="font-semibold truncate">{mrf.title}</h3>
-                                  {((mrf as any).executive_approved || (mrf as any).executiveApproved) && (
-                                    <Badge className="bg-green-500 text-white hover:bg-green-600">
-                                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                                      Executive Approved
-                                    </Badge>
-                                  )}
-                                   {(() => {
-                                     const m = mrf as any;
-                                     const scdApproved = m.scd_approved || m.scdApproved || m.director_approved || m.directorApproved || m.supply_chain_approved || m.supplyChainApproved || m.last_action_by_role === 'supply_chain_director' || isSupplyChainApproved(mrf as MRF);
-                                     if (scdApproved) {
-                                       return (
-                                         <Badge className="bg-purple-500 text-white hover:bg-purple-600">
-                                           <CheckCircle2 className="h-3 w-3 mr-1" />
-                                           SCD Approved
-                                         </Badge>
-                                       );
-                                     }
-                                     return null;
-                                   })()}
-                                </div>
-                                <p className="text-sm text-muted-foreground">
-                                  {mrf.id} • {getMRFRequester(mrf)} • {mrf.department || "N/A"}
-                                </p>
-                                <div className="flex flex-wrap items-center gap-2 mt-1">
-                                  <span className="text-xs text-muted-foreground">
-                                    {formatDateLagos(getMRFDate(mrf), { includeTime: false, format: 'medium' })}
-                                  </span>
-                                  <span className="text-xs font-medium">
-                                    {cost > 0 ? `₦${cost.toLocaleString()}` : '-'}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">
-                                    Contract: {getMRFContractType(mrf) || "N/A"}
-                                  </span>
-                                </div>
+                    {mrfRequests
+                      .filter((mrf) => {
+                        // Show MRFs that have PO numbers (POs have been generated)
+                        return getMRFPONumber(mrf as MRF);
+                      })
+                      .map((mrf) => {
+                        const poNumber = getMRFPONumber(mrf as MRF);
+                        const quotation = getQuotationsForMRF(mrf.id).find(
+                          (q: any) =>
+                            q.status === "Approved" ||
+                            q.status === "approved" ||
+                            q.status === "awarded",
+                        );
+                        const vendorName =
+                          quotation?.vendorName ||
+                          (mrf as any).selectedVendorName ||
+                          (mrf as any).vendor_name ||
+                          "N/A";
+                        const amount = quotation
+                          ? quotation.total_amount ||
+                            quotation.totalAmount ||
+                            quotation.price ||
+                            "0"
+                          : getMRFEstimatedCost(mrf as MRF);
+                        const unsignedPOUrl =
+                          getMRFPOUrl(mrf as MRF) ||
+                          getMRFPOShareUrl(mrf as MRF) ||
+                          (mrf as any).unsigned_po_url ||
+                          (mrf as any).unsignedPOShareUrl ||
+                          null;
+                        const workflowState =
+                          (mrf as any).workflow_state ||
+                          mrf.status ||
+                          "Pending";
+
+                        return (
+                          <div
+                            key={mrf.id}
+                            className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card"
+                          >
+                            <div className="flex items-center gap-4 flex-1">
+                              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                                <ShoppingCart className="h-6 w-6 text-primary" />
                               </div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
+                              <div className="flex-1">
+                                <p className="font-semibold text-lg">
+                                  {mrf.title}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  PO: {poNumber} • MRF: {mrf.id} • Vendor:{" "}
+                                  {vendorName}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Amount: ₦{parseFloat(amount).toLocaleString()}{" "}
+                                  • Status: {workflowState} • Date:{" "}
+                                  {formatMRFDate(getMRFDate(mrf as MRF))}
+                                </p>
                               </div>
                             </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="srf" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
-                    <CardTitle>Service Request Forms</CardTitle>
-                    <CardDescription>List of all service requisition requests</CardDescription>
-                  </div>
-                    {/* Only employees can create SRF */}
-                    {(user?.role === "employee" || user?.role === "general_employee") && (
-                  <Button onClick={() => navigate("/procurement/srf/new")} size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    New SRF
-                  </Button>
-                    )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {srfRequests.map((request) => (
-                    <div
-                      key={request.id}
-                      className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                          <FileText className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-lg">{request.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {request.id} • {request.requester} • {request.date}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge className={getStatusColor(request.status)}>
-                        {request.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="po" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Purchase Orders</CardTitle>
-                <CardDescription>List of all purchase orders</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                    {mrfRequests.filter(mrf => {
-                      // Show MRFs that have PO numbers (POs have been generated)
-                      return getMRFPONumber(mrf as MRF);
-                    }).map((mrf) => {
-                      const poNumber = getMRFPONumber(mrf as MRF);
-                      const quotation = getQuotationsForMRF(mrf.id).find((q: any) => 
-                        q.status === 'Approved' || q.status === 'approved' || q.status === 'awarded'
-                      );
-                      const vendorName = quotation?.vendorName || 
-                                       (mrf as any).selectedVendorName || 
-                                       (mrf as any).vendor_name || 
-                                       'N/A';
-                      const amount = quotation ? 
-                        (quotation.total_amount || quotation.totalAmount || quotation.price || '0') : 
-                        getMRFEstimatedCost(mrf as MRF);
-                      const unsignedPOUrl = getMRFPOUrl(mrf as MRF) || 
-                                          getMRFPOShareUrl(mrf as MRF) ||
-                                          (mrf as any).unsigned_po_url ||
-                                          (mrf as any).unsignedPOShareUrl ||
-                                          null;
-                      const workflowState = (mrf as any).workflow_state || mrf.status || 'Pending';
-
-                      return (
-                        <div
-                          key={mrf.id}
-                          className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card"
-                        >
-                          <div className="flex items-center gap-4 flex-1">
-                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                          <ShoppingCart className="h-6 w-6 text-primary" />
-                        </div>
-                            <div className="flex-1">
-                              <p className="font-semibold text-lg">{mrf.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                                PO: {poNumber} • MRF: {mrf.id} • Vendor: {vendorName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                                Amount: ₦{parseFloat(amount).toLocaleString()} • 
-                                Status: {workflowState} • 
-                                Date: {formatMRFDate(getMRFDate(mrf as MRF))}
-                          </p>
-                        </div>
-                      </div>
-                          <div className="flex items-center gap-2">
-                            <Badge className={getStatusColor(mrf.status)}>
-                              {workflowState}
-                      </Badge>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedMRFForPODetails(mrf as unknown as MRFRequest);
-                                setPODetailsDialogOpen(true);
-                              }}
-                            >
-                              <FileText className="h-4 w-4 mr-2" />
-                              View Details
-                            </Button>
-                            {unsignedPOUrl && (
+                            <div className="flex items-center gap-2">
+                              <Badge className={getStatusColor(mrf.status)}>
+                                {workflowState}
+                              </Badge>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
-                                  handleDownloadPO(mrf as MRF);
+                                  setSelectedMRFForPODetails(
+                                    mrf as unknown as MRFRequest,
+                                  );
+                                  setPODetailsDialogOpen(true);
                                 }}
                               >
-                                <Download className="h-4 w-4 mr-2" />
-                                Download PO
+                                <FileText className="h-4 w-4 mr-2" />
+                                View Details
                               </Button>
-                            )}
-                    </div>
-                        </div>
-                      );
-                    })}
-                    {mrfRequests.filter(mrf => getMRFPONumber(mrf as MRF)).length === 0 && (
+                              {unsignedPOUrl && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    handleDownloadPO(mrf as MRF);
+                                  }}
+                                >
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Download PO
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    {mrfRequests.filter((mrf) => getMRFPONumber(mrf as MRF))
+                      .length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>No purchase orders generated yet</p>
                       </div>
                     )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
       </PullToRefresh>
 
       <POGenerationDialog
@@ -2310,12 +2967,16 @@ const Procurement = () => {
 
       {/* PO Details Dialog */}
       {selectedMRFForPODetails && (
-        <Dialog open={poDetailsDialogOpen} onOpenChange={setPODetailsDialogOpen}>
+        <Dialog
+          open={poDetailsDialogOpen}
+          onOpenChange={setPODetailsDialogOpen}
+        >
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Purchase Order Details</DialogTitle>
               <DialogDescription>
-                PO Number: {getMRFPONumber(selectedMRFForPODetails as unknown as MRF)}
+                PO Number:{" "}
+                {getMRFPONumber(selectedMRFForPODetails as unknown as MRF)}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 mt-4">
@@ -2323,7 +2984,9 @@ const Procurement = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">PO Number</Label>
-                  <p className="font-medium">{getMRFPONumber(selectedMRFForPODetails as unknown as MRF)}</p>
+                  <p className="font-medium">
+                    {getMRFPONumber(selectedMRFForPODetails as unknown as MRF)}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">MRF ID</Label>
@@ -2335,52 +2998,85 @@ const Procurement = () => {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Status</Label>
-                  <Badge className={getStatusColor(selectedMRFForPODetails.status)}>
-                    {(selectedMRFForPODetails as any).workflow_state || selectedMRFForPODetails.status || 'Pending'}
+                  <Badge
+                    className={getStatusColor(selectedMRFForPODetails.status)}
+                  >
+                    {(selectedMRFForPODetails as any).workflow_state ||
+                      selectedMRFForPODetails.status ||
+                      "Pending"}
                   </Badge>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Created Date</Label>
-                  <p className="font-medium">{formatMRFDate(getMRFDate(selectedMRFForPODetails as unknown as MRF))}</p>
+                  <p className="font-medium">
+                    {formatMRFDate(
+                      getMRFDate(selectedMRFForPODetails as unknown as MRF),
+                    )}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Requester</Label>
-                  <p className="font-medium">{getMRFRequester(selectedMRFForPODetails as unknown as MRF)}</p>
+                  <p className="font-medium">
+                    {getMRFRequester(selectedMRFForPODetails as unknown as MRF)}
+                  </p>
                 </div>
               </div>
 
               {/* Vendor Information */}
               {(() => {
-                const quotation = getQuotationsForMRF(selectedMRFForPODetails.id).find((q: any) => 
-                  q.status === 'Approved' || q.status === 'approved' || q.status === 'awarded'
+                const quotation = getQuotationsForMRF(
+                  selectedMRFForPODetails.id,
+                ).find(
+                  (q: any) =>
+                    q.status === "Approved" ||
+                    q.status === "approved" ||
+                    q.status === "awarded",
                 );
                 if (!quotation) return null;
-                
+
                 return (
                   <div className="border-t pt-4">
                     <h3 className="font-semibold mb-3">Vendor Information</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label className="text-muted-foreground">Vendor Name</Label>
-                        <p className="font-medium">{quotation.vendorName || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground">Total Amount</Label>
-                        <p className="font-medium">{formatAmount(quotation.total, quotation.currency)}</p>
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground">Delivery Days</Label>
-                        <p className="font-medium">{formatDays(quotation.deliveryDays)}</p>
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground">Payment Terms</Label>
+                        <Label className="text-muted-foreground">
+                          Vendor Name
+                        </Label>
                         <p className="font-medium">
-                          {displayString(quotation.paymentTerms ?? quotation.payment_terms)}
+                          {quotation.vendorName || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground">
+                          Total Amount
+                        </Label>
+                        <p className="font-medium">
+                          {formatAmount(quotation.total, quotation.currency)}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground">
+                          Delivery Days
+                        </Label>
+                        <p className="font-medium">
+                          {formatDays(quotation.deliveryDays)}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground">
+                          Payment Terms
+                        </Label>
+                        <p className="font-medium">
+                          {displayString(
+                            quotation.paymentTerms ?? quotation.payment_terms,
+                          )}
                         </p>
                       </div>
                       {quotation.currency && (
                         <div>
-                          <Label className="text-muted-foreground">Currency</Label>
+                          <Label className="text-muted-foreground">
+                            Currency
+                          </Label>
                           <p className="font-medium">{quotation.currency}</p>
                         </div>
                       )}
@@ -2391,21 +3087,29 @@ const Procurement = () => {
 
               {/* PO Items */}
               {(() => {
-                const quotation = getQuotationsForMRF(selectedMRFForPODetails.id).find((q: any) => 
-                  q.status === 'Approved' || q.status === 'approved' || q.status === 'awarded'
+                const quotation = getQuotationsForMRF(
+                  selectedMRFForPODetails.id,
+                ).find(
+                  (q: any) =>
+                    q.status === "Approved" ||
+                    q.status === "approved" ||
+                    q.status === "awarded",
                 );
                 const items = quotation?.items || [];
-                
+
                 if (items.length === 0) {
                   // Fallback: show MRF description if no items
                   return (
                     <div className="border-t pt-4">
                       <h3 className="font-semibold mb-3">Description</h3>
-                      <p className="text-muted-foreground">{selectedMRFForPODetails.description || 'No items specified'}</p>
+                      <p className="text-muted-foreground">
+                        {selectedMRFForPODetails.description ||
+                          "No items specified"}
+                      </p>
                     </div>
                   );
                 }
-                
+
                 return (
                   <div className="border-t pt-4">
                     <h3 className="font-semibold mb-3">Items</h3>
@@ -2414,14 +3118,35 @@ const Procurement = () => {
                         <div key={idx} className="p-3 border rounded-md">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
-                              <p className="font-medium">{item.item_name || item.name || `Item ${idx + 1}`}</p>
+                              <p className="font-medium">
+                                {item.item_name ||
+                                  item.name ||
+                                  `Item ${idx + 1}`}
+                              </p>
                               {item.description && (
-                                <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {item.description}
+                                </p>
                               )}
                               <div className="grid grid-cols-3 gap-4 mt-2 text-sm text-muted-foreground">
-                                <span>Quantity: {item.quantity || 'N/A'}</span>
-                                <span>Unit Price: ₦{parseFloat(item.unit_price || item.unitPrice || '0').toLocaleString()}</span>
-                                <span>Total: ₦{parseFloat(item.total_price || (item.quantity * (item.unit_price || item.unitPrice || 0)) || '0').toLocaleString()}</span>
+                                <span>Quantity: {item.quantity || "N/A"}</span>
+                                <span>
+                                  Unit Price: ₦
+                                  {parseFloat(
+                                    item.unit_price || item.unitPrice || "0",
+                                  ).toLocaleString()}
+                                </span>
+                                <span>
+                                  Total: ₦
+                                  {parseFloat(
+                                    item.total_price ||
+                                      item.quantity *
+                                        (item.unit_price ||
+                                          item.unitPrice ||
+                                          0) ||
+                                      "0",
+                                  ).toLocaleString()}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -2434,17 +3159,20 @@ const Procurement = () => {
 
               {/* PO Document */}
               {(() => {
-                const unsignedPOUrl = getMRFPOUrl(selectedMRFForPODetails as unknown as MRF) || 
-                                    getMRFPOShareUrl(selectedMRFForPODetails as unknown as MRF);
-                
+                const unsignedPOUrl =
+                  getMRFPOUrl(selectedMRFForPODetails as unknown as MRF) ||
+                  getMRFPOShareUrl(selectedMRFForPODetails as unknown as MRF);
+
                 if (!unsignedPOUrl) return null;
-                
+
                 return (
                   <div className="border-t pt-4">
                     <h3 className="font-semibold mb-3">PO Document</h3>
                     <Button
                       onClick={() => {
-                        handleDownloadPO(selectedMRFForPODetails as unknown as MRF);
+                        handleDownloadPO(
+                          selectedMRFForPODetails as unknown as MRF,
+                        );
                       }}
                     >
                       <Download className="h-4 w-4 mr-2" />
@@ -2463,7 +3191,9 @@ const Procurement = () => {
         <Card className="mt-6">
           <CardHeader>
             <CardTitle>GRN Requests</CardTitle>
-            <CardDescription>Complete Goods Received Notes for processed payments</CardDescription>
+            <CardDescription>
+              Complete Goods Received Notes for processed payments
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -2476,23 +3206,38 @@ const Procurement = () => {
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-semibold text-lg">{mrf.title}</h3>
                       <Badge variant="outline">{mrf.id}</Badge>
-                      {getMRFPONumber(mrf) && <Badge variant="outline">PO: {getMRFPONumber(mrf)}</Badge>}
+                      {getMRFPONumber(mrf) && (
+                        <Badge variant="outline">
+                          PO: {getMRFPONumber(mrf)}
+                        </Badge>
+                      )}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
                       <div>
-                        <p className="text-muted-foreground text-xs">Requester</p>
+                        <p className="text-muted-foreground text-xs">
+                          Requester
+                        </p>
                         <p className="font-medium">{getMRFRequester(mrf)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">Amount</p>
-                        <p className="font-bold text-lg">₦{parseFloat(getMRFEstimatedCost(mrf)).toLocaleString()}</p>
+                        <p className="font-bold text-lg">
+                          ₦
+                          {parseFloat(
+                            getMRFEstimatedCost(mrf),
+                          ).toLocaleString()}
+                        </p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground text-xs">Requested At</p>
+                        <p className="text-muted-foreground text-xs">
+                          Requested At
+                        </p>
                         <p className="font-medium">
                           {mrf.grn_requested_at || mrf.grnRequestedAt
-                            ? new Date(mrf.grn_requested_at || mrf.grnRequestedAt).toLocaleDateString()
-                            : 'N/A'}
+                            ? new Date(
+                                mrf.grn_requested_at || mrf.grnRequestedAt,
+                              ).toLocaleDateString()
+                            : "N/A"}
                         </p>
                       </div>
                     </div>
@@ -2529,7 +3274,8 @@ const Procurement = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete MRF Request?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this Material Request Form? This action cannot be undone.
+              Are you sure you want to delete this Material Request Form? This
+              action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -2546,18 +3292,24 @@ const Procurement = () => {
       </AlertDialog>
 
       {/* Delete PO Confirmation Dialog */}
-      <AlertDialog open={deletePODialogOpen} onOpenChange={setDeletePODialogOpen}>
+      <AlertDialog
+        open={deletePODialogOpen}
+        onOpenChange={setDeletePODialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Purchase Order?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the PO for MRF {selectedMRFForPODelete?.id}?
-              This will clear the PO number and files, allowing you to regenerate a new PO.
-              The MRF will be reset to the procurement stage.
+              Are you sure you want to delete the PO for MRF{" "}
+              {selectedMRFForPODelete?.id}? This will clear the PO number and
+              files, allowing you to regenerate a new PO. The MRF will be reset
+              to the procurement stage.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingPO}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeletingPO}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDeletePO}
               disabled={isDeletingPO}
@@ -2577,428 +3329,625 @@ const Procurement = () => {
       </AlertDialog>
 
       {/* MRF Details Dialog */}
-      <Dialog open={mrfDetailsDialogOpen} onOpenChange={(open) => {
-        setMrfDetailsDialogOpen(open);
-        if (!open) {
-          setMrfFullDetails(null);
-          setSelectedMRFForDetails(null);
-        }
-      }}>
+      <Dialog
+        open={mrfDetailsDialogOpen}
+        onOpenChange={(open) => {
+          setMrfDetailsDialogOpen(open);
+          if (!open) {
+            setMrfFullDetails(null);
+            setSelectedMRFForDetails(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>MRF Full Details</DialogTitle>
-            <DialogDescription>Complete information about this Material Request Form with all quotations and progress</DialogDescription>
+            <DialogDescription>
+              Complete information about this Material Request Form with all
+              quotations and progress
+            </DialogDescription>
           </DialogHeader>
           {loadingFullDetails ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : selectedMRFForDetails && (
-            <div className="space-y-6 mt-4">
-              {/* Progress Tracker */}
-              <MRFProgressTracker
-                mrfId={selectedMRFForDetails.id}
-                showTitle={true}
-                contractType={(selectedMRFForDetails as any).contract_type || (selectedMRFForDetails as any).contractType}
-              />
+          ) : (
+            selectedMRFForDetails && (
+              <div className="space-y-6 mt-4">
+                {/* Progress Tracker */}
+                <MRFProgressTracker
+                  mrfId={selectedMRFForDetails.id}
+                  showTitle={true}
+                  contractType={
+                    (selectedMRFForDetails as any).contract_type ||
+                    (selectedMRFForDetails as any).contractType
+                  }
+                />
 
-              {/* Basic Information */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">MRF ID</Label>
-                  <p className="font-medium font-mono">{selectedMRFForDetails.id}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Status</Label>
-                  <Badge className={getStatusColor(selectedMRFForDetails.status)}>
-                    {selectedMRFForDetails.status}
-                  </Badge>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Title</Label>
-                  <p className="font-medium">{selectedMRFForDetails.title}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Category</Label>
-                  <p className="font-medium">{selectedMRFForDetails.category || 'N/A'}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Requester</Label>
-                  <p className="font-medium">{selectedMRFForDetails.requester || 'N/A'}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Department</Label>
-                  <p className="font-medium">{selectedMRFForDetails.department || 'N/A'}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Date Created</Label>
-                  <p className="font-medium">{formatDateLagos(getMRFDate(selectedMRFForDetails), { includeTime: false, format: 'medium' })}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Estimated Cost</Label>
-                  <p className="font-medium text-lg">₦{parseInt(selectedMRFForDetails.estimatedCost || '0').toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Quantity</Label>
-                  <p className="font-medium">{selectedMRFForDetails.quantity || 'N/A'}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Current Stage</Label>
-                  <p className="font-medium capitalize">{getMRFStage(selectedMRFForDetails) || 'N/A'}</p>
-                </div>
-              </div>
-
-              {/* Description */}
-              {selectedMRFForDetails.description && (
-                <div>
-                  <Label className="text-muted-foreground">Description</Label>
-                  <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedMRFForDetails.description}</p>
-                </div>
-              )}
-
-              {/* Supporting Document */}
-              {getMRFPFIUrl(selectedMRFForDetails) && (
-                <div>
-                  <Label className="text-muted-foreground">Supporting Document</Label>
-                  <div className="mt-2 flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDownloadPFI(selectedMRFForDetails)}
+                {/* Basic Information */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">MRF ID</Label>
+                    <p className="font-medium font-mono">
+                      {selectedMRFForDetails.id}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Status</Label>
+                    <Badge
+                      className={getStatusColor(selectedMRFForDetails.status)}
                     >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Document
-                    </Button>
-                    {(() => {
-                      const shareUrl = (selectedMRFForDetails as any).invoice_onedrive_url ||
-                        (selectedMRFForDetails as any).invoiceOneDriveUrl ||
-                        selectedMRFForDetails.pfi_share_url ||
-                        selectedMRFForDetails.pfiShareUrl;
-                      return shareUrl && (
-                        <OneDriveLink
-                          webUrl={shareUrl}
-                          fileName="Supporting Document"
-                          variant="button"
-                          size="sm"
-                        />
-                      );
-                    })()}
+                      {selectedMRFForDetails.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Title</Label>
+                    <p className="font-medium">{selectedMRFForDetails.title}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Category</Label>
+                    <p className="font-medium">
+                      {selectedMRFForDetails.category || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Requester</Label>
+                    <p className="font-medium">
+                      {selectedMRFForDetails.requester || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Department</Label>
+                    <p className="font-medium">
+                      {selectedMRFForDetails.department || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">
+                      Date Created
+                    </Label>
+                    <p className="font-medium">
+                      {formatDateLagos(getMRFDate(selectedMRFForDetails), {
+                        includeTime: false,
+                        format: "medium",
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">
+                      Estimated Cost
+                    </Label>
+                    <p className="font-medium text-lg">
+                      ₦
+                      {parseInt(
+                        selectedMRFForDetails.estimatedCost || "0",
+                      ).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Quantity</Label>
+                    <p className="font-medium">
+                      {selectedMRFForDetails.quantity || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">
+                      Current Stage
+                    </Label>
+                    <p className="font-medium capitalize">
+                      {getMRFStage(selectedMRFForDetails) || "N/A"}
+                    </p>
                   </div>
                 </div>
-              )}
 
-              {/* Executive Approval Section - Highlighted in Green */}
-              {(() => {
-                const executiveApproved = (selectedMRFForDetails as any).executiveApproved ||
-                  (selectedMRFForDetails as any).executive_approved;
-                const executiveApprovedAt = (selectedMRFForDetails as any).executiveApprovedAt ||
-                  (selectedMRFForDetails as any).executive_approved_at;
-                const executiveApprovedBy = (selectedMRFForDetails as any).executiveApprovedBy ||
-                  (selectedMRFForDetails as any).executive_approved_by;
-                const executiveRemarks = (selectedMRFForDetails as any).executiveRemarks ||
-                  (selectedMRFForDetails as any).executive_remarks;
+                {/* Description */}
+                {selectedMRFForDetails.description && (
+                  <div>
+                    <Label className="text-muted-foreground">Description</Label>
+                    <p className="text-sm mt-1 p-3 bg-muted rounded-md">
+                      {selectedMRFForDetails.description}
+                    </p>
+                  </div>
+                )}
 
-                if (executiveApproved) {
-                  return (
-                    <div className="p-4 bg-green-50 dark:bg-green-950 border-2 border-green-500 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                        <Label className="text-green-900 dark:text-green-100 font-semibold">Executive Approval</Label>
-                        <Badge className="bg-green-500 text-white">Approved</Badge>
-                      </div>
-                      {executiveApprovedAt && (
-                        <p className="text-sm text-green-800 dark:text-green-200">
-                          Approved on: {formatMRFDate(executiveApprovedAt)}
-                        </p>
-                      )}
-                      {executiveApprovedBy && (
-                        <p className="text-sm text-green-800 dark:text-green-200">
-                          Approved by: {typeof executiveApprovedBy === 'object' && executiveApprovedBy !== null
-                            ? executiveApprovedBy.name || executiveApprovedBy.email || 'Unknown'
-                            : executiveApprovedBy}
-                          {typeof executiveApprovedBy === 'object' && executiveApprovedBy !== null && executiveApprovedBy.email && ` (${executiveApprovedBy.email})`}
-                        </p>
-                      )}
-                      {executiveRemarks && (
-                        <p className="text-sm text-green-800 dark:text-green-200 mt-2">
-                          <span className="font-semibold">Remarks:</span> {executiveRemarks}
-                        </p>
-                      )}
+                {/* Supporting Document */}
+                {getMRFPFIUrl(selectedMRFForDetails) && (
+                  <div>
+                    <Label className="text-muted-foreground">
+                      Supporting Document
+                    </Label>
+                    <div className="mt-2 flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadPFI(selectedMRFForDetails)}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Document
+                      </Button>
+                      {(() => {
+                        const shareUrl =
+                          (selectedMRFForDetails as any).invoice_onedrive_url ||
+                          (selectedMRFForDetails as any).invoiceOneDriveUrl ||
+                          selectedMRFForDetails.pfi_share_url ||
+                          selectedMRFForDetails.pfiShareUrl;
+                        return (
+                          shareUrl && (
+                            <OneDriveLink
+                              webUrl={shareUrl}
+                              fileName="Supporting Document"
+                              variant="button"
+                              size="sm"
+                            />
+                          )
+                        );
+                      })()}
                     </div>
-                  );
-                }
-                return null;
-              })()}
+                  </div>
+                )}
 
-              {/* SCD Approval Section - Highlighted in Purple */}
-              {(() => {
-                const scdApprovedBy = (selectedMRFForDetails as any).scd_approved_by ||
-                  (selectedMRFForDetails as any).director_approved_by ||
-                  (selectedMRFForDetails as any).supply_chain_approved_by;
-                const scdApprovedAt = (selectedMRFForDetails as any).scd_approved_at ||
-                  (selectedMRFForDetails as any).director_approved_at ||
-                  (selectedMRFForDetails as any).supply_chain_approved_at;
-                const scdRemarks = (selectedMRFForDetails as any).scd_remarks ||
-                  (selectedMRFForDetails as any).director_remarks ||
-                  (selectedMRFForDetails as any).supply_chain_remarks;
+                {/* Executive Approval Section - Highlighted in Green */}
+                {(() => {
+                  const executiveApproved =
+                    (selectedMRFForDetails as any).executiveApproved ||
+                    (selectedMRFForDetails as any).executive_approved;
+                  const executiveApprovedAt =
+                    (selectedMRFForDetails as any).executiveApprovedAt ||
+                    (selectedMRFForDetails as any).executive_approved_at;
+                  const executiveApprovedBy =
+                    (selectedMRFForDetails as any).executiveApprovedBy ||
+                    (selectedMRFForDetails as any).executive_approved_by;
+                  const executiveRemarks =
+                    (selectedMRFForDetails as any).executiveRemarks ||
+                    (selectedMRFForDetails as any).executive_remarks;
 
-                if (scdApprovedBy) {
-                  return (
-                    <div className="p-4 bg-purple-50 dark:bg-purple-950 border-2 border-purple-500 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                        <Label className="text-purple-900 dark:text-purple-100 font-semibold">Supply Chain Director Approval</Label>
-                        <Badge className="bg-purple-500 text-white">Approved</Badge>
+                  if (executiveApproved) {
+                    return (
+                      <div className="p-4 bg-green-50 dark:bg-green-950 border-2 border-green-500 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                          <Label className="text-green-900 dark:text-green-100 font-semibold">
+                            Executive Approval
+                          </Label>
+                          <Badge className="bg-green-500 text-white">
+                            Approved
+                          </Badge>
+                        </div>
+                        {executiveApprovedAt && (
+                          <p className="text-sm text-green-800 dark:text-green-200">
+                            Approved on: {formatMRFDate(executiveApprovedAt)}
+                          </p>
+                        )}
+                        {executiveApprovedBy && (
+                          <p className="text-sm text-green-800 dark:text-green-200">
+                            Approved by:{" "}
+                            {typeof executiveApprovedBy === "object" &&
+                            executiveApprovedBy !== null
+                              ? executiveApprovedBy.name ||
+                                executiveApprovedBy.email ||
+                                "Unknown"
+                              : executiveApprovedBy}
+                            {typeof executiveApprovedBy === "object" &&
+                              executiveApprovedBy !== null &&
+                              executiveApprovedBy.email &&
+                              ` (${executiveApprovedBy.email})`}
+                          </p>
+                        )}
+                        {executiveRemarks && (
+                          <p className="text-sm text-green-800 dark:text-green-200 mt-2">
+                            <span className="font-semibold">Remarks:</span>{" "}
+                            {executiveRemarks}
+                          </p>
+                        )}
                       </div>
-                      {scdApprovedAt && (
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* SCD Approval Section - Highlighted in Purple */}
+                {(() => {
+                  const scdApprovedBy =
+                    (selectedMRFForDetails as any).scd_approved_by ||
+                    (selectedMRFForDetails as any).director_approved_by ||
+                    (selectedMRFForDetails as any).supply_chain_approved_by;
+                  const scdApprovedAt =
+                    (selectedMRFForDetails as any).scd_approved_at ||
+                    (selectedMRFForDetails as any).director_approved_at ||
+                    (selectedMRFForDetails as any).supply_chain_approved_at;
+                  const scdRemarks =
+                    (selectedMRFForDetails as any).scd_remarks ||
+                    (selectedMRFForDetails as any).director_remarks ||
+                    (selectedMRFForDetails as any).supply_chain_remarks;
+
+                  if (scdApprovedBy) {
+                    return (
+                      <div className="p-4 bg-purple-50 dark:bg-purple-950 border-2 border-purple-500 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                          <Label className="text-purple-900 dark:text-purple-100 font-semibold">
+                            Supply Chain Director Approval
+                          </Label>
+                          <Badge className="bg-purple-500 text-white">
+                            Approved
+                          </Badge>
+                        </div>
+                        {scdApprovedAt && (
+                          <p className="text-sm text-purple-800 dark:text-purple-200">
+                            Approved on: {formatMRFDate(scdApprovedAt)}
+                          </p>
+                        )}
                         <p className="text-sm text-purple-800 dark:text-purple-200">
-                          Approved on: {formatMRFDate(scdApprovedAt)}
+                          Approved by:{" "}
+                          {typeof scdApprovedBy === "object" &&
+                          scdApprovedBy !== null
+                            ? scdApprovedBy.name ||
+                              scdApprovedBy.email ||
+                              "Unknown"
+                            : scdApprovedBy}
                         </p>
-                      )}
-                      <p className="text-sm text-purple-800 dark:text-purple-200">
-                        Approved by: {typeof scdApprovedBy === 'object' && scdApprovedBy !== null
-                          ? scdApprovedBy.name || scdApprovedBy.email || 'Unknown'
-                          : scdApprovedBy}
-                      </p>
-                      {scdRemarks && (
-                        <p className="text-sm text-purple-800 dark:text-purple-200 mt-2">
-                          <span className="font-semibold">Remarks:</span> {scdRemarks}
-                        </p>
-                      )}
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-
-              {/* Full Approval History */}
-              {(() => {
-                const approvalHistory = (selectedMRFForDetails as any).approval_history || (selectedMRFForDetails as any).approvalHistory || [];
-                if (approvalHistory.length > 0) {
-                  return (
-                    <div>
-                      <Label className="text-muted-foreground">Approval History</Label>
-                      <div className="mt-2 space-y-2">
-                        {approvalHistory.map((entry: any, index: number) => (
-                          <div key={index} className="p-2 border rounded-md">
-                            <p className="text-sm font-medium capitalize">{entry.stage || entry.action || 'Unknown'}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {entry.timestamp ? formatMRFDate(entry.timestamp) : 'N/A'}
-                              {entry.remarks && ` • ${entry.remarks}`}
-                            </p>
-                          </div>
-                        ))}
+                        {scdRemarks && (
+                          <p className="text-sm text-purple-800 dark:text-purple-200 mt-2">
+                            <span className="font-semibold">Remarks:</span>{" "}
+                            {scdRemarks}
+                          </p>
+                        )}
                       </div>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
+                    );
+                  }
+                  return null;
+                })()}
 
-              {/* RFQs and Quotations from Full Details API */}
-              {mrfFullDetails ? (
-                <>
-                  {/* RFQs Section */}
-                  {mrfFullDetails.rfqs && mrfFullDetails.rfqs.length > 0 && (
-                    <div>
-                      <Label className="text-muted-foreground mb-2 block">Related RFQs ({mrfFullDetails.rfqs.length})</Label>
-                      <div className="space-y-3">
-                        {mrfFullDetails.rfqs.map((rfq: any) => (
-                          <div key={rfq.id} className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
-                            <div className="flex items-center justify-between mb-2">
-                              <p className="font-medium">RFQ ID: {rfq.id}</p>
-                              <Badge className={getStatusColor(rfq.status)}>{rfq.status}</Badge>
-                            </div>
-                            <p className="text-sm font-medium mb-1">{rfq.title}</p>
-                            {rfq.deadline && (
+                {/* Full Approval History */}
+                {(() => {
+                  const approvalHistory =
+                    (selectedMRFForDetails as any).approval_history ||
+                    (selectedMRFForDetails as any).approvalHistory ||
+                    [];
+                  if (approvalHistory.length > 0) {
+                    return (
+                      <div>
+                        <Label className="text-muted-foreground">
+                          Approval History
+                        </Label>
+                        <div className="mt-2 space-y-2">
+                          {approvalHistory.map((entry: any, index: number) => (
+                            <div key={index} className="p-2 border rounded-md">
+                              <p className="text-sm font-medium capitalize">
+                                {entry.stage || entry.action || "Unknown"}
+                              </p>
                               <p className="text-xs text-muted-foreground">
-                                Deadline: {new Date(rfq.deadline).toLocaleDateString()}
+                                {entry.timestamp
+                                  ? formatMRFDate(entry.timestamp)
+                                  : "N/A"}
+                                {entry.remarks && ` • ${entry.remarks}`}
                               </p>
-                            )}
-                            {rfq.vendors && rfq.vendors.length > 0 && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Sent to {rfq.vendors.length} vendor(s)
-                              </p>
-                            )}
-                          </div>
-                        ))}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  }
+                  return null;
+                })()}
 
-                  {/* Statistics */}
-                  {mrfFullDetails.statistics && (
-                    <div>
-                      <Label className="text-muted-foreground mb-2 block">Quotation Statistics</Label>
-                      <div className="grid grid-cols-4 gap-4">
-                        <Card>
-                          <CardContent className="pt-4">
-                            <p className="text-sm text-muted-foreground">Total Quotations</p>
-                            <p className="text-xl font-bold">{mrfFullDetails.statistics.totalQuotations || 0}</p>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardContent className="pt-4">
-                            <p className="text-sm text-muted-foreground">Lowest Bid</p>
-                            <p className="text-xl font-bold text-success">₦{mrfFullDetails.statistics.lowestBid?.toLocaleString() || 'N/A'}</p>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardContent className="pt-4">
-                            <p className="text-sm text-muted-foreground">Highest Bid</p>
-                            <p className="text-xl font-bold">₦{mrfFullDetails.statistics.highestBid?.toLocaleString() || 'N/A'}</p>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardContent className="pt-4">
-                            <p className="text-sm text-muted-foreground">Average Bid</p>
-                            <p className="text-xl font-bold text-primary">₦{Math.round(mrfFullDetails.statistics.averageBid || 0).toLocaleString()}</p>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* All Quotations */}
-                  {mrfFullDetails.quotations && mrfFullDetails.quotations.length > 0 && (
-                    <div>
-                      <Label className="text-muted-foreground mb-2 block">All Vendor Quotations ({mrfFullDetails.quotations.length})</Label>
-                      <div className="space-y-3">
-                        {mrfFullDetails.quotations.map((item: any) => {
-                          const n = normalizeQuotation(item);
-                          const quotation = item.quotation || item;
-                          const vendor = item.vendor || {};
-                          return (
-                            <div key={quotation.id || item.id} className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                              <div className="flex justify-between items-start mb-3">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <p className="font-semibold">{n.vendorName || vendor.name || vendor.company_name || 'Unknown Vendor'}</p>
-                                    {vendor.rating && (
-                                      <div className="flex items-center gap-1">
-                                        <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                                        <span className="text-xs">{vendor.rating}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-muted-foreground mb-2">
-                                    Quotation ID: {quotation.id || item.id} • RFQ: {quotation.rfqId || item.rfqId}
-                                  </p>
-                                  {quotation.rfqTitle && (
-                                    <p className="text-sm font-medium text-primary mb-2">{quotation.rfqTitle}</p>
-                                  )}
-                                </div>
-                                <Badge className={getStatusColor(quotation.status || 'Pending')}>
-                                  {quotation.status || 'Pending'}
+                {/* RFQs and Quotations from Full Details API */}
+                {mrfFullDetails ? (
+                  <>
+                    {/* RFQs Section */}
+                    {mrfFullDetails.rfqs && mrfFullDetails.rfqs.length > 0 && (
+                      <div>
+                        <Label className="text-muted-foreground mb-2 block">
+                          Related RFQs ({mrfFullDetails.rfqs.length})
+                        </Label>
+                        <div className="space-y-3">
+                          {mrfFullDetails.rfqs.map((rfq: any) => (
+                            <div
+                              key={rfq.id}
+                              className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="font-medium">RFQ ID: {rfq.id}</p>
+                                <Badge className={getStatusColor(rfq.status)}>
+                                  {rfq.status}
                                 </Badge>
                               </div>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                <div>
-                                  <p className="text-muted-foreground">Total Amount</p>
-                                  <p className="font-semibold text-lg">{formatAmount(n.total, n.currency)}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Delivery Days</p>
-                                  <p className="font-medium">{formatDays(n.deliveryDays)}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Payment Terms</p>
-                                  <p className="font-medium">
-                                    {displayString(n.paymentTerms)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Validity</p>
-                                  <p className="font-medium">{formatDays(n.validityDays)}</p>
-                                </div>
-                              </div>
-                              {quotation.notes && (
-                                <div className="mt-3 p-2 bg-muted rounded text-sm">
-                                  <p className="font-medium mb-1">Notes:</p>
-                                  <p className="text-muted-foreground">{quotation.notes}</p>
-                                </div>
+                              <p className="text-sm font-medium mb-1">
+                                {rfq.title}
+                              </p>
+                              {rfq.deadline && (
+                                <p className="text-xs text-muted-foreground">
+                                  Deadline:{" "}
+                                  {new Date(rfq.deadline).toLocaleDateString()}
+                                </p>
                               )}
-                              {quotation.attachments && quotation.attachments.length > 0 && (
-                                <div className="mt-3">
-                                  <p className="text-xs font-medium mb-1">Attachments ({quotation.attachments.length})</p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {quotation.attachments.map((att: any, idx: number) => (
-                                      <Badge key={idx} variant="outline" className="text-xs">
-                                        <FileText className="h-3 w-3 mr-1" />
-                                        {att.fileName || att.name || `Attachment ${idx + 1}`}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
+                              {rfq.vendors && rfq.vendors.length > 0 && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Sent to {rfq.vendors.length} vendor(s)
+                                </p>
                               )}
                             </div>
-                          );
-                        })}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  {/* Fallback to local data if full details not loaded */}
-                  {/* RFQ Information */}
-                  {(() => {
-                    const rfq = getRFQForMRF(selectedMRFForDetails.id);
-                    if (rfq) {
-                      return (
-                        <div>
-                          <Label className="text-muted-foreground">Related RFQ</Label>
-                          <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
-                            <p className="font-medium">RFQ ID: {rfq.id}</p>
-                            <p className="text-sm text-muted-foreground">Status: {rfq.status}</p>
-                            {rfq.deadline && (
-                              <p className="text-sm text-muted-foreground">
-                                Deadline: {new Date(rfq.deadline).toLocaleDateString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
+                    )}
 
-                  {/* Quotations */}
-                  {(() => {
-                    const mrfQuotations = getQuotationsForMRF(selectedMRFForDetails.id);
-                    if (mrfQuotations.length > 0) {
-                      return (
+                    {/* Statistics */}
+                    {mrfFullDetails.statistics && (
+                      <div>
+                        <Label className="text-muted-foreground mb-2 block">
+                          Quotation Statistics
+                        </Label>
+                        <div className="grid grid-cols-4 gap-4">
+                          <Card>
+                            <CardContent className="pt-4">
+                              <p className="text-sm text-muted-foreground">
+                                Total Quotations
+                              </p>
+                              <p className="text-xl font-bold">
+                                {mrfFullDetails.statistics.totalQuotations || 0}
+                              </p>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="pt-4">
+                              <p className="text-sm text-muted-foreground">
+                                Lowest Bid
+                              </p>
+                              <p className="text-xl font-bold text-success">
+                                ₦
+                                {mrfFullDetails.statistics.lowestBid?.toLocaleString() ||
+                                  "N/A"}
+                              </p>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="pt-4">
+                              <p className="text-sm text-muted-foreground">
+                                Highest Bid
+                              </p>
+                              <p className="text-xl font-bold">
+                                ₦
+                                {mrfFullDetails.statistics.highestBid?.toLocaleString() ||
+                                  "N/A"}
+                              </p>
+                            </CardContent>
+                          </Card>
+                          <Card>
+                            <CardContent className="pt-4">
+                              <p className="text-sm text-muted-foreground">
+                                Average Bid
+                              </p>
+                              <p className="text-xl font-bold text-primary">
+                                ₦
+                                {Math.round(
+                                  mrfFullDetails.statistics.averageBid || 0,
+                                ).toLocaleString()}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* All Quotations */}
+                    {mrfFullDetails.quotations &&
+                      mrfFullDetails.quotations.length > 0 && (
                         <div>
-                          <Label className="text-muted-foreground">Vendor Quotations ({mrfQuotations.length})</Label>
-                          <div className="mt-2 space-y-2">
-                            {mrfQuotations.map((quotation: any) => (
-                              <div key={quotation.id} className="p-3 border rounded-md">
-                                <div className="flex justify-between items-start">
-                                  <div>
-                                    <p className="font-medium">{quotation.vendorName || quotation.vendor_name || 'Vendor'}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                      Price: ₦{parseFloat(quotation.price || quotation.total_amount || '0').toLocaleString()}
-                                      {quotation.deliveryDate && ` • Delivery: ${new Date(quotation.deliveryDate).toLocaleDateString()}`}
-                                    </p>
-                                    {quotation.notes && (
-                                      <p className="text-xs text-muted-foreground mt-1">{quotation.notes}</p>
-                                    )}
+                          <Label className="text-muted-foreground mb-2 block">
+                            All Vendor Quotations (
+                            {mrfFullDetails.quotations.length})
+                          </Label>
+                          <div className="space-y-3">
+                            {mrfFullDetails.quotations.map((item: any) => {
+                              const n = normalizeQuotation(item);
+                              const quotation = item.quotation || item;
+                              const vendor = item.vendor || {};
+                              return (
+                                <div
+                                  key={quotation.id || item.id}
+                                  className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                                >
+                                  <div className="flex justify-between items-start mb-3">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <p className="font-semibold">
+                                          {n.vendorName ||
+                                            vendor.name ||
+                                            vendor.company_name ||
+                                            "Unknown Vendor"}
+                                        </p>
+                                        {vendor.rating && (
+                                          <div className="flex items-center gap-1">
+                                            <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                                            <span className="text-xs">
+                                              {vendor.rating}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mb-2">
+                                        Quotation ID: {quotation.id || item.id}{" "}
+                                        • RFQ: {quotation.rfqId || item.rfqId}
+                                      </p>
+                                      {quotation.rfqTitle && (
+                                        <p className="text-sm font-medium text-primary mb-2">
+                                          {quotation.rfqTitle}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <Badge
+                                      className={getStatusColor(
+                                        quotation.status || "Pending",
+                                      )}
+                                    >
+                                      {quotation.status || "Pending"}
+                                    </Badge>
                                   </div>
-                                  <Badge className={getStatusColor(quotation.status || 'Pending')}>
-                                    {quotation.status || 'Pending'}
-                                  </Badge>
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                      <p className="text-muted-foreground">
+                                        Total Amount
+                                      </p>
+                                      <p className="font-semibold text-lg">
+                                        {formatAmount(n.total, n.currency)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-muted-foreground">
+                                        Delivery Days
+                                      </p>
+                                      <p className="font-medium">
+                                        {formatDays(n.deliveryDays)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-muted-foreground">
+                                        Payment Terms
+                                      </p>
+                                      <p className="font-medium">
+                                        {displayString(n.paymentTerms)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-muted-foreground">
+                                        Validity
+                                      </p>
+                                      <p className="font-medium">
+                                        {formatDays(n.validityDays)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {quotation.notes && (
+                                    <div className="mt-3 p-2 bg-muted rounded text-sm">
+                                      <p className="font-medium mb-1">Notes:</p>
+                                      <p className="text-muted-foreground">
+                                        {quotation.notes}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {quotation.attachments &&
+                                    quotation.attachments.length > 0 && (
+                                      <div className="mt-3">
+                                        <p className="text-xs font-medium mb-1">
+                                          Attachments (
+                                          {quotation.attachments.length})
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                          {quotation.attachments.map(
+                                            (att: any, idx: number) => (
+                                              <Badge
+                                                key={idx}
+                                                variant="outline"
+                                                className="text-xs"
+                                              >
+                                                <FileText className="h-3 w-3 mr-1" />
+                                                {att.fileName ||
+                                                  att.name ||
+                                                  `Attachment ${idx + 1}`}
+                                              </Badge>
+                                            ),
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
+                      )}
+                  </>
+                ) : (
+                  <>
+                    {/* Fallback to local data if full details not loaded */}
+                    {/* RFQ Information */}
+                    {(() => {
+                      const rfq = getRFQForMRF(selectedMRFForDetails.id);
+                      if (rfq) {
+                        return (
+                          <div>
+                            <Label className="text-muted-foreground">
+                              Related RFQ
+                            </Label>
+                            <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
+                              <p className="font-medium">RFQ ID: {rfq.id}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Status: {rfq.status}
+                              </p>
+                              {rfq.deadline && (
+                                <p className="text-sm text-muted-foreground">
+                                  Deadline:{" "}
+                                  {new Date(rfq.deadline).toLocaleDateString()}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    {/* Quotations */}
+                    {(() => {
+                      const mrfQuotations = getQuotationsForMRF(
+                        selectedMRFForDetails.id,
                       );
-                    }
-                    return null;
-                  })()}
-                </>
-              )}
-            </div>
+                      if (mrfQuotations.length > 0) {
+                        return (
+                          <div>
+                            <Label className="text-muted-foreground">
+                              Vendor Quotations ({mrfQuotations.length})
+                            </Label>
+                            <div className="mt-2 space-y-2">
+                              {mrfQuotations.map((quotation: any) => (
+                                <div
+                                  key={quotation.id}
+                                  className="p-3 border rounded-md"
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <p className="font-medium">
+                                        {quotation.vendorName ||
+                                          quotation.vendor_name ||
+                                          "Vendor"}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">
+                                        Price: ₦
+                                        {parseFloat(
+                                          quotation.price ||
+                                            quotation.total_amount ||
+                                            "0",
+                                        ).toLocaleString()}
+                                        {quotation.deliveryDate &&
+                                          ` • Delivery: ${new Date(quotation.deliveryDate).toLocaleDateString()}`}
+                                      </p>
+                                      {quotation.notes && (
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          {quotation.notes}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <Badge
+                                      className={getStatusColor(
+                                        quotation.status || "Pending",
+                                      )}
+                                    >
+                                      {quotation.status || "Pending"}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </>
+                )}
+              </div>
+            )
           )}
         </DialogContent>
       </Dialog>
