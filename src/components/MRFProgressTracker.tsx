@@ -230,7 +230,41 @@ export const MRFProgressTracker = ({ mrfId, showTitle = true, contractType, onPr
             {progressData.steps.map((step, index) => {
               const isLast = index === progressData.steps.length - 1;
               const isCurrent = step.status === 'pending';
-              
+
+              // Resolve start/end timestamps for this step from the parent MRF.
+              // Only stages with both endpoints available (per MRF type) are
+              // tracked; missing endpoints simply omit the duration line.
+              let stageStart: string | undefined;
+              let stageEnd: string | undefined;
+              if (stageTimestamps) {
+                const initialApproval = isEmeraldContract
+                  ? stageTimestamps.executive_approved_at
+                  : stageTimestamps.director_approved_at;
+                if (step.step === 2) {
+                  stageStart = stageTimestamps.created_at;
+                  stageEnd = initialApproval;
+                } else if (step.step === 3) {
+                  stageStart = initialApproval;
+                  stageEnd = stageTimestamps.procurement_review_started_at;
+                } else if (step.step === 8) {
+                  stageStart = stageTimestamps.procurement_review_started_at;
+                  stageEnd = stageTimestamps.grn_completed_at;
+                }
+                // Steps 4–7 (RFQ Sent / Quotes Received / Final Approval / PO Generated)
+                // are intentionally untracked — required timestamps are not on the MRF type.
+              }
+
+              let durationText = "";
+              if (step.status === 'completed' && stageStart && stageEnd) {
+                const ms = new Date(stageEnd).getTime() - new Date(stageStart).getTime();
+                const t = formatDurationMs(ms);
+                if (t) durationText = `Took: ${t}`;
+              } else if (step.status === 'pending' && stageStart) {
+                const ms = Date.now() - new Date(stageStart).getTime();
+                const t = formatDurationMs(ms);
+                if (t) durationText = `Elapsed: ${t}`;
+              }
+
               return (
                 <div key={step.step} className="flex items-start gap-3">
                   <div className="flex flex-col items-center pt-1">
@@ -300,6 +334,11 @@ export const MRFProgressTracker = ({ mrfId, showTitle = true, contractType, onPr
                     )}
                     {step.status === 'not_started' && (
                       <p className="text-xs text-muted-foreground">Not started</p>
+                    )}
+                    {durationText && (
+                      <p className="text-xs text-muted-foreground mt-1 font-medium">
+                        {durationText}
+                      </p>
                     )}
                   </div>
                 </div>
