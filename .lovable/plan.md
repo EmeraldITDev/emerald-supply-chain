@@ -1,76 +1,84 @@
+# MRF Workflow Time Tracking — Final Execution Plan
 
-# Final Plan — Option B (Combined Read)
+**Directives:**
 
-## Verification done in read-only
-
-- **Local `formatRelativeTime` callers:** Confirmed only **one** caller in `src/pages/Dashboard.tsx` (line 337). Per your instruction, the local function stays in place either way — not deleted in this pass.
-- **Fix 5 parent guard:** Read `src/pages/Procurement.tsx` lines 1550–1670. The quotation-selection UI at lines 1622–1670 is **not** wrapped by an extra parent guard beyond the section-level `if (!rfq || mrfQuotations.length === 0) return null;` at line 1625. The "Generate PO vs Select" branch at lines 1651–1662 is already correctly gated by `wfState` (workflowState in `invoice_approved` / `pending_po_upload` / `vendor_approved` → Generate PO; everything else → Select branch). **The Select branch already exists and renders for `procurement_review`.** No change needed for Fix 5 structure.
-- **Fix 4 (Send RFQ):** Lines 1951–1973 — current condition already includes `workflowState === "procurement_review"` and `hasInitialApproval = isInitialApprovalApproved || isSupplyChainApproved`. This should pass. The button is still reported missing, which means a different upstream condition is excluding the row. Need real log values from the diagnostic logs at lines 1940–1949 / 1963–1971 before changing logic.
-
----
-
-## Fix 1 — Vendor profile fields show literal "N/A" (Procurement view)
-
-**File:** `src/pages/Vendors.tsx`
-**Lines:** 1025, 1032, 1047, 1051, 1055, 1059, 1067
-
-**Broken behavior:** Dual snake_case/camelCase accessors already exist, but the fallback is the literal string `'N/A'` instead of an em dash. Violates `mem://design/estimated-cost-null-display`.
-
-**Minimal change:** Replace `'N/A'` with `'—'` in each of the seven listed lines. No accessor logic changes (already correct).
-
-**Side effects:** None outside the vendor profile dialog.
+1. **Proceed immediately** with implementation. Do not stop to ask for clarification on missing fields.
+2. **Strict Type Safety:** Use only the timestamps defined in `src/types/index.ts`. Do not use `(mrf as any)` for logic.
+3. **Graceful Omission:** If a stage requires a timestamp not on the type (e.g., RFQ, Quotations), simply do not render the duration for that specific stage.
 
 ---
 
-## Fix 2 — Vendor Portal fields
+## Fix 1 — Repair "Time Elapsed" Indicator
 
-**No change required.** `src/pages/VendorPortal.tsx` already uses dual accessors with em-dash fallback (verified in prior turn).
+**File:** `src/pages/Procurement.tsx` **Lines:** `722–793` (Helpers), `2400–2415` (Row render).
 
----
+**Action:** Implement `getStageStartTime` using the available fields to replace the current `N/A` bug.
 
-## Fix 3 — Dashboard timestamps default to 1:00 AM
+TypeScript
 
-**File:** `src/pages/Dashboard.tsx`
-**Line:** 337 (call site only)
+```
+const getStageStartTime = (mrf: MRF): string | null => {
+  const stage = getMRFStage(mrf);
+  const wf = getWorkflowState(mrf);
 
-**Broken behavior:** The local `formatRelativeTime` (line 219) parses naïve ISO strings without a `Z` suffix, so the browser interprets them in local timezone. For West African Time (UTC+1) sources read as UTC and rendered locally, this collapses to 1:00 AM. The shared `formatRelativeTimeUtil` in `src/utils/dateUtils.ts` already handles this correctly (appends `Z` for naïve ISO strings, converts to Africa/Lagos).
+  if (wf === 'supply_chain_director_approved' || stage === 'procurement' || stage === 'procurement_review') {
+    return mrf.procurement_review_started_at 
+      ?? mrf.director_approved_at 
+      ?? mrf.executive_approved_at 
+      ?? mrf.created_at;
+  }
+  
+  if (stage === 'supply_chain' || stage === 'supply_chain_director_review') {
+    return mrf.executive_approved_at ?? mrf.created_at;
+  }
 
-**Minimal change:**
-1. Add import: `import { formatRelativeTime as formatRelativeTimeUtil } from '@/utils/dateUtils';`
-2. At line 337, replace `formatRelativeTime(activity.date)` with `formatRelativeTimeUtil(activity.date)`.
-3. Leave the local `formatRelativeTime` function (line 219) untouched — it becomes dead code with zero callers, harmless, and respects "do not remove existing functionality."
+  return mrf.created_at;
+};
 
-**Side effects:** None. No other files touched.
+```
 
----
-
-## Fix 4 — "Send RFQ to Vendors" button missing
-
-**Status: STOP — need log data before changing logic.**
-
-The condition at line 1955 already accepts `workflowState === "procurement_review"` and `hasInitialApproval = isInitialApprovalApproved || isSupplyChainApproved`. If the button is still hidden after SCD approval, one of these is false at runtime and the only way to know which is to read the diagnostic console output at lines 1940–1949 and 1963–1971 for the affected MRF.
-
-**What is needed from you:** open the affected non-Emerald MRF in Procurement (DevTools console open) and paste the two `[Procurement.SendRFQButton:inputs]` and `[Procurement.SendRFQButton:decision]` log entries. With those values I can identify the exact false condition and apply a one-line fix.
-
-**Will not change:** any helper, the Emerald path, or the condition shape — until the log values confirm the blocker.
-
----
-
-## Fix 5 — Quotation selection
-
-**No change required.** The Select-branch JSX already renders for any `workflowState` other than `invoice_approved` / `pending_po_upload` / `vendor_approved`, including `procurement_review`. The section is only hidden when there is no RFQ or zero quotations (line 1625), which is correct.
-
-If after Fix 4 lands the user still cannot see the selection UI on an MRF that has received quotations, the cause is upstream (RFQ/quotations not loaded into state for that MRF). That is a separate diagnostic — flag it then.
+- Update `getApprovalTimerColor` and `getElapsedTimeText` to use this helper.
 
 ---
 
-## Summary of edits to apply
+## Fix 2 — Stage-Level Durations in Progress Tracker
 
-| File | Lines | Change |
-|------|-------|--------|
-| `src/pages/Vendors.tsx` | 1025, 1032, 1047, 1051, 1055, 1059, 1067 | `'N/A'` → `'—'` (7 replacements, fallback string only) |
-| `src/pages/Dashboard.tsx` | top of file + line 337 | Import `formatRelativeTime as formatRelativeTimeUtil` from `@/utils/dateUtils`; swap call site only |
+**File:** `src/components/MRFProgressTracker.tsx` & `src/pages/Procurement.tsx`.
 
-**Not touched:** Emerald flow, `isSupplyChainApproved`, `isSupplyChainDirectorInitialApproved`, badge JSX, RFQ submission, any backend, `VendorPortal.tsx`, the local `formatRelativeTime` function in `Dashboard.tsx`, the quotation-selection JSX, the Send-RFQ-button condition.
+**Action:** 1. **Tracker Prop:** Add `stageTimestamps?: Partial<MRF>` to `MRFProgressTracker.tsx`. 2. **Duration Logic:** Render a muted duration line (e.g., "Took: 2d 4h" or "Elapsed: 5h") **only** for these type-safe stages: * **Submission → Approval:** `created_at` to `director_approved_at` (or `executive_approved_at`). * **Approval → Procurement:** `director_approved_at` to `procurement_review_started_at`. * **Procurement → GRN:** `procurement_review_started_at` to `grn_completed_at`. 3. **Omit Untracked:** Do not render duration text for RFQ, Quotations, or PO stages (timestamps missing on type). 4. **Integration:** In `Procurement.tsx` (~line 3374), pass `selectedMRFForDetails` to the tracker.
 
-**Held pending log data:** Fix 4.
+---
+
+## Fix 3 — Overall Workflow Performance Badge
+
+**File:** `src/pages/Procurement.tsx` **Location:** MRF row header badges (`1832–1899`).
+
+**Action:** Implement the performance indicator using available proxies for completion.
+
+TypeScript
+
+```
+const createdMs = new Date(request.created_at).getTime();
+
+// Use latest available workflow timestamp as completion proxy
+const completionProxy = request.grn_completed_at 
+  ?? request.payment_approved_at 
+  ?? request.procurement_review_started_at;
+
+const isCompleted = getMRFStage(request as MRF) === 'completed';
+
+const totalElapsed = (isCompleted && completionProxy)
+  ? new Date(completionProxy).getTime() - createdMs
+  : Date.now() - createdMs;
+
+const isDelayed = totalElapsed > 5 * 24 * 60 * 60 * 1000;
+
+```
+
+- **Green "Efficient":** `< 5 days`.
+- **Amber "Delayed":** `≥ 5 days`.
+- Render only on the Procurement view MRF row.
+
+---
+
+**Execution Priority:** Apply all fixes (1, 2, and 3) in a **single response**. I have explicitly waived the "Stop and Ask" conditions for the missing RFQ, Quotations, and PO timestamps—proceed by omitting those specific duration lines from the UI. In your chat response, provide a brief summary of these skipped stages and list the exact timestamp fields required in the `MRF` type to enable them in the future.
