@@ -2397,8 +2397,8 @@ const Procurement = () => {
                                 })()}
                               </div>
                             </div>
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-center">
-                              <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2 self-stretch lg:self-center lg:justify-end lg:flex-nowrap pt-2 lg:pt-0 border-t lg:border-t-0 border-border/40">
+                              <div className="flex items-center gap-2 flex-shrink-0">
                                 {timerColor && (
                                   <span className="flex items-center gap-1">
                                     <Clock
@@ -2426,7 +2426,7 @@ const Procurement = () => {
                                   {request.status}
                                 </Badge>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 {/* View Details button - Shown for procurement after the FIRST required approval */}
                                 {(() => {
                                   const workflowState = getWorkflowState(
