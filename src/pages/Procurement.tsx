@@ -3411,6 +3411,7 @@ const Procurement = () => {
                     (selectedMRFForDetails as any).contract_type ||
                     (selectedMRFForDetails as any).contractType
                   }
+                  stageTimestamps={selectedMRFForDetails as any}
                 />
 
                 {/* Basic Information */}
