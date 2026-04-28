@@ -1896,6 +1896,39 @@ const Procurement = () => {
                                     }
                                     return null;
                                   })()}
+                                  {/* Overall workflow performance badge — Procurement view only */}
+                                  {(() => {
+                                    const m = request as MRF;
+                                    const stage = getMRFStage(m);
+                                    if (stage === "rejected") return null;
+                                    const createdRaw = m.created_at || m.date;
+                                    if (!createdRaw) return null;
+                                    const createdMs = new Date(createdRaw).getTime();
+                                    if (Number.isNaN(createdMs)) return null;
+                                    const isCompleted = stage === "completed";
+                                    const completionProxy =
+                                      m.grn_completed_at ||
+                                      m.payment_approved_at ||
+                                      m.procurement_review_started_at;
+                                    const endMs =
+                                      isCompleted && completionProxy
+                                        ? new Date(completionProxy).getTime()
+                                        : Date.now();
+                                    const totalElapsed = endMs - createdMs;
+                                    const isDelayed =
+                                      totalElapsed > 5 * 24 * 60 * 60 * 1000;
+                                    return isDelayed ? (
+                                      <Badge className="bg-amber-500 text-white hover:bg-amber-600">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        Delayed
+                                      </Badge>
+                                    ) : (
+                                      <Badge className="bg-emerald-500 text-white hover:bg-emerald-600">
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Efficient
+                                      </Badge>
+                                    );
+                                  })()}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
                                   <span className="font-medium">
