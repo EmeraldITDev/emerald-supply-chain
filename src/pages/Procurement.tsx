@@ -2273,6 +2273,18 @@ const Procurement = () => {
                                               } else {
                                                 // Show "Select & Send for Approval" button before SCD approval
                                                 return (
+                                                  quotation.status === 'selected' ||
+                                                  quotation.status === 'Selected' ||
+                                                  quotation.status === 'Awarded' ? (
+                                                  <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-xs text-green-600 border-green-600"
+                                                    disabled
+                                                  >
+                                                    ✓ Sent for Approval
+                                                  </Button>
+                                                  ) : (
                                                   <Button
                                                     size="sm"
                                                     variant="default"
@@ -2373,6 +2385,7 @@ const Procurement = () => {
                                                   >
                                                     Select & Send for Approval
                                                   </Button>
+                                                  )
                                                 );
                                               }
                                             })()}
