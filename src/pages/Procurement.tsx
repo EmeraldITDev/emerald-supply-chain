@@ -1821,16 +1821,16 @@ const Procurement = () => {
                         return (
                           <div
                             key={request.id}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
+                            className="group flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-4 sm:p-5 border rounded-xl hover:shadow-lg hover:border-primary/30 transition-all duration-200 bg-card hover:bg-accent/30 cursor-pointer"
                             onClick={() => handleMRFClick(request)}
                           >
                             <div className="flex items-start gap-4 min-w-0 flex-1">
-                              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                              <div className="w-12 h-12 bg-gradient-to-br from-primary/15 to-primary/5 rounded-xl flex items-center justify-center flex-shrink-0 ring-1 ring-primary/10 group-hover:ring-primary/30 transition-all">
                                 <Package className="h-6 w-6 text-primary" />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h3 className="font-semibold text-lg">
+                                <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                  <h3 className="font-semibold text-base sm:text-lg leading-tight">
                                     {request.title}
                                   </h3>
                                   {request.isResubmission && (
@@ -2397,8 +2397,8 @@ const Procurement = () => {
                                 })()}
                               </div>
                             </div>
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-center">
-                              <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2 self-stretch lg:self-center lg:justify-end lg:flex-nowrap pt-2 lg:pt-0 border-t lg:border-t-0 border-border/40">
+                              <div className="flex items-center gap-2 flex-shrink-0">
                                 {timerColor && (
                                   <span className="flex items-center gap-1">
                                     <Clock
@@ -2426,7 +2426,7 @@ const Procurement = () => {
                                   {request.status}
                                 </Badge>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 {/* View Details button - Shown for procurement after the FIRST required approval */}
                                 {(() => {
                                   const workflowState = getWorkflowState(
