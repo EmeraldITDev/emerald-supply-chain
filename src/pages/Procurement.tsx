@@ -250,18 +250,16 @@ const Procurement = () => {
     const mrfRfqs = rfqs.filter(
       (rfq) => rfq.mrfId === mrfId || rfq.mrf_id === mrfId,
     );
-      
-    console.log('[DEBUG] mrfId:', mrfId);
-    console.log('[DEBUG] all rfqs:', rfqs);
-    console.log('[DEBUG] matched rfqs:', mrfRfqs);
-    console.log('[DEBUG] all quotations:', quotations);
-
     if (mrfRfqs.length === 0) return [];
 
     const mrfQuotations: any[] = [];
     mrfRfqs.forEach((rfq) => {
       const rfqQuotations = quotations.filter(
-        (q) => q.rfqId === rfq.id || (q as any).rfq_id === rfq.id,  // ← add fallback
+        (q) =>
+          q.rfqId === rfq.id || // string match
+          q.rfq_id === rfq.id || // snake_case string match
+          String(q.rfq_id) === String(rfq.id) || // numeric vs string safe compare
+          q.rfqId === rfq.id,
       );
       mrfQuotations.push(...rfqQuotations);
     });
@@ -272,6 +270,12 @@ const Procurement = () => {
     fetchMRFs();
     fetchRFQs();
   }, [fetchMRFs, fetchRFQs]);
+
+  useEffect(() => {
+    if (rfqs.length > 0) {
+      fetchQuotations();
+    }
+  }, [rfqs, fetchQuotations]);
 
   // Helper functions for MRF field access (handles both camelCase and snake_case)
   const getMRFEstimatedCost = (mrf: MRF) =>
