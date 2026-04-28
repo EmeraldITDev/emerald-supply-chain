@@ -719,30 +719,42 @@ const Procurement = () => {
     }
   };
 
+  // Determine the correct stage-start timestamp for the elapsed-time indicator.
+  // Uses only fields present on the MRF type; falls back gracefully.
+  const getStageStartTime = (mrf: MRF): string | null => {
+    const stage = getMRFStage(mrf);
+    const wf = getWorkflowState(mrf);
+
+    if (
+      wf === "supply_chain_director_approved" ||
+      stage === "procurement" ||
+      stage === "procurement_review"
+    ) {
+      return (
+        mrf.procurement_review_started_at ||
+        mrf.director_approved_at ||
+        mrf.executive_approved_at ||
+        mrf.created_at ||
+        null
+      );
+    }
+
+    if (stage === "supply_chain" || stage === "supply_chain_director_review") {
+      return mrf.executive_approved_at || mrf.created_at || null;
+    }
+
+    // executive_review, submitted, and all others → time since creation
+    return mrf.created_at || mrf.date || null;
+  };
+
   const getApprovalTimerColor = (mrf: MRFRequest | MRF) => {
     const stage = getMRFStage(mrf as MRF);
     if (stage === "completed" || stage === "rejected") {
       return null;
     }
 
-    // Use procurementManagerApprovalTime if available
-    let startTimeStr = (mrf as any).procurementManagerApprovalTime;
-
-    // For SCD stage, use the timestamp when MRF entered SCD review
-    if (
-      !startTimeStr &&
-      (stage === "supply_chain" || stage === "supply_chain_director_review")
-    ) {
-      startTimeStr =
-        (mrf as any).executive_approval_date ||
-        (mrf as any).executive_approved_at ||
-        (mrf as any).submitted_at ||
-        (mrf as any).created_at;
-    }
-
-    if (!startTimeStr) {
-      return null;
-    }
+    const startTimeStr = getStageStartTime(mrf as MRF);
+    if (!startTimeStr) return null;
 
     const startTime = new Date(startTimeStr);
     const now = new Date();
@@ -758,19 +770,7 @@ const Procurement = () => {
     const stage = getMRFStage(mrf as MRF);
     if (stage === "completed" || stage === "rejected") return null;
 
-    let startTimeStr = (mrf as any).procurementManagerApprovalTime;
-
-    if (
-      !startTimeStr &&
-      (stage === "supply_chain" || stage === "supply_chain_director_review")
-    ) {
-      startTimeStr =
-        (mrf as any).executive_approval_date ||
-        (mrf as any).executive_approved_at ||
-        (mrf as any).submitted_at ||
-        (mrf as any).created_at;
-    }
-
+    const startTimeStr = getStageStartTime(mrf as MRF);
     if (!startTimeStr) return null;
 
     const startTime = new Date(startTimeStr);
