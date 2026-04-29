@@ -2005,8 +2005,8 @@ const Procurement = () => {
                                     return null;
 
                                   return (
-                                    <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                      <div className="flex items-center justify-between mb-2">
+                                    <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                      <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-2">
                                           <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                           <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
@@ -2015,20 +2015,20 @@ const Procurement = () => {
                                           </span>
                                         </div>
                                       </div>
-                                      <div className="space-y-2">
+                                      <div className="space-y-2.5">
                                         {mrfQuotations.map((quotation: any) => (
                                           <div
                                             key={quotation.id}
-                                            className="flex items-center justify-between p-2 bg-white dark:bg-gray-900 rounded border border-blue-200 dark:border-blue-700"
+                                            className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 rounded border border-blue-200 dark:border-blue-700"
                                             onClick={(e) => e.stopPropagation()}
                                           >
-                                            <div className="flex-1">
+                                            <div className="flex-1 min-w-0 pr-2">
                                               <p className="text-sm font-medium">
                                                 {quotation.vendorName ||
                                                   quotation.vendor_name ||
                                                   "Vendor"}
                                               </p>
-                                              <p className="text-xs text-muted-foreground">
+                                              <p className="text-xs text-muted-foreground mt-1">
                                                 Price:{" "}
                                                 {formatAmount(
                                                   quotation.total ??
