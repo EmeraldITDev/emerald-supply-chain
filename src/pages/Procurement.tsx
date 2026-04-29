@@ -2013,6 +2013,22 @@ const Procurement = () => {
                                     })()}
                                   </div>
                                 )}
+                                {((request as MRF).attachmentUrl || (request as MRF).attachment_url || (request as MRF).attachmentShareUrl || (request as MRF).attachment_share_url) && (
+                                  <div className="mt-3">
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">Supporting Document</p>
+                                    <a
+                                      href={(request as MRF).attachmentShareUrl || (request as MRF).attachment_share_url || (request as MRF).attachmentUrl || (request as MRF).attachment_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      download
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                      {(request as MRF).attachmentName || (request as MRF).attachment_name || 'Download Attachment'}
+                                    </a>
+                                  </div>
+                                )}
                                 {/* Quotations Section - Show if RFQ exists and has quotations */}
                                 {(() => {
                                   const mrfQuotations = getQuotationsForMRF(
