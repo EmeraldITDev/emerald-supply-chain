@@ -1739,6 +1739,22 @@ const Procurement = () => {
                                       </div>
                                     </div>
                                   )}
+                                  {((mrf as MRF).attachmentUrl || (mrf as MRF).attachment_url || (mrf as MRF).attachmentShareUrl || (mrf as MRF).attachment_share_url) && (
+                                    <div className="mt-3">
+                                      <p className="text-xs font-medium text-muted-foreground mb-1">Supporting Document</p>
+                                      <a
+                                        href={(mrf as MRF).attachmentShareUrl || (mrf as MRF).attachment_share_url || (mrf as MRF).attachmentUrl || (mrf as MRF).attachment_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        download
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                                      >
+                                        <FileText className="h-4 w-4" />
+                                        {(mrf as MRF).attachmentName || (mrf as MRF).attachment_name || 'Download Attachment'}
+                                      </a>
+                                    </div>
+                                  )}
                                 </div>
                               </CardContent>
                             </Card>
