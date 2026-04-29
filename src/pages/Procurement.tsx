@@ -1930,7 +1930,7 @@ const Procurement = () => {
                                     );
                                   })()}
                                 </div>
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground mb-2.5">
                                   <span className="font-medium">
                                     {request.id}
                                   </span>
@@ -1944,7 +1944,7 @@ const Procurement = () => {
                                     })}
                                   </span>
                                   <span>•</span>
-                                  <span className="font-semibold text-foreground">
+                                  <span className="font-semibold text-foreground ml-1">
                                     {parseFloat(request.estimatedCost || "0") >
                                     0
                                       ? `₦${parseInt(request.estimatedCost).toLocaleString()}`
@@ -1952,7 +1952,7 @@ const Procurement = () => {
                                   </span>
                                 </div>
                                 {request.currentStage && (
-                                  <p className="text-xs text-muted-foreground">
+                                  <p className="text-xs text-muted-foreground mt-2">
                                     Stage:{" "}
                                     <span className="font-medium">
                                       {getPrettyMRFStageLabel(
