@@ -170,10 +170,10 @@ const NewMRF = () => {
             formDataObj.append('pfi', pfiFile);
           }
           if (invoiceFile) {
-            formDataObj.append('invoice', invoiceFile);
+            formDataObj.append('attachment', invoiceFile);
           }
           if (invoiceOneDriveUrl) {
-            formDataObj.append('invoice_onedrive_url', invoiceOneDriveUrl);
+            formDataObj.append('onedrive_link', invoiceOneDriveUrl);
           }
           console.log('Sending FormData with files:', {
             hasPfi: !!pfiFile,

@@ -398,6 +398,22 @@ const ExecutiveDashboard = () => {
                               </div>
                             )}
 
+                            {(mrf.attachmentUrl || mrf.attachment_url || mrf.attachmentShareUrl || mrf.attachment_share_url) && (
+                              <div className="mt-3">
+                                <p className="text-xs font-medium text-muted-foreground mb-1">Supporting Document</p>
+                                <a
+                                  href={mrf.attachmentShareUrl || mrf.attachment_share_url || mrf.attachmentUrl || mrf.attachment_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download
+                                  className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                  {mrf.attachmentName || mrf.attachment_name || 'Download Attachment'}
+                                </a>
+                              </div>
+                            )}
+
                             {isHighValue && (
                               <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
                                 <div className="flex gap-2">

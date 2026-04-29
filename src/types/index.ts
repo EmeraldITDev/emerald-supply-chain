@@ -118,6 +118,15 @@ export interface MRF {
   procurement_review_started_at?: string;
   // Last action tracking (from backend)
   last_action_by_role?: string;
+  // Supporting Document attachment fields
+  attachmentUrl?: string;
+  attachmentShareUrl?: string;
+  attachment_url?: string;
+  attachment_share_url?: string;
+  attachmentName?: string;
+  attachment_name?: string;
+  onedriveLink?: string;
+  onedrive_link?: string;
 }
 
 export interface CreateMRFData {
