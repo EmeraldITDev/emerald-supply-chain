@@ -1903,7 +1903,9 @@ const Procurement = () => {
                                     if (stage === "rejected") return null;
                                     const createdRaw = m.created_at || m.date;
                                     if (!createdRaw) return null;
-                                    const createdMs = new Date(createdRaw).getTime();
+                                    const createdMs = new Date(
+                                      createdRaw,
+                                    ).getTime();
                                     if (Number.isNaN(createdMs)) return null;
                                     const isCompleted = stage === "completed";
                                     const completionProxy =
@@ -2305,19 +2307,17 @@ const Procurement = () => {
                                                 );
                                               } else {
                                                 // Show "Select & Send for Approval" button before SCD approval
-                                                return (
-                                                  quotation.status === 'selected' ||
-                                                  quotation.status === 'Selected' ||
-                                                  quotation.status === 'Awarded' ? (
+                                                return wfState ===
+                                                  "vendor_selected" ? (
                                                   <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="text-xs text-green-600 border-green-600"
+                                                    className="text-xs text-green-600 border-green-600 cursor-not-allowed opacity-75"
                                                     disabled
                                                   >
                                                     ✓ Sent for Approval
                                                   </Button>
-                                                  ) : (
+                                                ) : (
                                                   <Button
                                                     size="sm"
                                                     variant="default"
@@ -2356,7 +2356,6 @@ const Procurement = () => {
                                                             await fetchRFQs();
                                                             await fetchQuotations();
                                                           } else {
-                                                            // Enhanced error handling
                                                             let errorMessage =
                                                               sendResponse.error ||
                                                               "Failed to send quotation for approval";
@@ -2418,7 +2417,6 @@ const Procurement = () => {
                                                   >
                                                     Select & Send for Approval
                                                   </Button>
-                                                  )
                                                 );
                                               }
                                             })()}
