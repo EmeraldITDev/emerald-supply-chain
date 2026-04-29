@@ -118,12 +118,13 @@ export const formatRelativeTime = (dateString: string | null | undefined): strin
   try {
     let date: Date;
 
-    // Parse the date string - ensure UTC dates are properly handled
     if (dateString.includes('Z') || dateString.match(/[+-]\d{2}:\d{2}$/)) {
       date = new Date(dateString);
     } else if (dateString.includes('T')) {
-      // Treat as UTC if no timezone specified
       date = new Date(dateString + 'Z');
+    } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      // Date-only string e.g. "2026-04-15" — treat as UTC noon to avoid day-off errors
+      date = new Date(dateString + 'T12:00:00Z');
     } else {
       date = new Date(dateString);
     }
@@ -132,49 +133,29 @@ export const formatRelativeTime = (dateString: string | null | undefined): strin
       return 'Invalid Date';
     }
 
-    // Convert UTC date to Lagos timezone for accurate relative time calculation
-    // Get the time in Lagos timezone
-    const lagosDateStr = date.toLocaleString('en-US', { 
-      timeZone: 'Africa/Lagos',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
-    
-    // Parse the Lagos time string back to a Date object
-    // Format: "MM/DD/YYYY, HH:MM:SS"
-    const [datePart, timePart] = lagosDateStr.split(', ');
-    const [month, day, year] = datePart.split('/');
-    const [hour, minute, second] = timePart.split(':');
-    const lagosDate = new Date(
-      parseInt(year),
-      parseInt(month) - 1,
-      parseInt(day),
-      parseInt(hour),
-      parseInt(minute),
-      parseInt(second)
-    );
-
-    // Use date-fns formatDistanceToNow
-    const now = new Date();
-    const diffMs = now.getTime() - lagosDate.getTime();
+    const diffMs = Date.now() - date.getTime();
     const diffMins = Math.round(diffMs / 60000);
+
     if (diffMins < 1) return 'just now';
     if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+
     const diffHours = Math.round(diffMins / 60);
     if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+
     const diffDays = Math.round(diffHours / 24);
-    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    if (diffDays < 30) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+
+    const diffMonths = Math.round(diffDays / 30);
+    if (diffMonths < 12) return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`;
+
+    const diffYears = Math.round(diffDays / 365);
+    return `${diffYears} year${diffYears !== 1 ? 's' : ''} ago`;
+
   } catch (error) {
     console.error('Error formatting relative time:', dateString, error);
     return 'Invalid Date';
   }
 };
-
 /**
  * Convert a date string to a Date object in Lagos timezone
  */
