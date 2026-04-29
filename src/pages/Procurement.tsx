@@ -1815,13 +1815,13 @@ const Procurement = () => {
                     />
 
                     {/* Results */}
-                    <div className="space-y-3 mt-4">
+                    <div className="space-y-4 mt-4">
                       {filteredMRFs.map((request) => {
                         const timerColor = getApprovalTimerColor(request);
                         return (
                           <div
                             key={request.id}
-                            className="group flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-4 sm:p-5 border rounded-xl hover:shadow-lg hover:border-primary/30 transition-all duration-200 bg-card hover:bg-accent/30 cursor-pointer"
+                            className="group flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 p-5 sm:p-6 border rounded-xl hover:shadow-lg hover:border-primary/30 transition-all duration-200 bg-card hover:bg-accent/30 cursor-pointer"
                             onClick={() => handleMRFClick(request)}
                           >
                             <div className="flex items-start gap-4 min-w-0 flex-1">
@@ -1829,8 +1829,8 @@ const Procurement = () => {
                                 <Package className="h-6 w-6 text-primary" />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                                  <h3 className="font-semibold text-base sm:text-lg leading-tight">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2.5">
+                                  <h3 className="font-semibold text-base sm:text-lg leading-tight mr-1">
                                     {request.title}
                                   </h3>
                                   {request.isResubmission && (
@@ -1930,7 +1930,7 @@ const Procurement = () => {
                                     );
                                   })()}
                                 </div>
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground mb-2.5">
                                   <span className="font-medium">
                                     {request.id}
                                   </span>
@@ -1944,7 +1944,7 @@ const Procurement = () => {
                                     })}
                                   </span>
                                   <span>•</span>
-                                  <span className="font-semibold text-foreground">
+                                  <span className="font-semibold text-foreground ml-1">
                                     {parseFloat(request.estimatedCost || "0") >
                                     0
                                       ? `₦${parseInt(request.estimatedCost).toLocaleString()}`
@@ -1952,7 +1952,7 @@ const Procurement = () => {
                                   </span>
                                 </div>
                                 {request.currentStage && (
-                                  <p className="text-xs text-muted-foreground">
+                                  <p className="text-xs text-muted-foreground mt-2">
                                     Stage:{" "}
                                     <span className="font-medium">
                                       {getPrettyMRFStageLabel(
@@ -2005,8 +2005,8 @@ const Procurement = () => {
                                     return null;
 
                                   return (
-                                    <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                      <div className="flex items-center justify-between mb-2">
+                                    <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                      <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-2">
                                           <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                           <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
@@ -2015,20 +2015,20 @@ const Procurement = () => {
                                           </span>
                                         </div>
                                       </div>
-                                      <div className="space-y-2">
+                                      <div className="space-y-2.5">
                                         {mrfQuotations.map((quotation: any) => (
                                           <div
                                             key={quotation.id}
-                                            className="flex items-center justify-between p-2 bg-white dark:bg-gray-900 rounded border border-blue-200 dark:border-blue-700"
+                                            className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 rounded border border-blue-200 dark:border-blue-700"
                                             onClick={(e) => e.stopPropagation()}
                                           >
-                                            <div className="flex-1">
+                                            <div className="flex-1 min-w-0 pr-2">
                                               <p className="text-sm font-medium">
                                                 {quotation.vendorName ||
                                                   quotation.vendor_name ||
                                                   "Vendor"}
                                               </p>
-                                              <p className="text-xs text-muted-foreground">
+                                              <p className="text-xs text-muted-foreground mt-1">
                                                 Price:{" "}
                                                 {formatAmount(
                                                   quotation.total ??
@@ -2430,10 +2430,10 @@ const Procurement = () => {
                                 })()}
                               </div>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 self-stretch lg:self-center lg:justify-end lg:flex-nowrap pt-2 lg:pt-0 border-t lg:border-t-0 border-border/40">
-                              <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="flex flex-wrap items-center gap-3 self-stretch lg:self-center lg:justify-end lg:flex-nowrap pt-3 lg:pt-0 lg:pl-3 border-t lg:border-t-0 lg:border-l border-border/40">
+                              <div className="flex items-center gap-2 flex-shrink-0 pr-1">
                                 {timerColor && (
-                                  <span className="flex items-center gap-1">
+                                  <span className="flex items-center gap-1.5">
                                     <Clock
                                       className={`h-4 w-4 ${timerColor}`}
                                     />
@@ -2459,7 +2459,7 @@ const Procurement = () => {
                                   {request.status}
                                 </Badge>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2.5">
                                 {/* View Details button - Shown for procurement after the FIRST required approval */}
                                 {(() => {
                                   const workflowState = getWorkflowState(
