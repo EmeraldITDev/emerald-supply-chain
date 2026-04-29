@@ -1815,13 +1815,13 @@ const Procurement = () => {
                     />
 
                     {/* Results */}
-                    <div className="space-y-3 mt-4">
+                    <div className="space-y-4 mt-4">
                       {filteredMRFs.map((request) => {
                         const timerColor = getApprovalTimerColor(request);
                         return (
                           <div
                             key={request.id}
-                            className="group flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-4 sm:p-5 border rounded-xl hover:shadow-lg hover:border-primary/30 transition-all duration-200 bg-card hover:bg-accent/30 cursor-pointer"
+                            className="group flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 p-5 sm:p-6 border rounded-xl hover:shadow-lg hover:border-primary/30 transition-all duration-200 bg-card hover:bg-accent/30 cursor-pointer"
                             onClick={() => handleMRFClick(request)}
                           >
                             <div className="flex items-start gap-4 min-w-0 flex-1">
@@ -1829,8 +1829,8 @@ const Procurement = () => {
                                 <Package className="h-6 w-6 text-primary" />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                                  <h3 className="font-semibold text-base sm:text-lg leading-tight">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2.5">
+                                  <h3 className="font-semibold text-base sm:text-lg leading-tight mr-1">
                                     {request.title}
                                   </h3>
                                   {request.isResubmission && (
