@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateLagos, formatRelativeTime as formatRelativeTimeUtil } from "@/utils/dateUtils";
+import type { VendorRegistration } from "@/types";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -236,7 +237,7 @@ const Dashboard = () => {
     }
   };
 
-  const formatRegistrationDate = (reg: any) => {
+  const formatRegistrationDate = (reg: VendorRegistration) => {
     const formatted = formatDateLagos(reg.submittedDate || reg.createdAt, { includeTime: false, format: "medium" });
     return formatted === "Invalid Date" ? "N/A" : formatted;
   };
