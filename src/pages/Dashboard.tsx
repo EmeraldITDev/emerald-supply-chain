@@ -13,7 +13,8 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatRelativeTime as formatRelativeTimeUtil } from "@/utils/dateUtils";
+import { formatDateLagos, formatRelativeTime as formatRelativeTimeUtil } from "@/utils/dateUtils";
+import type { VendorRegistration } from "@/types";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -236,6 +237,11 @@ const Dashboard = () => {
     }
   };
 
+  const formatRegistrationDate = (reg: VendorRegistration) => {
+    const formatted = formatDateLagos(reg.submittedDate || reg.createdAt, { includeTime: false, format: "medium" });
+    return formatted === "Invalid Date" ? "N/A" : formatted;
+  };
+
 console.log("SCM current user:", user);
 console.log("SCM current user role:", user?.role);
 console.log("SCM isEmployeeRole:", isEmployeeRole(user?.role));
@@ -293,7 +299,7 @@ console.log("SCM isEmployeeRole:", isEmployeeRole(user?.role));
                 <div className="text-center py-4 text-sm text-muted-foreground">Loading vendor registrations...</div>
               ) : pendingRegistrations.length > 0 ? (
                 <div className="space-y-3 sm:space-y-4">
-                  {pendingRegistrations.slice(0, 5).map((reg: any) => (
+                  {pendingRegistrations.slice(0, 5).map((reg: VendorRegistration) => (
                     <div 
                       key={reg.id} 
                       className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0 cursor-pointer hover:bg-accent/50 p-2 rounded transition-colors"
@@ -302,7 +308,7 @@ console.log("SCM isEmployeeRole:", isEmployeeRole(user?.role));
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{reg.companyName}</p>
                         <p className="text-xs sm:text-sm text-muted-foreground">
-                          {reg.category} • {new Date(reg.createdAt).toLocaleDateString()}
+                          {reg.category} • {formatRegistrationDate(reg)}
                         </p>
                         {reg.contactPerson && (
                           <p className="text-xs text-muted-foreground mt-1">Contact: {reg.contactPerson}</p>
