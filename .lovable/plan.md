@@ -1,84 +1,92 @@
-# MRF Workflow Time Tracking — Final Execution Plan
+## What's wrong
 
-**Directives:**
+Two separate bugs visible in the screenshots:
 
-1. **Proceed immediately** with implementation. Do not stop to ask for clarification on missing fields.
-2. **Strict Type Safety:** Use only the timestamps defined in `src/types/index.ts`. Do not use `(mrf as any)` for logic.
-3. **Graceful Omission:** If a stage requires a timestamp not on the type (e.g., RFQ, Quotations), simply do not render the duration for that specific stage.
+### Bug 1 — Sidebar overlaps content + leaves a vertical gap
 
----
+The collapsed sidebar (icon rail) creates a blank vertical strip on the left of the page, while the actual page content (headings, stat cards, tables) slides **underneath** it. Visible symptoms in the first screenshot: "ogistics Management", "leet Management", clipped stat-card titles, tabs hidden under the rail.
 
-## Fix 1 — Repair "Time Elapsed" Indicator
+**Root cause** — `src/components/layout/DashboardLayout.tsx`, line 62:
 
-**File:** `src/pages/Procurement.tsx` **Lines:** `722–793` (Helpers), `2400–2415` (Row render).
-
-**Action:** Implement `getStageStartTime` using the available fields to replace the current `N/A` bug.
-
-TypeScript
-
-```
-const getStageStartTime = (mrf: MRF): string | null => {
-  const stage = getMRFStage(mrf);
-  const wf = getWorkflowState(mrf);
-
-  if (wf === 'supply_chain_director_approved' || stage === 'procurement' || stage === 'procurement_review') {
-    return mrf.procurement_review_started_at 
-      ?? mrf.director_approved_at 
-      ?? mrf.executive_approved_at 
-      ?? mrf.created_at;
-  }
-  
-  if (stage === 'supply_chain' || stage === 'supply_chain_director_review') {
-    return mrf.executive_approved_at ?? mrf.created_at;
-  }
-
-  return mrf.created_at;
-};
-
+```tsx
+<div className="flex min-h-screen w-full">
+  <AppSidebar />
+  <div className="flex-1 flex flex-col w-full">   {/* ← bug */}
 ```
 
-- Update `getApprovalTimerColor` and `getElapsedTimeText` to use this helper.
+Shadcn's `Sidebar` (default `collapsible="offcanvas"`) renders its visible panel as `position: fixed` and reserves horizontal space via a sibling spacer div sized at `--sidebar-width` (or the icon-rail width when collapsed). The content column uses `flex-1` **and** `w-full`. The `w-full` forces the flex child to 100% of the parent, overriding the spacer; content drifts left under the fixed sidebar.
 
----
+### Bug 2 — Fleet table is too wide vs. other logistics tables
 
-## Fix 2 — Stage-Level Durations in Progress Tracker
+Second screenshot shows the Fleet table extending past the viewport (column "Driv…" cut off), unlike Trips/Journeys tables on the same module which fit normally.
 
-**File:** `src/components/MRFProgressTracker.tsx` & `src/pages/Procurement.tsx`.
+**Root cause** — `src/components/logistics/FleetManagement.tsx`, lines 736–738:
 
-**Action:** 1. **Tracker Prop:** Add `stageTimestamps?: Partial<MRF>` to `MRFProgressTracker.tsx`. 2. **Duration Logic:** Render a muted duration line (e.g., "Took: 2d 4h" or "Elapsed: 5h") **only** for these type-safe stages: * **Submission → Approval:** `created_at` to `director_approved_at` (or `executive_approved_at`). * **Approval → Procurement:** `director_approved_at` to `procurement_review_started_at`. * **Procurement → GRN:** `procurement_review_started_at` to `grn_completed_at`. 3. **Omit Untracked:** Do not render duration text for RFQ, Quotations, or PO stages (timestamps missing on type). 4. **Integration:** In `Procurement.tsx` (~line 3374), pass `selectedMRFForDetails` to the tracker.
-
----
-
-## Fix 3 — Overall Workflow Performance Badge
-
-**File:** `src/pages/Procurement.tsx` **Location:** MRF row header badges (`1832–1899`).
-
-**Action:** Implement the performance indicator using available proxies for completion.
-
-TypeScript
-
-```
-const createdMs = new Date(request.created_at).getTime();
-
-// Use latest available workflow timestamp as completion proxy
-const completionProxy = request.grn_completed_at 
-  ?? request.payment_approved_at 
-  ?? request.procurement_review_started_at;
-
-const isCompleted = getMRFStage(request as MRF) === 'completed';
-
-const totalElapsed = (isCompleted && completionProxy)
-  ? new Date(completionProxy).getTime() - createdMs
-  : Date.now() - createdMs;
-
-const isDelayed = totalElapsed > 5 * 24 * 60 * 60 * 1000;
-
+```tsx
+<div className="w-full overflow-x-auto">
+  <div className="max-w-[1118px]">           {/* ← bug */}
+    <Table className="w-full table-auto">
 ```
 
-- **Green "Efficient":** `< 5 days`.
-- **Amber "Delayed":** `≥ 5 days`.
-- Render only on the Procurement view MRF row.
+The inner `max-w-[1118px]` wrapper forces the table to a hardcoded 1118px regardless of its container. Sibling tables (`TripScheduling.tsx` line 895, `JourneyManagement.tsx`) use a single `overflow-x-auto` wrapper with no inner width constraint and a normal `<Table>` — they shrink/scroll to fit naturally.
 
----
+## The fixes
 
-**Execution Priority:** Apply all fixes (1, 2, and 3) in a **single response**. I have explicitly waived the "Stop and Ask" conditions for the missing RFQ, Quotations, and PO timestamps—proceed by omitting those specific duration lines from the UI. In your chat response, provide a brief summary of these skipped stages and list the exact timestamp fields required in the `MRF` type to enable them in the future.
+### Fix 1 — `src/components/layout/DashboardLayout.tsx` (line 62)
+
+Before:
+```tsx
+<div className="flex-1 flex flex-col w-full">
+```
+
+After:
+```tsx
+<div className="flex-1 flex flex-col min-w-0">
+```
+
+- Remove `w-full` so the sidebar spacer reserves its column correctly.
+- Add `min-w-0` so wide content (tables, breadcrumbs) shrinks instead of forcing horizontal overflow — standard flexbox idiom.
+
+### Fix 2 — `src/components/logistics/FleetManagement.tsx` (lines 736–760)
+
+Remove the `<div className="max-w-[1118px]">` wrapper entirely so the table matches the pattern used by `TripScheduling` and `JourneyManagement`:
+
+Before:
+```tsx
+<div className="w-full overflow-x-auto">
+  <div className="max-w-[1118px]">
+    <Table className="w-full table-auto">
+      ...
+    </Table>
+  </div>
+</div>
+```
+
+After:
+```tsx
+<div className="overflow-x-auto">
+  <Table>
+    ...
+  </Table>
+</div>
+```
+
+This matches the existing logistics-table standard (memory: Logistics UI Standards — wide tables scroll horizontally inside their card).
+
+## Why this works
+
+```text
+Layout row:
+[ Sidebar wrapper (icon rail or 16rem) ][ Content column = flex-1, min-w-0 ]
+  ↑ spacer reserves width                ↑ takes remaining space, can shrink
+  + fixed panel sits over its spacer       (no w-full overriding it)
+```
+
+With the table fix, Fleet inherits the same responsive behavior as Trips/Journeys: it sizes to its card; if columns exceed available width, the card scrolls horizontally rather than the page.
+
+## Out of scope
+
+- No changes to padding values
+- No changes to `AppSidebar`, the `Sidebar` primitive, or any page file
+- No changes to Fleet table columns, data, or actions — only the wrapper is removed
+- Other logistics tables already follow the correct pattern; not touched
