@@ -451,7 +451,7 @@ console.log("SCM isEmployeeRole:", isEmployeeRole(user?.role));
                             {activity.description || activity.type}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(activity.date).toLocaleString()}
+                            {formatRelativeTimeUtil(activity.date)}
                           </p>
                         </div>
                         <Badge variant={activity.status === "Approved" || activity.status === "Completed" ? "default" : "secondary"}>
