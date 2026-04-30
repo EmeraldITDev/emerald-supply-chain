@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatRelativeTime as formatRelativeTimeUtil } from "@/utils/dateUtils";
+import { formatDateLagos, formatRelativeTime as formatRelativeTimeUtil } from "@/utils/dateUtils";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -236,6 +236,11 @@ const Dashboard = () => {
     }
   };
 
+  const formatRegistrationDate = (reg: any) => {
+    const formatted = formatDateLagos(reg.submittedDate || reg.createdAt, { includeTime: false, format: "medium" });
+    return formatted === "Invalid Date" ? "N/A" : formatted;
+  };
+
 console.log("SCM current user:", user);
 console.log("SCM current user role:", user?.role);
 console.log("SCM isEmployeeRole:", isEmployeeRole(user?.role));
@@ -302,7 +307,7 @@ console.log("SCM isEmployeeRole:", isEmployeeRole(user?.role));
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{reg.companyName}</p>
                         <p className="text-xs sm:text-sm text-muted-foreground">
-                          {reg.category} • {new Date(reg.createdAt).toLocaleDateString()}
+                          {reg.category} • {formatRegistrationDate(reg)}
                         </p>
                         {reg.contactPerson && (
                           <p className="text-xs text-muted-foreground mt-1">Contact: {reg.contactPerson}</p>
