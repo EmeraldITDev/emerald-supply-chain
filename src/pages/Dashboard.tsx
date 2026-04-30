@@ -299,7 +299,7 @@ console.log("SCM isEmployeeRole:", isEmployeeRole(user?.role));
                 <div className="text-center py-4 text-sm text-muted-foreground">Loading vendor registrations...</div>
               ) : pendingRegistrations.length > 0 ? (
                 <div className="space-y-3 sm:space-y-4">
-                  {pendingRegistrations.slice(0, 5).map((reg: any) => (
+                  {pendingRegistrations.slice(0, 5).map((reg: VendorRegistration) => (
                     <div 
                       key={reg.id} 
                       className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3 last:border-0 cursor-pointer hover:bg-accent/50 p-2 rounded transition-colors"
