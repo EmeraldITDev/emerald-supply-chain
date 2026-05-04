@@ -1515,7 +1515,11 @@ const SupplyChainDashboard = () => {
                             (item: any, idx: number) => (
                               <tr key={idx} className="border-b">
                                 <td className="p-2">
-                                  {item.item_name || item.name || "N/A"}
+                                  {item.item_name || item.name ? (
+                                    item.item_name || item.name
+                                  ) : (
+                                    <span className="text-muted-foreground italic">Unnamed item</span>
+                                  )}
                                 </td>
                                 <td className="text-right p-2">
                                   {item.quantity || "N/A"}

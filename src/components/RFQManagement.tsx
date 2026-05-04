@@ -1168,7 +1168,11 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                       <div key={idx} className="p-3 border rounded-md">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <p className="font-medium">{item.item_name || item.name || `Item ${idx + 1}`}</p>
+                            {item.item_name || item.name ? (
+                              <p className="font-medium">{item.item_name || item.name}</p>
+                            ) : (
+                              <p className="font-medium text-muted-foreground italic">Unnamed item</p>
+                            )}
                             <div className="grid grid-cols-3 gap-4 mt-2 text-sm text-muted-foreground">
                               <span>Quantity: {item.quantity || 'N/A'}</span>
                               <span>Unit Price: ₦{parseFloat(item.unit_price || item.unitPrice || '0').toLocaleString()}</span>

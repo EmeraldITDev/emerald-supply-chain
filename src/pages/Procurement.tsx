@@ -3197,11 +3197,15 @@ const Procurement = () => {
                         <div key={idx} className="p-3 border rounded-md">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
-                              <p className="font-medium">
-                                {item.item_name ||
-                                  item.name ||
-                                  `Item ${idx + 1}`}
-                              </p>
+                              {item.item_name || item.name ? (
+                                <p className="font-medium">
+                                  {item.item_name || item.name}
+                                </p>
+                              ) : (
+                                <p className="font-medium text-muted-foreground italic">
+                                  Unnamed item
+                                </p>
+                              )}
                               {item.description && (
                                 <p className="text-sm text-muted-foreground mt-1">
                                   {item.description}
