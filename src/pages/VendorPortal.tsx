@@ -2272,7 +2272,11 @@ const VendorPortal = () => {
                     <div className="mt-2 space-y-2">
                       {rfq.items.map((item, idx) => (
                         <div key={idx} className="p-2 border rounded">
-                          <p className="font-medium">{item.item_name}</p>
+                           {item.item_name || (item as any).name ? (
+                             <p className="font-medium">{item.item_name || (item as any).name}</p>
+                           ) : (
+                             <p className="font-medium text-muted-foreground italic">Unnamed item</p>
+                           )}
                           <p className="text-sm text-muted-foreground">
                             Quantity: {item.quantity} {item.unit}
                             {item.specifications && ` • ${item.specifications}`}
