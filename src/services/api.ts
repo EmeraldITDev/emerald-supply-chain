@@ -1681,12 +1681,21 @@ export const vendorPortalApi = {
     }
 
     // Prepare items array - backend expects rfq_item_id, item_name, quantity, unit_price
-    const items = quotationData.items.map(item => ({
+    // CRITICAL: Always normalize to an array — backend rejects with 422 if `items` is an object.
+    let rawItems: any = quotationData.items;
+    if (!Array.isArray(rawItems)) rawItems = rawItems ? [rawItems] : [];
+    const items = rawItems.map((item: any) => ({
       item_name: item.item_name,
       quantity: item.quantity,
       unit_price: item.unit_price,
       ...(item.rfq_item_id && { rfq_item_id: item.rfq_item_id }),
     }));
+
+    // Normalize attachments to always be an array
+    let normalizedAttachments: File[] = [];
+    if (attachments) {
+      normalizedAttachments = Array.isArray(attachments) ? attachments : [attachments as any];
+    }
 
     // Prepare the payload according to backend spec
     // Backend expects: price (required), deliveryDate (required), delivery_days, payment_terms, validity_days (required), etc.
@@ -1698,11 +1707,12 @@ export const vendorPortalApi = {
       validityDays = Number(validityDays); // Ensure it's a number
     }
     
-    const payload = {
+    const payload: any = {
       rfq_id: rfqId,
       price: quotationData.total_amount, // Backend requires 'price' field
       deliveryDate: quotationData.delivery_date, // Backend requires 'deliveryDate' field (camelCase)
-      items: items,
+      items: Array.isArray(items) ? items : [items],
+      attachments: [] as string[], // Always send as array; populated below if URLs exist
       delivery_days: deliveryDays || 0,
       payment_terms: quotationData.payment_terms,
       validity_days: validityDays, // Required by database - always include with default of 30
@@ -1710,8 +1720,17 @@ export const vendorPortalApi = {
       ...(quotationData.notes && { notes: quotationData.notes }),
     };
 
+    // Log full payload before sending so the shape can be verified during testing
+    console.log('[submitQuotation] Full payload before send:', {
+      ...payload,
+      itemsIsArray: Array.isArray(payload.items),
+      itemsCount: payload.items.length,
+      attachmentsIsArray: Array.isArray(payload.attachments),
+      attachmentsCount: normalizedAttachments.length,
+    });
+
     // If there are attachments, use FormData
-    if (attachments && attachments.length > 0) {
+    if (normalizedAttachments.length > 0) {
       const formData = new FormData();
       
       // Append each field individually - backend expects specific field names
@@ -1727,10 +1746,11 @@ export const vendorPortalApi = {
       if (payload.notes) {
         formData.append('notes', payload.notes);
       }
-      // Items must be sent as JSON string
-      formData.append('items', JSON.stringify(payload.items));
-      
-      attachments.forEach((file) => {
+      // Items must be sent as JSON string — guarantee array shape
+      const itemsArray = Array.isArray(payload.items) ? payload.items : [payload.items];
+      formData.append('items', JSON.stringify(itemsArray));
+
+      normalizedAttachments.forEach((file) => {
         formData.append('attachments[]', file);
       });
 
