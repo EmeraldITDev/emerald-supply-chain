@@ -1548,35 +1548,39 @@ const SupplyChainDashboard = () => {
                   </div>
                 )}
 
-              {/* Attachments */}
-              {mrfFullDetails?.selectedQuotation?.attachments &&
-                Array.isArray(mrfFullDetails.selectedQuotation.attachments) &&
-                mrfFullDetails.selectedQuotation.attachments.length > 0 && (
-                  <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                    <h4 className="font-semibold mb-3 text-yellow-900 dark:text-yellow-100">
-                      Attachments
-                    </h4>
+              {/* Supporting Documents */}
+              {(() => {
+                const docs = normalizeAttachments(
+                  mrfFullDetails?.selectedQuotation?.attachments,
+                );
+                if (docs.length === 0) return null;
+                return (
+                  <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+                    <h4 className="font-semibold mb-3">Supporting Documents</h4>
                     <div className="space-y-2">
-                      {mrfFullDetails.selectedQuotation.attachments.map(
-                        (att: any, idx: number) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
-                            <a
-                              href={att.url || att.path}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline"
-                            >
-                              {att.name ||
-                                att.filename ||
-                                `Attachment ${idx + 1}`}
-                            </a>
+                      {docs.map((doc, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between gap-2 p-2 border rounded-md"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText className="h-4 w-4 shrink-0" />
+                            <span className="text-sm truncate">{doc.name}</span>
                           </div>
-                        ),
-                      )}
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline shrink-0"
+                          >
+                            View Document
+                          </a>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                )}
+                );
+              })()}
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
