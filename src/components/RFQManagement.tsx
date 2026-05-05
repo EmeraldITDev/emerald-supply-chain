@@ -17,6 +17,7 @@ import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, F
 import { vendorApi, rfqApi, quotationApi } from "@/services/api";
 import { normalizeQuotation, displayNumeric, displayString, displayCurrency, formatDays, formatAmount } from "@/utils/normalizeQuotation";
 import type { NormalizedQuotation } from "@/utils/normalizeQuotation";
+import { normalizeAttachments } from "@/utils/attachments";
 import type { MRFRequest, RFQ, Quotation } from "@/contexts/AppContext";
 
 interface Vendor {
