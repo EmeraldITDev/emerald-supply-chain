@@ -1746,13 +1746,15 @@ export const vendorPortalApi = {
       if (payload.notes) {
         formData.append('notes', payload.notes);
       }
-      // Items must be sent as JSON string — guarantee array shape
+      // Items must be sent as a single JSON-stringified array (not items[] loop)
       const itemsArray = Array.isArray(payload.items) ? payload.items : [payload.items];
       formData.append('items', JSON.stringify(itemsArray));
 
-      normalizedAttachments.forEach((file) => {
-        formData.append('attachments[]', file);
-      });
+      // Attachments must also be sent as a single JSON-stringified array
+      const attachmentsArray = Array.isArray(normalizedAttachments)
+        ? normalizedAttachments
+        : [normalizedAttachments];
+      formData.append('attachments', JSON.stringify(attachmentsArray));
 
       // Log FormData contents for debugging
       console.log('Submitting quotation with FormData to /rfqs/:id/submit-quotation:', {
@@ -1762,9 +1764,12 @@ export const vendorPortalApi = {
         delivery_days: payload.delivery_days,
         payment_terms: payload.payment_terms,
         validity_days: payload.validity_days,
-        items: payload.items,
-        items_count: payload.items.length,
-        attachments_count: attachments.length,
+        items: itemsArray,
+        items_json: JSON.stringify(itemsArray),
+        items_count: itemsArray.length,
+        attachments: attachmentsArray,
+        attachments_json: JSON.stringify(attachmentsArray),
+        attachments_count: attachmentsArray.length,
       });
 
       // Use vendorApiRequest with FormData
