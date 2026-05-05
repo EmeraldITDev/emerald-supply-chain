@@ -3926,31 +3926,42 @@ const Procurement = () => {
                                       </p>
                                     </div>
                                   )}
-                                  {quotation.attachments &&
-                                    quotation.attachments.length > 0 && (
+                                  {(() => {
+                                    const docs = normalizeAttachments(
+                                      quotation.attachments,
+                                    );
+                                    if (docs.length === 0) return null;
+                                    return (
                                       <div className="mt-3">
-                                        <p className="text-xs font-medium mb-1">
-                                          Attachments (
-                                          {quotation.attachments.length})
+                                        <p className="text-xs font-medium mb-2">
+                                          Supporting Documents ({docs.length})
                                         </p>
-                                        <div className="flex flex-wrap gap-2">
-                                          {quotation.attachments.map(
-                                            (att: any, idx: number) => (
-                                              <Badge
-                                                key={idx}
-                                                variant="outline"
-                                                className="text-xs"
+                                        <div className="space-y-2">
+                                          {docs.map((doc, idx) => (
+                                            <div
+                                              key={idx}
+                                              className="flex items-center justify-between gap-2 p-2 border rounded-md bg-background"
+                                            >
+                                              <div className="flex items-center gap-2 min-w-0">
+                                                <FileText className="h-3.5 w-3.5 shrink-0" />
+                                                <span className="text-xs truncate">
+                                                  {doc.name}
+                                                </span>
+                                              </div>
+                                              <a
+                                                href={doc.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs text-primary hover:underline shrink-0"
                                               >
-                                                <FileText className="h-3 w-3 mr-1" />
-                                                {att.fileName ||
-                                                  att.name ||
-                                                  `Attachment ${idx + 1}`}
-                                              </Badge>
-                                            ),
-                                          )}
+                                                View Document
+                                              </a>
+                                            </div>
+                                          ))}
                                         </div>
                                       </div>
-                                    )}
+                                    );
+                                  })()}
                                 </div>
                               );
                             })}
