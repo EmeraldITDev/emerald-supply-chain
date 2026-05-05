@@ -17,6 +17,7 @@ import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, F
 import { vendorApi, rfqApi, quotationApi } from "@/services/api";
 import { normalizeQuotation, displayNumeric, displayString, displayCurrency, formatDays, formatAmount } from "@/utils/normalizeQuotation";
 import type { NormalizedQuotation } from "@/utils/normalizeQuotation";
+import { normalizeAttachments } from "@/utils/attachments";
 import type { MRFRequest, RFQ, Quotation } from "@/contexts/AppContext";
 
 interface Vendor {
@@ -1192,20 +1193,34 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                 <p className="text-sm mt-1 p-3 bg-muted rounded-md">{displayString(selectedQuotation.notes)}</p>
               </div>
 
-              {/* Attachments */}
-              {selectedQuotation.attachments && selectedQuotation.attachments.length > 0 && (
-                <div>
-                  <Label className="text-muted-foreground mb-2 block">Attachments</Label>
-                  <div className="space-y-2">
-                    {selectedQuotation.attachments.map((attachment: any, idx: number) => (
-                      <div key={idx} className="p-2 border rounded-md flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        <span className="text-sm">{attachment.fileName || attachment.name || `Attachment ${idx + 1}`}</span>
-                      </div>
-                    ))}
+              {/* Supporting Documents */}
+              {(() => {
+                const docs = normalizeAttachments(selectedQuotation.attachments);
+                if (docs.length === 0) return null;
+                return (
+                  <div>
+                    <Label className="text-muted-foreground mb-2 block">Supporting Documents</Label>
+                    <div className="space-y-2">
+                      {docs.map((doc, idx) => (
+                        <div key={idx} className="p-2 border rounded-md flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText className="h-4 w-4 shrink-0" />
+                            <span className="text-sm truncate">{doc.name}</span>
+                          </div>
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline shrink-0"
+                          >
+                            View Document
+                          </a>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* MRF Information (if available from enhanced data) */}
               {enhancedQuotationData?.mrf && (
