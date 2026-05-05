@@ -36,6 +36,7 @@ import {
   formatDays,
   displayString,
 } from "@/utils/normalizeQuotation";
+import { normalizeAttachments } from "@/utils/attachments";
 import { PORejectionDialog } from "@/components/PORejectionDialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
