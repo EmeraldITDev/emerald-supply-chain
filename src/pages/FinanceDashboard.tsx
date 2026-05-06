@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getDisplayId } from \"@/utils/displayId\";
+import { getDisplayId } from "@/utils/displayId";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Clock, Calendar, DollarSign, TrendingUp, Loader2, FileText, CheckCircle } from "lucide-react";
