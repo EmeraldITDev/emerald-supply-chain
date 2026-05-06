@@ -44,6 +44,7 @@ const EmployeeDashboard = () => {
       filtered = filtered.filter(req =>
         req.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         req.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        getDisplayId(req).toLowerCase().includes(searchQuery.toLowerCase()) ||
         req.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
