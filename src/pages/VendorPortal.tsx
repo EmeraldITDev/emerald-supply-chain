@@ -1717,7 +1717,10 @@ const VendorPortal = () => {
                             </p>
                           )}
                           {(() => {
-                            const docs = normalizeAttachments(quotation.attachments);
+                            const rawDocs = (quotation.attachments ?? [])
+                              .flat(Infinity)
+                              .filter((a: any) => a && typeof a === 'object' && a.url);
+                            const docs = normalizeAttachments(rawDocs);
                             if (docs.length === 0) return null;
                             return (
                               <div className="mt-3 pt-3 border-t">

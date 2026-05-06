@@ -196,21 +196,33 @@ const Procurement = () => {
         try {
           const response = await rfqApi.getQuotations(rfq.id);
           if (response.success && response.data && response.data.quotations) {
+            
             // The response includes quotations with vendor info
             response.data.quotations.forEach((item: any) => {
-              const n = normalizeQuotation(item, rfq.id);
-              if (n.id && !quotationIds.has(n.id)) {
-                quotationIds.add(n.id);
-                allQuotations.push({
-                  ...n,
-                  delivery_days: n.deliveryDays,
-                  payment_terms: n.paymentTerms,
-                  total_amount: n.price,
-                  totalAmount: n.price,
-                  attachments: n.attachments,
-                });
-              }
-            });
+            const n = normalizeQuotation(item, rfq.id);
+            if (n.id && !quotationIds.has(n.id)) {
+              quotationIds.add(n.id);
+
+              // Explicitly resolve attachments from all possible locations
+              const rawAtt = item.quotation?.attachments 
+                ?? item.attachments 
+                ?? n.attachments 
+                ?? [];
+              const resolvedAttachments = (Array.isArray(rawAtt) ? rawAtt : [rawAtt])
+                .flat(Infinity)
+                .filter((a: any) => a && typeof a === 'object' && a.url);
+
+              allQuotations.push({
+                ...n,
+                delivery_days: n.deliveryDays,
+                payment_terms: n.paymentTerms,
+                total_amount: n.price,
+                totalAmount: n.price,
+                attachments: resolvedAttachments,
+              });
+            }
+          });
+
           }
         } catch (error) {
           console.error(`Failed to fetch quotations for RFQ ${rfq.id}:`, error);
