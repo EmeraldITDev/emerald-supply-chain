@@ -61,8 +61,11 @@ export function Breadcrumbs() {
           const routeTo = `/${pathnames.slice(0, index + 1).join("/")}`;
           const isLast = index === pathnames.length - 1;
           
-          // Check if this is a dynamic ID (like MRN-123 or MRF-123)
-          const isDynamicId = pathname.match(/^[A-Z]+-\d+/) || pathname.match(/^\d+$/);
+          // Check if this is a dynamic ID (legacy MRN-123 or formatted MRF-EMERALD-IT-LAP-2026-001)
+          const isDynamicId =
+            pathname.match(/^[A-Z]+(-[A-Z0-9]+)+/) ||
+            pathname.match(/^[A-Z]+-\d+/) ||
+            pathname.match(/^\d+$/);
           
           // For dynamic IDs on the last segment, show abbreviated version
           let label = routeLabels[pathname] || pathname.charAt(0).toUpperCase() + pathname.slice(1);
