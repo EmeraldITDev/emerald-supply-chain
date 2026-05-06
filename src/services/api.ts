@@ -1750,36 +1750,28 @@ export const vendorPortalApi = {
       const itemsArray = Array.isArray(payload.items) ? payload.items : [payload.items];
       formData.append('items', JSON.stringify(itemsArray));
 
-      // Attachments must be a FLAT array — guard against nested arrays like [[]] or [["url"]]
-      const rawAttachmentsArray = Array.isArray(normalizedAttachments)
+      // Attachments: append each File as a raw binary FormData entry under `attachments[]`.
+      // NEVER JSON.stringify File objects — that produces "[{}]" on the backend.
+      const flatAttachments = (Array.isArray(normalizedAttachments)
         ? normalizedAttachments
-        : [normalizedAttachments];
-      const attachmentsArray = (rawAttachmentsArray as any[])
+        : [normalizedAttachments] as any[])
         .flat(Infinity)
         .filter(Boolean);
-      console.log('[submitQuotation] Flattened attachments before send:', {
-        attachments: attachmentsArray,
-        attachments_json: JSON.stringify(attachmentsArray),
-        count: attachmentsArray.length,
-        isArray: Array.isArray(attachmentsArray),
-      });
-      formData.append('attachments', JSON.stringify(attachmentsArray));
 
-      // Log FormData contents for debugging
-      console.log('Submitting quotation with FormData to /rfqs/:id/submit-quotation:', {
-        rfq_id: rfqId,
-        price: payload.price,
-        deliveryDate: payload.deliveryDate,
-        delivery_days: payload.delivery_days,
-        payment_terms: payload.payment_terms,
-        validity_days: payload.validity_days,
-        items: itemsArray,
-        items_json: JSON.stringify(itemsArray),
-        items_count: itemsArray.length,
-        attachments: attachmentsArray,
-        attachments_json: JSON.stringify(attachmentsArray),
-        attachments_count: attachmentsArray.length,
+      flatAttachments.forEach((file: any) => {
+        if (file instanceof File || file instanceof Blob) {
+          formData.append('attachments[]', file);
+        } else if (typeof file === 'string' && file) {
+          // Pre-uploaded URL string — send under a separate field so backend can persist it
+          formData.append('attachment_urls[]', file);
+        }
       });
+
+      // Log every FormData entry so the shape can be verified during testing
+      console.log('[submitQuotation] FormData entries before send:');
+      for (const [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
 
       // Use vendorApiRequest with FormData
       return vendorApiRequest<Quotation>(`/rfqs/${rfqId}/submit-quotation`, {
