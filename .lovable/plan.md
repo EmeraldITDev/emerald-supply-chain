@@ -1,92 +1,59 @@
-## What's wrong
+# Frontend integration: new formatted_id
 
-Two separate bugs visible in the screenshots:
+The backend now returns `formatted_id` / `formattedId` (e.g. `MRF-EMERALD-IT-LAP-2026-001`) and `legacy_id` / `legacyId` on MRF, SRF, RFQ records, plus a new `GET /api/search` endpoint. Per project rule (`vendor-data-integrity-standards-v2`), UUIDs (the `id` field) must continue to be used for all API calls; only display + search should use `formatted_id`.
 
-### Bug 1 — Sidebar overlaps content + leaves a vertical gap
+## Goals
 
-The collapsed sidebar (icon rail) creates a blank vertical strip on the left of the page, while the actual page content (headings, stat cards, tables) slides **underneath** it. Visible symptoms in the first screenshot: "ogistics Management", "leet Management", clipped stat-card titles, tabs hidden under the rail.
+1. Show the new `formatted_id` everywhere a request ID is rendered (cards, tables, dialogs, breadcrumbs, exports, PDFs, emails, toasts).
+2. Keep all API calls using the UUID `id`.
+3. Backward compat: if `formatted_id` is missing, fall back to `legacy_id`, then `id`.
+4. Replace mock global search with the new `/api/search` endpoint, matching formatted IDs.
 
-**Root cause** — `src/components/layout/DashboardLayout.tsx`, line 62:
+## Plan
 
-```tsx
-<div className="flex min-h-screen w-full">
-  <AppSidebar />
-  <div className="flex-1 flex flex-col w-full">   {/* ← bug */}
+### 1. Types (`src/types/index.ts`)
+Add optional `formatted_id?`, `formattedId?`, `legacy_id?`, `legacyId?`, plus `department?`, `category?` to MRF, SRF, RFQ interfaces.
+
+### 2. Display helper (new `src/utils/displayId.ts`)
+Single source of truth:
+```ts
+export const getDisplayId = (r) => r?.formattedId ?? r?.formatted_id ?? r?.legacyId ?? r?.legacy_id ?? r?.id ?? '';
 ```
+All UI consumes this — never reads `.id` directly for display.
 
-Shadcn's `Sidebar` (default `collapsible="offcanvas"`) renders its visible panel as `position: fixed` and reserves horizontal space via a sibling spacer div sized at `--sidebar-width` (or the icon-rail width when collapsed). The content column uses `flex-1` **and** `w-full`. The `w-full` forces the flex child to 100% of the parent, overriding the spacer; content drifts left under the fixed sidebar.
+### 3. UI replacements
+Sweep these files and replace inline `mrf.id` / `request.id` / `rfq.id` / `srf.id` rendered as text with `getDisplayId(...)`. Keep `.id` for handlers, keys, and API args:
+- `src/pages/Procurement.tsx` (cards, dialog headers, search filter)
+- `src/pages/DepartmentDashboard.tsx`, `EmployeeDashboard.tsx`, `ExecutiveDashboard.tsx`, `ChairmanDashboard.tsx`, `SupplyChainDashboard.tsx`, `FinanceDashboard.tsx`, `Dashboard.tsx`
+- `src/pages/AccountsPayable.tsx`, `AccountsReceivable.tsx`, `BudgetControl.tsx`, `Projects.tsx`, `Reports.tsx`, `MRNDetail.tsx`, `VendorPortal.tsx`
+- `src/components/RFQManagement.tsx`, `MRFActionButtons.tsx`, `MRFApprovalDialog.tsx`, `POGenerationDialog.tsx`, `PORejectionDialog.tsx`, `MRFProgressTracker.tsx`, `ProcurementProgressTracker.tsx`, `RecentActivities.tsx`, `NotificationCenter.tsx`, `DashboardAlerts.tsx`, `AuditTrail.tsx`, `VendorQuoteSubmission.tsx`, `ExportMenu.tsx`
+- Search filters: include both `id` and `getDisplayId(r)` so old + new IDs both match locally.
 
-### Bug 2 — Fleet table is too wide vs. other logistics tables
+### 4. Breadcrumbs (`src/components/Breadcrumbs.tsx`)
+Update the dynamic-ID regex to also match the new format (`/^[A-Z]+(-[A-Z0-9]+)+/`), so `MRF-EMERALD-IT-LAP-2026-001` shows in the trail correctly.
 
-Second screenshot shows the Fleet table extending past the viewport (column "Driv…" cut off), unlike Trips/Journeys tables on the same module which fit normally.
+### 5. Global search (`src/components/GlobalSearch.tsx`)
+Replace the mock results array with a debounced fetch to `GET /api/search?q=...` via a new `searchApi.global(q)` in `src/services/api.ts`. Map results → `{id, formatted_id, title, type}` and route to the appropriate page.
 
-**Root cause** — `src/components/logistics/FleetManagement.tsx`, lines 736–738:
+### 6. Exports / PDFs (`src/utils/exportData.ts`, `src/components/ExportMenu.tsx`)
+Use `getDisplayId` for the "ID" column in CSV/Excel exports and downloaded filenames.
 
-```tsx
-<div className="w-full overflow-x-auto">
-  <div className="max-w-[1118px]">           {/* ← bug */}
-    <Table className="w-full table-auto">
-```
-
-The inner `max-w-[1118px]` wrapper forces the table to a hardcoded 1118px regardless of its container. Sibling tables (`TripScheduling.tsx` line 895, `JourneyManagement.tsx`) use a single `overflow-x-auto` wrapper with no inner width constraint and a normal `<Table>` — they shrink/scroll to fit naturally.
-
-## The fixes
-
-### Fix 1 — `src/components/layout/DashboardLayout.tsx` (line 62)
-
-Before:
-```tsx
-<div className="flex-1 flex flex-col w-full">
-```
-
-After:
-```tsx
-<div className="flex-1 flex flex-col min-w-0">
-```
-
-- Remove `w-full` so the sidebar spacer reserves its column correctly.
-- Add `min-w-0` so wide content (tables, breadcrumbs) shrinks instead of forcing horizontal overflow — standard flexbox idiom.
-
-### Fix 2 — `src/components/logistics/FleetManagement.tsx` (lines 736–760)
-
-Remove the `<div className="max-w-[1118px]">` wrapper entirely so the table matches the pattern used by `TripScheduling` and `JourneyManagement`:
-
-Before:
-```tsx
-<div className="w-full overflow-x-auto">
-  <div className="max-w-[1118px]">
-    <Table className="w-full table-auto">
-      ...
-    </Table>
-  </div>
-</div>
-```
-
-After:
-```tsx
-<div className="overflow-x-auto">
-  <Table>
-    ...
-  </Table>
-</div>
-```
-
-This matches the existing logistics-table standard (memory: Logistics UI Standards — wide tables scroll horizontally inside their card).
-
-## Why this works
-
-```text
-Layout row:
-[ Sidebar wrapper (icon rail or 16rem) ][ Content column = flex-1, min-w-0 ]
-  ↑ spacer reserves width                ↑ takes remaining space, can shrink
-  + fixed panel sits over its spacer       (no w-full overriding it)
-```
-
-With the table fix, Fleet inherits the same responsive behavior as Trips/Journeys: it sizes to its card; if columns exceed available width, the card scrolls horizontally rather than the page.
+### 7. Toasts
+In create flows (`NewMRF`, `NewSRF`, `NewMRN`, RFQ creation), show the returned `formatted_id` in the success toast: "MRF MRF-EMERALD-IT-LAP-2026-001 submitted".
 
 ## Out of scope
+- No backend changes (already done by backend team).
+- No schema/route changes.
+- Vendor portal: do NOT expose internal codes that leak budget/category info beyond what's already shown — only show `formatted_id` if the existing UI was already showing an ID.
 
-- No changes to padding values
-- No changes to `AppSidebar`, the `Sidebar` primitive, or any page file
-- No changes to Fleet table columns, data, or actions — only the wrapper is removed
-- Other logistics tables already follow the correct pattern; not touched
+## Technical notes
+- `getDisplayId` is pure and null-safe; never falls back to URL parsing.
+- All `mrfApi.getById(id)` etc. calls keep using UUID; backend already accepts both, but UUID stays canonical.
+- Local `.filter()` searches add `getDisplayId(r).toLowerCase().includes(q)` alongside existing `r.id` match for backward compat.
+
+## Validation
+- Open MRF list → cards show new format.
+- Open detail dialog → header + breadcrumb show new format.
+- Cmd+K search → typing `LAP` or `EMERALD` returns matching items from `/api/search`.
+- CSV export → "ID" column contains formatted IDs.
+- Create new MRF → toast shows new format from response.

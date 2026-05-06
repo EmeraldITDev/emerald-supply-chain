@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { getDisplayId } from "@/utils/displayId";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -572,7 +573,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="text-base">{rfq.mrfTitle}</CardTitle>
-                    <CardDescription className="mt-1">{rfq.id}</CardDescription>
+                    <CardDescription className="mt-1">{getDisplayId(rfq)}</CardDescription>
                   </div>
                   <Badge 
                     className={

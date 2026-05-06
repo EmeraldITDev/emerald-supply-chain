@@ -10,36 +10,39 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
-
-interface SearchResult {
-  id: string;
-  title: string;
-  type: "mrf" | "srf" | "po" | "vendor" | "item" | "shipment";
-  category: string;
-  url: string;
-}
+import { searchApi, GlobalSearchResult } from "@/services/api";
+import { getDisplayId } from "@/utils/displayId";
 
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [results, setResults] = useState<GlobalSearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Mock search results - replace with actual API call
-  const mockResults: SearchResult[] = [
-    { id: "MRF001", title: "Office Supplies Request", type: "mrf", category: "Procurement", url: "/procurement?id=MRF001" },
-    { id: "SRF001", title: "IT Support Service", type: "srf", category: "Procurement", url: "/procurement?id=SRF001" },
-    { id: "PO001", title: "Purchase Order - Laptops", type: "po", category: "Procurement", url: "/procurement?id=PO001" },
-    { id: "V001", title: "Tech Solutions LLC", type: "vendor", category: "Vendors", url: "/vendors?id=V001" },
-    { id: "ITEM001", title: "HP Laptop ProBook 450", type: "item", category: "Inventory", url: "/inventory?id=ITEM001" },
-    { id: "SHIP001", title: "Delivery to Site A", type: "shipment", category: "Logistics", url: "/logistics?id=SHIP001" },
-  ];
-
-  const filteredResults = searchQuery
-    ? mockResults.filter((result) =>
-        result.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        result.id.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : [];
+  // Debounced backend search
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setResults([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await searchApi.global(searchQuery.trim());
+        if (res.success && Array.isArray(res.data)) {
+          setResults(res.data);
+        } else {
+          setResults([]);
+        }
+      } catch {
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -54,10 +57,11 @@ export function GlobalSearch() {
   }, []);
 
   const getIcon = (type: string) => {
-    switch (type) {
+    switch ((type || '').toLowerCase()) {
       case "mrf":
       case "srf":
       case "po":
+      case "rfq":
         return ShoppingCart;
       case "vendor":
         return Users;
@@ -68,6 +72,24 @@ export function GlobalSearch() {
       default:
         return FileText;
     }
+  };
+
+  const getCategory = (type: string): string => {
+    const t = (type || '').toLowerCase();
+    if (["mrf", "srf", "po", "rfq"].includes(t)) return "Procurement";
+    if (t === "vendor") return "Vendors";
+    if (t === "item") return "Inventory";
+    if (t === "shipment") return "Logistics";
+    return "Other";
+  };
+
+  const getUrl = (r: GlobalSearchResult): string => {
+    const t = (r.type || '').toLowerCase();
+    if (["mrf", "srf", "po", "rfq"].includes(t)) return `/procurement?id=${r.id}`;
+    if (t === "vendor") return `/vendors?id=${r.id}`;
+    if (t === "item") return `/inventory?id=${r.id}`;
+    if (t === "shipment") return `/logistics?id=${r.id}`;
+    return "/dashboard";
   };
 
   const handleSelect = (url: string) => {
@@ -97,12 +119,14 @@ export function GlobalSearch() {
           onValueChange={setSearchQuery}
         />
         <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          {filteredResults.length > 0 && (
+          <CommandEmpty>
+            {loading ? "Searching..." : searchQuery ? "No results found." : "Type to search..."}
+          </CommandEmpty>
+          {results.length > 0 && (
             <>
-              {["Procurement", "Vendors", "Inventory", "Logistics"].map((category) => {
-                const categoryResults = filteredResults.filter(
-                  (result) => result.category === category
+              {["Procurement", "Vendors", "Inventory", "Logistics", "Other"].map((category) => {
+                const categoryResults = results.filter(
+                  (result) => getCategory(result.type) === category
                 );
                 
                 if (categoryResults.length === 0) return null;
@@ -111,16 +135,17 @@ export function GlobalSearch() {
                   <CommandGroup key={category} heading={category}>
                     {categoryResults.map((result) => {
                       const Icon = getIcon(result.type);
+                      const display = getDisplayId(result);
                       return (
                         <CommandItem
                           key={result.id}
-                          value={`${result.id} ${result.title}`}
-                          onSelect={() => handleSelect(result.url)}
+                          value={`${display} ${result.title}`}
+                          onSelect={() => handleSelect(getUrl(result))}
                         >
                           <Icon className="mr-2 h-4 w-4" />
                           <div className="flex flex-col">
                             <span>{result.title}</span>
-                            <span className="text-xs text-muted-foreground">{result.id}</span>
+                            <span className="text-xs text-muted-foreground">{display}</span>
                           </div>
                         </CommandItem>
                       );

@@ -192,10 +192,10 @@ const NewMRF = () => {
         ? parseFloat(formData.estimatedCost) 
         : 0;
       const isHighValue = estimatedCost > 1000000;
-      
+      const fid = (response as any)?.data?.formatted_id || (response as any)?.data?.formattedId;
       toast({
-        title: "MRF Submitted Successfully",
-        description: isHighValue 
+        title: fid ? `MRF ${fid} Submitted` : "MRF Submitted Successfully",
+        description: isHighValue
           ? "High-value request (>₦1M) - Will require both Executive and Chairman approval"
           : "Your request has been sent to Executive for approval",
       });

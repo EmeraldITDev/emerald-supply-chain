@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { getDisplayId } from "@/utils/displayId";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
@@ -274,7 +275,7 @@ const DepartmentDashboard = () => {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="sm" onClick={() => navigate(`/department/mrn/${mrn.id}`)} className="text-xs sm:text-sm">
+                              <Button variant="ghost" size="sm" onClick={() => navigate(`/department/mrn/${getDisplayId(mrn)}`)} className="text-xs sm:text-sm">
                                 <span className="hidden sm:inline">View Details</span>
                                 <span className="sm:hidden">View</span>
                               </Button>
@@ -330,7 +331,7 @@ const DepartmentDashboard = () => {
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-semibold truncate">{mrf.title}</h3>
-                                <p className="text-sm text-muted-foreground">MRF ID: {mrf.id}</p>
+                                <p className="text-sm text-muted-foreground">MRF ID: {getDisplayId(mrf)}</p>
                                 <div className="flex flex-wrap items-center gap-2 mt-1">
                                   <span className="text-xs text-muted-foreground">
                                     {mrf.created_at ? format(new Date(mrf.created_at), "MMM dd, yyyy") : ""}
@@ -454,7 +455,7 @@ const DepartmentDashboard = () => {
                             <div className="flex items-center justify-between">
                               <div>
                                 <h3 className="font-semibold">{srf.title}</h3>
-                                <p className="text-sm text-muted-foreground">SRF ID: {srf.id}</p>
+                                <p className="text-sm text-muted-foreground">SRF ID: {getDisplayId(srf)}</p>
                                 <p className="text-sm text-muted-foreground">Status: {srf.status}</p>
                               </div>
                               <Badge className={getStatusColor(srf.status)}>{srf.status}</Badge>

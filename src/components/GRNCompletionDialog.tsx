@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { getDisplayId } from "@/utils/displayId";
 import {
   Dialog,
   DialogContent,
@@ -112,7 +113,7 @@ export default function GRNCompletionDialog({
         <DialogHeader>
           <DialogTitle>Complete Goods Received Note (GRN)</DialogTitle>
           <DialogDescription>
-            Upload the completed GRN document for PO {mrf.po_number || mrf.po_number} (MRF {mrf.id}).
+            Upload the completed GRN document for PO {mrf.po_number || mrf.po_number} (MRF {getDisplayId(mrf)}).
           </DialogDescription>
         </DialogHeader>
 

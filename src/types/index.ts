@@ -28,6 +28,10 @@ export interface AuthResponse {
 // MRF (Material Requisition Form) Types
 export interface MRF {
   id: string;
+  formatted_id?: string;
+  formattedId?: string;
+  legacy_id?: string;
+  legacyId?: string;
   title: string;
   category: string;
   urgency: 'Low' | 'Medium' | 'High' | 'low' | 'medium' | 'high';
@@ -142,6 +146,13 @@ export interface CreateMRFData {
 // SRF (Service Requisition Form) Types
 export interface SRF {
   id: string;
+  formatted_id?: string;
+  formattedId?: string;
+  legacy_id?: string;
+  legacyId?: string;
+  department?: string;
+  contract_type?: string;
+  contractType?: string;
   title: string;
   serviceType: string;
   urgency: 'Low' | 'Medium' | 'High';
@@ -168,6 +179,10 @@ export interface CreateSRFData {
 // RFQ (Request for Quotation) Types
 export interface RFQ {
   id: string;
+  formatted_id?: string;
+  formattedId?: string;
+  legacy_id?: string;
+  legacyId?: string;
   mrfId: string;       // camelCase (if ever transformed)
   mrf_id: string;      // snake_case — what Laravel actually returns
   mrfTitle: string;

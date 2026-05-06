@@ -86,8 +86,9 @@ const NewSRF = () => {
       }
       
       if (response.success) {
+    const fid = (response as any)?.data?.formatted_id || (response as any)?.data?.formattedId;
     toast({
-      title: "SRF Submitted Successfully",
+      title: fid ? `SRF ${fid} Submitted` : "SRF Submitted Successfully",
       description: "Your service request form has been submitted for approval",
     });
     navigate("/procurement");

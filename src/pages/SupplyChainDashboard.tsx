@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { getDisplayId } from "@/utils/displayId";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
@@ -550,7 +551,7 @@ const SupplyChainDashboard = () => {
                                     {mrf.title}
                                   </CardTitle>
                                   <CardDescription className="text-xs truncate">
-                                    {mrf.id} • {getRequesterName(mrf)} •{" "}
+                                    {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
                                     {mrf.department || "N/A"}
                                   </CardDescription>
                                 </div>
@@ -618,7 +619,7 @@ const SupplyChainDashboard = () => {
                                     {mrf.title}
                                   </CardTitle>
                                   <CardDescription>
-                                    {mrf.id} • {getRequesterName(mrf)} •{" "}
+                                    {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
                                     {mrf.department || "N/A"}
                                   </CardDescription>
                                 </div>
@@ -800,7 +801,7 @@ const SupplyChainDashboard = () => {
                                     {mrf.title}
                                   </CardTitle>
                                   <CardDescription className="text-xs truncate">
-                                    {mrf.id} • {getRequesterName(mrf)} •{" "}
+                                    {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
                                     {mrf.department || "N/A"}
                                   </CardDescription>
                                 </div>
@@ -939,7 +940,7 @@ const SupplyChainDashboard = () => {
                                     {mrf.title}
                                   </CardTitle>
                                   <CardDescription>
-                                    {mrf.id} • {getRequesterName(mrf)} •{" "}
+                                    {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
                                     {mrf.department || "N/A"}
                                   </CardDescription>
                                 </div>
@@ -1179,7 +1180,7 @@ const SupplyChainDashboard = () => {
                                               {mrf.title}
                                             </h3>
                                             <p className="text-sm text-muted-foreground">
-                                              {mrf.id} • {getRequesterName(mrf)}{" "}
+                                              {getDisplayId(mrf)} • {getRequesterName(mrf)}{" "}
                                               • {mrf.department || "N/A"}
                                             </p>
                                             <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -1323,7 +1324,7 @@ const SupplyChainDashboard = () => {
                   <div>
                     <Label className="text-muted-foreground">MRF ID</Label>
                     <p className="font-medium font-mono">
-                      {selectedMRFForDetails.id}
+                      {getDisplayId(selectedMRFForDetails)}
                     </p>
                   </div>
                   <div>
@@ -1633,7 +1634,7 @@ const SupplyChainDashboard = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">MRF ID</Label>
-                    <p className="font-medium">{selectedMRFForDetails.id}</p>
+                    <p className="font-medium">{getDisplayId(selectedMRFForDetails)}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Status</Label>

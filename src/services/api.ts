@@ -2406,3 +2406,19 @@ export const notificationApi = {
     });
   },
 };
+
+// ============= GLOBAL SEARCH API =============
+export interface GlobalSearchResult {
+  id: string;
+  formatted_id?: string;
+  formattedId?: string;
+  legacy_id?: string;
+  title: string;
+  type: 'mrf' | 'srf' | 'rfq' | 'po' | 'vendor' | 'item' | 'shipment' | string;
+}
+
+export const searchApi = {
+  global: async (q: string): Promise<ApiResponse<GlobalSearchResult[]>> => {
+    return apiRequest<GlobalSearchResult[]>(`/search?q=${encodeURIComponent(q)}`);
+  },
+};

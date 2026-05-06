@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getDisplayId } from "@/utils/displayId";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -98,7 +99,7 @@ export function MRFApprovalDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            MRF Approval - {mrf.id}
+            MRF Approval - {getDisplayId(mrf)}
             {mrf.isResubmission && (
               <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 px-2 py-1 rounded">
                 Resubmission
