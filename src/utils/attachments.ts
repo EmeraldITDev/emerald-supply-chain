@@ -18,20 +18,22 @@ export function normalizeAttachment(
   if (typeof att === "string") {
     const url = att.trim();
     if (!url) return null;
-    const fromUrl = url.split("?")[0].split("/").pop() || "";
-    return { url, name: fromUrl || `Document ${index + 1}` };
+    return { url, name: `Document ${index + 1}` };
   }
 
   if (typeof att === "object") {
     const a = att as Record<string, any>;
     const url = a.url || a.file_url || a.fileUrl || a.path || "";
     if (!url) return null;
+    // Always prefer the original uploaded filename. Never derive from the
+    // hashed storage URL — that exposes opaque storage paths to the user.
     const name =
       a.name ||
+      a.original_name ||
+      a.originalName ||
       a.file_name ||
       a.fileName ||
       a.filename ||
-      url.split("?")[0].split("/").pop() ||
       `Document ${index + 1}`;
     return { url, name };
   }
