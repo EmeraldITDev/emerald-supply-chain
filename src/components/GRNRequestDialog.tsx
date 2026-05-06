@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getDisplayId } from \"@/utils/displayId\";
 import {
   Dialog,
   DialogContent,
@@ -67,7 +68,7 @@ export default function GRNRequestDialog({
         <DialogHeader>
           <DialogTitle>Request Goods Received Note (GRN)</DialogTitle>
           <DialogDescription>
-            Request a GRN for PO {mrf.po_number || mrf.po_number} (MRF {mrf.id}).
+            Request a GRN for PO {mrf.po_number || mrf.po_number} (MRF {getDisplayId(mrf)}).
             This will notify the Procurement Manager to complete the GRN.
           </DialogDescription>
         </DialogHeader>

@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getDisplayId } from \"@/utils/displayId\";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -276,7 +277,7 @@ export const ProcurementProgressTracker = ({ mrfRequests, showTitle = true }: Pr
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-muted-foreground">{mrf.id}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{getDisplayId(mrf)}</span>
                     {mrf.poNumber && (
                       <Badge variant="outline" className="text-xs">
                         PO: {mrf.poNumber}

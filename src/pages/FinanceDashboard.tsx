@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getDisplayId } from \"@/utils/displayId\";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Clock, Calendar, DollarSign, TrendingUp, Loader2, FileText, CheckCircle } from "lucide-react";
@@ -274,7 +275,7 @@ const FinanceDashboard = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-3 flex-wrap">
                           <h3 className="font-semibold text-lg">{mrf.title}</h3>
-                          <Badge variant="outline">{mrf.id}</Badge>
+                          <Badge variant="outline">{getDisplayId(mrf)}</Badge>
                           {executiveApproved && (
                             <Badge className="bg-success/10 text-success border-success/20">
                               <CheckCircle className="h-3 w-3 mr-1" />

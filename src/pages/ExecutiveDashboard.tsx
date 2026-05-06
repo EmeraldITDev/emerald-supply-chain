@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { getDisplayId } from \"@/utils/displayId\";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -332,7 +333,7 @@ const ExecutiveDashboard = () => {
                               <div className="min-w-0 flex-1">
                                 <CardTitle className="text-sm sm:text-base lg:text-lg truncate">{mrf.title}</CardTitle>
                                 <CardDescription className="text-xs sm:text-sm truncate">
-                                  {mrf.id} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
+                                  {getDisplayId(mrf)} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
                                 </CardDescription>
                               </div>
                               <div className="flex gap-2 flex-wrap sm:flex-nowrap">
@@ -583,7 +584,7 @@ const ExecutiveDashboard = () => {
                                       <div className="flex-1 min-w-0">
                                         <h3 className="font-semibold truncate">{mrf.title}</h3>
                                         <p className="text-sm text-muted-foreground">
-                                          {mrf.id} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
+                                          {getDisplayId(mrf)} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
                                         </p>
                                         <div className="flex flex-wrap items-center gap-2 mt-1">
                                           <span className="text-xs text-muted-foreground">
@@ -666,7 +667,7 @@ const ExecutiveDashboard = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">MRF ID</Label>
-                  <p className="font-medium">{selectedMRFForDetails.id}</p>
+                  <p className="font-medium">{getDisplayId(selectedMRFForDetails)}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Status</Label>

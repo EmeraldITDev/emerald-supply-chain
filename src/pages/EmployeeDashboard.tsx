@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getDisplayId } from \"@/utils/displayId\";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -244,7 +245,7 @@ const EmployeeDashboard = () => {
                           {getStatusBadge(request.status, mrf?.currentStage)}
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
-                          <span className="font-medium">{request.id}</span>
+                          <span className="font-medium">{getDisplayId(request)}</span>
                           <span>•</span>
                           <span>{(() => {
                             const dateStr = request.date || '';

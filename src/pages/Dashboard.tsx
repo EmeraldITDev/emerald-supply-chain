@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getDisplayId } from \"@/utils/displayId\";
 import { Button } from "@/components/ui/button";
 import { Package, ShoppingCart, Truck, Warehouse, TrendingUp, AlertCircle, CheckCircle, Clock, Users, FileText, Activity } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -111,7 +112,7 @@ const Dashboard = () => {
               description: `MRF ${mrf.mrf_id || mrf.id} - ${mrf.status}`,
               status: mrf.status,
               date: mrf.created_at || mrf.date,
-              actionUrl: `/procurement?mrf=${mrf.id}`,
+              actionUrl: `/procurement?mrf=${getDisplayId(mrf)}`,
             });
           });
 

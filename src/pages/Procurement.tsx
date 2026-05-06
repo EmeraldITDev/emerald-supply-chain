@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { getDisplayId } from \"@/utils/displayId\";
 import {
   Card,
   CardContent,
@@ -225,7 +226,7 @@ const Procurement = () => {
 
           }
         } catch (error) {
-          console.error(`Failed to fetch quotations for RFQ ${rfq.id}:`, error);
+          console.error(`Failed to fetch quotations for RFQ ${getDisplayId(rfq)}:`, error);
         }
       }
       setQuotations(allQuotations);
@@ -1663,7 +1664,7 @@ const Procurement = () => {
                                         <p>
                                           MRF ID:{" "}
                                           <span className="font-medium">
-                                            {mrf.id}
+                                            {getDisplayId(mrf)}
                                           </span>
                                         </p>
                                         <p>Requester: {mrf.requester}</p>
@@ -1965,7 +1966,7 @@ const Procurement = () => {
                                 </div>
                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground mb-2.5">
                                   <span className="font-medium">
-                                    {request.id}
+                                    {getDisplayId(request)}
                                   </span>
                                   <span>•</span>
                                   <span>{request.requester}</span>
@@ -2946,7 +2947,7 @@ const Procurement = () => {
                                     })()}
                                   </div>
                                   <p className="text-sm text-muted-foreground">
-                                    {mrf.id} • {getMRFRequester(mrf)} •{" "}
+                                    {getDisplayId(mrf)} • {getMRFRequester(mrf)} •{" "}
                                     {mrf.department || "N/A"}
                                   </p>
                                   <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -3022,7 +3023,7 @@ const Procurement = () => {
                               {request.title}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {request.id} • {request.requester} •{" "}
+                              {getDisplayId(request)} • {request.requester} •{" "}
                               {request.date}
                             </p>
                           </div>
@@ -3094,7 +3095,7 @@ const Procurement = () => {
                                   {mrf.title}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  PO: {poNumber} • MRF: {mrf.id} • Vendor:{" "}
+                                  PO: {poNumber} • MRF: {getDisplayId(mrf)} • Vendor:{" "}
                                   {vendorName}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
@@ -3196,7 +3197,7 @@ const Procurement = () => {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">MRF ID</Label>
-                  <p className="font-medium">{selectedMRFForPODetails.id}</p>
+                  <p className="font-medium">{getDisplayId(selectedMRFForPODetails)}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Title</Label>
@@ -3415,7 +3416,7 @@ const Procurement = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-semibold text-lg">{mrf.title}</h3>
-                      <Badge variant="outline">{mrf.id}</Badge>
+                      <Badge variant="outline">{getDisplayId(mrf)}</Badge>
                       {getMRFPONumber(mrf) && (
                         <Badge variant="outline">
                           PO: {getMRFPONumber(mrf)}
@@ -3580,7 +3581,7 @@ const Procurement = () => {
                   <div>
                     <Label className="text-muted-foreground">MRF ID</Label>
                     <p className="font-medium font-mono">
-                      {selectedMRFForDetails.id}
+                      {getDisplayId(selectedMRFForDetails)}
                     </p>
                   </div>
                   <div>
@@ -3874,7 +3875,7 @@ const Procurement = () => {
                               className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md"
                             >
                               <div className="flex items-center justify-between mb-2">
-                                <p className="font-medium">RFQ ID: {rfq.id}</p>
+                                <p className="font-medium">RFQ ID: {getDisplayId(rfq)}</p>
                                 <Badge className={getStatusColor(rfq.status)}>
                                   {rfq.status}
                                 </Badge>
@@ -4109,7 +4110,7 @@ const Procurement = () => {
                               Related RFQ
                             </Label>
                             <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
-                              <p className="font-medium">RFQ ID: {rfq.id}</p>
+                              <p className="font-medium">RFQ ID: {getDisplayId(rfq)}</p>
                               <p className="text-sm text-muted-foreground">
                                 Status: {rfq.status}
                               </p>

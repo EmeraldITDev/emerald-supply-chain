@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { getDisplayId } from \"@/utils/displayId\";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -175,7 +176,7 @@ const ChairmanDashboard = () => {
                           <div>
                             <CardTitle className="text-lg">{mrf.title}</CardTitle>
                             <CardDescription>
-                              {mrf.id} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
+                              {getDisplayId(mrf)} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
                             </CardDescription>
                           </div>
                           <Badge variant="destructive">
@@ -245,7 +246,7 @@ const ChairmanDashboard = () => {
                           <div>
                             <CardTitle className="text-lg">{mrf.title}</CardTitle>
                             <CardDescription>
-                              {mrf.id} • PO: {mrf.po_number || mrf.poNumber || "N/A"}
+                              {getDisplayId(mrf)} • PO: {mrf.po_number || mrf.poNumber || "N/A"}
                             </CardDescription>
                           </div>
                           <Badge>₦{estimatedCost.toLocaleString()}</Badge>

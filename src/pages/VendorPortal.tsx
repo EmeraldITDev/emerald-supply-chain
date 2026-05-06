@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getDisplayId } from \"@/utils/displayId\";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -1274,7 +1275,7 @@ const VendorPortal = () => {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3 text-sm">
                           <div>
                             <span className="text-muted-foreground">RFQ ID:</span>
-                            <p className="font-medium">{rfq.id}</p>
+                            <p className="font-medium">{getDisplayId(rfq)}</p>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Items:</span>
@@ -1653,7 +1654,7 @@ const VendorPortal = () => {
                                 <span className="font-semibold">{rfqTitle}</span>
                                 <Badge className={getStatusColor(quotation.status)}>{quotation.status}</Badge>
                               </div>
-                              <p className="text-sm text-muted-foreground">Quotation ID: {quotation.id}</p>
+                              <p className="text-sm text-muted-foreground">Quotation ID: {getDisplayId(quotation)}</p>
                             </div>
                             <div className="flex gap-2">
                               {quotation.isDraft && (
@@ -2260,7 +2261,7 @@ const VendorPortal = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">RFQ ID</Label>
-                    <p className="font-medium">{rfq.id}</p>
+                    <p className="font-medium">{getDisplayId(rfq)}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Status</Label>
@@ -2358,7 +2359,7 @@ const VendorPortal = () => {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Quotation ID:</span>
-                    <p className="font-medium font-mono">{submittedQuote.id}</p>
+                    <p className="font-medium font-mono">{getDisplayId(submittedQuote)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">RFQ ID:</span>

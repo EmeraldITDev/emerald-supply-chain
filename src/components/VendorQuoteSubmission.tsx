@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { getDisplayId } from \"@/utils/displayId\";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -231,7 +232,7 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
                   }`}
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <span className="font-mono text-xs text-muted-foreground">{rfq.id}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{getDisplayId(rfq)}</span>
                     <Badge variant="outline" className="text-xs">
                       <Clock className="h-3 w-3 mr-1" />
                       {rfq.deadline}
@@ -267,7 +268,7 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
               <SelectContent>
                 {openRfqs.map(rfq => (
                   <SelectItem key={rfq.id} value={rfq.id}>
-                    {rfq.id} - {rfq.mrfTitle}
+                    {getDisplayId(rfq)} - {rfq.mrfTitle}
                   </SelectItem>
                 ))}
               </SelectContent>
