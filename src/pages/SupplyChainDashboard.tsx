@@ -69,6 +69,14 @@ const SupplyChainDashboard = () => {
     useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+
+  // Debug: log selected quotation (incl. attachments) when it changes
+  useEffect(() => {
+    if (mrfFullDetails?.selectedQuotation) {
+      console.log('[SupplyChainDashboard] selectedQuotation:', mrfFullDetails.selectedQuotation);
+      console.log('[SupplyChainDashboard] selectedQuotation.attachments:', mrfFullDetails.selectedQuotation.attachments);
+    }
+  }, [mrfFullDetails]);
   const [vendorRegistrations, setVendorRegistrations] = useState<
     VendorRegistration[]
   >([]);

@@ -22,6 +22,7 @@ import { EnhancedVendorRegistration } from "@/components/EnhancedVendorRegistrat
 import { VendorQuoteSubmission } from "@/components/VendorQuoteSubmission";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatMRFDate } from "@/utils/dateUtils";
+import { normalizeAttachments } from "@/utils/attachments";
 import type { Vendor } from "@/types";
 
 interface VendorData extends Vendor {
@@ -307,6 +308,7 @@ const VendorPortal = () => {
       );
       
       setVendorQuotationsList(uniqueQuotations);
+      console.log('[VendorPortal.fetchVendorQuotations] full quotations:', uniqueQuotations);
     } catch (error) {
       console.error('Error fetching vendor quotations:', error);
       // Fallback to context quotations + drafts if API fails
@@ -1714,6 +1716,29 @@ const VendorPortal = () => {
                               Notes: {quotation.notes}
                             </p>
                           )}
+                          {(() => {
+                            const docs = normalizeAttachments(quotation.attachments);
+                            if (docs.length === 0) return null;
+                            return (
+                              <div className="mt-3 pt-3 border-t">
+                                <p className="text-sm font-medium mb-2">Supporting Documents ({docs.length})</p>
+                                <div className="space-y-1">
+                                  {docs.map((doc, i) => (
+                                    <a
+                                      key={i}
+                                      href={doc.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-2 text-sm text-primary hover:underline"
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                      <span className="truncate">{doc.name}</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })}
