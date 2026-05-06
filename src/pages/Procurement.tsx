@@ -2077,17 +2077,129 @@ const Procurement = () => {
                                                   quotation.vendor_name ||
                                                   "Vendor"}
                                               </p>
-                                              <p className="text-xs text-muted-foreground mt-1">
-                                                Price:{" "}
-                                                {formatAmount(
-                                                  quotation.total ??
-                                                    Number(quotation.price),
-                                                  quotation.currency ?? "NGN",
-                                                )}
-                                                {(quotation.deliveryDate ||
-                                                  quotation.delivery_date) &&
-                                                  ` • Delivery: ${new Date(quotation.deliveryDate || quotation.delivery_date).toLocaleDateString()}`}
-                                              </p>
+                                              {(() => {
+                                                const quoteAmount = Number(
+                                                  quotation.totalAmount ??
+                                                    quotation.total_amount ??
+                                                    quotation.total ??
+                                                    quotation.price ??
+                                                    0,
+                                                );
+                                                const budgetRaw =
+                                                  rfq?.estimatedBudget ??
+                                                  (rfq as any)?.estimated_budget ??
+                                                  (rfq as any)?.estimatedCost ??
+                                                  (rfq as any)?.estimated_cost ??
+                                                  (request as MRF).estimatedCost ??
+                                                  (request as MRF).estimated_cost ??
+                                                  null;
+                                                const budget = Number(budgetRaw) || 0;
+                                                const currency =
+                                                  quotation.currency ?? "NGN";
+
+                                                let amountColor =
+                                                  "text-muted-foreground";
+                                                let badge: React.ReactNode = null;
+                                                let bar: React.ReactNode = null;
+
+                                                if (budget > 0) {
+                                                  const diff = quoteAmount - budget;
+                                                  const pct = Math.round(
+                                                    (diff / budget) * 100,
+                                                  );
+                                                  const abs = Math.abs(pct);
+                                                  let label = "";
+                                                  let badgeCls = "";
+                                                  if (abs <= 2) {
+                                                    label = "At budget";
+                                                    badgeCls =
+                                                      "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800";
+                                                    amountColor =
+                                                      "text-amber-700 dark:text-amber-300";
+                                                  } else if (pct < 0) {
+                                                    label = `Under budget by ${abs}%`;
+                                                    badgeCls =
+                                                      "bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-200 dark:border-green-800";
+                                                    amountColor =
+                                                      "text-green-700 dark:text-green-400";
+                                                  } else {
+                                                    label = `Over budget by ${pct}%`;
+                                                    badgeCls =
+                                                      "bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800";
+                                                    amountColor =
+                                                      "text-red-700 dark:text-red-400";
+                                                  }
+                                                  badge = (
+                                                    <Badge
+                                                      variant="outline"
+                                                      className={`text-[10px] ${badgeCls}`}
+                                                    >
+                                                      {label}
+                                                    </Badge>
+                                                  );
+                                                  const fillPct = Math.min(
+                                                    100,
+                                                    (quoteAmount / budget) * 100,
+                                                  );
+                                                  const overPct =
+                                                    quoteAmount > budget
+                                                      ? Math.min(
+                                                          100,
+                                                          ((quoteAmount - budget) /
+                                                            budget) *
+                                                            100,
+                                                        )
+                                                      : 0;
+                                                  bar = (
+                                                    <div className="mt-2 h-1.5 w-full max-w-xs rounded bg-muted overflow-hidden flex">
+                                                      <div
+                                                        className="h-full bg-green-500"
+                                                        style={{
+                                                          width: `${fillPct}%`,
+                                                        }}
+                                                      />
+                                                      {overPct > 0 && (
+                                                        <div
+                                                          className="h-full bg-red-500"
+                                                          style={{
+                                                            width: `${overPct}%`,
+                                                          }}
+                                                        />
+                                                      )}
+                                                    </div>
+                                                  );
+                                                }
+
+                                                return (
+                                                  <>
+                                                    <p className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
+                                                      <span>
+                                                        Price:{" "}
+                                                        <span
+                                                          className={`font-semibold ${amountColor}`}
+                                                        >
+                                                          {formatAmount(
+                                                            quoteAmount,
+                                                            currency,
+                                                          )}
+                                                        </span>
+                                                      </span>
+                                                      {badge}
+                                                      {(quotation.deliveryDate ||
+                                                        quotation.delivery_date) && (
+                                                        <span>
+                                                          • Delivery:{" "}
+                                                          {new Date(
+                                                            quotation.deliveryDate ||
+                                                              quotation.delivery_date,
+                                                          ).toLocaleDateString()}
+                                                        </span>
+                                                      )}
+                                                    </p>
+                                                    {bar}
+                                                  </>
+                                                );
+                                              })()}
                                             </div>
                                             {(() => {
                                               // Gate "Generate PO" strictly on workflow state.
