@@ -82,7 +82,15 @@ export function normalizeQuotation(item: any, fallbackRfqId?: string): Normalize
   const q = item.quotation ?? item;
   const vendor = item.vendor ?? q.vendor ?? {};
   const items = item.items ?? q.items ?? [];
-  const attachments = item.attachments ?? q.attachments ?? item.documents ?? q.documents ?? [];
+  const rawAttachments = item.attachments ?? q.attachments ?? item.documents ?? q.documents ?? [];
+  const attachments = (Array.isArray(rawAttachments) ? rawAttachments : [rawAttachments])
+    .flat(Infinity)
+    .filter(Boolean);
+  console.log('[normalizeQuotation] Flattened attachments:', {
+    raw: rawAttachments,
+    flattened: attachments,
+    count: attachments.length,
+  });
 
   const deliveryDays = resolveDeliveryDays(q);
   const total = resolveTotal(q);
@@ -116,7 +124,7 @@ export function normalizeQuotation(item: any, fallbackRfqId?: string): Normalize
     notes: q.notes ?? q.note ?? q.remarks ?? '',
     items,
     documentUrl: q.document_url ?? q.documentUrl,
-    attachments: Array.isArray(attachments) ? attachments : (attachments ? [attachments] : []),
+    attachments,
   };
 }
 

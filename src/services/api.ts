@@ -1750,10 +1750,19 @@ export const vendorPortalApi = {
       const itemsArray = Array.isArray(payload.items) ? payload.items : [payload.items];
       formData.append('items', JSON.stringify(itemsArray));
 
-      // Attachments must also be sent as a single JSON-stringified array
-      const attachmentsArray = Array.isArray(normalizedAttachments)
+      // Attachments must be a FLAT array — guard against nested arrays like [[]] or [["url"]]
+      const rawAttachmentsArray = Array.isArray(normalizedAttachments)
         ? normalizedAttachments
         : [normalizedAttachments];
+      const attachmentsArray = (rawAttachmentsArray as any[])
+        .flat(Infinity)
+        .filter(Boolean);
+      console.log('[submitQuotation] Flattened attachments before send:', {
+        attachments: attachmentsArray,
+        attachments_json: JSON.stringify(attachmentsArray),
+        count: attachmentsArray.length,
+        isArray: Array.isArray(attachmentsArray),
+      });
       formData.append('attachments', JSON.stringify(attachmentsArray));
 
       // Log FormData contents for debugging

@@ -43,7 +43,8 @@ export function normalizeAttachments(
   attachments: unknown
 ): NormalizedAttachment[] {
   if (!attachments || !Array.isArray(attachments)) return [];
-  return attachments
+  const flat = (attachments as any[]).flat(Infinity).filter(Boolean);
+  return flat
     .map((a, i) => normalizeAttachment(a, i))
     .filter((a): a is NormalizedAttachment => a !== null);
 }
