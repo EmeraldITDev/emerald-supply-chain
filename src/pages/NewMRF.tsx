@@ -103,7 +103,6 @@ const NewMRF = () => {
       };
       
       const urgencyValue = capitalizeUrgency(formData.urgency);
-      console.log('Submitting MRF with urgency:', urgencyValue, 'from form value:', formData.urgency);
       
       if (isResubmission && rejectedMRF) {
         // Resubmission: update existing MRF
@@ -153,11 +152,8 @@ const NewMRF = () => {
           ? formData.estimatedCost 
           : '0';
         
-        console.log('Creating MRF with payload:', payload, 'PFI file:', pfiFile?.name);
         
         // Debug: Log the API base URL and full endpoint
-        console.log('API Base URL:', import.meta.env.VITE_API_BASE_URL);
-        console.log('Full endpoint will be:', `${import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com'}/api/mrfs`);
         
         // Create FormData if PFI or invoice file is provided
         let response;
@@ -175,15 +171,8 @@ const NewMRF = () => {
           if (invoiceOneDriveUrl) {
             formDataObj.append('onedrive_link', invoiceOneDriveUrl);
           }
-          console.log('Sending FormData with files:', {
-            hasPfi: !!pfiFile,
-            hasInvoice: !!invoiceFile,
-            hasOneDriveUrl: !!invoiceOneDriveUrl,
-            payloadKeys: Object.keys(payload)
-          });
           response = await mrfApi.createWithPFI(formDataObj);
         } else {
-          console.log('Sending JSON payload:', payload);
           response = await mrfApi.create(payload);
         }
         

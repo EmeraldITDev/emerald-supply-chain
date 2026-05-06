@@ -154,7 +154,6 @@ const UserManagement = () => {
         }
 
         // Log the update request for debugging role assignment issues
-        console.log("Updating user with data:", { ...updateData, password: updateData.password ? '***' : undefined });
 
         const response = await userApi.update(selectedUser.id, updateData);
         if (response.success) {
@@ -199,7 +198,6 @@ const UserManagement = () => {
         }
 
         // Log the create request for debugging role assignment issues
-        console.log("Creating user with data:", { ...createData, password: '***' });
 
         const response = await userApi.create(createData);
         if (response.success) {

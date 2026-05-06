@@ -65,19 +65,9 @@ const VendorRegistrationReview = () => {
       try {
         // Fetch the specific registration by ID
         const response = await vendorApi.getRegistration(id);
-        console.log('Full API Response:', JSON.stringify(response, null, 2));
         if (response.success && response.data) {
           // apiRequest now extracts the data property from backend responses
           const registrationData = response.data;
-          console.log('Registration Data Object:', registrationData);
-          console.log('Company Name:', registrationData?.companyName);
-          console.log('Email:', registrationData?.email);
-          console.log('Phone:', registrationData?.phone);
-          console.log('Address:', registrationData?.address);
-          console.log('Contact Person:', registrationData?.contactPerson);
-          console.log('Tax ID:', registrationData?.taxId);
-          console.log('Category:', registrationData?.category);
-          console.log('Documents:', registrationData?.documents);
           
           // Ensure we have the actual registration object
           if (registrationData && typeof registrationData === 'object' && 'companyName' in registrationData) {
@@ -351,19 +341,10 @@ const VendorRegistrationReview = () => {
     const documentId = doc.id || doc.document_id;
     const directUrl = doc.file_share_url || doc.fileShareUrl || doc.file_url || doc.fileUrl;
 
-    console.log('Document download initiated:', {
-      documentId,
-      fileName,
-      hasDirectUrl: !!directUrl,
-      registrationId: id,
-      expiryDate: document.expiryDate,
-      daysUntilExpiry: daysLeft,
-    });
 
     try {
       // ✅ PATH 1: Direct URL available (OneDrive, S3 Public)
       if (directUrl && typeof directUrl === 'string' && (directUrl.startsWith('http://') || directUrl.startsWith('https://'))) {
-        console.log('Using direct S3 URL for download');
         window.open(directUrl, '_blank');
         toast({
           title: "Opening Document",
@@ -372,13 +353,11 @@ const VendorRegistrationReview = () => {
       } 
       // ✅ PATH 2: Use API download endpoint with auth token
       else if (id && documentId && typeof documentId === 'string') {
-        console.log('Using API download endpoint for document:', documentId);
 
         try {
           const response = await vendorApi.downloadDocument(id, documentId);
 
           if (response.success) {
-            console.log('✅ Document downloaded successfully via API');
             toast({
               title: "Success",
               description: "Document downloaded successfully",
@@ -675,7 +654,6 @@ const VendorRegistrationReview = () => {
                               ) : (() => {
                                 const resolvedUrl = (doc as any).file_share_url || (doc as any).fileShareUrl || (doc as any).file_url || (doc as any).fileUrl;
                                 if (import.meta.env.DEV && index === 0 && resolvedUrl) {
-                                  console.log('[VendorRegistrationReview] Sample doc URL:', resolvedUrl);
                                 }
                                 if (!resolvedUrl) return null;
                                 const status = getS3UrlExpiryStatus(resolvedUrl);

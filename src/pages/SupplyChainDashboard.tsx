@@ -74,8 +74,6 @@ const SupplyChainDashboard = () => {
   // Debug: log selected quotation (incl. attachments) when it changes
   useEffect(() => {
     if (mrfFullDetails?.selectedQuotation) {
-      console.log('[SupplyChainDashboard] selectedQuotation:', mrfFullDetails.selectedQuotation);
-      console.log('[SupplyChainDashboard] selectedQuotation.attachments:', mrfFullDetails.selectedQuotation.attachments);
     }
   }, [mrfFullDetails]);
   const [vendorRegistrations, setVendorRegistrations] = useState<

@@ -107,11 +107,9 @@ const Vendors = () => {
 
   // Credential reset handler
   const handleResetVendorPassword = async (vendorId: string, vendorName: string) => {
-    console.log('Resetting password for vendor ID:', vendorId, 'Name:', vendorName);
     setIsResettingPassword(true);
     try {
       const response = await vendorApi.updateCredentials(vendorId, { resetPassword: true });
-      console.log('Reset password response:', response);
       if (response.success && response.data?.temporaryPassword) {
         const tempPassword = response.data.temporaryPassword;
         toast({
@@ -279,13 +277,10 @@ const Vendors = () => {
   const handleDeleteVendor = async () => {
     if (!vendorToDelete) return;
     
-    console.log('Deleting vendor:', vendorToDelete);
-    console.log('Using vendor ID for API:', vendorToDelete.id);
     
     setIsDeletingVendor(true);
     try {
       const response = await vendorApi.delete(vendorToDelete.id);
-      console.log('Delete vendor response:', response);
       if (response.success) {
         toast({
           title: "Vendor Deleted",

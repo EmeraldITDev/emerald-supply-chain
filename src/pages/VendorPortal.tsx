@@ -38,7 +38,6 @@ const VendorPortal = () => {
   const [showRegistration, setShowRegistration] = useState(false);
   const [currentVendor, setCurrentVendor] = useState<VendorData | null>(null);
     useEffect(() => {
-    console.log("Vendors Portal currentVendor object:", currentVendor);
   }, [currentVendor]);
   const [currentVendorId, setCurrentVendorId] = useState("");
   const [activeTab, setActiveTab] = useState("rfqs");
@@ -309,7 +308,6 @@ const VendorPortal = () => {
       );
       
       setVendorQuotationsList(uniqueQuotations);
-      console.log('[VendorPortal.fetchVendorQuotations] full quotations:', uniqueQuotations);
     } catch (error) {
       console.error('Error fetching vendor quotations:', error);
       // Fallback to context quotations + drafts if API fails
@@ -414,15 +412,7 @@ const VendorPortal = () => {
         vendorAuthApi.getProfile().then((response) => {
           if (response.success && response.data) {
             const fullVendor = response.data as any;
-              console.log("FULL PROFILE RESPONSE:", fullVendor);
             if (import.meta.env.DEV) {
-              console.log('[VendorPortal] Profile response keys:', Object.keys(fullVendor));
-              console.log('[VendorPortal] Document fields:', {
-                documents: fullVendor.documents,
-                registration_documents: fullVendor.registration_documents,
-                kyc_documents: fullVendor.kyc_documents,
-                files: fullVendor.files,
-              });
             }
             setCurrentVendor(fullVendor);
             localStorage.setItem('vendorData', JSON.stringify(fullVendor));
@@ -809,7 +799,6 @@ const VendorPortal = () => {
           onSubmit={async (registration) => {
             // Prevent double submission
             if (isSubmitting) {
-              console.log('Registration already in progress, ignoring duplicate submission');
               return;
             }
             
@@ -928,7 +917,6 @@ const VendorPortal = () => {
                 return;
               }
 
-              console.log("VENDOR REGISTRATION PAYLOAD:", registrationPayload);
               
               const response = await vendorApi.registerSimple(registrationPayload);
 

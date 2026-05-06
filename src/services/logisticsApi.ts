@@ -681,7 +681,6 @@ export const logisticsDashboardApi = {
         return response.blob();
       }
     } catch (error) {
-      console.log('Backend template not available, using local template');
     }
     
     // Fallback to local templates in public folder

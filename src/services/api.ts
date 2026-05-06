@@ -52,10 +52,6 @@ const API_BASE_URL = getApiBaseUrl();
 
 // Log the API URL being used (helpful for debugging in Lovable)
 if (typeof window !== 'undefined') {
-  console.log('API Base URL:', API_BASE_URL);
-  console.log('Current Origin:', window.location.origin);
-  console.log('CORS Debug - Frontend Origin:', window.location.origin);
-  console.log('CORS Debug - API URL:', API_BASE_URL);
 }
 
 // Helper function to check if token is expired
@@ -709,13 +705,6 @@ export const mrfApi = {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      console.log('Sending PO generation request:', {
-        mrfId: id,
-        poNumber,
-        fileName: poFile.name,
-        fileSize: poFile.size,
-        fileType: poFile.type,
-      });
 
       try {
         const response = await fetch(`${API_BASE_URL}/mrfs/${id}/generate-po`, {
@@ -777,7 +766,6 @@ export const mrfApi = {
           };
         }
 
-        console.log('PO generated successfully:', data);
         return { success: true, data: data.data || data };
       } catch (error) {
         console.error('PO generation network error:', error);
@@ -788,11 +776,6 @@ export const mrfApi = {
       }
     } else {
       // If no file, send JSON - backend will create PO record without document generation
-      console.log('Sending PO creation request:', {
-        mrfId: id,
-        poNumber,
-        note: 'Backend will create PO record and update workflow state (no document generation)',
-      });
       
       // Use fetch directly to have better control over error handling
       // Try JSON first, but backend might expect FormData even without file
@@ -831,7 +814,6 @@ export const mrfApi = {
         
         // If 400 error, try sending as FormData (some backends require FormData even without file)
         if (response.status === 400) {
-          console.log('JSON request failed with 400, trying FormData format...');
           const formData = new FormData();
           formData.append('po_number', poNumber);
           
@@ -923,7 +905,6 @@ export const mrfApi = {
           };
         }
 
-        console.log('PO created successfully:', data);
         return { success: true, data: data.data || data };
       } catch (error) {
         console.error('PO creation network error:', error);
@@ -1721,13 +1702,6 @@ export const vendorPortalApi = {
     };
 
     // Log full payload before sending so the shape can be verified during testing
-    console.log('[submitQuotation] Full payload before send:', {
-      ...payload,
-      itemsIsArray: Array.isArray(payload.items),
-      itemsCount: payload.items.length,
-      attachmentsIsArray: Array.isArray(payload.attachments),
-      attachmentsCount: normalizedAttachments.length,
-    });
 
     // If there are attachments, use FormData
     if (normalizedAttachments.length > 0) {
@@ -1768,9 +1742,7 @@ export const vendorPortalApi = {
       });
 
       // Log every FormData entry so the shape can be verified during testing
-      console.log('[submitQuotation] FormData entries before send:');
       for (const [key, value] of formData.entries()) {
-        console.log(key, value);
       }
 
       // Use vendorApiRequest with FormData
@@ -1782,7 +1754,6 @@ export const vendorPortalApi = {
       });
     } else {
       // No attachments, use JSON
-      console.log('Submitting quotation with JSON to /rfqs/:id/submit-quotation:', payload);
       
       return vendorApiRequest<Quotation>(`/rfqs/${rfqId}/submit-quotation`, {
         method: 'POST',
@@ -1921,12 +1892,9 @@ export const vendorApi = {
     }
     
     // Debug: Log FormData contents
-    console.log('FormData contents:');
     for (const [key, value] of formData.entries()) {
       if (value instanceof File) {
-        console.log(`${key}: File(${value.name}, ${value.size} bytes)`);
       } else {
-        console.log(`${key}: ${value}`);
       }
     }
 
