@@ -660,6 +660,7 @@ const Procurement = () => {
         (mrf) =>
           mrf.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           mrf.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          getDisplayId(mrf).toLowerCase().includes(searchQuery.toLowerCase()) ||
           getMRFRequester(mrf)
             .toLowerCase()
             .includes(searchQuery.toLowerCase()),
