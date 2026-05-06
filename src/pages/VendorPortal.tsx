@@ -307,6 +307,7 @@ const VendorPortal = () => {
       );
       
       setVendorQuotationsList(uniqueQuotations);
+      console.log('[VendorPortal.fetchVendorQuotations] full quotations:', uniqueQuotations);
     } catch (error) {
       console.error('Error fetching vendor quotations:', error);
       // Fallback to context quotations + drafts if API fails
