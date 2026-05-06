@@ -28,6 +28,7 @@ export interface NormalizedQuotation {
   // This is a known `any` boundary — quotation line items have inconsistent shapes.
   items: any[];
   documentUrl?: string;
+  attachments: any[];
 }
 
 /**
@@ -81,6 +82,7 @@ export function normalizeQuotation(item: any, fallbackRfqId?: string): Normalize
   const q = item.quotation ?? item;
   const vendor = item.vendor ?? q.vendor ?? {};
   const items = item.items ?? q.items ?? [];
+  const attachments = item.attachments ?? q.attachments ?? item.documents ?? q.documents ?? [];
 
   const deliveryDays = resolveDeliveryDays(q);
   const total = resolveTotal(q);
@@ -114,6 +116,7 @@ export function normalizeQuotation(item: any, fallbackRfqId?: string): Normalize
     notes: q.notes ?? q.note ?? q.remarks ?? '',
     items,
     documentUrl: q.document_url ?? q.documentUrl,
+    attachments: Array.isArray(attachments) ? attachments : (attachments ? [attachments] : []),
   };
 }
 
