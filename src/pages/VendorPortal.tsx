@@ -1716,6 +1716,29 @@ const VendorPortal = () => {
                               Notes: {quotation.notes}
                             </p>
                           )}
+                          {(() => {
+                            const docs = normalizeAttachments(quotation.attachments);
+                            if (docs.length === 0) return null;
+                            return (
+                              <div className="mt-3 pt-3 border-t">
+                                <p className="text-sm font-medium mb-2">Supporting Documents ({docs.length})</p>
+                                <div className="space-y-1">
+                                  {docs.map((doc, i) => (
+                                    <a
+                                      key={i}
+                                      href={doc.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-2 text-sm text-primary hover:underline"
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                      <span className="truncate">{doc.name}</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })}
