@@ -207,6 +207,7 @@ const Procurement = () => {
                   payment_terms: n.paymentTerms,
                   total_amount: n.price,
                   totalAmount: n.price,
+                  attachments: n.attachments,
                 });
               }
             });
@@ -216,6 +217,7 @@ const Procurement = () => {
         }
       }
       setQuotations(allQuotations);
+      console.log('[Procurement.fetchQuotations] full quotations with attachments:', allQuotations);
       if (import.meta.env.DEV) {
         console.log("[Procurement.fetchQuotations]", {
           rfqsCount: rfqs.length,
