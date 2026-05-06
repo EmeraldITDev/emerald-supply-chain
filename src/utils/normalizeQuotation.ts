@@ -86,11 +86,6 @@ export function normalizeQuotation(item: any, fallbackRfqId?: string): Normalize
   const attachments = (Array.isArray(rawAttachments) ? rawAttachments : [rawAttachments])
     .flat(Infinity)
     .filter(Boolean);
-  console.log('[normalizeQuotation] Flattened attachments:', {
-    raw: rawAttachments,
-    flattened: attachments,
-    count: attachments.length,
-  });
 
   const deliveryDays = resolveDeliveryDays(q);
   const total = resolveTotal(q);
