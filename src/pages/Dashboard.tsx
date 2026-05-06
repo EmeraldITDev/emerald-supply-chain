@@ -243,9 +243,6 @@ const Dashboard = () => {
     return formatted === "Invalid Date" ? "N/A" : formatted;
   };
 
-console.log("SCM current user:", user);
-console.log("SCM current user role:", user?.role);
-console.log("SCM isEmployeeRole:", isEmployeeRole(user?.role));
 
   return (
     <DashboardLayout>

@@ -230,24 +230,7 @@ const Procurement = () => {
         }
       }
       setQuotations(allQuotations);
-      console.log('[Procurement.fetchQuotations] full quotations with attachments:', allQuotations);
       if (import.meta.env.DEV) {
-        console.log("[Procurement.fetchQuotations]", {
-          rfqsCount: rfqs.length,
-          rfqsSample: rfqs.slice(0, 3).map((r: any) => ({
-            id: r.id,
-            mrf_id: r.mrf_id,
-            mrfId: r.mrfId,
-            keys: Object.keys(r),
-          })),
-          quotationsCount: allQuotations.length,
-          quotationsSample: allQuotations.slice(0, 3).map((q: any) => ({
-            id: q.id,
-            rfqId: q.rfqId,
-            vendorName: q.vendorName,
-            total: q.total,
-          })),
-        });
       }
     } catch (error) {
       console.error("Failed to fetch quotations:", error);
@@ -1329,7 +1312,7 @@ const Procurement = () => {
           />
 
           <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-6 h-auto gap-1">
+            <TabsList className="flex w-full flex-wrap h-auto gap-1 justify-start">
               <TabsTrigger
                 value="mrn"
                 className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3 flex-col sm:flex-row gap-1"
@@ -2397,11 +2380,6 @@ const Procurement = () => {
                                                             },
                                                           );
                                                         } else {
-                                                          console.log(
-                                                            "Found quotation items:",
-                                                            quotationItems.length,
-                                                            quotationItems,
-                                                          );
                                                         }
 
                                                         // Create PO record - no document generation, just create the PO and move to Purchase Orders
@@ -2708,30 +2686,6 @@ const Procurement = () => {
                                 {/* The handleGeneratePO function checks canGeneratePO before proceeding */}
                                 {(() => {
                                   if (import.meta.env.DEV) {
-                                    console.log(
-                                      "[Procurement.SendRFQButton:inputs]",
-                                      {
-                                        mrfId: request.id,
-                                        contract_type:
-                                          (request as any).contract_type ??
-                                          (request as any).contractType,
-                                        stage: getMRFStage(request as MRF),
-                                        status: request.status,
-                                        workflowState: getWorkflowState(
-                                          request as MRF,
-                                        ),
-                                        isInitialApprovalApproved:
-                                          isInitialApprovalApproved(
-                                            request as MRF,
-                                          ),
-                                        isSupplyChainApproved:
-                                          isSupplyChainApproved(request as MRF),
-                                        isSupplyChainDirectorInitialApproved:
-                                          isSupplyChainDirectorInitialApproved(
-                                            request as MRF,
-                                          ),
-                                      },
-                                    );
                                   }
                                   const workflowState = getWorkflowState(
                                     request as MRF,
@@ -2759,16 +2713,6 @@ const Procurement = () => {
                                         hasInitialApproval));
 
                                   if (import.meta.env.DEV) {
-                                    console.log(
-                                      "[Procurement.SendRFQButton:decision]",
-                                      {
-                                        mrfId: request.id,
-                                        isProcurement,
-                                        isPendingPOUpload,
-                                        hasInitialApproval,
-                                        canShowPOButton,
-                                      },
-                                    );
                                   }
 
                                   if (!canShowPOButton) return null;

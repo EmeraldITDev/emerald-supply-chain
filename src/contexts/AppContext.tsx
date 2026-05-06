@@ -399,11 +399,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const refreshRFQs = async () => {
     try {
       const response = await rfqApi.getAll();
-      console.log('[DEBUG] rfqApi.getAll raw response:', response);  // ← add this
       if (response.success && response.data) {
         const rawData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.rfqs || [];
-        console.log('[DEBUG] rawData:', rawData);  // ← and this
-        console.log('[DEBUG] rfqApi.getAll raw response:', response);  // ← add this
         // Convert API RFQ type to AppContext RFQ type
         const converted = rawData.map((rfq: any) => ({
           id: rfq.id,
@@ -441,9 +438,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       for (const rfq of list) {
         try {
           const response = await rfqApi.getQuotations(rfq.id);
-          console.log(`[DEBUG] response.data:`, response.data);
-          console.log(`[DEBUG] response.data?.quotations:`, response.data?.quotations);
-          console.log(`[DEBUG] quotations response for ${rfq.id}:`, response); // ← add this
           if (response.success && response.data?.quotations) {
             for (const item of response.data.quotations) {
               const n = normalizeQuotation(item, rfq.id);
@@ -511,7 +505,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } else {
       // Vendor-only context - skip auto-refresh to avoid 401 errors
       // Vendors will fetch their own data via vendorPortalApi in VendorPortal component
-      console.log("Vendor portal detected - skipping AppContext auto-refresh");
       setLoading(false);
     }
   }, []);
