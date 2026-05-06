@@ -22,6 +22,7 @@ import { EnhancedVendorRegistration } from "@/components/EnhancedVendorRegistrat
 import { VendorQuoteSubmission } from "@/components/VendorQuoteSubmission";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatMRFDate } from "@/utils/dateUtils";
+import { normalizeAttachments } from "@/utils/attachments";
 import type { Vendor } from "@/types";
 
 interface VendorData extends Vendor {
