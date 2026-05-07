@@ -288,6 +288,17 @@ const Procurement = () => {
     return () => clearInterval(poll);
   }, [fetchMRFs, fetchRFQs, fetchQuotations]);
 
+  // Listen for global refresh button clicks from the header
+  useEffect(() => {
+    const handler = () => {
+      fetchMRFs();
+      fetchRFQs();
+      fetchQuotations();
+    };
+    window.addEventListener("app:refresh", handler);
+    return () => window.removeEventListener("app:refresh", handler);
+  }, [fetchMRFs, fetchRFQs, fetchQuotations]);
+
   // Helper functions for MRF field access (handles both camelCase and snake_case)
   const getMRFEstimatedCost = (mrf: MRF) =>
     String(mrf.estimated_cost || mrf.estimatedCost || "0");
