@@ -127,6 +127,7 @@ const NewMRF = () => {
         title: "MRF Resubmitted Successfully",
         description: "Your updated material request has been resubmitted for approval",
       });
+          window.dispatchEvent(new CustomEvent("app:refresh"));
           navigate("/dashboard");
         } else {
           toast({
