@@ -339,6 +339,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     
     // Refresh RFQs after creation
     await refreshRFQs();
+    window.dispatchEvent(new CustomEvent("app:refresh"));
       } else {
         toast({
           title: "Error",
