@@ -276,6 +276,18 @@ const Procurement = () => {
     }
   }, [rfqs, fetchQuotations]);
 
+  // Auto-poll procurement data every 30s while tab is visible
+  useEffect(() => {
+    const poll = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchMRFs();
+        fetchRFQs();
+        fetchQuotations();
+      }
+    }, 30000);
+    return () => clearInterval(poll);
+  }, [fetchMRFs, fetchRFQs, fetchQuotations]);
+
   // Helper functions for MRF field access (handles both camelCase and snake_case)
   const getMRFEstimatedCost = (mrf: MRF) =>
     String(mrf.estimated_cost || mrf.estimatedCost || "0");
