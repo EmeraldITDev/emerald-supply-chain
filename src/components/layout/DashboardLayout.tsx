@@ -35,6 +35,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         refreshQuotations(),
         queryClient.invalidateQueries(),
       ]);
+      // Notify page-level components (Procurement, VendorPortal) to re-fetch
+      window.dispatchEvent(new CustomEvent("app:refresh"));
       toast({
         title: "Data refreshed",
         description: "All data has been synced with the server.",

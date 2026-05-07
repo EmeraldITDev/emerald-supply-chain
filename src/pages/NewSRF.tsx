@@ -91,6 +91,7 @@ const NewSRF = () => {
       title: fid ? `SRF ${fid} Submitted` : "SRF Submitted Successfully",
       description: "Your service request form has been submitted for approval",
     });
+    window.dispatchEvent(new CustomEvent("app:refresh"));
     navigate("/procurement");
       } else {
         toast({

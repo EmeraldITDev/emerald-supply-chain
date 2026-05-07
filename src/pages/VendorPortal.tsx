@@ -450,6 +450,30 @@ const VendorPortal = () => {
     }
   }, [isLoggedIn, currentVendorId]);
 
+  // Auto-poll vendor data every 30s while tab is visible
+  useEffect(() => {
+    if (!isLoggedIn || !currentVendorId) return;
+    const poll = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchVendorRFQs();
+        fetchVendorQuotations();
+      }
+    }, 30000);
+    return () => clearInterval(poll);
+  }, [isLoggedIn, currentVendorId]);
+
+  // Listen for global refresh events
+  useEffect(() => {
+    const handler = () => {
+      if (isLoggedIn && currentVendorId) {
+        fetchVendorRFQs();
+        fetchVendorQuotations();
+      }
+    };
+    window.addEventListener("app:refresh", handler);
+    return () => window.removeEventListener("app:refresh", handler);
+  }, [isLoggedIn, currentVendorId]);
+
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
