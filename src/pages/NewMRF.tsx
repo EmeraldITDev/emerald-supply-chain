@@ -188,6 +188,8 @@ const NewMRF = () => {
           ? "High-value request (>₦1M) - Will require both Executive and Chairman approval"
           : "Your request has been sent to Executive for approval",
       });
+      // Trigger global re-fetch so dashboards/procurement reflect the new MRF immediately
+      window.dispatchEvent(new CustomEvent("app:refresh"));
     navigate("/dashboard");
         } else {
           // Enhanced error handling for network issues
