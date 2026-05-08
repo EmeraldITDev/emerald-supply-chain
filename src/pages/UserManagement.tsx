@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { userApi } from "@/services/api";
+import { userApi, departmentApi } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { User } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
