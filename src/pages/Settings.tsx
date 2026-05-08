@@ -14,8 +14,9 @@ import { Settings as SettingsIcon, User, Bell, Shield, Database } from "lucide-r
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/services/api";
+import { signatureApi } from "@/services/api";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { PasswordInput } from "@/components/ui/password-input";
 
@@ -29,12 +30,46 @@ export default function Settings() {
   const [phone, setPhone] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
+  const [isUploadingSignature, setIsUploadingSignature] = useState(false);
+  const signatureInputRef = useRef<HTMLInputElement | null>(null);
 
   // Role-based access control
   const isRegularEmployee = user?.role === "employee" || user?.role === "general_employee";
   const canViewProfile = !isRegularEmployee;
   const canViewAuditTrail = ['chairman', 'executive', 'supply_chain_director', 'procurement', 'finance', 'logistics'].includes(user?.role || '');
   const canManageUsers = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain'].includes(user?.role || '');
+  const canUploadSignature = ['supply_chain_director', 'supply_chain', 'admin'].includes(user?.role || '');
+
+  const handleSignatureFile = (file: File | null) => {
+    setSignatureFile(file);
+    if (signaturePreview) URL.revokeObjectURL(signaturePreview);
+    setSignaturePreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  const handleUploadSignature = async () => {
+    if (!signatureFile || !user?.id) {
+      toast.error("Select a signature image first.");
+      return;
+    }
+    setIsUploadingSignature(true);
+    try {
+      const res = await signatureApi.upload(String(user.id), signatureFile);
+      if (res.success) {
+        toast.success("Digital signature uploaded.");
+        handleSignatureFile(null);
+        if (signatureInputRef.current) signatureInputRef.current.value = "";
+        window.dispatchEvent(new CustomEvent("app:refresh"));
+      } else {
+        toast.error(res.error || "Failed to upload signature.");
+      }
+    } catch {
+      toast.error("Failed to upload signature.");
+    } finally {
+      setIsUploadingSignature(false);
+    }
+  };
 
   const handleSaveProfile = async () => {
     if (!name.trim()) {
