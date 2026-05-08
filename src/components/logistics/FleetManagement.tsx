@@ -1364,6 +1364,31 @@ export const FleetManagement = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Initiate SRF Confirmation */}
+      <AlertDialog open={srfDialogOpen} onOpenChange={setSrfDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Initiate Service Request Form</AlertDialogTitle>
+            <AlertDialogDescription>
+              Initiate an SRF for <strong>{srfVehicle?.name}</strong> ({srfVehicle?.plate})? This will create a new service requisition tied to this vehicle.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isInitiatingSRF}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleInitiateSRF} disabled={isInitiatingSRF}>
+              {isInitiatingSRF ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Initiating...
+                </>
+              ) : (
+                "Initiate SRF"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
