@@ -2390,3 +2390,146 @@ export const searchApi = {
     return apiRequest<GlobalSearchResult[]>(`/search?q=${encodeURIComponent(q)}`);
   },
 };
+
+// ============================================================
+// PO Terms & Conditions templates
+// ============================================================
+export interface POTermsTemplate {
+  type: string;
+  standard_terms?: string;
+  standardTerms?: string;
+  updated_at?: string;
+}
+
+export const poTermsApi = {
+  /**
+   * Fetch the standard T&C template for a given document type.
+   * Backend route: GET /api/po-terms-templates/{type}
+   */
+  getTemplate: async (
+    type: 'rfq' | 'po' | string
+  ): Promise<ApiResponse<POTermsTemplate>> => {
+    return apiRequest<POTermsTemplate>(`/po-terms-templates/${encodeURIComponent(type)}`);
+  },
+};
+
+// ============================================================
+// Digital signature upload (multipart with base64 fallback)
+// ============================================================
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+export const signatureApi = {
+  /**
+   * Upload a user's digital signature image.
+   * Tries multipart first; falls back to base64 JSON if the backend
+   * rejects the content type (415 / 400). Returns the signature URL.
+   */
+  upload: async (
+    userId: string,
+    file: File
+  ): Promise<ApiResponse<{ signature_url?: string; signatureUrl?: string }>> => {
+    const { token, expired } = getAuthToken();
+    if (expired || !token) {
+      return { success: false, error: 'Authentication token has expired. Please log in again.' };
+    }
+
+    // Attempt 1: multipart
+    try {
+      const fd = new FormData();
+      fd.append('signature', file);
+      const res = await fetch(`${API_BASE_URL}/users/${encodeURIComponent(userId)}/signature`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      if (res.status !== 415 && res.status !== 400) {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          return { success: false, error: data.message || data.error || `Upload failed (${res.status})` };
+        }
+        if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+          // eslint-disable-next-line no-console
+          console.info('[signatureApi] multipart upload succeeded');
+        }
+        return { success: true, data: data.data || data };
+      }
+      // fall through to base64
+    } catch {
+      // network error — try base64 anyway
+    }
+
+    // Attempt 2: base64 JSON fallback
+    try {
+      const base64 = await fileToBase64(file);
+      const res = await fetch(`${API_BASE_URL}/users/${encodeURIComponent(userId)}/signature`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ signature: base64 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, error: data.message || data.error || `Upload failed (${res.status})` };
+      }
+      if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+        // eslint-disable-next-line no-console
+        console.info('[signatureApi] base64 fallback upload succeeded');
+      }
+      return { success: true, data: data.data || data };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : 'Network error' };
+    }
+  },
+};
+
+// ============================================================
+// PO sign / resubmit / initiate-SRF / designated creator endpoints
+// ============================================================
+export const poApi = {
+  /** SCD signs the PO. Backend: POST /api/purchase-orders/{id}/sign */
+  sign: async (poId: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/purchase-orders/${encodeURIComponent(poId)}/sign`, {
+      method: 'POST',
+    });
+  },
+
+  /** Procurement Manager resubmits a returned PO for SCD approval. */
+  resubmit: async (poId: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/purchase-orders/${encodeURIComponent(poId)}/resubmit`, {
+      method: 'POST',
+    });
+  },
+};
+
+export const fleetApi = {
+  /** Logistics officer initiates an SRF for a vehicle. */
+  initiateSRF: async (vehicleId: string): Promise<ApiResponse<{ srf_id?: string; srfId?: string }>> => {
+    return apiRequest(`/fleet/vehicles/${encodeURIComponent(vehicleId)}/initiate-srf`, {
+      method: 'POST',
+    });
+  },
+};
+
+export const departmentApi = {
+  /**
+   * Set the designated requisition creator for a department.
+   * Backend: PUT /api/departments/{id}/requisition-creator { user_id }
+   */
+  setRequisitionCreator: async (
+    departmentId: string,
+    userId: string
+  ): Promise<ApiResponse<{ designated_creator?: { id: string; name: string } }>> => {
+    return apiRequest(`/departments/${encodeURIComponent(departmentId)}/requisition-creator`, {
+      method: 'PUT',
+      body: JSON.stringify({ user_id: userId }),
+    });
+  },
+};

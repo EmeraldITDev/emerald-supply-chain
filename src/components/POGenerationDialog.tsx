@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import type { MRFRequest } from "@/contexts/AppContext";
-import { vendorApi } from "@/services/api";
+import { vendorApi, poTermsApi } from "@/services/api";
 import type { Vendor } from "@/types";
 
 interface POGenerationDialogProps {
@@ -67,11 +67,16 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [supportingDocuments, setSupportingDocuments] = useState<File[]>([]);
+  const [standardTerms, setStandardTerms] = useState<string>("");
+  const [customTerms, setCustomTerms] = useState<string>("");
+  const [termsLoading, setTermsLoading] = useState(false);
+  const [termsError, setTermsError] = useState<string | null>(null);
 
   // Fetch vendors when dialog opens
   useEffect(() => {
     if (open) {
       fetchVendors();
+      fetchTerms();
     }
   }, [open]);
 
@@ -88,6 +93,24 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
       console.error('Failed to fetch vendors:', error);
     } finally {
       setLoadingVendors(false);
+    }
+  };
+
+  const fetchTerms = async () => {
+    setTermsLoading(true);
+    setTermsError(null);
+    try {
+      // RFQ creation flow: pull the RFQ T&C template
+      const response = await poTermsApi.getTemplate('rfq');
+      if (response.success && response.data) {
+        setStandardTerms(response.data.standard_terms || response.data.standardTerms || "");
+      } else {
+        setTermsError(response.error || "Could not load standard terms");
+      }
+    } catch (e) {
+      setTermsError(e instanceof Error ? e.message : "Could not load standard terms");
+    } finally {
+      setTermsLoading(false);
     }
   };
 
@@ -286,15 +309,17 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="amount">Estimated Budget (₦) *</Label>
+                <Label htmlFor="amount">Estimated Budget (₦) (Optional)</Label>
                 <Input
                   id="amount"
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="e.g., 50000"
-                  required
                 />
+                <p className="text-xs text-muted-foreground">
+                  Internal-only — never sent to vendors.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -350,6 +375,64 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
                 placeholder="Special instructions, shipping requirements, etc."
                 rows={3}
               />
+            </div>
+
+            {/* Terms & Conditions section */}
+            <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">
+                  Terms &amp; Conditions
+                </Label>
+                {termsLoading && (
+                  <span className="inline-flex items-center text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    Loading…
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="standard-terms" className="text-xs text-muted-foreground">
+                  Standard Terms (read-only)
+                </Label>
+                {termsError ? (
+                  <div className="flex items-center justify-between rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">
+                    <span className="text-destructive">{termsError}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={fetchTerms}
+                      className="h-7"
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                ) : (
+                  <Textarea
+                    id="standard-terms"
+                    value={standardTerms}
+                    readOnly
+                    rows={4}
+                    className="bg-background/60 text-xs"
+                    placeholder={termsLoading ? "Loading standard terms…" : "No standard terms configured"}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="custom-terms" className="text-xs text-muted-foreground">
+                  Additional Custom Terms (optional)
+                </Label>
+                <Textarea
+                  id="custom-terms"
+                  value={customTerms}
+                  onChange={(e) => setCustomTerms(e.target.value)}
+                  rows={3}
+                  placeholder="Add any RFQ-specific terms here…"
+                  className="text-xs"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -429,7 +512,16 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
             <Button 
               type="submit" 
               onClick={(e) => handleSubmit(e, true)}
-              disabled={selectedVendorIds.length === 0 || !deliveryDate || !paymentTerms || isSubmitting || isGenerating || isSaving}
+              disabled={
+                selectedVendorIds.length === 0 ||
+                !deliveryDate ||
+                !paymentTerms ||
+                termsLoading ||
+                (!standardTerms && !termsError) ||
+                isSubmitting ||
+                isGenerating ||
+                isSaving
+              }
             >
               {isSubmitting || isGenerating ? (
                 <>
