@@ -295,6 +295,60 @@ export default function Settings() {
                 </Button>
               </CardContent>
             </Card>
+
+            {canUploadSignature && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Digital Signature</CardTitle>
+                  <CardDescription>
+                    Upload your signature image (PNG or JPG, transparent background recommended).
+                    This signature is applied to Purchase Orders when you sign them.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signature-file">Signature Image</Label>
+                    <Input
+                      id="signature-file"
+                      ref={signatureInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] || null;
+                        if (f && f.size > 2 * 1024 * 1024) {
+                          toast.error("Signature image must be 2MB or less.");
+                          return;
+                        }
+                        handleSignatureFile(f);
+                      }}
+                    />
+                  </div>
+                  {signaturePreview && (
+                    <div className="rounded-md border bg-muted/30 p-4">
+                      <p className="text-xs text-muted-foreground mb-2">Preview</p>
+                      <img
+                        src={signaturePreview}
+                        alt="Signature preview"
+                        className="max-h-24 object-contain"
+                      />
+                    </div>
+                  )}
+                  <Button
+                    onClick={handleUploadSignature}
+                    disabled={!signatureFile || isUploadingSignature}
+                  >
+                    {isUploadingSignature ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      "Upload Signature"
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {canManageUsers && (
