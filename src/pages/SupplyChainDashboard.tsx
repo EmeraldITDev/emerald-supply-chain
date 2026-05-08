@@ -1371,16 +1371,13 @@ const SupplyChainDashboard = () => {
               </div>
 
               {/* Price Comparison */}
-              <div>
-                <h3 className="font-semibold text-lg mb-3">Price Comparison</h3>
-                <PriceComparisonTable
-                  rows={getPriceComparison(
-                    mrfFullDetails?.purchaseOrder ||
-                      mrfFullDetails ||
-                      selectedMRFForDetails,
-                  )}
-                />
-              </div>
+              <PriceComparisonTable
+                po={
+                  mrfFullDetails?.purchaseOrder ||
+                  mrfFullDetails ||
+                  selectedMRFForDetails
+                }
+              />
 
               {/* Selected Quotation */}
               {mrfFullDetails?.selectedQuotation?.vendor && (
