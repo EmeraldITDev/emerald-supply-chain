@@ -245,11 +245,15 @@ async function apiRequest<T>(
           return {
             success: false,
             error: `API route not found. Please verify:\n1. Backend is deployed and running\n2. VITE_API_BASE_URL is set correctly (should end with /api)\n3. Routes are cached on backend (php artisan route:cache)\n\nCurrent API URL: ${API_BASE_URL}${endpoint}`,
+            status: response.status,
+            raw: data,
           };
         }
         return {
           success: false,
           error: errorMsg,
+          status: response.status,
+          raw: data,
         };
       }
       
@@ -260,12 +264,16 @@ async function apiRequest<T>(
         return {
           success: false,
           error: errorMessage || data.message || 'An error occurred',
+          status: response.status,
+          raw: data,
         };
       }
       
       return {
         success: false,
         error: data.message || data.error || 'An error occurred',
+        status: response.status,
+        raw: data,
       };
     }
 
