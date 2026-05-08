@@ -39,6 +39,8 @@ import {
 } from "@/utils/normalizeQuotation";
 import { normalizeAttachments } from "@/utils/attachments";
 import { PORejectionDialog } from "@/components/PORejectionDialog";
+import { PriceComparisonTable } from "@/components/PriceComparisonTable";
+import { getPriceComparison, getRejectionReason } from "@/utils/poHelpers";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
