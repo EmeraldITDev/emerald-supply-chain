@@ -68,6 +68,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { fleetApi } from "@/services/logisticsApi";
+import { useAuth } from "@/contexts/AuthContext";
 import type { FleetVehicle, VehicleDocument, MaintenanceRecord, FleetAlert, VehicleStatus, VehicleOwnership } from "@/types/logistics";
 
 const statusColors: Record<VehicleStatus, string> = {
@@ -133,6 +134,8 @@ const normalizeVehicle = (raw: any): FleetVehicle => ({
 
 export const FleetManagement = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const canInitiateSRF = !!user && ["logistics_officer", "logistics_manager", "logistics"].includes(user.role as string);
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [alerts, setAlerts] = useState<FleetAlert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,6 +175,38 @@ export const FleetManagement = () => {
   const [documentType, setDocumentType] = useState<string>("registration");
   const [documentExpiry, setDocumentExpiry] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [srfDialogOpen, setSrfDialogOpen] = useState(false);
+  const [srfVehicle, setSrfVehicle] = useState<FleetVehicle | null>(null);
+  const [isInitiatingSRF, setIsInitiatingSRF] = useState(false);
+
+  const handleInitiateSRF = async () => {
+    if (!srfVehicle) return;
+    setIsInitiatingSRF(true);
+    try {
+      const res = await fleetApi.initiateSRF(srfVehicle.id);
+      if (res.success) {
+        const sid = (res.data as any)?.srf_id || (res.data as any)?.srfId;
+        toast({
+          title: "SRF Initiated",
+          description: sid ? `SRF ${sid} created for ${srfVehicle.name}` : `SRF created for ${srfVehicle.name}`,
+        });
+        window.dispatchEvent(new CustomEvent("app:refresh"));
+        setSrfDialogOpen(false);
+        setSrfVehicle(null);
+        fetchData();
+      } else {
+        toast({
+          title: "Failed to Initiate SRF",
+          description: res.error || "Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to initiate SRF", variant: "destructive" });
+    } finally {
+      setIsInitiatingSRF(false);
+    }
+  };
 
   // Fetch vehicles and alerts from API
   const fetchData = async () => {
