@@ -52,6 +52,7 @@ import {
   rfqApi,
   quotationApi,
   vendorApi,
+  poApi,
 } from "@/services/api";
 import {
   normalizeQuotation,
@@ -64,6 +65,7 @@ import type { VendorRegistration, MRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
 import { normalizeAttachments } from "@/utils/attachments";
+import { isPORevisionRequired, getRejectionReason } from "@/utils/poHelpers";
 import {
   Select,
   SelectContent,
@@ -583,11 +585,11 @@ const Procurement = () => {
       const stage = getMRFStage(mrf);
       const status = (mrf.status || "").toLowerCase();
       const rejectionReason = getMRFRejectionReason(mrf);
+      const needsRevision = isPORevisionRequired(mrf);
 
       return (
         stage === "procurement" &&
-        status.includes("rejected") &&
-        rejectionReason
+        ((status.includes("rejected") && rejectionReason) || needsRevision)
       );
     });
   }, [mrfRequests]);
@@ -821,6 +823,37 @@ const Procurement = () => {
         "Procurement can view MRFs but cannot approve. Only Executive has approval authority.",
       variant: "default",
     });
+  };
+
+  const [resubmittingPOId, setResubmittingPOId] = useState<string | null>(null);
+
+  const handleResubmitPO = async (mrf: MRFRequest | MRF) => {
+    const poId = (mrf as any).poId || (mrf as any).po_id || mrf.id;
+    setResubmittingPOId(String(mrf.id));
+    try {
+      const res = await poApi.resubmit(String(poId));
+      if (res.success) {
+        toast({
+          title: "Resubmitted for Approval",
+          description: "PO has been sent back to the Supply Chain Director.",
+        });
+        window.dispatchEvent(new CustomEvent("app:refresh"));
+      } else {
+        toast({
+          title: "Resubmission Failed",
+          description: res.error || "Unable to resubmit PO. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to resubmit PO.",
+        variant: "destructive",
+      });
+    } finally {
+      setResubmittingPOId(null);
+    }
   };
 
   const handleGeneratePO = async (mrf: MRFRequest | MRF) => {
@@ -1652,9 +1685,15 @@ const Procurement = () => {
                                         <h4 className="font-semibold">
                                           {mrf.title}
                                         </h4>
-                                        <Badge variant="destructive">
-                                          Rejected
-                                        </Badge>
+                                        {isPORevisionRequired(mrf) ? (
+                                          <Badge className="bg-warning/15 text-warning border border-warning/30 hover:bg-warning/20">
+                                            Returned for Revision
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="destructive">
+                                            Rejected
+                                          </Badge>
+                                        )}
                                         <Badge variant="outline">
                                           {mrf.poNumber}
                                         </Badge>
@@ -1689,13 +1728,33 @@ const Procurement = () => {
                                     {/* Regenerate PO button - Only for Procurement Managers */}
                                     {(user?.role === "procurement" ||
                                       user?.role === "procurement_manager") && (
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleGeneratePO(mrf)}
-                                      >
-                                        <FileText className="h-4 w-4 mr-2" />
-                                        Regenerate PO
-                                      </Button>
+                                      <div className="flex flex-col sm:flex-row gap-2">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleGeneratePO(mrf)}
+                                        >
+                                          <FileText className="h-4 w-4 mr-2" />
+                                          Edit / Regenerate PO
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          onClick={() => handleResubmitPO(mrf)}
+                                          disabled={resubmittingPOId === String(mrf.id)}
+                                        >
+                                          {resubmittingPOId === String(mrf.id) ? (
+                                            <>
+                                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                              Resubmitting...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <RefreshCw className="h-4 w-4 mr-2" />
+                                              Resubmit for Approval
+                                            </>
+                                          )}
+                                        </Button>
+                                      </div>
                                     )}
                                   </div>
 

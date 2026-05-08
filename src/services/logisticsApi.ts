@@ -461,6 +461,13 @@ export const fleetApi = {
       method: 'DELETE',
     });
   },
+
+  // Logistics officer initiates a Service Request Form for a vehicle
+  initiateSRF: async (id: string): Promise<ApiResponse<{ srf_id?: string; srfId?: string }>> => {
+    return apiRequest(`/fleet/vehicles/${encodeURIComponent(id)}/initiate-srf`, {
+      method: 'POST',
+    });
+  },
 };
 
 // ==========================================
