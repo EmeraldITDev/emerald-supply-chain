@@ -1685,9 +1685,15 @@ const Procurement = () => {
                                         <h4 className="font-semibold">
                                           {mrf.title}
                                         </h4>
-                                        <Badge variant="destructive">
-                                          Rejected
-                                        </Badge>
+                                        {isPORevisionRequired(mrf) ? (
+                                          <Badge className="bg-warning/15 text-warning border border-warning/30 hover:bg-warning/20">
+                                            Returned for Revision
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="destructive">
+                                            Rejected
+                                          </Badge>
+                                        )}
                                         <Badge variant="outline">
                                           {mrf.poNumber}
                                         </Badge>
@@ -1722,13 +1728,33 @@ const Procurement = () => {
                                     {/* Regenerate PO button - Only for Procurement Managers */}
                                     {(user?.role === "procurement" ||
                                       user?.role === "procurement_manager") && (
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleGeneratePO(mrf)}
-                                      >
-                                        <FileText className="h-4 w-4 mr-2" />
-                                        Regenerate PO
-                                      </Button>
+                                      <div className="flex flex-col sm:flex-row gap-2">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleGeneratePO(mrf)}
+                                        >
+                                          <FileText className="h-4 w-4 mr-2" />
+                                          Edit / Regenerate PO
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          onClick={() => handleResubmitPO(mrf)}
+                                          disabled={resubmittingPOId === String(mrf.id)}
+                                        >
+                                          {resubmittingPOId === String(mrf.id) ? (
+                                            <>
+                                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                              Resubmitting...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <RefreshCw className="h-4 w-4 mr-2" />
+                                              Resubmit for Approval
+                                            </>
+                                          )}
+                                        </Button>
+                                      </div>
                                     )}
                                   </div>
 
