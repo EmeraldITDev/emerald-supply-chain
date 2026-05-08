@@ -825,6 +825,37 @@ const Procurement = () => {
     });
   };
 
+  const [resubmittingPOId, setResubmittingPOId] = useState<string | null>(null);
+
+  const handleResubmitPO = async (mrf: MRFRequest | MRF) => {
+    const poId = (mrf as any).poId || (mrf as any).po_id || mrf.id;
+    setResubmittingPOId(String(mrf.id));
+    try {
+      const res = await poApi.resubmit(String(poId));
+      if (res.success) {
+        toast({
+          title: "Resubmitted for Approval",
+          description: "PO has been sent back to the Supply Chain Director.",
+        });
+        window.dispatchEvent(new CustomEvent("app:refresh"));
+      } else {
+        toast({
+          title: "Resubmission Failed",
+          description: res.error || "Unable to resubmit PO. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to resubmit PO.",
+        variant: "destructive",
+      });
+    } finally {
+      setResubmittingPOId(null);
+    }
+  };
+
   const handleGeneratePO = async (mrf: MRFRequest | MRF) => {
     // Check if MRF is Executive approved first (this is the main requirement)
     const mrfData = mrfRequests.find((m) => m.id === mrf.id);
