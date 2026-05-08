@@ -1,59 +1,139 @@
-# Frontend integration: new formatted_id
+## Revised Plan: PO/SRF/RFQ Enhancements (2B-1 → 2B-8) with Safeguards
 
-The backend now returns `formatted_id` / `formattedId` (e.g. `MRF-EMERALD-IT-LAP-2026-001`) and `legacy_id` / `legacyId` on MRF, SRF, RFQ records, plus a new `GET /api/search` endpoint. Per project rule (`vendor-data-integrity-standards-v2`), UUIDs (the `id` field) must continue to be used for all API calls; only display + search should use `formatted_id`.
+This revision locks down each risk you flagged. Same 7 deliverables, with defensive handling baked in.
 
-## Goals
+---
 
-1. Show the new `formatted_id` everywhere a request ID is rendered (cards, tables, dialogs, breadcrumbs, exports, PDFs, emails, toasts).
-2. Keep all API calls using the UUID `id`.
-3. Backward compat: if `formatted_id` is missing, fall back to `legacy_id`, then `id`.
-4. Replace mock global search with the new `/api/search` endpoint, matching formatted IDs.
+### 2B-1 · Price-Comparison Table
 
-## Plan
+**Component:** new `src/components/PriceComparisonTable.tsx`
+- Columns: Vendor Name, Item Description, Unit Price, Quantity, Total Price, Selected, Selection Reason
+- Selected row: `border-l-4 border-l-success bg-success/5`
+- Empty state: amber banner "No price comparison data available for this PO"
 
-### 1. Types (`src/types/index.ts`)
-Add optional `formatted_id?`, `formattedId?`, `legacy_id?`, `legacyId?`, plus `department?`, `category?` to MRF, SRF, RFQ interfaces.
-
-### 2. Display helper (new `src/utils/displayId.ts`)
-Single source of truth:
+**Safeguard (key mismatch):**
 ```ts
-export const getDisplayId = (r) => r?.formattedId ?? r?.formatted_id ?? r?.legacyId ?? r?.legacy_id ?? r?.id ?? '';
+const rows =
+  po.priceComparison ??
+  po.priceComparisons ??
+  po.price_comparison ??
+  po.price_comparisons ??
+  [];
 ```
-All UI consumes this — never reads `.id` directly for display.
+A small `getPriceComparison(po)` helper in `src/utils/displayId.ts` (or new `src/utils/poHelpers.ts`) so both singular/plural and snake/camel keys resolve. Console-warn once in dev if both keys present with different values.
 
-### 3. UI replacements
-Sweep these files and replace inline `mrf.id` / `request.id` / `rfq.id` / `srf.id` rendered as text with `getDisplayId(...)`. Keep `.id` for handlers, keys, and API args:
-- `src/pages/Procurement.tsx` (cards, dialog headers, search filter)
-- `src/pages/DepartmentDashboard.tsx`, `EmployeeDashboard.tsx`, `ExecutiveDashboard.tsx`, `ChairmanDashboard.tsx`, `SupplyChainDashboard.tsx`, `FinanceDashboard.tsx`, `Dashboard.tsx`
-- `src/pages/AccountsPayable.tsx`, `AccountsReceivable.tsx`, `BudgetControl.tsx`, `Projects.tsx`, `Reports.tsx`, `MRNDetail.tsx`, `VendorPortal.tsx`
-- `src/components/RFQManagement.tsx`, `MRFActionButtons.tsx`, `MRFApprovalDialog.tsx`, `POGenerationDialog.tsx`, `PORejectionDialog.tsx`, `MRFProgressTracker.tsx`, `ProcurementProgressTracker.tsx`, `RecentActivities.tsx`, `NotificationCenter.tsx`, `DashboardAlerts.tsx`, `AuditTrail.tsx`, `VendorQuoteSubmission.tsx`, `ExportMenu.tsx`
-- Search filters: include both `id` and `getDisplayId(r)` so old + new IDs both match locally.
+**Gating:** PO submission/approval action disabled when `rows.length === 0`, with tooltip "Add price comparison before submitting."
 
-### 4. Breadcrumbs (`src/components/Breadcrumbs.tsx`)
-Update the dynamic-ID regex to also match the new format (`/^[A-Z]+(-[A-Z0-9]+)+/`), so `MRF-EMERALD-IT-LAP-2026-001` shows in the trail correctly.
+---
 
-### 5. Global search (`src/components/GlobalSearch.tsx`)
-Replace the mock results array with a debounced fetch to `GET /api/search?q=...` via a new `searchApi.global(q)` in `src/services/api.ts`. Map results → `{id, formatted_id, title, type}` and route to the appropriate page.
+### 2B-2 · "Initiate SRF" Button (Fleet)
 
-### 6. Exports / PDFs (`src/utils/exportData.ts`, `src/components/ExportMenu.tsx`)
-Use `getDisplayId` for the "ID" column in CSV/Excel exports and downloaded filenames.
+In `FleetManagement.tsx`, gated to `logistics_officer`. `AlertDialog` confirm → `POST /api/fleet/vehicles/{id}/initiate-srf`. On success: toast, disable button, dispatch `app:refresh`. No layout changes.
 
-### 7. Toasts
-In create flows (`NewMRF`, `NewSRF`, `NewMRN`, RFQ creation), show the returned `formatted_id` in the success toast: "MRF MRF-EMERALD-IT-LAP-2026-001 submitted".
+---
 
-## Out of scope
-- No backend changes (already done by backend team).
-- No schema/route changes.
-- Vendor portal: do NOT expose internal codes that leak budget/category info beyond what's already shown — only show `formatted_id` if the existing UI was already showing an ID.
+### 2B-3 · Designated Creator Management
 
-## Technical notes
-- `getDisplayId` is pure and null-safe; never falls back to URL parsing.
-- All `mrfApi.getById(id)` etc. calls keep using UUID; backend already accepts both, but UUID stays canonical.
-- Local `.filter()` searches add `getDisplayId(r).toLowerCase().includes(q)` alongside existing `r.id` match for backward compat.
+**UserManagement.tsx:** new per-department section (admin/department_head only) → `PUT /api/departments/{id}/requisition-creator`.
 
-## Validation
-- Open MRF list → cards show new format.
-- Open detail dialog → header + breadcrumb show new format.
-- Cmd+K search → typing `LAP` or `EMERALD` returns matching items from `/api/search`.
-- CSV export → "ID" column contains formatted IDs.
-- Create new MRF → toast shows new format from response.
+**Safeguard (403 without name):**
+```ts
+// NewMRF.tsx / NewSRF.tsx
+catch (err) {
+  if (err.status === 403) {
+    const name =
+      err.body?.designated_creator?.name ||
+      err.body?.designatedCreator?.name ||
+      err.body?.message ||
+      null;
+    toast.error(
+      name
+        ? `Only ${name} can create requisitions for this department.`
+        : "You are not the designated requisition creator for this department. Contact your department head."
+    );
+  }
+}
+```
+Always renders a usable error even if backend returns just a status code.
+
+---
+
+### 2B-4 · Estimated Budget Optional
+
+**Safeguard (correct form):** Before editing, search for the `Estimated Budget` field across `NewMRF.tsx`, `NewSRF.tsx`, RFQ creation flow (`RFQManagement.tsx` / send-RFQ dialog), and `POGenerationDialog.tsx`. Edit **only the form the user means** — per spec text "Estimated Budget should be optional when creating an RFQ", the target is the **Send RFQ / RFQ creation form**, not PO generation.
+- Remove `required`, append `(Optional)` to label, drop disabled-state check tied to budget, allow empty submit.
+- Keep budget privacy rule intact (never sent to vendors).
+
+If we find the field in multiple forms during build, we confirm with you before changing more than the RFQ form.
+
+---
+
+### 2B-6 · T&C Template Display
+
+New `src/services/poTermsApi.ts` → `GET /api/po-terms-templates/{type}`.
+
+**Safeguard (no duplicate dialog):** Extend the **existing** PO generation dialog (locate via `rg "Generate.*PO|POGeneration|GeneratePO" src/`). Add:
+- Read-only standard T&C card (loaded from API)
+- Editable `Textarea` for additional custom terms
+- `Generate` button disabled until standard T&C resolves OR until a clear "failed to load — retry" state shows
+
+No new dialog file is created. If multiple PO-generation entry points exist, we surface the list to you before editing.
+
+---
+
+### 2B-7 · SCD Signature Upload + Sign PO
+
+**Settings.tsx:** Digital Signature card with image upload preview.
+
+**Safeguard (multipart vs base64):** Try multipart first, fall back to base64:
+```ts
+async function uploadSignature(userId, file) {
+  try {
+    const fd = new FormData();
+    fd.append("signature", file);
+    return await api.post(`/users/${userId}/signature`, fd); // multipart
+  } catch (e) {
+    if (e.status === 415 || e.status === 400) {
+      const base64 = await fileToBase64(file);
+      return await api.post(`/users/${userId}/signature`, { signature: base64 });
+    }
+    throw e;
+  }
+}
+```
+Logs which path succeeded once (dev only) so we can confirm with backend.
+
+**Sign PO flow:** SCD-only button on `awaiting_scd_signature` POs → `POST /api/purchase-orders/{id}/sign` → status `Signed` → dispatch `app:refresh`. Procurement Manager view gets `Download Signed PO`.
+
+---
+
+### 2B-8 · Reject PO Flow
+
+**Safeguard (existing dialog check):** Before any work, `rg "PORejectionDialog|RejectionDialog" src/`. 
+- If `PORejectionDialog.tsx` exists → extend it (required Rejection Reason textarea, validation).
+- If it does not exist → create it once, in `src/components/`. We will not leave an orphaned file under any circumstance.
+
+PM PO list: amber `Badge` for `revision_required` / `returned_to_procurement`. PO detail shows rejection reason callout at top. `Resubmit for Approval` re-triggers submit endpoint, badge flips to `Pending SCD Approval`. Dispatch `app:refresh` after each mutation.
+
+---
+
+### Cross-cutting (unchanged)
+
+- ₦ via existing formatters; UUID for API, formatted IDs for UI
+- New endpoints centralized in `src/services/api.ts`
+- Status strings added to PO type union in `src/types/index.ts`
+- `window.dispatchEvent(new CustomEvent('app:refresh'))` after sign/reject/resubmit/SRF-initiate
+- Semantic tokens only — no literal hex/Tailwind color names
+- Out of scope: 2B-5 (backend-only)
+
+---
+
+### Pre-flight verifications during build (will surface to you, not silently guess)
+
+1. **2B-1:** confirmed key name from first real PO response in network tab.
+2. **2B-4:** confirmed which form(s) own the Estimated Budget field before editing.
+3. **2B-6:** confirmed exact PO-generation dialog file path before extending.
+4. **2B-7:** logged whether multipart or base64 succeeded on first signature upload.
+5. **2B-8:** confirmed `PORejectionDialog.tsx` presence before extend-vs-create.
+
+If any of these reveal a backend gap (e.g., 2A-3 doesn't return creator name), we ship the frontend with the safe fallback already in place and flag the gap to backend — no rework needed on our side.
