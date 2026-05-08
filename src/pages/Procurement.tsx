@@ -585,11 +585,11 @@ const Procurement = () => {
       const stage = getMRFStage(mrf);
       const status = (mrf.status || "").toLowerCase();
       const rejectionReason = getMRFRejectionReason(mrf);
+      const needsRevision = isPORevisionRequired(mrf);
 
       return (
         stage === "procurement" &&
-        status.includes("rejected") &&
-        rejectionReason
+        ((status.includes("rejected") && rejectionReason) || needsRevision)
       );
     });
   }, [mrfRequests]);
