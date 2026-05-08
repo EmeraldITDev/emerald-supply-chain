@@ -409,6 +409,115 @@ const UserManagement = () => {
         </CardContent>
       </Card>
 
+      {/* Designated Requisition Creators */}
+      {canManageUsers && (() => {
+        const byDept = users.reduce<Record<string, User[]>>((acc, u) => {
+          const d = (u.department || "").trim();
+          if (!d) return acc;
+          (acc[d] ||= []).push(u);
+          return acc;
+        }, {});
+        const departments = Object.keys(byDept).sort();
+        if (departments.length === 0) return null;
+
+        const handleSetCreator = async (dept: string) => {
+          const userId = designatedCreators[dept];
+          if (!userId) {
+            toast({
+              title: "Select a user",
+              description: "Choose a user before saving.",
+              variant: "destructive",
+            });
+            return;
+          }
+          setSavingCreatorDept(dept);
+          try {
+            const res = await departmentApi.setRequisitionCreator(dept, userId);
+            if (res.success) {
+              const name = res.data?.designated_creator?.name;
+              toast({
+                title: "Designated Creator Set",
+                description: name
+                  ? `${name} is now the designated requisition creator for ${dept}.`
+                  : `Updated designated creator for ${dept}.`,
+              });
+              window.dispatchEvent(new CustomEvent("app:refresh"));
+            } else {
+              toast({
+                title: "Failed to Save",
+                description: res.error || "Unable to update designated creator.",
+                variant: "destructive",
+              });
+            }
+          } catch (err) {
+            toast({
+              title: "Error",
+              description: "Failed to update designated creator.",
+              variant: "destructive",
+            });
+          } finally {
+            setSavingCreatorDept(null);
+          }
+        };
+
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Designated Requisition Creators</CardTitle>
+              <CardDescription>
+                Restrict MRF / SRF creation to one nominated user per department.
+                Only the selected user will be able to submit requisitions for
+                that department.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {departments.map((dept) => (
+                <div
+                  key={dept}
+                  className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-end sm:justify-between"
+                >
+                  <div className="flex-1 space-y-2">
+                    <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {dept}
+                    </Label>
+                    <Select
+                      value={designatedCreators[dept] || ""}
+                      onValueChange={(v) =>
+                        setDesignatedCreators((prev) => ({ ...prev, [dept]: v }))
+                      }
+                    >
+                      <SelectTrigger className="w-full sm:w-[320px]">
+                        <SelectValue placeholder="Select designated creator" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {byDept[dept].map((u) => (
+                          <SelectItem key={u.id} value={String(u.id)}>
+                            {u.name} — {u.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={() => handleSetCreator(dept)}
+                    disabled={savingCreatorDept === dept}
+                  >
+                    {savingCreatorDept === dept ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save"
+                    )}
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
         {/* Create/Edit Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
