@@ -931,6 +931,18 @@ export const FleetManagement = () => {
                                   <Wrench className="mr-2 h-4 w-4" />
                                   Add Maintenance
                                 </DropdownMenuItem>
+                                {canInitiateSRF && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => {
+                                      setSrfVehicle(vehicle);
+                                      setSrfDialogOpen(true);
+                                    }}>
+                                      <FileText className="mr-2 h-4 w-4" />
+                                      Initiate SRF
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-destructive focus:text-destructive"
