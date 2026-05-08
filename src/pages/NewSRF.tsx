@@ -94,11 +94,27 @@ const NewSRF = () => {
     window.dispatchEvent(new CustomEvent("app:refresh"));
     navigate("/procurement");
       } else {
-        toast({
-          title: "Error",
-          description: response.error || "Failed to create SRF",
-          variant: "destructive",
-        });
+        if ((response as any).status === 403) {
+          const raw: any = (response as any).raw || {};
+          const creatorName =
+            raw?.designated_creator?.name ||
+            raw?.designatedCreator?.name ||
+            raw?.data?.designated_creator?.name ||
+            null;
+          toast({
+            title: "Not the Designated Creator",
+            description: creatorName
+              ? `Only ${creatorName} can create requisitions for this department.`
+              : "You are not the designated requisition creator for this department. Contact your department head.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: response.error || "Failed to create SRF",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
       toast({

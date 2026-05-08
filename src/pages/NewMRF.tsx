@@ -203,7 +203,21 @@ const NewMRF = () => {
           });
           
           // Check for specific error types
-          if (errorMessage.includes('NetworkError') || errorMessage.includes('fetch')) {
+          if (response.status === 403) {
+            const raw: any = response.raw || {};
+            const creatorName =
+              raw?.designated_creator?.name ||
+              raw?.designatedCreator?.name ||
+              raw?.data?.designated_creator?.name ||
+              null;
+            toast({
+              title: "Not the Designated Creator",
+              description: creatorName
+                ? `Only ${creatorName} can create requisitions for this department.`
+                : "You are not the designated requisition creator for this department. Contact your department head.",
+              variant: "destructive",
+            });
+          } else if (errorMessage.includes('NetworkError') || errorMessage.includes('fetch')) {
             toast({
               title: "Network Error",
               description: "Unable to connect to the server. Please check your internet connection and try again.",

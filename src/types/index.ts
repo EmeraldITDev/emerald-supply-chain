@@ -332,6 +332,8 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   message?: string;
+  status?: number;
+  raw?: any;
 }
 
 export interface PaginatedResponse<T> {

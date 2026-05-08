@@ -39,6 +39,8 @@ import {
 } from "@/utils/normalizeQuotation";
 import { normalizeAttachments } from "@/utils/attachments";
 import { PORejectionDialog } from "@/components/PORejectionDialog";
+import { PriceComparisonTable } from "@/components/PriceComparisonTable";
+import { getRejectionReason } from "@/utils/poHelpers";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
@@ -1313,6 +1315,26 @@ const SupplyChainDashboard = () => {
             </div>
           ) : mrfFullDetails?.selectedQuotation && selectedMRFForDetails ? (
             <div className="space-y-6 mt-4">
+              {/* Rejection Reason Callout (visible when PO was returned/rejected) */}
+              {(() => {
+                const reason =
+                  getRejectionReason(mrfFullDetails?.purchaseOrder) ||
+                  getRejectionReason(selectedMRFForDetails) ||
+                  (selectedMRFForDetails as any)?.po_rejection_reason ||
+                  (selectedMRFForDetails as any)?.poRejectionReason;
+                if (!reason) return null;
+                return (
+                  <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4">
+                    <p className="text-sm font-semibold text-destructive mb-1">
+                      Rejection Reason
+                    </p>
+                    <p className="text-sm text-foreground whitespace-pre-line">
+                      {reason}
+                    </p>
+                  </div>
+                );
+              })()}
+
               {/* MRF Details */}
               <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <h3 className="font-semibold text-lg mb-3 text-blue-900 dark:text-blue-100">
@@ -1347,6 +1369,15 @@ const SupplyChainDashboard = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Price Comparison */}
+              <PriceComparisonTable
+                po={
+                  mrfFullDetails?.purchaseOrder ||
+                  mrfFullDetails ||
+                  selectedMRFForDetails
+                }
+              />
 
               {/* Selected Quotation */}
               {mrfFullDetails?.selectedQuotation?.vendor && (
