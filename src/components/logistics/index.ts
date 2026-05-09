@@ -7,3 +7,4 @@ export { ReportingCompliance } from './ReportingCompliance';
 export { VendorJMPSubmission } from './VendorJMPSubmission';
 export { GPSTrackingPlaceholder } from './GPSTrackingPlaceholder';
 export { PassengerNotification } from './PassengerNotification';
+export { AccommodationBookings } from './AccommodationBookings';
