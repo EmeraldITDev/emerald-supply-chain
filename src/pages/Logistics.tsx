@@ -18,6 +18,7 @@ import {
   Satellite,
   Loader2,
 } from "lucide-react";
+import { Hotel } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -44,6 +45,7 @@ import { FleetManagement } from "@/components/logistics/FleetManagement";
 import { MaterialsTracking } from "@/components/logistics/MaterialsTracking";
 import { ReportingCompliance } from "@/components/logistics/ReportingCompliance";
 import { GPSTrackingPlaceholder } from "@/components/logistics/GPSTrackingPlaceholder";
+import { AccommodationBookings } from "@/components/logistics/AccommodationBookings";
 
 const Logistics = () => {
   const { toast } = useToast();
@@ -346,7 +348,7 @@ const Logistics = () => {
 
           {/* Module Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 w-full min-w-0">
-            <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 h-auto">
+            <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto">
               <TabsTrigger value="overview" className="text-xs sm:text-sm gap-1">
                 <BarChart3 className="h-4 w-4 hidden sm:block" />
                 Overview
@@ -374,6 +376,10 @@ const Logistics = () => {
               <TabsTrigger value="reports" className="text-xs sm:text-sm gap-1">
                 <FileText className="h-4 w-4 hidden sm:block" />
                 Reports
+              </TabsTrigger>
+              <TabsTrigger value="accommodation" className="text-xs sm:text-sm gap-1">
+                <Hotel className="h-4 w-4 hidden sm:block" />
+                Stays
               </TabsTrigger>
             </TabsList>
 
@@ -567,6 +573,11 @@ const Logistics = () => {
             {/* Reporting & Compliance Tab */}
             <TabsContent value="reports">
               <ReportingCompliance />
+            </TabsContent>
+
+            {/* Accommodation Tab */}
+            <TabsContent value="accommodation">
+              <AccommodationBookings />
             </TabsContent>
           </Tabs>
         </div>

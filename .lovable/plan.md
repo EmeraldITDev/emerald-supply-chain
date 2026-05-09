@@ -1,139 +1,143 @@
-## Revised Plan: PO/SRF/RFQ Enhancements (2B-1 → 2B-8) with Safeguards
+## Module 3 — Logistics: Trip Scheduling (v4, final)
 
-This revision locks down each risk you flagged. Same 7 deliverables, with defensive handling baked in.
+Same four sub-features. Three additional clarifications layered on top of v3.
 
 ---
 
-### 2B-1 · Price-Comparison Table
+### API Wiring (single source of truth)
 
-**Component:** new `src/components/PriceComparisonTable.tsx`
-- Columns: Vendor Name, Item Description, Unit Price, Quantity, Total Price, Selected, Selection Reason
-- Selected row: `border-l-4 border-l-success bg-success/5`
-- Empty state: amber banner "No price comparison data available for this PO"
+All routes added to `src/services/logisticsApi.ts` as named groups; UI never hardcodes paths.
 
-**Safeguard (key mismatch):**
 ```ts
-const rows =
-  po.priceComparison ??
-  po.priceComparisons ??
-  po.price_comparison ??
-  po.price_comparisons ??
-  [];
+// vendorTripApi
+GET    /api/vendor-portal/trips
+POST   /api/vendor-portal/trips/:tripId/submission
+POST   /api/vendor-portal/trips/:tripId/documents
+GET    /api/trips/:tripId/submission
+
+// tripVendorApi
+POST   /api/trips/:tripId/invite-vendors
+GET    /api/trips/:tripId/vendor-responses
+POST   /api/trips/:tripId/select-vendor
+POST   /api/trips/:tripId/route-to-procurement
+POST   /api/trips/:tripId/notify-invoice
+
+// accommodationApi
+GET/POST /api/logistics/accommodations
+GET/PATCH/DELETE /api/logistics/accommodations/:id
+GET    /api/trips/:tripId/accommodations
+
+// jccApi
+POST   /api/trips/:tripId/jcc
+GET    /api/trips/:tripId/jcc
+PATCH  /api/trips/:tripId/jcc
+GET    /api/trips/:tripId/jcc/prefill
+POST   /api/trips/:tripId/jcc/submit
+POST   /api/trips/:tripId/jcc/approve
+GET    /api/trips/:tripId/jcc/pdf
 ```
-A small `getPriceComparison(po)` helper in `src/utils/displayId.ts` (or new `src/utils/poHelpers.ts`) so both singular/plural and snake/camel keys resolve. Console-warn once in dev if both keys present with different values.
 
-**Gating:** PO submission/approval action disabled when `rows.length === 0`, with tooltip "Add price comparison before submitting."
-
----
-
-### 2B-2 · "Initiate SRF" Button (Fleet)
-
-In `FleetManagement.tsx`, gated to `logistics_officer`. `AlertDialog` confirm → `POST /api/fleet/vehicles/{id}/initiate-srf`. On success: toast, disable button, dispatch `app:refresh`. No layout changes.
+Every successful mutation dispatches `app:refresh`.
 
 ---
 
-### 2B-3 · Designated Creator Management
+### `formatTripStatus()` — definitive mapping
 
-**UserManagement.tsx:** new per-department section (admin/department_head only) → `PUT /api/departments/{id}/requisition-creator`.
+Single helper in `src/utils/displayId.ts` (or `src/utils/tripStatus.ts`). All badges, conditionals, and filters route through it.
 
-**Safeguard (403 without name):**
 ```ts
-// NewMRF.tsx / NewSRF.tsx
-catch (err) {
-  if (err.status === 403) {
-    const name =
-      err.body?.designated_creator?.name ||
-      err.body?.designatedCreator?.name ||
-      err.body?.message ||
-      null;
-    toast.error(
-      name
-        ? `Only ${name} can create requisitions for this department.`
-        : "You are not the designated requisition creator for this department. Contact your department head."
-    );
-  }
-}
+// backend snake_case → display label
+draft              → "Draft"
+scheduled          → "Scheduled"
+pending_approval   → "Pending Approval"
+approved           → "Approved"
+vendor_assigned    → "Vendor Assigned"
+in_progress        → "In Progress"
+completed          → "Completed"
+closed             → "Closed"
+cancelled          → "Cancelled"
+// fallback: Title-Case the raw string and warn once in dev
 ```
-Always renders a usable error even if backend returns just a status code.
+
+If backend returns anything outside this set, the helper Title-Cases the value and logs a `console.warn` once per unknown value (dev only). No string literals in components.
 
 ---
 
-### 2B-4 · Estimated Budget Optional
+### 3.1 — Vendor Portal: Trip Submission
 
-**Safeguard (correct form):** Before editing, search for the `Estimated Budget` field across `NewMRF.tsx`, `NewSRF.tsx`, RFQ creation flow (`RFQManagement.tsx` / send-RFQ dialog), and `POGenerationDialog.tsx`. Edit **only the form the user means** — per spec text "Estimated Budget should be optional when creating an RFQ", the target is the **Send RFQ / RFQ creation form**, not PO generation.
-- Remove `required`, append `(Optional)` to label, drop disabled-state check tied to budget, allow empty submit.
-- Keep budget privacy rule intact (never sent to vendors).
+**Files:** `VendorPortal.tsx` + new `VendorTripSubmissionForm.tsx`.
 
-If we find the field in multiple forms during build, we confirm with you before changing more than the RFQ form.
+- Draft trip card → "Submit Trip Details" CTA opens drawer.
+- Required fields per spec; Security Information optional; multi-file uploads tagged `Insurance Certificate | Road-Worthiness Certificate | Other`.
+- **Per-file upload UI:** each file row shows a shadcn `Progress` bar during upload; on completion replaces with `filename + green check + Remove (×)`; failures show red icon + Retry. Submit disabled while any row is mid-upload.
+- **Upload response shape (pre-flight #6):** normalised inside `vendorTripApi.uploadDoc` to `{ id, fileUrl, fileName }`. Components only see the normalised shape.
+- After submit lock the form; chip flips through `formatTripStatus()`.
 
----
+### 3.2 — Multi-Vendor Trip Request & Cost Comparison
 
-### 2B-6 · T&C Template Display
+**Files:** `TripScheduling.tsx` + new `TripVendorComparison.tsx`.
 
-New `src/services/poTermsApi.ts` → `GET /api/po-terms-templates/{type}`.
+- New trip dialog: "Invite Multiple Vendors" switch → searchable multi-select with chips → **Send to All Selected Vendors** → `tripVendorApi.invite`.
+- **Comparison table — full state coverage (review point #2):**
+  - **Loading:** skeleton columns equal to count of invited vendors.
+  - **Empty (no vendors invited):** card with message *"No vendors invited yet. Invite vendors from the trip actions menu."*
+  - **Partial:** render one column per **invited** vendor (not just per response). Vendors who have responded show full data + **Select & Approve** button. Vendors who have not responded show their name with `Awaiting response` badge and a muted `—` for every other field; no Select button on those columns.
+  - **Error on fetch:** inline destructive banner with Retry.
+- **Sequential approval chain (locked from v3):**
+  ```
+  await selectVendor → await routeToProcurement → await notifyInvoice
+  ```
+  Each step in its own try/catch; failure of step 2 blocks step 3 with destructive banner + Retry Routing; failure of step 3 shows warning banner + Retry Notification. Success only when all three resolve.
+- Vendor Portal approved-trip card shows persistent **"Submit Invoice"** CTA (target verified in pre-flight #5).
 
-**Safeguard (no duplicate dialog):** Extend the **existing** PO generation dialog (locate via `rg "Generate.*PO|POGeneration|GeneratePO" src/`). Add:
-- Read-only standard T&C card (loaded from API)
-- Editable `Textarea` for additional custom terms
-- `Generate` button disabled until standard T&C resolves OR until a clear "failed to load — retry" state shows
+### 3.3 — Accommodation Module
 
-No new dialog file is created. If multiple PO-generation entry points exist, we surface the list to you before editing.
+**Files:** new `AccommodationBookings.tsx`; edit `Logistics.tsx`, `AppSidebar.tsx`.
 
----
+- **Role matrix (locked):** `logistics_officer | logistics_manager | logistics | admin` get full CRUD; `supply_chain_director | procurement_manager` get read-only.
+- List view per spec with filters; **+ New Booking** for CRUD roles only.
+- Form per spec; check-out auto-derived from `check-in + nights`, read-only.
+- Wired to `accommodationApi`; trip detail also shows linked bookings.
 
-### 2B-7 · SCD Signature Upload + Sign PO
+### 3.4 — Job Completion Certificate (JCC)
 
-**Settings.tsx:** Digital Signature card with image upload preview.
+**Files:** new `JCCDialog.tsx`; edit `TripScheduling.tsx`.
 
-**Safeguard (multipart vs base64):** Try multipart first, fall back to base64:
-```ts
-async function uploadSignature(userId, file) {
-  try {
-    const fd = new FormData();
-    fd.append("signature", file);
-    return await api.post(`/users/${userId}/signature`, fd); // multipart
-  } catch (e) {
-    if (e.status === 415 || e.status === 400) {
-      const base64 = await fileToBase64(file);
-      return await api.post(`/users/${userId}/signature`, { signature: base64 });
-    }
-    throw e;
-  }
-}
-```
-Logs which path succeeded once (dev only) so we can confirm with backend.
-
-**Sign PO flow:** SCD-only button on `awaiting_scd_signature` POs → `POST /api/purchase-orders/{id}/sign` → status `Signed` → dispatch `app:refresh`. Procurement Manager view gets `Download Signed PO`.
-
----
-
-### 2B-8 · Reject PO Flow
-
-**Safeguard (existing dialog check):** Before any work, `rg "PORejectionDialog|RejectionDialog" src/`. 
-- If `PORejectionDialog.tsx` exists → extend it (required Rejection Reason textarea, validation).
-- If it does not exist → create it once, in `src/components/`. We will not leave an orphaned file under any circumstance.
-
-PM PO list: amber `Badge` for `revision_required` / `returned_to_procurement`. PO detail shows rejection reason callout at top. `Resubmit for Approval` re-triggers submit endpoint, badge flips to `Pending SCD Approval`. Dispatch `app:refresh` after each mutation.
+- **Trigger:** "Close Trip / Issue JCC" enabled when status `in_progress` or `completed`. If JCC exists, swap to "View JCC" + status badge.
+- **Drawer open sequence (review point #1 — explicit):**
+  1. `await jccApi.get(tripId)` — if it returns an existing record, **rehydrate** all fields (header, certification statement, line items, signatory) into local state. Reference number renders read-only from the loaded record.
+  2. If `get` returns 404 (no JCC yet), local state initialises empty. Reference field shows `—` with helper *"Generated when you save"*.
+  3. Then check pre-fill: if `jccApi.getPrefill` returns suggestions **AND** local line items are empty (true for new JCCs and for Drafts saved with zero rows), show one-shot AlertDialog *"Pre-fill line items from vendor trip submissions?"* before the form is interactive. Never shown when an existing Draft already has rows.
+- **Lazy creation:** drawer never calls `POST /jcc` on open. The first explicit `Save Draft` or `Submit JCC` creates the record (if step 1 returned 404); subsequent saves use `PATCH`. Closing without saving leaves zero database records.
+- **Header:** company info from settings; reference (read-only post-save); Date Issued (today, editable); vendor name/address from approved trip/PO.
+- **Certification statement:** prefilled textarea with `[service type] / [PO Number] / [Start Date] / [End Date]` substituted; freely editable.
+- **Line items table:** SN auto, Description (textarea), Trip, Duration/Date, Remarks. Add/Remove rows; min 1 row to submit.
+- **Signatory:** name + title from current user; digital signature image auto-applied (same mechanism as SCD PO signature).
+- **Actions:** Save Draft, Submit, Approve (SCD only), Download PDF.
+- **PDF policy:** Download PDF calls `jccApi.downloadPdf` (backend-rendered). If 404 → button disabled with tooltip *"PDF download will be available once backend rendering is enabled."* Separate, explicitly-badged **"Preview Draft (browser render)"** uses `window.print` on a styled hidden section — never the official certificate.
+- Post-approval: trip → `closed`; "View JCC" + Download PDF remain.
 
 ---
 
-### Cross-cutting (unchanged)
+### Cross-cutting
 
-- ₦ via existing formatters; UUID for API, formatted IDs for UI
-- New endpoints centralized in `src/services/api.ts`
-- Status strings added to PO type union in `src/types/index.ts`
-- `window.dispatchEvent(new CustomEvent('app:refresh'))` after sign/reject/resubmit/SRF-initiate
-- Semantic tokens only — no literal hex/Tailwind color names
-- Out of scope: 2B-5 (backend-only)
+- **Files created:** `VendorTripSubmissionForm.tsx`, `TripVendorComparison.tsx`, `AccommodationBookings.tsx`, `JCCDialog.tsx`.
+- **Files edited:** `Logistics.tsx`, `VendorPortal.tsx`, `TripScheduling.tsx`, `logistics/index.ts`, `services/logisticsApi.ts`, `types/logistics.ts`, `layout/AppSidebar.tsx`, `utils/displayId.ts` (or new `utils/tripStatus.ts`).
+- **Tokens only** — `bg-warning/10` for Draft CTA, `bg-success/10` for Approved/Closed, `bg-destructive/10` for chain-failure banners. ₦ via existing formatter.
+- **Privacy:** vendor portal screens never display internal estimated budgets.
+- **Refresh:** every successful mutation dispatches `window.dispatchEvent(new CustomEvent('app:refresh'))`.
 
----
+### Pre-flight verifications (surfaced, not silently assumed)
 
-### Pre-flight verifications during build (will surface to you, not silently guess)
+1. Confirm exact trip status strings from `GET /api/trips` first response → record any unknowns in `formatTripStatus()`.
+2. Confirm `vendor-responses` payload shape (does it return per-invited-vendor entries with a `status` field, or only responders? If only responders, frontend joins against the original invite list to render Awaiting columns).
+3. Confirm `jccApi.create` response field name for the reference number.
+4. Confirm AppSidebar permission registration mechanism (role matrix already locked).
+5. Verify existing vendor-portal invoice submission flow in `VendorPortal.tsx`. Present → CTA links to it; absent → CTA is a flagged placeholder, logged in implementation summary.
+6. Verify document upload response shape from `POST /api/vendor-portal/trips/:tripId/documents` — normalisation isolated to `vendorTripApi.uploadDoc`.
 
-1. **2B-1:** confirmed key name from first real PO response in network tab.
-2. **2B-4:** confirmed which form(s) own the Estimated Budget field before editing.
-3. **2B-6:** confirmed exact PO-generation dialog file path before extending.
-4. **2B-7:** logged whether multipart or base64 succeeded on first signature upload.
-5. **2B-8:** confirmed `PORejectionDialog.tsx` presence before extend-vs-create.
+### Out of Scope
 
-If any of these reveal a backend gap (e.g., 2A-3 doesn't return creator name), we ship the frontend with the safe fallback already in place and flag the gap to backend — no rework needed on our side.
+- Backend-rendered JCC PDF (no client substitute for the official document).
+- Backend invoice submission endpoint for vendors (frontend surface added; flagged if missing).
+- SAP/Procurement PO generation downstream of `routeToProcurement` — only the trigger fires.

@@ -26,6 +26,15 @@ import type {
   FleetAlert,
   UploadTemplate,
   LogisticsNotification,
+  VendorTripSubmission,
+  VendorTripDocument,
+  VendorTripDocType,
+  VendorTripResponse,
+  Accommodation,
+  CreateAccommodationData,
+  JCC,
+  JCCLineItem,
+  JCCPrefillSuggestion,
 } from '@/types/logistics';
 import type { ApiResponse } from '@/types';
 
@@ -717,6 +726,204 @@ export const logisticsDashboardApi = {
 // ==========================================
 // UNIFIED EXPORT
 // ==========================================
+
+// ==========================================
+// 3.1 VENDOR TRIP SUBMISSION (Vendor Portal)
+// ==========================================
+const normalizeUploadDoc = (raw: any, fallbackType?: VendorTripDocType): VendorTripDocument => ({
+  id: String(raw?.id ?? raw?.document_id ?? raw?.uuid ?? crypto.randomUUID()),
+  fileUrl: raw?.fileUrl ?? raw?.file_url ?? raw?.url ?? raw?.s3_url ?? "",
+  fileName: raw?.fileName ?? raw?.file_name ?? raw?.name ?? "document",
+  docType: (raw?.docType ?? raw?.doc_type ?? raw?.document_type ?? fallbackType ?? "other") as VendorTripDocType,
+});
+
+export const vendorTripApi = {
+  listAssigned: async (): Promise<ApiResponse<Trip[]>> => {
+    return apiRequest<Trip[]>('/vendor-portal/trips');
+  },
+  submit: async (
+    tripId: string,
+    payload: Omit<VendorTripSubmission, 'id' | 'documents' | 'status' | 'submittedAt' | 'tripId'> & { documentIds?: string[] }
+  ): Promise<ApiResponse<VendorTripSubmission>> => {
+    return apiRequest<VendorTripSubmission>(
+      `/vendor-portal/trips/${tripId}/submission`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          vehicle_make: payload.vehicleMake,
+          vehicle_model: payload.vehicleModel,
+          plate_number: payload.plateNumber,
+          driver_name: payload.driverName,
+          driver_phone: payload.driverPhone,
+          driver_licence_number: payload.driverLicenceNumber,
+          security_information: payload.securityInformation,
+          document_ids: payload.documentIds ?? [],
+        }),
+      }
+    );
+  },
+  uploadDoc: async (
+    tripId: string,
+    file: File,
+    docType: VendorTripDocType,
+    onProgress?: (pct: number) => void
+  ): Promise<ApiResponse<VendorTripDocument>> => {
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('doc_type', docType);
+
+    return new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE_URL}/vendor-portal/trips/${tripId}/documents`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+      xhr.onload = () => {
+        try {
+          const data = JSON.parse(xhr.responseText || '{}');
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const raw = data?.data?.document ?? data?.data ?? data;
+            resolve({ success: true, data: normalizeUploadDoc(raw, docType) });
+          } else {
+            resolve({ success: false, error: data?.message ?? `Upload failed (${xhr.status})` });
+          }
+        } catch (err) {
+          resolve({ success: false, error: 'Invalid upload response' });
+        }
+      };
+      xhr.onerror = () => resolve({ success: false, error: 'Network error during upload' });
+      xhr.send(fd);
+    });
+  },
+  getSubmission: async (tripId: string): Promise<ApiResponse<VendorTripSubmission>> => {
+    return apiRequest<VendorTripSubmission>(`/trips/${tripId}/submission`);
+  },
+};
+
+// ==========================================
+// 3.2 MULTI-VENDOR INVITE & RESPONSE
+// ==========================================
+export const tripVendorApi = {
+  invite: async (tripId: string, vendorIds: string[]): Promise<ApiResponse<{ invited: number }>> => {
+    return apiRequest(`/trips/${tripId}/invite-vendors`, {
+      method: 'POST',
+      body: JSON.stringify({ vendor_ids: vendorIds }),
+    });
+  },
+  getResponses: async (tripId: string): Promise<ApiResponse<VendorTripResponse[]>> => {
+    return apiRequest<VendorTripResponse[]>(`/trips/${tripId}/vendor-responses`);
+  },
+  selectVendor: async (tripId: string, vendorId: string): Promise<ApiResponse<Trip>> => {
+    return apiRequest<Trip>(`/trips/${tripId}/select-vendor`, {
+      method: 'POST',
+      body: JSON.stringify({ vendor_id: vendorId }),
+    });
+  },
+  routeToProcurement: async (tripId: string): Promise<ApiResponse<{ routed: boolean }>> => {
+    return apiRequest(`/trips/${tripId}/route-to-procurement`, { method: 'POST' });
+  },
+  notifyInvoice: async (tripId: string): Promise<ApiResponse<{ notified: boolean }>> => {
+    return apiRequest(`/trips/${tripId}/notify-invoice`, { method: 'POST' });
+  },
+};
+
+// ==========================================
+// 3.3 ACCOMMODATION
+// ==========================================
+const toAccommodationPayload = (data: Partial<CreateAccommodationData>) => ({
+  passenger_names: data.passengerNames,
+  destination_state: data.destinationState,
+  destination_city: data.destinationCity,
+  number_of_nights: data.numberOfNights,
+  hotel_name: data.hotelName,
+  check_in_date: data.checkInDate,
+  linked_trip_id: data.linkedTripId ?? null,
+});
+
+export const accommodationApi = {
+  list: async (): Promise<ApiResponse<Accommodation[]>> => {
+    return apiRequest<Accommodation[]>('/logistics/accommodations');
+  },
+  get: async (id: string): Promise<ApiResponse<Accommodation>> => {
+    return apiRequest<Accommodation>(`/logistics/accommodations/${id}`);
+  },
+  create: async (data: CreateAccommodationData): Promise<ApiResponse<Accommodation>> => {
+    return apiRequest<Accommodation>('/logistics/accommodations', {
+      method: 'POST',
+      body: JSON.stringify(toAccommodationPayload(data)),
+    });
+  },
+  update: async (id: string, data: Partial<CreateAccommodationData>): Promise<ApiResponse<Accommodation>> => {
+    return apiRequest<Accommodation>(`/logistics/accommodations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(toAccommodationPayload(data)),
+    });
+  },
+  remove: async (id: string): Promise<ApiResponse<{ deleted: boolean }>> => {
+    return apiRequest(`/logistics/accommodations/${id}`, { method: 'DELETE' });
+  },
+  listForTrip: async (tripId: string): Promise<ApiResponse<Accommodation[]>> => {
+    return apiRequest<Accommodation[]>(`/trips/${tripId}/accommodations`);
+  },
+};
+
+// ==========================================
+// 3.4 JOB COMPLETION CERTIFICATE
+// ==========================================
+const toJccPayload = (jcc: Partial<JCC>) => ({
+  date_issued: jcc.dateIssued,
+  certification_statement: jcc.certificationStatement,
+  line_items: (jcc.lineItems ?? []).map((li) => ({
+    description: li.description,
+    trip: li.trip,
+    duration_date: li.durationDate,
+    remarks: li.remarks,
+  })),
+});
+
+export const jccApi = {
+  get: async (tripId: string): Promise<ApiResponse<JCC>> => {
+    return apiRequest<JCC>(`/trips/${tripId}/jcc`);
+  },
+  getPrefill: async (tripId: string): Promise<ApiResponse<JCCPrefillSuggestion[]>> => {
+    return apiRequest<JCCPrefillSuggestion[]>(`/trips/${tripId}/jcc/prefill`);
+  },
+  create: async (tripId: string, jcc: Partial<JCC>): Promise<ApiResponse<JCC>> => {
+    return apiRequest<JCC>(`/trips/${tripId}/jcc`, {
+      method: 'POST',
+      body: JSON.stringify(toJccPayload(jcc)),
+    });
+  },
+  update: async (tripId: string, jcc: Partial<JCC>): Promise<ApiResponse<JCC>> => {
+    return apiRequest<JCC>(`/trips/${tripId}/jcc`, {
+      method: 'PATCH',
+      body: JSON.stringify(toJccPayload(jcc)),
+    });
+  },
+  submit: async (tripId: string): Promise<ApiResponse<JCC>> => {
+    return apiRequest<JCC>(`/trips/${tripId}/jcc/submit`, { method: 'POST' });
+  },
+  approve: async (tripId: string): Promise<ApiResponse<JCC>> => {
+    return apiRequest<JCC>(`/trips/${tripId}/jcc/approve`, { method: 'POST' });
+  },
+  downloadPdf: async (tripId: string): Promise<Blob | null> => {
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    try {
+      const res = await fetch(`${API_BASE_URL}/trips/${tripId}/jcc/pdf`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+      });
+      if (!res.ok) return null;
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  },
+};
+
 export const logisticsApi = {
   trips: tripsApi,
   journeys: journeysApi,
@@ -727,6 +934,10 @@ export const logisticsApi = {
   vendors: logisticsVendorsApi,
   notifications: logisticsNotificationsApi,
   dashboard: logisticsDashboardApi,
+  vendorTrip: vendorTripApi,
+  tripVendor: tripVendorApi,
+  accommodation: accommodationApi,
+  jcc: jccApi,
 };
 
 export default logisticsApi;
