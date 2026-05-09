@@ -26,6 +26,15 @@ import type {
   FleetAlert,
   UploadTemplate,
   LogisticsNotification,
+  VendorTripSubmission,
+  VendorTripDocument,
+  VendorTripDocType,
+  VendorTripResponse,
+  Accommodation,
+  CreateAccommodationData,
+  JCC,
+  JCCLineItem,
+  JCCPrefillSuggestion,
 } from '@/types/logistics';
 import type { ApiResponse } from '@/types';
 
