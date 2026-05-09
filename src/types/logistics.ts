@@ -46,7 +46,9 @@ export type TripStatus =
   | 'in_progress'
   | 'completed'
   | 'closed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'pending_approval'
+  | 'approved';
 
 export type TripType = 'personnel' | 'material' | 'mixed';
 
@@ -576,4 +578,119 @@ export interface TemplateColumn {
   enumValues?: string[];
   description: string;
   example: string;
+}
+
+// ==========================================
+// 10. VENDOR TRIP SUBMISSION (3.1)
+// ==========================================
+
+export type VendorTripDocType =
+  | 'insurance_certificate'
+  | 'road_worthiness_certificate'
+  | 'other';
+
+export interface VendorTripDocument {
+  id: string;
+  fileUrl: string;
+  fileName: string;
+  docType: VendorTripDocType;
+}
+
+export interface VendorTripSubmission {
+  id?: string;
+  tripId: string;
+  vehicleMake: string;
+  vehicleModel: string;
+  plateNumber: string;
+  driverName: string;
+  driverPhone: string;
+  driverLicenceNumber: string;
+  securityInformation?: string;
+  documents: VendorTripDocument[];
+  status?: 'draft' | 'submitted' | 'approved';
+  submittedAt?: string;
+}
+
+// ==========================================
+// 11. MULTI-VENDOR RESPONSES (3.2)
+// ==========================================
+
+export interface VendorTripResponse {
+  vendorId: string;
+  vendorName: string;
+  status: 'invited' | 'responded' | 'declined';
+  quotedPrice?: number;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  plateNumber?: string;
+  driverName?: string;
+  documents?: VendorTripDocument[];
+  respondedAt?: string;
+}
+
+// ==========================================
+// 12. ACCOMMODATION (3.3)
+// ==========================================
+
+export interface Accommodation {
+  id: string;
+  passengerNames: string[];
+  destinationState: string;
+  destinationCity: string;
+  numberOfNights: number;
+  hotelName: string;
+  checkInDate: string;       // ISO date
+  checkOutDate?: string;     // computed by backend or client
+  linkedTripId?: string;
+  linkedTripNumber?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateAccommodationData {
+  passengerNames: string[];
+  destinationState: string;
+  destinationCity: string;
+  numberOfNights: number;
+  hotelName: string;
+  checkInDate: string;
+  linkedTripId?: string;
+}
+
+// ==========================================
+// 13. JOB COMPLETION CERTIFICATE (3.4)
+// ==========================================
+
+export type JCCStatus = 'draft' | 'submitted' | 'approved';
+
+export interface JCCLineItem {
+  id?: string;
+  description: string;
+  trip: string;
+  durationDate: string; // ISO date
+  remarks: string;
+}
+
+export interface JCC {
+  id?: string;
+  tripId: string;
+  referenceNumber?: string; // backend generated
+  dateIssued: string;       // ISO date
+  vendorName?: string;
+  vendorAddress?: string;
+  certificationStatement: string;
+  lineItems: JCCLineItem[];
+  signatoryName?: string;
+  signatoryTitle?: string;
+  signatureUrl?: string;
+  status: JCCStatus;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface JCCPrefillSuggestion {
+  description: string;
+  trip: string;
+  durationDate: string;
+  remarks: string;
 }
