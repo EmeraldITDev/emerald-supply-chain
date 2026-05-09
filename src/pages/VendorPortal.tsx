@@ -25,9 +25,92 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { formatMRFDate } from "@/utils/dateUtils";
 import { normalizeAttachments } from "@/utils/attachments";
 import type { Vendor } from "@/types";
+import { VendorTripSubmissionForm } from "@/components/logistics/VendorTripSubmissionForm";
+import { vendorTripApi } from "@/services/logisticsApi";
+import type { Trip } from "@/types/logistics";
+import { formatTripStatus, tripStatusBadgeClass } from "@/utils/tripStatus";
+import { Truck, FileText as FileTextIcon } from "lucide-react";
 
 interface VendorData extends Vendor {
   companyName?: string;
+}
+
+function VendorAssignedTrips() {
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Trip | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const res = await vendorTripApi.listAssigned();
+    setLoading(false);
+    if (res.success && Array.isArray(res.data)) setTrips(res.data);
+  };
+
+  useEffect(() => {
+    load();
+    const handler = () => load();
+    window.addEventListener("app:refresh", handler);
+    return () => window.removeEventListener("app:refresh", handler);
+  }, []);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Assigned Trips</CardTitle>
+        <CardDescription>Submit driver, vehicle, and document details for trips assigned to you.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Loader2 className="h-10 w-10 mx-auto mb-2 animate-spin opacity-30" />
+            <p>Loading trips…</p>
+          </div>
+        ) : trips.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <Truck className="h-12 w-12 mx-auto mb-2 opacity-40" />
+            <p>No trips assigned to you yet.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {trips.map((t) => {
+              const isDraft = t.status === "draft" || t.status === "vendor_assigned" || t.status === "scheduled";
+              const isApproved = t.status === "approved";
+              return (
+                <div key={t.id} className="rounded-md border p-4 space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium">{t.tripNumber}</p>
+                      <p className="text-xs text-muted-foreground">{t.origin} → {t.destination}</p>
+                    </div>
+                    <Badge className={tripStatusBadgeClass(t.status)}>{formatTripStatus(t.status)}</Badge>
+                  </div>
+                  {isDraft && (
+                    <div className="rounded-sm bg-warning/10 text-warning text-xs px-2 py-1">
+                      Action Required: Submit Trip Details to proceed.
+                    </div>
+                  )}
+                  <div className="flex gap-2 pt-1">
+                    <Button size="sm" variant={isDraft ? "default" : "outline"} onClick={() => { setSelected(t); setOpen(true); }}>
+                      <FileTextIcon className="h-3 w-3 mr-1" />
+                      {isDraft ? "Submit Trip Details" : "View Submission"}
+                    </Button>
+                    {isApproved && (
+                      <Button size="sm" variant="outline" title="Submit Invoice (vendor invoice flow)">
+                        Submit Invoice
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+      <VendorTripSubmissionForm trip={selected} open={open} onOpenChange={setOpen} onSubmitted={load} />
+    </Card>
+  );
 }
 
 const VendorPortal = () => {
@@ -1252,6 +1335,7 @@ const VendorPortal = () => {
             <TabsTrigger value="documents">KYC Documents</TabsTrigger>
             <TabsTrigger value="profile">My Profile</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="trips">Assigned Trips</TabsTrigger>
           </TabsList>
 
           <TabsContent value="rfqs" className="space-y-4">
@@ -2254,6 +2338,10 @@ const VendorPortal = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="trips" className="space-y-4">
+            <VendorAssignedTrips />
           </TabsContent>
         </Tabs>
       </main>

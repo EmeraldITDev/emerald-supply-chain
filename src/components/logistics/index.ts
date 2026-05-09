@@ -8,3 +8,6 @@ export { VendorJMPSubmission } from './VendorJMPSubmission';
 export { GPSTrackingPlaceholder } from './GPSTrackingPlaceholder';
 export { PassengerNotification } from './PassengerNotification';
 export { AccommodationBookings } from './AccommodationBookings';
+export { VendorTripSubmissionForm } from './VendorTripSubmissionForm';
+export { TripVendorComparison } from './TripVendorComparison';
+export { JCCDialog } from './JCCDialog';

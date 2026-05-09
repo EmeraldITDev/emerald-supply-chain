@@ -48,6 +48,9 @@ import {
   Mail,
   Bell,
 } from "lucide-react";
+import { TripVendorComparison } from "./TripVendorComparison";
+import { JCCDialog } from "./JCCDialog";
+import { Users2, FileSignature } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -120,6 +123,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [assignVendorDialogOpen, setAssignVendorDialogOpen] = useState(false);
   const [jmpDialogOpen, setJmpDialogOpen] = useState(false);
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
+  const [jccOpen, setJccOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   
@@ -981,6 +986,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                   <UserPlus className="mr-2 h-4 w-4" />
                                   Assign Vendor
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => { setSelectedTrip(trip); setComparisonOpen(true); }}>
+                                  <Users2 className="mr-2 h-4 w-4" />
+                                  Compare Vendor Responses
+                                </DropdownMenuItem>
                                 {trip.vendorId && (
                                   <DropdownMenuItem onClick={() => {
                                     setSelectedTrip(trip);
@@ -999,6 +1008,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                     Notify Passengers
                                   </DropdownMenuItem>
                                 )}
+                                {trip.status === "in_progress" && (
+                                  <DropdownMenuItem onClick={() => { setSelectedTrip(trip); setJccOpen(true); }}>
+                                    <FileSignature className="mr-2 h-4 w-4" />
+                                    Close Trip / Issue JCC
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem
                                   onClick={() => handleCancelTrip(trip)}
                                   className="text-destructive"
@@ -1007,6 +1022,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                   Cancel Trip
                                 </DropdownMenuItem>
                               </>
+                            )}
+                            {trip.status === "completed" && (
+                              <DropdownMenuItem onClick={() => { setSelectedTrip(trip); setJccOpen(true); }}>
+                                <FileSignature className="mr-2 h-4 w-4" />
+                                Close Trip / Issue JCC
+                              </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -1573,6 +1594,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           URL.revokeObjectURL(url);
         }}
       />
+
+      <TripVendorComparison trip={selectedTrip} open={comparisonOpen} onOpenChange={setComparisonOpen} />
+      <JCCDialog trip={selectedTrip} open={jccOpen} onOpenChange={setJccOpen} />
 
     </div>
   );
