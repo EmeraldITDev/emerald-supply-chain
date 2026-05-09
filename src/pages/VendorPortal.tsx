@@ -2256,6 +2256,10 @@ const VendorPortal = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="trips" className="space-y-4">
+            <VendorAssignedTrips />
+          </TabsContent>
         </Tabs>
       </main>
       
