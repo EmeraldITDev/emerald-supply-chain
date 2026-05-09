@@ -574,6 +574,11 @@ const Logistics = () => {
             <TabsContent value="reports">
               <ReportingCompliance />
             </TabsContent>
+
+            {/* Accommodation Tab */}
+            <TabsContent value="accommodation">
+              <AccommodationBookings />
+            </TabsContent>
           </Tabs>
         </div>
       </PullToRefresh>
