@@ -1008,7 +1008,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                     Notify Passengers
                                   </DropdownMenuItem>
                                 )}
-                                {(trip.status === "in_progress" || trip.status === "completed") && (
+                                {trip.status === "in_progress" && (
                                   <DropdownMenuItem onClick={() => { setSelectedTrip(trip); setJccOpen(true); }}>
                                     <FileSignature className="mr-2 h-4 w-4" />
                                     Close Trip / Issue JCC
