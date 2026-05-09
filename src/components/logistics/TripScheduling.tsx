@@ -1595,6 +1595,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         }}
       />
 
+      <TripVendorComparison trip={selectedTrip} open={comparisonOpen} onOpenChange={setComparisonOpen} />
+      <JCCDialog trip={selectedTrip} open={jccOpen} onOpenChange={setJccOpen} />
+
     </div>
   );
 };
