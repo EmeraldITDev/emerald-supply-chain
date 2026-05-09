@@ -986,6 +986,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                   <UserPlus className="mr-2 h-4 w-4" />
                                   Assign Vendor
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => { setSelectedTrip(trip); setComparisonOpen(true); }}>
+                                  <Users2 className="mr-2 h-4 w-4" />
+                                  Compare Vendor Responses
+                                </DropdownMenuItem>
                                 {trip.vendorId && (
                                   <DropdownMenuItem onClick={() => {
                                     setSelectedTrip(trip);
@@ -1002,6 +1006,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                   }}>
                                     <Bell className="mr-2 h-4 w-4" />
                                     Notify Passengers
+                                  </DropdownMenuItem>
+                                )}
+                                {(trip.status === "in_progress" || trip.status === "completed") && (
+                                  <DropdownMenuItem onClick={() => { setSelectedTrip(trip); setJccOpen(true); }}>
+                                    <FileSignature className="mr-2 h-4 w-4" />
+                                    Close Trip / Issue JCC
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem
