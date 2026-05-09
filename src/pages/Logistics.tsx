@@ -44,6 +44,7 @@ import { FleetManagement } from "@/components/logistics/FleetManagement";
 import { MaterialsTracking } from "@/components/logistics/MaterialsTracking";
 import { ReportingCompliance } from "@/components/logistics/ReportingCompliance";
 import { GPSTrackingPlaceholder } from "@/components/logistics/GPSTrackingPlaceholder";
+import { AccommodationBookings } from "@/components/logistics/AccommodationBookings";
 
 const Logistics = () => {
   const { toast } = useToast();
