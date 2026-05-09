@@ -377,6 +377,10 @@ const Logistics = () => {
                 <FileText className="h-4 w-4 hidden sm:block" />
                 Reports
               </TabsTrigger>
+              <TabsTrigger value="accommodation" className="text-xs sm:text-sm gap-1">
+                <Hotel className="h-4 w-4 hidden sm:block" />
+                Stays
+              </TabsTrigger>
             </TabsList>
 
             {/* Overview Tab */}
