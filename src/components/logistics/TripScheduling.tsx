@@ -78,6 +78,8 @@ const statusColors: Record<TripStatus, string> = {
   completed: "bg-success/10 text-success",
   closed: "bg-muted text-muted-foreground",
   cancelled: "bg-destructive/10 text-destructive",
+  pending_approval: "bg-info/10 text-info",
+  approved: "bg-success/10 text-success",
 };
 
 const priorityColors: Record<string, string> = {
