@@ -48,6 +48,9 @@ import {
   Mail,
   Bell,
 } from "lucide-react";
+import { TripVendorComparison } from "./TripVendorComparison";
+import { JCCDialog } from "./JCCDialog";
+import { Users2, FileSignature } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -120,6 +123,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [assignVendorDialogOpen, setAssignVendorDialogOpen] = useState(false);
   const [jmpDialogOpen, setJmpDialogOpen] = useState(false);
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
+  const [jccOpen, setJccOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   
