@@ -1023,6 +1023,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                 </DropdownMenuItem>
                               </>
                             )}
+                            {trip.status === "completed" && (
+                              <DropdownMenuItem onClick={() => { setSelectedTrip(trip); setJccOpen(true); }}>
+                                <FileSignature className="mr-2 h-4 w-4" />
+                                Close Trip / Issue JCC
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
