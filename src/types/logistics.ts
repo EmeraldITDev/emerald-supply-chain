@@ -770,7 +770,7 @@ export type MaterialJCCStatus = 'draft' | 'submitted' | 'approved';
 export type ConditionOfGoods = 'NEW' | 'USED' | 'DAMAGED';
 export type ConditionOnArrival = 'GOOD' | 'DAMAGED' | 'PARTIAL';
 
-export interface MaterialMovement {
+export interface MaterialMovementRecord {
   id: string;
   materialName: string;
   category: string;

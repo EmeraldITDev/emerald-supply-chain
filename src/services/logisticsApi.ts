@@ -38,7 +38,7 @@ import type {
   JCC,
   JCCLineItem,
   JCCPrefillSuggestion,
-  MaterialMovement,
+  MaterialMovementRecord,
   MaterialJCC,
   MaterialJCCLineItem,
   MaterialJCCPrefillItem,
@@ -1070,7 +1070,7 @@ const dispatchAppRefresh = () => {
   }
 };
 
-const normalizeMovement = (raw: any): MaterialMovement => ({
+const normalizeMovement = (raw: any): MaterialMovementRecord => ({
   id: String(raw.id ?? raw.uuid ?? ''),
   materialName: raw.material_name ?? raw.materialName ?? '',
   category: raw.category ?? '',
@@ -1095,7 +1095,7 @@ const normalizeMovement = (raw: any): MaterialMovement => ({
   updatedAt: raw.updated_at ?? raw.updatedAt,
 });
 
-const denormalizeMovement = (data: Partial<MaterialMovement>): Record<string, any> => {
+const denormalizeMovement = (data: Partial<MaterialMovementRecord>): Record<string, any> => {
   const out: Record<string, any> = {
     material_name: data.materialName,
     category: data.category,
@@ -1164,7 +1164,7 @@ const normalizePrefill = (raw: any): MaterialJCCPrefillItem[] => {
 };
 
 export interface MaterialListResponse {
-  items: MaterialMovement[];
+  items: MaterialMovementRecord[];
   summary?: MaterialMovementSummary | null;
 }
 
@@ -1226,13 +1226,13 @@ export const materialsMovementsApi = {
     return apiRequest<MaterialMovementSummary>('/materials/summary');
   },
 
-  get: async (id: string): Promise<ApiResponse<MaterialMovement>> => {
+  get: async (id: string): Promise<ApiResponse<MaterialMovementRecord>> => {
     const res = await apiRequest<any>(`/materials/${id}`);
     if (!res.success) return { success: false, error: res.error };
     return { success: true, data: normalizeMovement(res.data?.data ?? res.data) };
   },
 
-  create: async (body: Partial<MaterialMovement>): Promise<ApiResponse<MaterialMovement>> => {
+  create: async (body: Partial<MaterialMovementRecord>): Promise<ApiResponse<MaterialMovementRecord>> => {
     const res = await apiRequest<any>('/materials', {
       method: 'POST',
       body: JSON.stringify(denormalizeMovement(body)),
@@ -1242,7 +1242,7 @@ export const materialsMovementsApi = {
     return { success: true, data: normalizeMovement(res.data?.data ?? res.data) };
   },
 
-  update: async (id: string, body: Partial<MaterialMovement>): Promise<ApiResponse<MaterialMovement>> => {
+  update: async (id: string, body: Partial<MaterialMovementRecord>): Promise<ApiResponse<MaterialMovementRecord>> => {
     const res = await apiRequest<any>(`/materials/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(denormalizeMovement(body)),
@@ -1258,14 +1258,14 @@ export const materialsMovementsApi = {
     return res;
   },
 
-  markInTransit: async (id: string): Promise<ApiResponse<MaterialMovement>> => {
+  markInTransit: async (id: string): Promise<ApiResponse<MaterialMovementRecord>> => {
     const res = await apiRequest<any>(`/materials/${id}/mark-in-transit`, { method: 'POST' });
     if (res.success) dispatchAppRefresh();
     if (!res.success) return { success: false, error: res.error };
     return { success: true, data: normalizeMovement(res.data?.data ?? res.data) };
   },
 
-  markDelivered: async (id: string): Promise<ApiResponse<MaterialMovement>> => {
+  markDelivered: async (id: string): Promise<ApiResponse<MaterialMovementRecord>> => {
     const res = await apiRequest<any>(`/materials/${id}/mark-delivered`, { method: 'POST' });
     if (res.success) dispatchAppRefresh();
     if (!res.success) return { success: false, error: res.error };
