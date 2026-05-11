@@ -1,137 +1,210 @@
-# Module 4 — Fleet Management Frontend (v3)
+# Module 5 — Materials Tracking Frontend (v3 — final)
 
-Implements all four sections of the uploaded spec. Revised against v2 review: locked tab order, reactivation reason minimum length, explicit `UNDER_MAINTENANCE` UI treatment.
+Implements both sections of the uploaded spec: enhanced Material Movement form and Material Job Completion Certificate (JCC). New domain — "movements in transit", **distinct from the existing inventory-style `MaterialsTracking.tsx`**, which is left intact.
 
 ## Pre-Flight Verifications (resolve before build)
 
-1. **Expired-document `alert_colour`** — confirm with backend whether expired docs return `alert_colour: 'RED'` or `null`. If RED, drop client-side date fallback. If null, keep past-date fallback rendering destructive "Expired" badge.
-2. **Global expiring-documents source** — confirm whether `GET /fleet/documents/alerts` exists. If yes, the StatCard calls it directly; if no, request backend add it. **Do not** ship a per-vehicle aggregation loop. Widget gated behind endpoint availability.
-3. **`inactive_reason` field** — confirm field name on Vehicle response. If absent, banner shows generic *"This vehicle is currently Inactive."*; if present, render the human-readable reason.
-4. **Drivers placement** — default: **sub-tab inside `FleetManagement.tsx`** (drivers are fleet resources). Switch to a top-level Logistics tab only if user confirms otherwise.
-5. **`GET /fleet/maintenance/upcoming` shape** — confirm whether `days_remaining` is pre-computed by backend. Plan derives client-side, prefers backend value when present.
-6. **Vehicle status enum casing** — confirm backend always returns/accepts uppercase `ACTIVE | INACTIVE | UNDER_MAINTENANCE` on `/status`, regardless of legacy lowercase elsewhere.
+1. **Vendor field source** — confirm `vendor_id` lookup uses the existing vendors endpoint (`vendorsApi.getAll`). Reuse if yes; otherwise request the logistics-specific endpoint.
+2. **`condition_of_goods` enum** — confirm backend accepts exactly `NEW | USED | DAMAGED`. Display: New / Used / Damaged.
+3. **`condition_on_arrival` enum on JCC** — confirm exactly `GOOD | DAMAGED | PARTIAL`. Display: Good / Damaged / Partial Delivery.
+4. **`GET /jcc/prefill` shape** — confirm response is array of `{ materialName, quantity, condition, remarks }`. If wrapped, normalise once in `materialsMovementsApi`.
+5. **`GET /jcc/pdf` availability** — if not yet live, ship the button **disabled** with tooltip *"PDF download will be available once backend rendering is enabled."* No client-side PDF substitute.
+6. **Reference number** — confirmed by spec (`JCC/MAT/[YYYYMM]-[seq]`, backend on first `POST /jcc`). Read-only.
+7. **`vendor_id` nullable / `vendor_name` free-text** — confirmed by spec. One of the two required.
+8. **StatCard counts source** — confirm whether `GET /api/materials` returns top-level aggregates or a separate `GET /api/materials/summary` endpoint exists. If list is paginated, **never** derive from current page.
+9. **Vendor address for Emerald-owned movements** — default plan: include optional `vendor_address` Textarea on the form when Emerald-owned mode is on; if backend rejects, drop the address line gracefully on the JCC header.
 
 ## API Wiring (`src/services/logisticsApi.ts`)
 
-Extend `fleetApi` and add `driversApi`. All routes use existing `apiRequest` (auth handled). Every successful mutation dispatches `app:refresh`.
+New `materialsMovementsApi` group (named to avoid collision with the existing inventory `materialsApi`). All routes via `apiRequest`. Every successful mutation dispatches `app:refresh`. Auto-retry on 5xx/network. Snake_case → camelCase mapped at the boundary in single normalisers (`normalizeMovement`, `normalizeJCC`).
 
-**Vehicle Documents**
-- `listDocuments(vehicleId)` → `GET /fleet/vehicles/:id/documents` (returns `alert_colour`, `expiry_date`, `document_type`, `file_url`).
-- `uploadDocument(vehicleId, file, document_type, expiry_date)` → `POST` (FormData).
-- `deleteDocument(vehicleId, documentId)` → `DELETE …/:documentId`.
-- `getDocumentAlerts()` → `GET /fleet/documents/alerts` *(only if pre-flight #2 confirms)*.
+**Movements**
+- `list(params?)` → `GET /api/materials` (params: status, category, search, dateFrom, dateTo, destination)
+- `getSummary()` → `GET /api/materials/summary` *(only if pre-flight #8 confirms)*
+- `get(id)` → `GET /api/materials/:id`
+- `create(body)` → `POST /api/materials`
+- `update(id, body)` → `PATCH /api/materials/:id`
+- `cancel(id)` → `DELETE /api/materials/:id` (soft-delete)
+- `markInTransit(id)` → `POST /api/materials/:id/mark-in-transit`
+- `markDelivered(id)` → `POST /api/materials/:id/mark-delivered`
 
-**Maintenance**
-- `listMaintenance(vehicleId)` → `GET /fleet/vehicles/:id/maintenance`.
-- `createMaintenance(vehicleId, body)` → `POST` `{ maintenance_type, interval_months, last_maintenance_date, notes }`.
-- `updateMaintenance(vehicleId, scheduleId, body)` → `PATCH …/:scheduleId` (edit + Mark Complete with `{ last_maintenance_date: today }`).
-- `getUpcomingMaintenance()` → `GET /fleet/maintenance/upcoming`.
-
-**Status Override**
-- `updateStatus(vehicleId, { status, reason, override_by })` → `PATCH /fleet/vehicles/:id/status`. Status enum exactly: `ACTIVE | INACTIVE | UNDER_MAINTENANCE`.
-
-**Drivers** (new `driversApi`)
-- `list()` → `GET /fleet/drivers`.
-- `create(body)` → `POST /fleet/drivers`.
-- `update(driverId, body)` → `PATCH /fleet/drivers/:driverId`.
-- Body: `{ name, email?, phone_number, licence_number, ... }`.
+**Material JCC**
+- `getJCC(materialId)` → `GET /api/materials/:materialId/jcc` (404 → `null`, not throw)
+- `createJCC(materialId, body)` → `POST /api/materials/:materialId/jcc`
+- `updateJCC(materialId, body)` → `PATCH /api/materials/:materialId/jcc` (Draft only — server enforces)
+- `getJCCPrefill(materialId)` → `GET /api/materials/:materialId/jcc/prefill` (called conditionally — see §5.2)
+- `submitJCC(materialId)` → `POST /api/materials/:materialId/jcc/submit`
+- `approveJCC(materialId)` → `POST /api/materials/:materialId/jcc/approve`
+- `downloadJCCPdf(materialId)` → `GET /api/materials/:materialId/jcc/pdf` (blob)
 
 ## Types (`src/types/logistics.ts`)
 
-- Extend `VehicleDocument`: `documentType`, `expiryDate`, `alertColour: 'GREEN'|'AMBER'|'RED'|null`.
-- New `MaintenanceSchedule { id, vehicleId, maintenanceType, intervalMonths, lastMaintenanceDate, nextMaintenanceDate, status: 'scheduled'|'completed'|'overdue', notes? }`.
-- New `Driver { id, name, email?, phoneNumber, licenceNumber, ... }`.
-- `VehicleStatus` union extended for `ACTIVE | INACTIVE | UNDER_MAINTENANCE`. Optional `inactiveReason`, `inactiveReasonLabel` per pre-flight #3.
-
-**`src/utils/vehicleStatus.ts`** — locked mapping:
-
 ```ts
-// formatVehicleStatus()
-ACTIVE             → "Active"            (success / green)
-INACTIVE           → "Inactive"          (destructive / red)
-UNDER_MAINTENANCE  → "Under Maintenance" (warning / amber)
-// legacy lowercase passthrough (available, in_use, maintenance, out_of_service)
-// title-cased with console.warn in dev
+type MaterialMovementStatus = 'pending' | 'in_transit' | 'delivered' | 'cancelled';
+type MaterialJCCStatus = 'draft' | 'submitted' | 'approved';
+type ConditionOfGoods = 'NEW' | 'USED' | 'DAMAGED';
+type ConditionOnArrival = 'GOOD' | 'DAMAGED' | 'PARTIAL';
+
+interface MaterialMovement {
+  id; materialName; category; quantity;
+  pickupLocation; destination;
+  vendorId?: string; vendorName?: string; vendorAddress?: string; vendorPhone;
+  vehiclePlate; driverName; driverPhone;
+  expectedPickupAt; expectedDeliveryAt;
+  conditionOfGoods: ConditionOfGoods;
+  status: MaterialMovementStatus;
+  linkedPoNumber?: string;
+  jccId?: string; jccStatus?: MaterialJCCStatus;
+  createdAt; updatedAt;
+}
+
+interface MaterialJCCLineItem { id?; sn; materialName; quantity; condition; remarks; }
+
+interface MaterialJCC {
+  id; materialId; referenceNumber; dateIssued;
+  certificationStatement; conditionOnArrival: ConditionOnArrival;
+  lineItems: MaterialJCCLineItem[];
+  status: MaterialJCCStatus;
+  signatoryName; signatoryTitle; signatureUrl?;
+  vendorName; vendorAddress?; linkedPoNumber?;
+  createdAt; updatedAt;
+}
+
+interface MaterialMovementSummary { total; pending; in_transit; delivered; cancelled; }
 ```
 
-`vehicleStatusBadgeClass()` returns the matching token classes. **Every** badge, list row, and detail banner routes through these helpers — no hardcoded literals.
+## Status Helper (`src/utils/materialStatus.ts`)
 
-## 4.1 — Vehicle Documents Tab
+```ts
+formatMaterialStatus(s):
+  pending     → "Pending"     (neutral / muted)
+  in_transit  → "In Transit"  (warning / amber)
+  delivered   → "Delivered"   (success / green)
+  cancelled   → "Cancelled"   (destructive / red)
+  fallback    → Title-Case + console.warn
 
-New `VehicleDocumentsTab.tsx` inside View Vehicle dialog.
-- Table: Type, Uploaded, Expiry, Status, Actions (View / Replace / Delete).
-- Status & expiry-cell colour driven by backend `alert_colour`: GREEN→success, AMBER→warning, RED→destructive. Expired fallback (per pre-flight #1) only if `alert_colour` is null AND `expiry_date < today`.
-- Upload form: dropdown locked to the 5 spec types, expiry date picker, file input (PDF/image accept).
-- Banner if any expired doc present: `<Alert variant="destructive">` *"This vehicle has expired documents and has been set to Inactive."*
+materialStatusBadgeClass(s) — token classes.
 
-**Expiring Documents StatCard** on Fleet dashboard summary row — only rendered when `GET /fleet/documents/alerts` is confirmed available. Click → filter list. Bell-icon notifications deep-link with `?vehicle=:id&tab=documents`.
+formatJCCStatus(s):
+  draft     → "Draft"     (neutral)
+  submitted → "Submitted" (info / blue)
+  approved  → "Approved"  (success / green)
+```
 
-## 4.2 — Maintenance Tab + Widget + Trip Conflict
+All badges and conditional UI route through these helpers — no string literals.
 
-New `VehicleMaintenanceTab.tsx`:
-- Table: Type, Last Date, Next Due, Interval (months), Status badge (Scheduled = blue, Completed = green, Overdue = red), Actions.
-- Add/Edit form: Type (text), Interval months (number), Last Date (picker), Next Date (read-only, live `addMonths(last, interval)` preview), Notes.
-- Mark Complete → `AlertDialog` *"Update Last Maintenance Date to today?"* → `updateMaintenance` with today.
+## 5.1 — Material Movements List + Form
 
-**`UpcomingMaintenanceWidget.tsx`** (Fleet dashboard):
-- Calls `getUpcomingMaintenance()`, filters 14-day window. `daysRemaining` derived client-side; backend `days_remaining` wins when present.
-- Explicit states: **Loading** (skeleton rows), **Empty** (*"No maintenance due in the next 14 days."*), **Error** (destructive banner + Retry). Happy path: Plate, Type, Due Date, Days Remaining.
+**New `MaterialMovements.tsx`** (mounted as a new "Material Movements" sub-tab in `Logistics.tsx`, distinct from the legacy "Materials" inventory tab — both coexist).
 
-**Trip Assignment Warning** (`TripScheduling.tsx` vehicle picker):
-- Always perform a **fresh `listMaintenance(vehicleId)`** on selection (no cache). If any `nextMaintenanceDate` is within 7 days, render inline `<Alert variant="warning">` with **Proceed Anyway** (dismiss, keep selection) and **Choose a Different Vehicle** (clear selection + reopen dropdown). Non-blocking.
+**StatCards (Total / Pending / In Transit / Delivered):**
+- Data source per pre-flight #8. **Selection logic — one-time on mount** (cached for the component lifetime, not re-evaluated on filter changes):
+  1. Try `getSummary()`. If 200, use it and remember `source = 'summary'`.
+  2. Else inspect first `list()` response for top-level aggregate fields (`total`, `pending`, `in_transit`, `delivered`, `cancelled`). If present, remember `source = 'list-aggregates'` and read them from every subsequent `list()` response.
+  3. Else `source = 'unavailable'` → render `<Skeleton>` permanently with non-blocking helper *"Counts pending backend support"*. Never derive from `data.length`.
+- After mutations (create/update/cancel/mark*), refresh via the same source: `getSummary()` if `source === 'summary'`, otherwise rely on the next `list()` response.
 
-## 4.3 — Status Indicators & Manual Override
+**Filters & search:**
+- Status, category, date range, destination text.
+- Search by material name / destination / vehicle plate.
+- **Search input debounced 300ms** before firing `list(params)` (small `useDebouncedValue` hook). Status/category/date filters fire immediately.
 
-In `FleetManagement.tsx`:
-- Vehicle list row/card: badge always rendered via `vehicleStatusBadgeClass(status)` + `formatVehicleStatus(status)`. INACTIVE = red, UNDER_MAINTENANCE = amber, ACTIVE = green.
-- Vehicle detail dialog top banner:
-  - INACTIVE → destructive banner. If `inactiveReasonLabel` present, render it; else *"This vehicle is currently Inactive."*
-  - UNDER_MAINTENANCE → warning banner *"This vehicle is currently Under Maintenance and unavailable for trip assignment."*
-  - ACTIVE → no banner.
-- **Vehicle picker in `TripScheduling.tsx`**: filter out `INACTIVE` and `UNDER_MAINTENANCE` vehicles from the assignable list (existing maintenance-conflict warning still applies to ACTIVE vehicles with upcoming maintenance).
-- **Reactivate Vehicle** button visible only to `logistics_officer | logistics_manager | logistics | admin`, and only when status is INACTIVE or UNDER_MAINTENANCE. Opens `ReactivateVehicleDialog`:
-  - Required Textarea reason, **minimum 10 characters** (live-validated; submit disabled until met; helper text shows count, e.g. `4 / 10 minimum`).
-  - On submit → `updateStatus(id, { status: 'ACTIVE', reason, override_by: user.id })`.
-  - Cancel / Confirm buttons.
+**Table columns:** Material Name, Category, Quantity, Pickup, Destination, Status badge, Expected Delivery, Actions.
 
-> **`UNDER_MAINTENANCE` source of truth:** backend-set only (e.g. cron when maintenance overdue, or manual ops). Frontend never POSTs `UNDER_MAINTENANCE` via `updateStatus` — it only displays it and offers Reactivate to override back to ACTIVE.
+**Top-right `+ New Material Movement`** (CRUD roles only).
 
-## 4.4 — Driver Form Updates
+**Row actions (DropdownMenu):**
+- **View** → opens detail drawer.
+- **Edit** → opens form (only if status is `pending` or `in_transit`).
+- **Mark In Transit** → AlertDialog confirm → `markInTransit`. Visible only when `pending`.
+- **Mark Delivered** → AlertDialog confirm → `markDelivered`. Visible only when `in_transit` AND `jccStatus === 'approved'`. When JCC missing/not approved, render disabled with tooltip *"Approve the JCC before marking this movement as delivered."*
+- **Cancel** → AlertDialog confirm → `cancel`.
 
-New `DriverManagement.tsx` mounted as a **sub-tab inside `FleetManagement.tsx`**.
-- **Email**: no required asterisk; helper text *"Optional — only if the driver has a work email address."*; validation: optional, but if filled must match standard email regex.
-- **Phone Number**: required (`*`), `type="tel"`, validation: digits only (strip non-digits), min 10 digits.
-- Driver list table includes Phone Number column.
-- Driver detail and supervisor-facing trip detail in `TripScheduling.tsx` render `driver.phoneNumber` prominently as a `tel:` link.
+**New `MaterialMovementForm.tsx`** (Dialog, max 85vh, internal scroll):
 
-## FleetManagement Sub-Tab Order (locked)
+- Fields per spec table. Required marked `*`.
+- **Vendor section:**
+  - Default: searchable vendor combobox (reuse Procurement vendor dropdown if present; otherwise `Command`-based combobox over `vendorsApi.getAll`). Address read from selected vendor record.
+  - Checkbox *"Emerald-owned vehicle (no vendor record)"* → toggles to free-text `Vendor Name` Input **plus optional `Vendor Address` Textarea** (per pre-flight #9). Submitting sends `vendor_name` (and `vendor_address` when present) instead of `vendor_id`.
+- Datetimes use `<Input type="datetime-local">`. Inline validation: delivery > pickup; min 10-digit phones; condition required.
+- Submit calls `create` or `update`. On success: toast, close, refresh list (and StatCards via the cached source).
 
-1. **Vehicles** (primary resource)
-2. **Maintenance** (schedules for the resource)
-3. **Drivers** (operators of the resource)
-4. **Documents** (paperwork)
+## 5.2 — Material JCC
 
-Documents tab here is the per-vehicle document view rendered through the active vehicle context (or a global view of expiring docs when no vehicle is selected — to be shaped during build but tab position is fixed).
+**New `MaterialJCCDialog.tsx`** (large Dialog, max 85vh internal scroll; mounted from movement detail "Close Movement / Issue JCC" button).
+
+**Open sequence (strict order):**
+
+1. `getJCC(materialId)`:
+   - If record present → rehydrate header, certification, condition, line items. Reference number read-only.
+   - If 404 (`null`) → empty local state. Reference shows `—` with helper *"Generated when you save."*
+2. **Conditionally** call `getJCCPrefill(materialId)` **only when** there is no existing JCC OR the existing JCC is `draft` AND its line items are empty. Skip entirely for `submitted` / `approved` JCCs.
+   - If suggestions returned AND local line items still empty → one-shot `AlertDialog`: *"Pre-fill line items from material movement details?"* Yes auto-fills, No leaves empty.
+
+**Header section (read-only, auto-filled):** company info from `useApp` settings (or static fallback consistent with existing PO layout); JCC reference; Date Issued (date picker, defaults today, editable while draft); Vendor Name + Address from the movement record.
+- If `vendorAddress` is missing (Emerald-owned with none provided), render the vendor block with name only — **no empty "Address:" label**, no placeholder dash.
+- Linked PO number rendered only if present.
+
+**Certification statement:** editable `<Textarea>` pre-filled with the spec text. Locked once status is `submitted` or `approved`.
+
+**Condition on Arrival:** `<Select>` Good / Damaged / Partial Delivery — required to enable Submit.
+
+**Line items table:** SN (auto), Material Name, Quantity, Condition, Remarks; `+ Add Row`; per-row remove (×); minimum 1 row to submit. Inputs disabled when status ≠ `draft`.
+
+**Signatory section (read-only):** current user's name and title from `AuthContext`; signature image from `user.signatureUrl` if present (same field as SCD PO signature), else *"Signature will be applied on approval."*
+
+**Mode resolution (drives footer button visibility):**
+
+```ts
+const canManage = canManageMovementsRole(role);
+const canApprove = canApproveMaterialJCCRole(role);
+const isDraftEditable = (jcc?.status ?? 'draft') === 'draft' && canManage;
+const isPendingApproval = jcc?.status === 'submitted';
+const readOnly = !isDraftEditable && !(isPendingApproval && canApprove);
+```
+
+**Actions (footer) — explicit visibility rules:**
+
+- **Save as Draft** — visible **only when** `isDraftEditable`. First save → `createJCC`, then `updateJCC`. Captures returned `referenceNumber`.
+- **Submit JCC** — visible **only when** `isDraftEditable`. Disabled until: condition selected, ≥1 line item with all fields filled, certification non-empty.
+- **Approve JCC** — visible **only when** `isPendingApproval && canApprove` (`supply_chain_director` only). Calls `approveJCC`. Movement detail refetches afterward; backend is source of truth for status flip to `delivered`.
+- **Download PDF** — always visible. Disabled with tooltip if pre-flight #5 says unavailable, OR if status ≠ `approved`.
+- **Preview Draft (browser render)** — always visible.
+- **Close** — always visible.
+
+> **Read-only context summary (locked):** when neither `isDraftEditable` nor (`isPendingApproval && canApprove`) is true — i.e. a read-only role viewing any JCC, or any user viewing a submitted/approved JCC without approval rights — the dialog renders Header, Certification, Condition, Line Items, and Signatory in disabled state and the footer shows **only Download PDF, Preview Draft, and Close**. Save Draft / Submit / Approve are not rendered (not just disabled).
+
+**Preview Draft watermark (locked):** absolutely-positioned full-page diagonal text *"DRAFT PREVIEW — NOT OFFICIAL CERTIFICATE"*, rotated −30°, centered, font-weight 800, font-size ~96px, color `hsl(var(--destructive) / 0.18)`, `pointer-events: none`, `z-index: 50`. Repeated once vertically so it spans short and long pages. Rendered inside the print stylesheet (`@media print`) so it survives `window.print()`.
+
+**Movement detail integration (inside the View drawer):**
+- If no JCC and status ∈ {`in_transit`, `delivered`} → **Close Movement / Issue JCC** button (CRUD roles only).
+- If JCC exists → **View JCC** link + JCC status badge via `formatJCCStatus`. Clicking opens the same dialog; mode resolution above governs the rest.
+
+## Role Gating (`AuthContext` `role`)
+
+- Full CRUD on movements + Save/Submit JCC: `logistics_officer | logistics_manager | logistics | admin`.
+- Read-only (no buttons, no actions menu): `supply_chain_director | procurement_manager`.
+- Approve JCC: `supply_chain_director` only.
+- Implemented via `canManageMovements(role)` / `canApproveMaterialJCC(role)` helpers colocated with components.
 
 ## Files
 
 **New**
-- `src/components/logistics/VehicleDocumentsTab.tsx`
-- `src/components/logistics/VehicleMaintenanceTab.tsx`
-- `src/components/logistics/UpcomingMaintenanceWidget.tsx`
-- `src/components/logistics/ReactivateVehicleDialog.tsx`
-- `src/components/logistics/DriverManagement.tsx`
-- `src/utils/vehicleStatus.ts`
+- `src/components/logistics/MaterialMovements.tsx`
+- `src/components/logistics/MaterialMovementForm.tsx`
+- `src/components/logistics/MaterialJCCDialog.tsx`
+- `src/utils/materialStatus.ts`
 
 **Edited**
-- `src/services/logisticsApi.ts` (extend `fleetApi`, add `driversApi`)
-- `src/types/logistics.ts`
-- `src/components/logistics/FleetManagement.tsx` (locked sub-tab order, badge/banner via helpers, Reactivate flow, Expiring Docs StatCard)
-- `src/components/logistics/TripScheduling.tsx` (filter INACTIVE/UNDER_MAINTENANCE vehicles, on-demand maintenance-conflict warning, driver phone display)
-- `src/components/logistics/index.ts`
+- `src/services/logisticsApi.ts` — add `materialsMovementsApi` and JCC methods (do NOT touch existing inventory `materialsApi`).
+- `src/types/logistics.ts` — add types and enums above.
+- `src/pages/Logistics.tsx` — add new "Material Movements" tab.
+- `src/components/logistics/index.ts` — export new components.
 
 ## Out of Scope
-- Backend implementation of any endpoint above.
-- Push/email notification transport (uses existing notification stack).
-- Recalculating document tier colours on the client — always trust backend `alert_colour`.
-- Frontend setting `UNDER_MAINTENANCE` via `updateStatus` (display-only on the FE).
+
+- Inventory management (legacy `MaterialsTracking.tsx` stays as-is).
+- Backend implementation of any endpoint.
+- Client-rendered official JCC PDF.
+- Push/email notification transport.
+- Auto-flipping movement status to `delivered` on JCC approval from the frontend (backend is source of truth; FE refetches).
