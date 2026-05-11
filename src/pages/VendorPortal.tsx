@@ -1062,9 +1062,19 @@ const VendorPortal = () => {
                 });
               }
             } catch (error: any) {
+              // Final safety net — most failures are already returned via response.error above.
+              // This catches anything thrown synchronously (e.g. base64 decode failures,
+              // or a fetch TypeError that escaped registerSimple).
+              const isNetwork =
+                error instanceof TypeError &&
+                /failed to fetch|networkerror|load failed/i.test(error?.message || '');
+              const description = isNetwork
+                ? "Could not reach the registration server. Please check your internet connection or try again in a few seconds."
+                : (error?.message || "An unexpected error occurred. Please try again.");
+              console.error('[Vendor Registration] Unhandled submission error:', error);
               toast({
                 title: "Registration Failed",
-                description: error.message || "An error occurred. Please try again.",
+                description,
                 variant: "destructive"
               });
             } finally {

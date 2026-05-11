@@ -54,6 +54,36 @@ const API_BASE_URL = getApiBaseUrl();
 if (typeof window !== 'undefined') {
 }
 
+// Classify a thrown fetch error into a user-friendly message.
+// fetch() throws a TypeError for network failures, DNS errors, and CORS rejections.
+// We translate that into something a vendor (and a developer) can actually act on.
+function classifyFetchError(error: unknown, endpoint: string): string {
+  const url = `${API_BASE_URL}${endpoint}`;
+  if (error instanceof TypeError) {
+    const msg = (error.message || '').toLowerCase();
+    if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('load failed')) {
+      // Most common cause in this app: backend CORS rejection or backend asleep/unreachable.
+      console.error(
+        `[API] Network/CORS failure calling ${url}.\n` +
+        `Likely causes: (1) backend is offline or cold-starting, ` +
+        `(2) backend CORS does not allow origin ${typeof window !== 'undefined' ? window.location.origin : 'this client'}, ` +
+        `(3) no internet connection.`,
+        error,
+      );
+      return (
+        "Could not reach the registration server. This is usually a temporary network or CORS issue. " +
+        "Please check your internet connection and try again in a few seconds. If the problem persists, contact support."
+      );
+    }
+  }
+  if (error instanceof Error) {
+    console.error(`[API] Request to ${url} failed:`, error);
+    return error.message;
+  }
+  console.error(`[API] Request to ${url} failed with unknown error:`, error);
+  return 'Network error - please check your connection and try again.';
+}
+
 // Helper function to check if token is expired
 const isTokenExpired = (tokenExpiry: string | null): boolean => {
   if (!tokenExpiry) return false; // If no expiry info, assume valid
@@ -286,10 +316,9 @@ async function apiRequest<T>(
       data: responseData,
     };
   } catch (error) {
-    console.error('API request failed:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error - please check your connection',
+      error: classifyFetchError(error, endpoint),
     };
   }
 }
@@ -2004,7 +2033,8 @@ export const vendorApi = {
         data: responseData.registration || responseData,
       };
     } catch (error) {
-      console.error('Vendor registration error (attempt 1):', error);
+      const firstAttemptMessage = classifyFetchError(error, '/vendors/register');
+      console.warn('[Vendor Registration] First attempt failed, retrying once...');
       // Auto-retry once for network/cold-start errors
       try {
         await new Promise(r => setTimeout(r, 1500));
@@ -2013,15 +2043,23 @@ export const vendorApi = {
           headers,
           body: formData,
         });
-        const retryData = await retryResponse.json();
+        const retryContentType = retryResponse.headers.get('content-type') || '';
+        const retryData = retryContentType.includes('application/json')
+          ? await retryResponse.json()
+          : { message: `Server returned non-JSON response (status ${retryResponse.status}).` };
         if (retryResponse.ok) {
           return { success: true, data: retryData.registration || retryData };
         }
-        return { success: false, error: retryData.error || retryData.message || 'Registration failed after retry' };
+        return {
+          success: false,
+          error: retryData.error || retryData.message || `Registration failed after retry (status ${retryResponse.status}).`,
+          status: retryResponse.status,
+          raw: retryData,
+        };
       } catch (retryError) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Network error - please check your connection',
+          error: classifyFetchError(retryError, '/vendors/register') || firstAttemptMessage,
         };
       }
     }
