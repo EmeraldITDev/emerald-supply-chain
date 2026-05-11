@@ -1016,6 +1016,23 @@ export const FleetManagement = () => {
                 <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
               </TabsList>
               <TabsContent value="details" className="space-y-4">
+                {isInactiveOrUnderMaintenance(selectedVehicle.status) && (
+                  <Alert variant={String(selectedVehicle.status).toUpperCase() === 'INACTIVE' ? 'destructive' : 'default'} className={String(selectedVehicle.status).toUpperCase() === 'UNDER_MAINTENANCE' ? 'border-warning/50 bg-warning/5' : ''}>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="flex items-center justify-between gap-3">
+                      <span>
+                        {String(selectedVehicle.status).toUpperCase() === 'INACTIVE'
+                          ? (selectedVehicle.inactiveReasonLabel || selectedVehicle.inactiveReason || 'This vehicle is currently Inactive.')
+                          : 'This vehicle is currently Under Maintenance and unavailable for trip assignment.'}
+                      </span>
+                      {canReactivate && (
+                        <Button size="sm" variant="outline" onClick={() => setReactivateDialogOpen(true)}>
+                          <RotateCw className="mr-2 h-3 w-3" /> Reactivate
+                        </Button>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Plate Number</Label>
