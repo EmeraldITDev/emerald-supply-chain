@@ -2033,7 +2033,8 @@ export const vendorApi = {
         data: responseData.registration || responseData,
       };
     } catch (error) {
-      console.error('Vendor registration error (attempt 1):', error);
+      const firstAttemptMessage = classifyFetchError(error, '/vendors/register');
+      console.warn('[Vendor Registration] First attempt failed, retrying once...');
       // Auto-retry once for network/cold-start errors
       try {
         await new Promise(r => setTimeout(r, 1500));
@@ -2042,15 +2043,23 @@ export const vendorApi = {
           headers,
           body: formData,
         });
-        const retryData = await retryResponse.json();
+        const retryContentType = retryResponse.headers.get('content-type') || '';
+        const retryData = retryContentType.includes('application/json')
+          ? await retryResponse.json()
+          : { message: `Server returned non-JSON response (status ${retryResponse.status}).` };
         if (retryResponse.ok) {
           return { success: true, data: retryData.registration || retryData };
         }
-        return { success: false, error: retryData.error || retryData.message || 'Registration failed after retry' };
+        return {
+          success: false,
+          error: retryData.error || retryData.message || `Registration failed after retry (status ${retryResponse.status}).`,
+          status: retryResponse.status,
+          raw: retryData,
+        };
       } catch (retryError) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Network error - please check your connection',
+          error: classifyFetchError(retryError, '/vendors/register') || firstAttemptMessage,
         };
       }
     }
