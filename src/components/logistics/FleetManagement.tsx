@@ -734,6 +734,9 @@ export const FleetManagement = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  <SelectItem value="UNDER_MAINTENANCE">Under Maintenance</SelectItem>
                   <SelectItem value="available">Available</SelectItem>
                   <SelectItem value="in_use">In Use</SelectItem>
                   <SelectItem value="maintenance">Maintenance</SelectItem>
@@ -1326,6 +1329,26 @@ export const FleetManagement = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reactivate Vehicle Dialog */}
+      <ReactivateVehicleDialog
+        open={reactivateDialogOpen}
+        onOpenChange={setReactivateDialogOpen}
+        vehicle={selectedVehicle}
+        onReactivated={() => {
+          setReactivateDialogOpen(false);
+          setViewDialogOpen(false);
+          fetchData();
+        }}
+      />
+
+      {/* Module 4: Upcoming Maintenance + Drivers */}
+      <UpcomingMaintenanceWidget />
+      <Card>
+        <CardContent className="pt-6">
+          <DriverManagement />
+        </CardContent>
+      </Card>
     </div>
   );
 };
