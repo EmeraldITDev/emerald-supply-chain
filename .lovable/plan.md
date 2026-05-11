@@ -1,143 +1,137 @@
-## Module 3 — Logistics: Trip Scheduling (v4, final)
+# Module 4 — Fleet Management Frontend (v3)
 
-Same four sub-features. Three additional clarifications layered on top of v3.
+Implements all four sections of the uploaded spec. Revised against v2 review: locked tab order, reactivation reason minimum length, explicit `UNDER_MAINTENANCE` UI treatment.
 
----
+## Pre-Flight Verifications (resolve before build)
 
-### API Wiring (single source of truth)
+1. **Expired-document `alert_colour`** — confirm with backend whether expired docs return `alert_colour: 'RED'` or `null`. If RED, drop client-side date fallback. If null, keep past-date fallback rendering destructive "Expired" badge.
+2. **Global expiring-documents source** — confirm whether `GET /fleet/documents/alerts` exists. If yes, the StatCard calls it directly; if no, request backend add it. **Do not** ship a per-vehicle aggregation loop. Widget gated behind endpoint availability.
+3. **`inactive_reason` field** — confirm field name on Vehicle response. If absent, banner shows generic *"This vehicle is currently Inactive."*; if present, render the human-readable reason.
+4. **Drivers placement** — default: **sub-tab inside `FleetManagement.tsx`** (drivers are fleet resources). Switch to a top-level Logistics tab only if user confirms otherwise.
+5. **`GET /fleet/maintenance/upcoming` shape** — confirm whether `days_remaining` is pre-computed by backend. Plan derives client-side, prefers backend value when present.
+6. **Vehicle status enum casing** — confirm backend always returns/accepts uppercase `ACTIVE | INACTIVE | UNDER_MAINTENANCE` on `/status`, regardless of legacy lowercase elsewhere.
 
-All routes added to `src/services/logisticsApi.ts` as named groups; UI never hardcodes paths.
+## API Wiring (`src/services/logisticsApi.ts`)
+
+Extend `fleetApi` and add `driversApi`. All routes use existing `apiRequest` (auth handled). Every successful mutation dispatches `app:refresh`.
+
+**Vehicle Documents**
+- `listDocuments(vehicleId)` → `GET /fleet/vehicles/:id/documents` (returns `alert_colour`, `expiry_date`, `document_type`, `file_url`).
+- `uploadDocument(vehicleId, file, document_type, expiry_date)` → `POST` (FormData).
+- `deleteDocument(vehicleId, documentId)` → `DELETE …/:documentId`.
+- `getDocumentAlerts()` → `GET /fleet/documents/alerts` *(only if pre-flight #2 confirms)*.
+
+**Maintenance**
+- `listMaintenance(vehicleId)` → `GET /fleet/vehicles/:id/maintenance`.
+- `createMaintenance(vehicleId, body)` → `POST` `{ maintenance_type, interval_months, last_maintenance_date, notes }`.
+- `updateMaintenance(vehicleId, scheduleId, body)` → `PATCH …/:scheduleId` (edit + Mark Complete with `{ last_maintenance_date: today }`).
+- `getUpcomingMaintenance()` → `GET /fleet/maintenance/upcoming`.
+
+**Status Override**
+- `updateStatus(vehicleId, { status, reason, override_by })` → `PATCH /fleet/vehicles/:id/status`. Status enum exactly: `ACTIVE | INACTIVE | UNDER_MAINTENANCE`.
+
+**Drivers** (new `driversApi`)
+- `list()` → `GET /fleet/drivers`.
+- `create(body)` → `POST /fleet/drivers`.
+- `update(driverId, body)` → `PATCH /fleet/drivers/:driverId`.
+- Body: `{ name, email?, phone_number, licence_number, ... }`.
+
+## Types (`src/types/logistics.ts`)
+
+- Extend `VehicleDocument`: `documentType`, `expiryDate`, `alertColour: 'GREEN'|'AMBER'|'RED'|null`.
+- New `MaintenanceSchedule { id, vehicleId, maintenanceType, intervalMonths, lastMaintenanceDate, nextMaintenanceDate, status: 'scheduled'|'completed'|'overdue', notes? }`.
+- New `Driver { id, name, email?, phoneNumber, licenceNumber, ... }`.
+- `VehicleStatus` union extended for `ACTIVE | INACTIVE | UNDER_MAINTENANCE`. Optional `inactiveReason`, `inactiveReasonLabel` per pre-flight #3.
+
+**`src/utils/vehicleStatus.ts`** — locked mapping:
 
 ```ts
-// vendorTripApi
-GET    /api/vendor-portal/trips
-POST   /api/vendor-portal/trips/:tripId/submission
-POST   /api/vendor-portal/trips/:tripId/documents
-GET    /api/trips/:tripId/submission
-
-// tripVendorApi
-POST   /api/trips/:tripId/invite-vendors
-GET    /api/trips/:tripId/vendor-responses
-POST   /api/trips/:tripId/select-vendor
-POST   /api/trips/:tripId/route-to-procurement
-POST   /api/trips/:tripId/notify-invoice
-
-// accommodationApi
-GET/POST /api/logistics/accommodations
-GET/PATCH/DELETE /api/logistics/accommodations/:id
-GET    /api/trips/:tripId/accommodations
-
-// jccApi
-POST   /api/trips/:tripId/jcc
-GET    /api/trips/:tripId/jcc
-PATCH  /api/trips/:tripId/jcc
-GET    /api/trips/:tripId/jcc/prefill
-POST   /api/trips/:tripId/jcc/submit
-POST   /api/trips/:tripId/jcc/approve
-GET    /api/trips/:tripId/jcc/pdf
+// formatVehicleStatus()
+ACTIVE             → "Active"            (success / green)
+INACTIVE           → "Inactive"          (destructive / red)
+UNDER_MAINTENANCE  → "Under Maintenance" (warning / amber)
+// legacy lowercase passthrough (available, in_use, maintenance, out_of_service)
+// title-cased with console.warn in dev
 ```
 
-Every successful mutation dispatches `app:refresh`.
+`vehicleStatusBadgeClass()` returns the matching token classes. **Every** badge, list row, and detail banner routes through these helpers — no hardcoded literals.
 
----
+## 4.1 — Vehicle Documents Tab
 
-### `formatTripStatus()` — definitive mapping
+New `VehicleDocumentsTab.tsx` inside View Vehicle dialog.
+- Table: Type, Uploaded, Expiry, Status, Actions (View / Replace / Delete).
+- Status & expiry-cell colour driven by backend `alert_colour`: GREEN→success, AMBER→warning, RED→destructive. Expired fallback (per pre-flight #1) only if `alert_colour` is null AND `expiry_date < today`.
+- Upload form: dropdown locked to the 5 spec types, expiry date picker, file input (PDF/image accept).
+- Banner if any expired doc present: `<Alert variant="destructive">` *"This vehicle has expired documents and has been set to Inactive."*
 
-Single helper in `src/utils/displayId.ts` (or `src/utils/tripStatus.ts`). All badges, conditionals, and filters route through it.
+**Expiring Documents StatCard** on Fleet dashboard summary row — only rendered when `GET /fleet/documents/alerts` is confirmed available. Click → filter list. Bell-icon notifications deep-link with `?vehicle=:id&tab=documents`.
 
-```ts
-// backend snake_case → display label
-draft              → "Draft"
-scheduled          → "Scheduled"
-pending_approval   → "Pending Approval"
-approved           → "Approved"
-vendor_assigned    → "Vendor Assigned"
-in_progress        → "In Progress"
-completed          → "Completed"
-closed             → "Closed"
-cancelled          → "Cancelled"
-// fallback: Title-Case the raw string and warn once in dev
-```
+## 4.2 — Maintenance Tab + Widget + Trip Conflict
 
-If backend returns anything outside this set, the helper Title-Cases the value and logs a `console.warn` once per unknown value (dev only). No string literals in components.
+New `VehicleMaintenanceTab.tsx`:
+- Table: Type, Last Date, Next Due, Interval (months), Status badge (Scheduled = blue, Completed = green, Overdue = red), Actions.
+- Add/Edit form: Type (text), Interval months (number), Last Date (picker), Next Date (read-only, live `addMonths(last, interval)` preview), Notes.
+- Mark Complete → `AlertDialog` *"Update Last Maintenance Date to today?"* → `updateMaintenance` with today.
 
----
+**`UpcomingMaintenanceWidget.tsx`** (Fleet dashboard):
+- Calls `getUpcomingMaintenance()`, filters 14-day window. `daysRemaining` derived client-side; backend `days_remaining` wins when present.
+- Explicit states: **Loading** (skeleton rows), **Empty** (*"No maintenance due in the next 14 days."*), **Error** (destructive banner + Retry). Happy path: Plate, Type, Due Date, Days Remaining.
 
-### 3.1 — Vendor Portal: Trip Submission
+**Trip Assignment Warning** (`TripScheduling.tsx` vehicle picker):
+- Always perform a **fresh `listMaintenance(vehicleId)`** on selection (no cache). If any `nextMaintenanceDate` is within 7 days, render inline `<Alert variant="warning">` with **Proceed Anyway** (dismiss, keep selection) and **Choose a Different Vehicle** (clear selection + reopen dropdown). Non-blocking.
 
-**Files:** `VendorPortal.tsx` + new `VendorTripSubmissionForm.tsx`.
+## 4.3 — Status Indicators & Manual Override
 
-- Draft trip card → "Submit Trip Details" CTA opens drawer.
-- Required fields per spec; Security Information optional; multi-file uploads tagged `Insurance Certificate | Road-Worthiness Certificate | Other`.
-- **Per-file upload UI:** each file row shows a shadcn `Progress` bar during upload; on completion replaces with `filename + green check + Remove (×)`; failures show red icon + Retry. Submit disabled while any row is mid-upload.
-- **Upload response shape (pre-flight #6):** normalised inside `vendorTripApi.uploadDoc` to `{ id, fileUrl, fileName }`. Components only see the normalised shape.
-- After submit lock the form; chip flips through `formatTripStatus()`.
+In `FleetManagement.tsx`:
+- Vehicle list row/card: badge always rendered via `vehicleStatusBadgeClass(status)` + `formatVehicleStatus(status)`. INACTIVE = red, UNDER_MAINTENANCE = amber, ACTIVE = green.
+- Vehicle detail dialog top banner:
+  - INACTIVE → destructive banner. If `inactiveReasonLabel` present, render it; else *"This vehicle is currently Inactive."*
+  - UNDER_MAINTENANCE → warning banner *"This vehicle is currently Under Maintenance and unavailable for trip assignment."*
+  - ACTIVE → no banner.
+- **Vehicle picker in `TripScheduling.tsx`**: filter out `INACTIVE` and `UNDER_MAINTENANCE` vehicles from the assignable list (existing maintenance-conflict warning still applies to ACTIVE vehicles with upcoming maintenance).
+- **Reactivate Vehicle** button visible only to `logistics_officer | logistics_manager | logistics | admin`, and only when status is INACTIVE or UNDER_MAINTENANCE. Opens `ReactivateVehicleDialog`:
+  - Required Textarea reason, **minimum 10 characters** (live-validated; submit disabled until met; helper text shows count, e.g. `4 / 10 minimum`).
+  - On submit → `updateStatus(id, { status: 'ACTIVE', reason, override_by: user.id })`.
+  - Cancel / Confirm buttons.
 
-### 3.2 — Multi-Vendor Trip Request & Cost Comparison
+> **`UNDER_MAINTENANCE` source of truth:** backend-set only (e.g. cron when maintenance overdue, or manual ops). Frontend never POSTs `UNDER_MAINTENANCE` via `updateStatus` — it only displays it and offers Reactivate to override back to ACTIVE.
 
-**Files:** `TripScheduling.tsx` + new `TripVendorComparison.tsx`.
+## 4.4 — Driver Form Updates
 
-- New trip dialog: "Invite Multiple Vendors" switch → searchable multi-select with chips → **Send to All Selected Vendors** → `tripVendorApi.invite`.
-- **Comparison table — full state coverage (review point #2):**
-  - **Loading:** skeleton columns equal to count of invited vendors.
-  - **Empty (no vendors invited):** card with message *"No vendors invited yet. Invite vendors from the trip actions menu."*
-  - **Partial:** render one column per **invited** vendor (not just per response). Vendors who have responded show full data + **Select & Approve** button. Vendors who have not responded show their name with `Awaiting response` badge and a muted `—` for every other field; no Select button on those columns.
-  - **Error on fetch:** inline destructive banner with Retry.
-- **Sequential approval chain (locked from v3):**
-  ```
-  await selectVendor → await routeToProcurement → await notifyInvoice
-  ```
-  Each step in its own try/catch; failure of step 2 blocks step 3 with destructive banner + Retry Routing; failure of step 3 shows warning banner + Retry Notification. Success only when all three resolve.
-- Vendor Portal approved-trip card shows persistent **"Submit Invoice"** CTA (target verified in pre-flight #5).
+New `DriverManagement.tsx` mounted as a **sub-tab inside `FleetManagement.tsx`**.
+- **Email**: no required asterisk; helper text *"Optional — only if the driver has a work email address."*; validation: optional, but if filled must match standard email regex.
+- **Phone Number**: required (`*`), `type="tel"`, validation: digits only (strip non-digits), min 10 digits.
+- Driver list table includes Phone Number column.
+- Driver detail and supervisor-facing trip detail in `TripScheduling.tsx` render `driver.phoneNumber` prominently as a `tel:` link.
 
-### 3.3 — Accommodation Module
+## FleetManagement Sub-Tab Order (locked)
 
-**Files:** new `AccommodationBookings.tsx`; edit `Logistics.tsx`, `AppSidebar.tsx`.
+1. **Vehicles** (primary resource)
+2. **Maintenance** (schedules for the resource)
+3. **Drivers** (operators of the resource)
+4. **Documents** (paperwork)
 
-- **Role matrix (locked):** `logistics_officer | logistics_manager | logistics | admin` get full CRUD; `supply_chain_director | procurement_manager` get read-only.
-- List view per spec with filters; **+ New Booking** for CRUD roles only.
-- Form per spec; check-out auto-derived from `check-in + nights`, read-only.
-- Wired to `accommodationApi`; trip detail also shows linked bookings.
+Documents tab here is the per-vehicle document view rendered through the active vehicle context (or a global view of expiring docs when no vehicle is selected — to be shaped during build but tab position is fixed).
 
-### 3.4 — Job Completion Certificate (JCC)
+## Files
 
-**Files:** new `JCCDialog.tsx`; edit `TripScheduling.tsx`.
+**New**
+- `src/components/logistics/VehicleDocumentsTab.tsx`
+- `src/components/logistics/VehicleMaintenanceTab.tsx`
+- `src/components/logistics/UpcomingMaintenanceWidget.tsx`
+- `src/components/logistics/ReactivateVehicleDialog.tsx`
+- `src/components/logistics/DriverManagement.tsx`
+- `src/utils/vehicleStatus.ts`
 
-- **Trigger:** "Close Trip / Issue JCC" enabled when status `in_progress` or `completed`. If JCC exists, swap to "View JCC" + status badge.
-- **Drawer open sequence (review point #1 — explicit):**
-  1. `await jccApi.get(tripId)` — if it returns an existing record, **rehydrate** all fields (header, certification statement, line items, signatory) into local state. Reference number renders read-only from the loaded record.
-  2. If `get` returns 404 (no JCC yet), local state initialises empty. Reference field shows `—` with helper *"Generated when you save"*.
-  3. Then check pre-fill: if `jccApi.getPrefill` returns suggestions **AND** local line items are empty (true for new JCCs and for Drafts saved with zero rows), show one-shot AlertDialog *"Pre-fill line items from vendor trip submissions?"* before the form is interactive. Never shown when an existing Draft already has rows.
-- **Lazy creation:** drawer never calls `POST /jcc` on open. The first explicit `Save Draft` or `Submit JCC` creates the record (if step 1 returned 404); subsequent saves use `PATCH`. Closing without saving leaves zero database records.
-- **Header:** company info from settings; reference (read-only post-save); Date Issued (today, editable); vendor name/address from approved trip/PO.
-- **Certification statement:** prefilled textarea with `[service type] / [PO Number] / [Start Date] / [End Date]` substituted; freely editable.
-- **Line items table:** SN auto, Description (textarea), Trip, Duration/Date, Remarks. Add/Remove rows; min 1 row to submit.
-- **Signatory:** name + title from current user; digital signature image auto-applied (same mechanism as SCD PO signature).
-- **Actions:** Save Draft, Submit, Approve (SCD only), Download PDF.
-- **PDF policy:** Download PDF calls `jccApi.downloadPdf` (backend-rendered). If 404 → button disabled with tooltip *"PDF download will be available once backend rendering is enabled."* Separate, explicitly-badged **"Preview Draft (browser render)"** uses `window.print` on a styled hidden section — never the official certificate.
-- Post-approval: trip → `closed`; "View JCC" + Download PDF remain.
+**Edited**
+- `src/services/logisticsApi.ts` (extend `fleetApi`, add `driversApi`)
+- `src/types/logistics.ts`
+- `src/components/logistics/FleetManagement.tsx` (locked sub-tab order, badge/banner via helpers, Reactivate flow, Expiring Docs StatCard)
+- `src/components/logistics/TripScheduling.tsx` (filter INACTIVE/UNDER_MAINTENANCE vehicles, on-demand maintenance-conflict warning, driver phone display)
+- `src/components/logistics/index.ts`
 
----
-
-### Cross-cutting
-
-- **Files created:** `VendorTripSubmissionForm.tsx`, `TripVendorComparison.tsx`, `AccommodationBookings.tsx`, `JCCDialog.tsx`.
-- **Files edited:** `Logistics.tsx`, `VendorPortal.tsx`, `TripScheduling.tsx`, `logistics/index.ts`, `services/logisticsApi.ts`, `types/logistics.ts`, `layout/AppSidebar.tsx`, `utils/displayId.ts` (or new `utils/tripStatus.ts`).
-- **Tokens only** — `bg-warning/10` for Draft CTA, `bg-success/10` for Approved/Closed, `bg-destructive/10` for chain-failure banners. ₦ via existing formatter.
-- **Privacy:** vendor portal screens never display internal estimated budgets.
-- **Refresh:** every successful mutation dispatches `window.dispatchEvent(new CustomEvent('app:refresh'))`.
-
-### Pre-flight verifications (surfaced, not silently assumed)
-
-1. Confirm exact trip status strings from `GET /api/trips` first response → record any unknowns in `formatTripStatus()`.
-2. Confirm `vendor-responses` payload shape (does it return per-invited-vendor entries with a `status` field, or only responders? If only responders, frontend joins against the original invite list to render Awaiting columns).
-3. Confirm `jccApi.create` response field name for the reference number.
-4. Confirm AppSidebar permission registration mechanism (role matrix already locked).
-5. Verify existing vendor-portal invoice submission flow in `VendorPortal.tsx`. Present → CTA links to it; absent → CTA is a flagged placeholder, logged in implementation summary.
-6. Verify document upload response shape from `POST /api/vendor-portal/trips/:tripId/documents` — normalisation isolated to `vendorTripApi.uploadDoc`.
-
-### Out of Scope
-
-- Backend-rendered JCC PDF (no client substitute for the official document).
-- Backend invoice submission endpoint for vendors (frontend surface added; flagged if missing).
-- SAP/Procurement PO generation downstream of `routeToProcurement` — only the trigger fires.
+## Out of Scope
+- Backend implementation of any endpoint above.
+- Push/email notification transport (uses existing notification stack).
+- Recalculating document tier colours on the client — always trust backend `alert_colour`.
+- Frontend setting `UNDER_MAINTENANCE` via `updateStatus` (display-only on the FE).
