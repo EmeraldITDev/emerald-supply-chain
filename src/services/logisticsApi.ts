@@ -1049,6 +1049,7 @@ export const logisticsApi = {
   tripVendor: tripVendorApi,
   accommodation: accommodationApi,
   jcc: jccApi,
+  drivers: driversApi,
 };
 
 export default logisticsApi;
