@@ -829,8 +829,8 @@ export const FleetManagement = () => {
                           <TableCell>{vehicle.year || '—'}</TableCell>
                           <TableCell>{vehicle.color || '—'}</TableCell>
                           <TableCell>
-                            <Badge className={cn(statusColors[vehicle.status], "capitalize")}>
-                              {vehicle.status.replace("_", " ")}
+                            <Badge variant="outline" className={cn(vehicleStatusBadgeClass(vehicle.status))}>
+                              {formatVehicleStatus(vehicle.status)}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -1023,8 +1023,8 @@ export const FleetManagement = () => {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Status</Label>
-                    <Badge className={cn(statusColors[selectedVehicle.status], "capitalize mt-1")}>
-                      {selectedVehicle.status.replace("_", " ")}
+                    <Badge variant="outline" className={cn(vehicleStatusBadgeClass(selectedVehicle.status), "mt-1")}>
+                      {formatVehicleStatus(selectedVehicle.status)}
                     </Badge>
                   </div>
                   <div>
