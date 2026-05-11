@@ -38,6 +38,11 @@ import type {
   JCC,
   JCCLineItem,
   JCCPrefillSuggestion,
+  MaterialMovement,
+  MaterialJCC,
+  MaterialJCCLineItem,
+  MaterialJCCPrefillItem,
+  MaterialMovementSummary,
 } from '@/types/logistics';
 import type { ApiResponse } from '@/types';
 
@@ -1050,6 +1055,7 @@ export const logisticsApi = {
   accommodation: accommodationApi,
   jcc: jccApi,
   drivers: driversApi,
+  materialMovements: undefined as any,
 };
 
 export default logisticsApi;
