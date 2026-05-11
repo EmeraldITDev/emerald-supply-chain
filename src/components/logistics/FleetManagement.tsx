@@ -1096,102 +1096,10 @@ export const FleetManagement = () => {
                 </div>
               </TabsContent>
               <TabsContent value="documents" className="space-y-4">
-                {(selectedVehicle.documents || []).length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>No documents uploaded</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {(selectedVehicle.documents || []).map((doc) => (
-                      <div key={doc.id} className={cn(
-                        "flex items-center justify-between p-3 border rounded-lg",
-                        doc.isExpired && "border-destructive/50 bg-destructive/5",
-                        doc.isExpiringSoon && !doc.isExpired && "border-warning/50 bg-warning/5"
-                      )}>
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium capitalize">{doc.type.replace("_", " ")}</p>
-                            <p className="text-xs text-muted-foreground">{doc.name}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          {doc.expiresAt && (
-                            <div className="flex items-center gap-2">
-                              {doc.isExpired ? (
-                                <Badge variant="destructive">Expired</Badge>
-                              ) : doc.isExpiringSoon ? (
-                                <Badge className="bg-warning/10 text-warning">Expiring Soon</Badge>
-                              ) : (
-                                <Badge variant="outline">Valid</Badge>
-                              )}
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(doc.expiresAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setViewDialogOpen(false);
-                    setDocumentDialogOpen(true);
-                  }}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Document
-                </Button>
+                <VehicleDocumentsTab vehicle={selectedVehicle} onChanged={fetchData} />
               </TabsContent>
               <TabsContent value="maintenance" className="space-y-4">
-                {(selectedVehicle.maintenanceHistory || []).length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Wrench className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>No maintenance records</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {(selectedVehicle.maintenanceHistory || []).map((record) => (
-                      <div key={record.id} className="p-3 border rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium capitalize">{record.type}</p>
-                            <p className="text-sm">{record.description}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium">
-                              {new Date(record.performedAt).toLocaleDateString()}
-                            </p>
-                            {record.cost && (
-                              <p className="text-xs text-muted-foreground">
-                                ₦{record.cost.toLocaleString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        {record.notes && (
-                          <p className="text-xs text-muted-foreground mt-2">{record.notes}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setViewDialogOpen(false);
-                    setMaintenanceDialogOpen(true);
-                  }}
-                >
-                  <Wrench className="mr-2 h-4 w-4" />
-                  Add Maintenance Record
-                </Button>
+                <VehicleMaintenanceTab vehicle={selectedVehicle} onChanged={fetchData} />
               </TabsContent>
             </Tabs>
           )}
