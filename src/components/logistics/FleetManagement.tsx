@@ -70,8 +70,18 @@ import { cn } from "@/lib/utils";
 import { fleetApi } from "@/services/logisticsApi";
 import { useAuth } from "@/contexts/AuthContext";
 import type { FleetVehicle, VehicleDocument, MaintenanceRecord, FleetAlert, VehicleStatus, VehicleOwnership } from "@/types/logistics";
+import { formatVehicleStatus, vehicleStatusBadgeClass, isInactiveOrUnderMaintenance } from "@/utils/vehicleStatus";
+import { VehicleDocumentsTab } from "./VehicleDocumentsTab";
+import { VehicleMaintenanceTab } from "./VehicleMaintenanceTab";
+import { UpcomingMaintenanceWidget } from "./UpcomingMaintenanceWidget";
+import { DriverManagement } from "./DriverManagement";
+import { ReactivateVehicleDialog } from "./ReactivateVehicleDialog";
+import { RotateCw } from "lucide-react";
 
-const statusColors: Record<VehicleStatus, string> = {
+const statusColors: Partial<Record<VehicleStatus, string>> = {
+  ACTIVE: "bg-success/10 text-success",
+  INACTIVE: "bg-destructive/10 text-destructive",
+  UNDER_MAINTENANCE: "bg-warning/10 text-warning",
   available: "bg-success/10 text-success",
   in_use: "bg-primary/10 text-primary",
   maintenance: "bg-warning/10 text-warning",
@@ -178,6 +188,8 @@ export const FleetManagement = () => {
   const [srfDialogOpen, setSrfDialogOpen] = useState(false);
   const [srfVehicle, setSrfVehicle] = useState<FleetVehicle | null>(null);
   const [isInitiatingSRF, setIsInitiatingSRF] = useState(false);
+  const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
+  const canReactivate = !!user && ["logistics_officer", "logistics_manager", "logistics", "admin"].includes(user.role as string);
 
   const handleInitiateSRF = async () => {
     if (!srfVehicle) return;
@@ -722,6 +734,9 @@ export const FleetManagement = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  <SelectItem value="UNDER_MAINTENANCE">Under Maintenance</SelectItem>
                   <SelectItem value="available">Available</SelectItem>
                   <SelectItem value="in_use">In Use</SelectItem>
                   <SelectItem value="maintenance">Maintenance</SelectItem>
@@ -817,8 +832,8 @@ export const FleetManagement = () => {
                           <TableCell>{vehicle.year || '—'}</TableCell>
                           <TableCell>{vehicle.color || '—'}</TableCell>
                           <TableCell>
-                            <Badge className={cn(statusColors[vehicle.status], "capitalize")}>
-                              {vehicle.status.replace("_", " ")}
+                            <Badge variant="outline" className={cn(vehicleStatusBadgeClass(vehicle.status))}>
+                              {formatVehicleStatus(vehicle.status)}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -1004,6 +1019,23 @@ export const FleetManagement = () => {
                 <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
               </TabsList>
               <TabsContent value="details" className="space-y-4">
+                {isInactiveOrUnderMaintenance(selectedVehicle.status) && (
+                  <Alert variant={String(selectedVehicle.status).toUpperCase() === 'INACTIVE' ? 'destructive' : 'default'} className={String(selectedVehicle.status).toUpperCase() === 'UNDER_MAINTENANCE' ? 'border-warning/50 bg-warning/5' : ''}>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="flex items-center justify-between gap-3">
+                      <span>
+                        {String(selectedVehicle.status).toUpperCase() === 'INACTIVE'
+                          ? (selectedVehicle.inactiveReasonLabel || selectedVehicle.inactiveReason || 'This vehicle is currently Inactive.')
+                          : 'This vehicle is currently Under Maintenance and unavailable for trip assignment.'}
+                      </span>
+                      {canReactivate && (
+                        <Button size="sm" variant="outline" onClick={() => setReactivateDialogOpen(true)}>
+                          <RotateCw className="mr-2 h-3 w-3" /> Reactivate
+                        </Button>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Plate Number</Label>
@@ -1011,8 +1043,8 @@ export const FleetManagement = () => {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Status</Label>
-                    <Badge className={cn(statusColors[selectedVehicle.status], "capitalize mt-1")}>
-                      {selectedVehicle.status.replace("_", " ")}
+                    <Badge variant="outline" className={cn(vehicleStatusBadgeClass(selectedVehicle.status), "mt-1")}>
+                      {formatVehicleStatus(selectedVehicle.status)}
                     </Badge>
                   </div>
                   <div>
@@ -1067,102 +1099,10 @@ export const FleetManagement = () => {
                 </div>
               </TabsContent>
               <TabsContent value="documents" className="space-y-4">
-                {(selectedVehicle.documents || []).length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>No documents uploaded</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {(selectedVehicle.documents || []).map((doc) => (
-                      <div key={doc.id} className={cn(
-                        "flex items-center justify-between p-3 border rounded-lg",
-                        doc.isExpired && "border-destructive/50 bg-destructive/5",
-                        doc.isExpiringSoon && !doc.isExpired && "border-warning/50 bg-warning/5"
-                      )}>
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium capitalize">{doc.type.replace("_", " ")}</p>
-                            <p className="text-xs text-muted-foreground">{doc.name}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          {doc.expiresAt && (
-                            <div className="flex items-center gap-2">
-                              {doc.isExpired ? (
-                                <Badge variant="destructive">Expired</Badge>
-                              ) : doc.isExpiringSoon ? (
-                                <Badge className="bg-warning/10 text-warning">Expiring Soon</Badge>
-                              ) : (
-                                <Badge variant="outline">Valid</Badge>
-                              )}
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(doc.expiresAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setViewDialogOpen(false);
-                    setDocumentDialogOpen(true);
-                  }}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Document
-                </Button>
+                <VehicleDocumentsTab vehicle={selectedVehicle} onChanged={fetchData} />
               </TabsContent>
               <TabsContent value="maintenance" className="space-y-4">
-                {(selectedVehicle.maintenanceHistory || []).length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Wrench className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>No maintenance records</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {(selectedVehicle.maintenanceHistory || []).map((record) => (
-                      <div key={record.id} className="p-3 border rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium capitalize">{record.type}</p>
-                            <p className="text-sm">{record.description}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium">
-                              {new Date(record.performedAt).toLocaleDateString()}
-                            </p>
-                            {record.cost && (
-                              <p className="text-xs text-muted-foreground">
-                                ₦{record.cost.toLocaleString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        {record.notes && (
-                          <p className="text-xs text-muted-foreground mt-2">{record.notes}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setViewDialogOpen(false);
-                    setMaintenanceDialogOpen(true);
-                  }}
-                >
-                  <Wrench className="mr-2 h-4 w-4" />
-                  Add Maintenance Record
-                </Button>
+                <VehicleMaintenanceTab vehicle={selectedVehicle} onChanged={fetchData} />
               </TabsContent>
             </Tabs>
           )}
@@ -1389,6 +1329,26 @@ export const FleetManagement = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reactivate Vehicle Dialog */}
+      <ReactivateVehicleDialog
+        open={reactivateDialogOpen}
+        onOpenChange={setReactivateDialogOpen}
+        vehicle={selectedVehicle}
+        onReactivated={() => {
+          setReactivateDialogOpen(false);
+          setViewDialogOpen(false);
+          fetchData();
+        }}
+      />
+
+      {/* Module 4: Upcoming Maintenance + Drivers */}
+      <UpcomingMaintenanceWidget />
+      <Card>
+        <CardContent className="pt-6">
+          <DriverManagement />
+        </CardContent>
+      </Card>
     </div>
   );
 };
