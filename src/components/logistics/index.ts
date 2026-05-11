@@ -11,3 +11,8 @@ export { AccommodationBookings } from './AccommodationBookings';
 export { VendorTripSubmissionForm } from './VendorTripSubmissionForm';
 export { TripVendorComparison } from './TripVendorComparison';
 export { JCCDialog } from './JCCDialog';
+export { VehicleDocumentsTab } from './VehicleDocumentsTab';
+export { VehicleMaintenanceTab } from './VehicleMaintenanceTab';
+export { UpcomingMaintenanceWidget } from './UpcomingMaintenanceWidget';
+export { DriverManagement } from './DriverManagement';
+export { ReactivateVehicleDialog } from './ReactivateVehicleDialog';
