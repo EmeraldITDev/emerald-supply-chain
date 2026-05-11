@@ -760,3 +760,80 @@ export interface JCCPrefillSuggestion {
   durationDate: string;
   remarks: string;
 }
+
+// ==========================================
+// 14. MATERIAL MOVEMENTS (Module 5)
+// ==========================================
+
+export type MaterialMovementStatus = 'pending' | 'in_transit' | 'delivered' | 'cancelled';
+export type MaterialJCCStatus = 'draft' | 'submitted' | 'approved';
+export type ConditionOfGoods = 'NEW' | 'USED' | 'DAMAGED';
+export type ConditionOnArrival = 'GOOD' | 'DAMAGED' | 'PARTIAL';
+
+export interface MaterialMovementRecord {
+  id: string;
+  materialName: string;
+  category: string;
+  quantity: number;
+  pickupLocation: string;
+  destination: string;
+  vendorId?: string | null;
+  vendorName?: string | null;
+  vendorAddress?: string | null;
+  vendorPhone: string;
+  vehiclePlate: string;
+  driverName: string;
+  driverPhone: string;
+  expectedPickupAt: string;   // ISO datetime
+  expectedDeliveryAt: string; // ISO datetime
+  conditionOfGoods: ConditionOfGoods;
+  status: MaterialMovementStatus;
+  linkedPoNumber?: string | null;
+  jccId?: string | null;
+  jccStatus?: MaterialJCCStatus | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface MaterialJCCLineItem {
+  id?: string;
+  sn: number;
+  materialName: string;
+  quantity: number | string;
+  condition: string;
+  remarks: string;
+}
+
+export interface MaterialJCC {
+  id?: string;
+  materialId: string;
+  referenceNumber?: string;
+  dateIssued: string; // ISO date
+  certificationStatement: string;
+  conditionOnArrival: ConditionOnArrival | '';
+  lineItems: MaterialJCCLineItem[];
+  status: MaterialJCCStatus;
+  signatoryName?: string;
+  signatoryTitle?: string;
+  signatureUrl?: string;
+  vendorName?: string;
+  vendorAddress?: string;
+  linkedPoNumber?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MaterialJCCPrefillItem {
+  materialName: string;
+  quantity: number | string;
+  condition: string;
+  remarks: string;
+}
+
+export interface MaterialMovementSummary {
+  total: number;
+  pending: number;
+  in_transit: number;
+  delivered: number;
+  cancelled: number;
+}

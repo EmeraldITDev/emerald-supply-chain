@@ -38,6 +38,11 @@ import type {
   JCC,
   JCCLineItem,
   JCCPrefillSuggestion,
+  MaterialMovementRecord,
+  MaterialJCC,
+  MaterialJCCLineItem,
+  MaterialJCCPrefillItem,
+  MaterialMovementSummary,
 } from '@/types/logistics';
 import type { ApiResponse } from '@/types';
 
@@ -1050,6 +1055,319 @@ export const logisticsApi = {
   accommodation: accommodationApi,
   jcc: jccApi,
   drivers: driversApi,
+  materialMovements: undefined as any, // assigned at module bottom
 };
 
 export default logisticsApi;
+
+// ==========================================
+// MATERIAL MOVEMENTS API (Module 5)
+// ==========================================
+
+const dispatchAppRefresh = () => {
+  if (typeof window !== 'undefined') {
+    try { window.dispatchEvent(new CustomEvent('app:refresh')); } catch { /* noop */ }
+  }
+};
+
+const normalizeMovement = (raw: any): MaterialMovementRecord => ({
+  id: String(raw.id ?? raw.uuid ?? ''),
+  materialName: raw.material_name ?? raw.materialName ?? '',
+  category: raw.category ?? '',
+  quantity: raw.quantity != null ? Number(raw.quantity) : 0,
+  pickupLocation: raw.pickup_location ?? raw.pickupLocation ?? '',
+  destination: raw.destination ?? '',
+  vendorId: raw.vendor_id ?? raw.vendorId ?? null,
+  vendorName: raw.vendor_name ?? raw.vendorName ?? null,
+  vendorAddress: raw.vendor_address ?? raw.vendorAddress ?? null,
+  vendorPhone: raw.vendor_phone ?? raw.vendorPhone ?? '',
+  vehiclePlate: raw.vehicle_plate ?? raw.vehiclePlate ?? '',
+  driverName: raw.driver_name ?? raw.driverName ?? '',
+  driverPhone: raw.driver_phone ?? raw.driverPhone ?? '',
+  expectedPickupAt: raw.expected_pickup_at ?? raw.expectedPickupAt ?? '',
+  expectedDeliveryAt: raw.expected_delivery_at ?? raw.expectedDeliveryAt ?? '',
+  conditionOfGoods: (raw.condition_of_goods ?? raw.conditionOfGoods ?? 'NEW') as any,
+  status: (raw.status ?? 'pending') as any,
+  linkedPoNumber: raw.linked_po_number ?? raw.linkedPoNumber ?? null,
+  jccId: raw.jcc_id ?? raw.jccId ?? null,
+  jccStatus: raw.jcc_status ?? raw.jccStatus ?? null,
+  createdAt: raw.created_at ?? raw.createdAt ?? '',
+  updatedAt: raw.updated_at ?? raw.updatedAt,
+});
+
+const denormalizeMovement = (data: Partial<MaterialMovementRecord>): Record<string, any> => {
+  const out: Record<string, any> = {
+    material_name: data.materialName,
+    category: data.category,
+    quantity: data.quantity,
+    pickup_location: data.pickupLocation,
+    destination: data.destination,
+    vendor_id: data.vendorId ?? null,
+    vendor_name: data.vendorName ?? null,
+    vendor_address: data.vendorAddress ?? null,
+    vendor_phone: data.vendorPhone,
+    vehicle_plate: data.vehiclePlate,
+    driver_name: data.driverName,
+    driver_phone: data.driverPhone,
+    expected_pickup_at: data.expectedPickupAt,
+    expected_delivery_at: data.expectedDeliveryAt,
+    condition_of_goods: data.conditionOfGoods,
+  };
+  Object.keys(out).forEach(k => out[k] === undefined && delete out[k]);
+  return out;
+};
+
+const normalizeJCCLineItem = (raw: any, idx: number): MaterialJCCLineItem => ({
+  id: raw.id ? String(raw.id) : undefined,
+  sn: raw.sn ?? idx + 1,
+  materialName: raw.material_name ?? raw.materialName ?? '',
+  quantity: raw.quantity ?? '',
+  condition: raw.condition ?? '',
+  remarks: raw.remarks ?? '',
+});
+
+const normalizeJCC = (raw: any): MaterialJCC => ({
+  id: raw.id ? String(raw.id) : undefined,
+  materialId: String(raw.material_id ?? raw.materialId ?? ''),
+  referenceNumber: raw.reference_number ?? raw.referenceNumber,
+  dateIssued: raw.date_issued ?? raw.dateIssued ?? new Date().toISOString().slice(0, 10),
+  certificationStatement: raw.certification_statement ?? raw.certificationStatement ?? '',
+  conditionOnArrival: (raw.condition_on_arrival ?? raw.conditionOnArrival ?? '') as any,
+  lineItems: Array.isArray(raw.line_items ?? raw.lineItems)
+    ? (raw.line_items ?? raw.lineItems).map(normalizeJCCLineItem)
+    : [],
+  status: (raw.status ?? 'draft') as any,
+  signatoryName: raw.signatory_name ?? raw.signatoryName,
+  signatoryTitle: raw.signatory_title ?? raw.signatoryTitle,
+  signatureUrl: raw.signature_url ?? raw.signatureUrl,
+  vendorName: raw.vendor_name ?? raw.vendorName,
+  vendorAddress: raw.vendor_address ?? raw.vendorAddress,
+  linkedPoNumber: raw.linked_po_number ?? raw.linkedPoNumber ?? null,
+  createdAt: raw.created_at ?? raw.createdAt,
+  updatedAt: raw.updated_at ?? raw.updatedAt,
+});
+
+const normalizePrefill = (raw: any): MaterialJCCPrefillItem[] => {
+  const arr = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.items)
+      ? raw.items
+      : Array.isArray(raw?.data)
+        ? raw.data
+        : [];
+  return arr.map((r: any) => ({
+    materialName: r.material_name ?? r.materialName ?? '',
+    quantity: r.quantity ?? '',
+    condition: r.condition ?? '',
+    remarks: r.remarks ?? '',
+  }));
+};
+
+export interface MaterialListResponse {
+  items: MaterialMovementRecord[];
+  summary?: MaterialMovementSummary | null;
+}
+
+const extractSummary = (raw: any): MaterialMovementSummary | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const candidate = raw.summary ?? raw;
+  if (
+    candidate &&
+    typeof candidate === 'object' &&
+    ['total', 'pending', 'in_transit', 'delivered'].some(k => typeof candidate[k] === 'number')
+  ) {
+    return {
+      total: Number(candidate.total ?? 0),
+      pending: Number(candidate.pending ?? 0),
+      in_transit: Number(candidate.in_transit ?? candidate.inTransit ?? 0),
+      delivered: Number(candidate.delivered ?? 0),
+      cancelled: Number(candidate.cancelled ?? 0),
+    };
+  }
+  return null;
+};
+
+export const materialsMovementsApi = {
+  list: async (params?: {
+    status?: string;
+    category?: string;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    destination?: string;
+  }): Promise<ApiResponse<MaterialListResponse>> => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v && v !== 'all') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await apiRequest<any>(`/materials${query}`);
+    if (!res.success) return { success: false, error: res.error };
+    const raw = res.data;
+    const list = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.data)
+        ? raw.data
+        : Array.isArray(raw?.items)
+          ? raw.items
+          : [];
+    return {
+      success: true,
+      data: {
+        items: list.map(normalizeMovement),
+        summary: extractSummary(raw),
+      },
+    };
+  },
+
+  getSummary: async (): Promise<ApiResponse<MaterialMovementSummary>> => {
+    return apiRequest<MaterialMovementSummary>('/materials/summary');
+  },
+
+  get: async (id: string): Promise<ApiResponse<MaterialMovementRecord>> => {
+    const res = await apiRequest<any>(`/materials/${id}`);
+    if (!res.success) return { success: false, error: res.error };
+    return { success: true, data: normalizeMovement(res.data?.data ?? res.data) };
+  },
+
+  create: async (body: Partial<MaterialMovementRecord>): Promise<ApiResponse<MaterialMovementRecord>> => {
+    const res = await apiRequest<any>('/materials', {
+      method: 'POST',
+      body: JSON.stringify(denormalizeMovement(body)),
+    });
+    if (res.success) dispatchAppRefresh();
+    if (!res.success) return { success: false, error: res.error };
+    return { success: true, data: normalizeMovement(res.data?.data ?? res.data) };
+  },
+
+  update: async (id: string, body: Partial<MaterialMovementRecord>): Promise<ApiResponse<MaterialMovementRecord>> => {
+    const res = await apiRequest<any>(`/materials/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(denormalizeMovement(body)),
+    });
+    if (res.success) dispatchAppRefresh();
+    if (!res.success) return { success: false, error: res.error };
+    return { success: true, data: normalizeMovement(res.data?.data ?? res.data) };
+  },
+
+  cancel: async (id: string): Promise<ApiResponse<void>> => {
+    const res = await apiRequest<void>(`/materials/${id}`, { method: 'DELETE' });
+    if (res.success) dispatchAppRefresh();
+    return res;
+  },
+
+  markInTransit: async (id: string): Promise<ApiResponse<MaterialMovementRecord>> => {
+    const res = await apiRequest<any>(`/materials/${id}/mark-in-transit`, { method: 'POST' });
+    if (res.success) dispatchAppRefresh();
+    if (!res.success) return { success: false, error: res.error };
+    return { success: true, data: normalizeMovement(res.data?.data ?? res.data) };
+  },
+
+  markDelivered: async (id: string): Promise<ApiResponse<MaterialMovementRecord>> => {
+    const res = await apiRequest<any>(`/materials/${id}/mark-delivered`, { method: 'POST' });
+    if (res.success) dispatchAppRefresh();
+    if (!res.success) return { success: false, error: res.error };
+    return { success: true, data: normalizeMovement(res.data?.data ?? res.data) };
+  },
+
+  // ---- JCC ----
+  getJCC: async (materialId: string): Promise<ApiResponse<MaterialJCC | null>> => {
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    try {
+      const res = await fetch(`${API_BASE_URL}/materials/${materialId}/jcc`, {
+        headers: {
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (res.status === 404) return { success: true, data: null };
+      if (!res.ok) return { success: false, error: `HTTP ${res.status}` };
+      const json = await res.json();
+      const raw = json?.data ?? json;
+      return { success: true, data: raw ? normalizeJCC(raw) : null };
+    } catch (e: any) {
+      return { success: false, error: e?.message ?? 'Network error' };
+    }
+  },
+
+  createJCC: async (materialId: string, body: Partial<MaterialJCC>): Promise<ApiResponse<MaterialJCC>> => {
+    const payload = {
+      date_issued: body.dateIssued,
+      certification_statement: body.certificationStatement,
+      condition_on_arrival: body.conditionOnArrival || undefined,
+      line_items: (body.lineItems ?? []).map((li, i) => ({
+        sn: i + 1,
+        material_name: li.materialName,
+        quantity: li.quantity,
+        condition: li.condition,
+        remarks: li.remarks,
+      })),
+    };
+    const res = await apiRequest<any>(`/materials/${materialId}/jcc`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    if (res.success) dispatchAppRefresh();
+    if (!res.success) return { success: false, error: res.error };
+    return { success: true, data: normalizeJCC(res.data?.data ?? res.data) };
+  },
+
+  updateJCC: async (materialId: string, body: Partial<MaterialJCC>): Promise<ApiResponse<MaterialJCC>> => {
+    const payload = {
+      date_issued: body.dateIssued,
+      certification_statement: body.certificationStatement,
+      condition_on_arrival: body.conditionOnArrival || undefined,
+      line_items: (body.lineItems ?? []).map((li, i) => ({
+        sn: i + 1,
+        material_name: li.materialName,
+        quantity: li.quantity,
+        condition: li.condition,
+        remarks: li.remarks,
+      })),
+    };
+    const res = await apiRequest<any>(`/materials/${materialId}/jcc`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    if (res.success) dispatchAppRefresh();
+    if (!res.success) return { success: false, error: res.error };
+    return { success: true, data: normalizeJCC(res.data?.data ?? res.data) };
+  },
+
+  getJCCPrefill: async (materialId: string): Promise<ApiResponse<MaterialJCCPrefillItem[]>> => {
+    const res = await apiRequest<any>(`/materials/${materialId}/jcc/prefill`);
+    if (!res.success) return { success: false, error: res.error };
+    return { success: true, data: normalizePrefill(res.data?.data ?? res.data) };
+  },
+
+  submitJCC: async (materialId: string): Promise<ApiResponse<MaterialJCC>> => {
+    const res = await apiRequest<any>(`/materials/${materialId}/jcc/submit`, { method: 'POST' });
+    if (res.success) dispatchAppRefresh();
+    if (!res.success) return { success: false, error: res.error };
+    return { success: true, data: normalizeJCC(res.data?.data ?? res.data) };
+  },
+
+  approveJCC: async (materialId: string): Promise<ApiResponse<MaterialJCC>> => {
+    const res = await apiRequest<any>(`/materials/${materialId}/jcc/approve`, { method: 'POST' });
+    if (res.success) dispatchAppRefresh();
+    if (!res.success) return { success: false, error: res.error };
+    return { success: true, data: normalizeJCC(res.data?.data ?? res.data) };
+  },
+
+  downloadJCCPdf: async (materialId: string): Promise<Blob | null> => {
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    try {
+      const res = await fetch(`${API_BASE_URL}/materials/${materialId}/jcc/pdf`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+      });
+      if (!res.ok) return null;
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  },
+};
+
+(logisticsApi as any).materialMovements = materialsMovementsApi;

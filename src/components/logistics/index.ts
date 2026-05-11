@@ -16,3 +16,6 @@ export { VehicleMaintenanceTab } from './VehicleMaintenanceTab';
 export { UpcomingMaintenanceWidget } from './UpcomingMaintenanceWidget';
 export { DriverManagement } from './DriverManagement';
 export { ReactivateVehicleDialog } from './ReactivateVehicleDialog';
+export { MaterialMovements } from './MaterialMovements';
+export { MaterialMovementForm } from './MaterialMovementForm';
+export { MaterialJCCDialog } from './MaterialJCCDialog';
