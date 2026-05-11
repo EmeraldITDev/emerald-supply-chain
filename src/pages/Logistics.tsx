@@ -43,6 +43,7 @@ import { TripScheduling } from "@/components/logistics/TripScheduling";
 import { JourneyManagement } from "@/components/logistics/JourneyManagement";
 import { FleetManagement } from "@/components/logistics/FleetManagement";
 import { MaterialsTracking } from "@/components/logistics/MaterialsTracking";
+import { MaterialMovements } from "@/components/logistics/MaterialMovements";
 import { ReportingCompliance } from "@/components/logistics/ReportingCompliance";
 import { GPSTrackingPlaceholder } from "@/components/logistics/GPSTrackingPlaceholder";
 import { AccommodationBookings } from "@/components/logistics/AccommodationBookings";
@@ -373,6 +374,10 @@ const Logistics = () => {
                 <Package className="h-4 w-4 hidden sm:block" />
                 Materials
               </TabsTrigger>
+              <TabsTrigger value="movements" className="text-xs sm:text-sm gap-1">
+                <Package className="h-4 w-4 hidden sm:block" />
+                Movements
+              </TabsTrigger>
               <TabsTrigger value="reports" className="text-xs sm:text-sm gap-1">
                 <FileText className="h-4 w-4 hidden sm:block" />
                 Reports
@@ -568,6 +573,11 @@ const Logistics = () => {
             {/* Materials Tracking Tab */}
             <TabsContent value="materials">
               <MaterialsTracking />
+            </TabsContent>
+
+            {/* Material Movements (Module 5) */}
+            <TabsContent value="movements">
+              <MaterialMovements />
             </TabsContent>
 
             {/* Reporting & Compliance Tab */}
