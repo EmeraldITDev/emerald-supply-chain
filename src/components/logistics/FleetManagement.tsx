@@ -70,6 +70,13 @@ import { cn } from "@/lib/utils";
 import { fleetApi } from "@/services/logisticsApi";
 import { useAuth } from "@/contexts/AuthContext";
 import type { FleetVehicle, VehicleDocument, MaintenanceRecord, FleetAlert, VehicleStatus, VehicleOwnership } from "@/types/logistics";
+import { formatVehicleStatus, vehicleStatusBadgeClass, isInactiveOrUnderMaintenance, normaliseVehicleStatus } from "@/utils/vehicleStatus";
+import { VehicleDocumentsTab } from "./VehicleDocumentsTab";
+import { VehicleMaintenanceTab } from "./VehicleMaintenanceTab";
+import { UpcomingMaintenanceWidget } from "./UpcomingMaintenanceWidget";
+import { DriverManagement } from "./DriverManagement";
+import { ReactivateVehicleDialog } from "./ReactivateVehicleDialog";
+import { RotateCw } from "lucide-react";
 
 const statusColors: Partial<Record<VehicleStatus, string>> = {
   ACTIVE: "bg-success/10 text-success",
