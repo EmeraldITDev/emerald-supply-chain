@@ -480,6 +480,114 @@ export const fleetApi = {
       method: 'POST',
     });
   },
+
+  // -------- Module 4: Vehicle Documents --------
+  listDocuments: async (vehicleId: string): Promise<ApiResponse<VehicleDocument[]>> => {
+    return apiRequest<VehicleDocument[]>(`/fleet/vehicles/${vehicleId}/documents`);
+  },
+  uploadDocumentV2: async (
+    vehicleId: string,
+    file: File,
+    documentType: string,
+    expiryDate: string,
+  ): Promise<ApiResponse<VehicleDocument>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('document_type', documentType);
+    formData.append('expiry_date', expiryDate);
+    const res = await apiRequest<VehicleDocument>(`/fleet/vehicles/${vehicleId}/documents`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (res.success) window.dispatchEvent(new CustomEvent('app:refresh'));
+    return res;
+  },
+  deleteDocument: async (vehicleId: string, documentId: string): Promise<ApiResponse<void>> => {
+    const res = await apiRequest<void>(`/fleet/vehicles/${vehicleId}/documents/${documentId}`, {
+      method: 'DELETE',
+    });
+    if (res.success) window.dispatchEvent(new CustomEvent('app:refresh'));
+    return res;
+  },
+  /** Optional: gated behind backend availability (pre-flight #2). */
+  getDocumentAlerts: async (): Promise<ApiResponse<Array<{
+    vehicle_id: string;
+    plate?: string;
+    document_type?: string;
+    expiry_date?: string;
+    alert_colour?: 'GREEN' | 'AMBER' | 'RED';
+  }>>> => {
+    return apiRequest(`/fleet/documents/alerts`);
+  },
+
+  // -------- Module 4: Maintenance Schedules --------
+  listMaintenance: async (vehicleId: string): Promise<ApiResponse<MaintenanceSchedule[]>> => {
+    return apiRequest<MaintenanceSchedule[]>(`/fleet/vehicles/${vehicleId}/maintenance`);
+  },
+  createMaintenance: async (
+    vehicleId: string,
+    body: { maintenance_type: string; interval_months: number; last_maintenance_date: string; notes?: string },
+  ): Promise<ApiResponse<MaintenanceSchedule>> => {
+    const res = await apiRequest<MaintenanceSchedule>(`/fleet/vehicles/${vehicleId}/maintenance`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    if (res.success) window.dispatchEvent(new CustomEvent('app:refresh'));
+    return res;
+  },
+  updateMaintenance: async (
+    vehicleId: string,
+    scheduleId: string,
+    body: Partial<{ maintenance_type: string; interval_months: number; last_maintenance_date: string; notes?: string; status?: string }>,
+  ): Promise<ApiResponse<MaintenanceSchedule>> => {
+    const res = await apiRequest<MaintenanceSchedule>(`/fleet/vehicles/${vehicleId}/maintenance/${scheduleId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    if (res.success) window.dispatchEvent(new CustomEvent('app:refresh'));
+    return res;
+  },
+  getUpcomingMaintenance: async (): Promise<ApiResponse<UpcomingMaintenanceItem[]>> => {
+    return apiRequest<UpcomingMaintenanceItem[]>(`/fleet/maintenance/upcoming`);
+  },
+
+  // -------- Module 4: Status override --------
+  updateStatus: async (
+    vehicleId: string,
+    body: { status: 'ACTIVE' | 'INACTIVE' | 'UNDER_MAINTENANCE'; reason: string; override_by?: string },
+  ): Promise<ApiResponse<FleetVehicle>> => {
+    const res = await apiRequest<FleetVehicle>(`/fleet/vehicles/${vehicleId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    if (res.success) window.dispatchEvent(new CustomEvent('app:refresh'));
+    return res;
+  },
+};
+
+// ==========================================
+// MODULE 4: DRIVERS API
+// ==========================================
+export const driversApi = {
+  list: async (): Promise<ApiResponse<Driver[]>> => {
+    return apiRequest<Driver[]>(`/fleet/drivers`);
+  },
+  create: async (body: { name: string; email?: string; phone_number: string; licence_number?: string }): Promise<ApiResponse<Driver>> => {
+    const res = await apiRequest<Driver>(`/fleet/drivers`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    if (res.success) window.dispatchEvent(new CustomEvent('app:refresh'));
+    return res;
+  },
+  update: async (driverId: string, body: Partial<{ name: string; email?: string; phone_number: string; licence_number?: string; status: string }>): Promise<ApiResponse<Driver>> => {
+    const res = await apiRequest<Driver>(`/fleet/drivers/${driverId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    if (res.success) window.dispatchEvent(new CustomEvent('app:refresh'));
+    return res;
+  },
 };
 
 // ==========================================
