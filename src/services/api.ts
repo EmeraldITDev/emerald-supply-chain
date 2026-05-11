@@ -316,10 +316,9 @@ async function apiRequest<T>(
       data: responseData,
     };
   } catch (error) {
-    console.error('API request failed:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error - please check your connection',
+      error: classifyFetchError(error, endpoint),
     };
   }
 }
