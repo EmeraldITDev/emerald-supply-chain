@@ -296,7 +296,15 @@ export interface BulkMaterialUploadResult {
 // 5. FLEET MANAGEMENT TYPES
 // ==========================================
 
-export type VehicleStatus = 'available' | 'in_use' | 'maintenance' | 'out_of_service';
+export type VehicleStatus =
+  | 'ACTIVE'
+  | 'INACTIVE'
+  | 'UNDER_MAINTENANCE'
+  // legacy lowercase values (still tolerated)
+  | 'available'
+  | 'in_use'
+  | 'maintenance'
+  | 'out_of_service';
 export type VehicleOwnership = 'owned' | 'leased' | 'vendor' | 'rental';
 
 export interface FleetVehicle {
@@ -353,6 +361,10 @@ export interface FleetVehicle {
   
   createdAt: string;
   updatedAt?: string;
+
+  // Reactivation / inactive-state metadata (optional, backend-supplied)
+  inactiveReason?: string;
+  inactiveReasonLabel?: string;
 }
 
 export interface VehicleDocument {
@@ -368,6 +380,60 @@ export interface VehicleDocument {
   isExpiringSoon?: boolean; // within 30 days
   verifiedAt?: string;
   verifiedBy?: string;
+  // Module 4 additions
+  documentType?: VehicleDocumentType;
+  expiryDate?: string;
+  alertColour?: 'GREEN' | 'AMBER' | 'RED' | null;
+}
+
+export type VehicleDocumentType =
+  | 'insurance_certificate'
+  | 'vehicle_licence'
+  | 'transport_permit'
+  | 'road_worthiness_certificate'
+  | 'local_government_papers';
+
+export const VEHICLE_DOCUMENT_TYPE_LABELS: Record<VehicleDocumentType, string> = {
+  insurance_certificate: 'Insurance Certificate',
+  vehicle_licence: 'Vehicle Licence',
+  transport_permit: 'Transport Permit',
+  road_worthiness_certificate: 'Road-Worthiness Certificate',
+  local_government_papers: 'Local Government Papers',
+};
+
+// Module 4: Maintenance schedule (distinct from historical MaintenanceRecord)
+export interface MaintenanceSchedule {
+  id: string;
+  vehicleId: string;
+  maintenanceType: string;
+  intervalMonths: number;
+  lastMaintenanceDate: string;
+  nextMaintenanceDate: string;
+  status: 'scheduled' | 'completed' | 'overdue';
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UpcomingMaintenanceItem {
+  vehicleId: string;
+  plate: string;
+  vehicleName?: string;
+  maintenanceType: string;
+  nextMaintenanceDate: string;
+  daysRemaining?: number;
+}
+
+// Module 4: Driver
+export interface Driver {
+  id: string;
+  name: string;
+  email?: string;
+  phoneNumber: string;
+  licenceNumber?: string;
+  status?: 'active' | 'inactive';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface MaintenanceRecord {
