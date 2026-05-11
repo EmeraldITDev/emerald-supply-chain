@@ -188,6 +188,8 @@ export const FleetManagement = () => {
   const [srfDialogOpen, setSrfDialogOpen] = useState(false);
   const [srfVehicle, setSrfVehicle] = useState<FleetVehicle | null>(null);
   const [isInitiatingSRF, setIsInitiatingSRF] = useState(false);
+  const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
+  const canReactivate = !!user && ["logistics_officer", "logistics_manager", "logistics", "admin"].includes(user.role as string);
 
   const handleInitiateSRF = async () => {
     if (!srfVehicle) return;
