@@ -71,7 +71,10 @@ import { fleetApi } from "@/services/logisticsApi";
 import { useAuth } from "@/contexts/AuthContext";
 import type { FleetVehicle, VehicleDocument, MaintenanceRecord, FleetAlert, VehicleStatus, VehicleOwnership } from "@/types/logistics";
 
-const statusColors: Record<VehicleStatus, string> = {
+const statusColors: Partial<Record<VehicleStatus, string>> = {
+  ACTIVE: "bg-success/10 text-success",
+  INACTIVE: "bg-destructive/10 text-destructive",
+  UNDER_MAINTENANCE: "bg-warning/10 text-warning",
   available: "bg-success/10 text-success",
   in_use: "bg-primary/10 text-primary",
   maintenance: "bg-warning/10 text-warning",
