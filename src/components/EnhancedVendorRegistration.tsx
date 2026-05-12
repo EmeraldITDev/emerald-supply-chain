@@ -367,6 +367,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               <div className="space-y-2">
                 <Label>Number of Employees *</Label>
                 <Input 
+                  type="text"
                   placeholder="50-100"
                   value={numberOfEmployees}
                   onChange={(e) => {
