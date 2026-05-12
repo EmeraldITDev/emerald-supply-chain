@@ -268,6 +268,35 @@ const NewSRF = () => {
                 />
               </div>
 
+              {isLogisticsManager && (
+                <div className="space-y-2 rounded-md border border-dashed p-3">
+                  <Label>Linked Vehicle (Optional)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    For vehicle service requests, link the vehicle so its details and recent maintenance history are
+                    automatically forwarded to the Supply Chain Director, Procurement and vendors.
+                  </p>
+                  <Select value={selectedVehicleId || "none"} onValueChange={(v) => setSelectedVehicleId(v === "none" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a vehicle..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— None —</SelectItem>
+                      {vehicles.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {(v.name || v.vehicleNumber)} • {v.plate || "no plate"}
+                          {v.make ? ` • ${v.make} ${v.model || ""}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedVehicle && (
+                    <pre className="mt-2 max-h-48 overflow-auto rounded bg-muted/40 p-2 text-xs whitespace-pre-wrap">
+                      {buildVehicleContext(selectedVehicle)}
+                    </pre>
+                  )}
+                </div>
+              )}
+
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="duration">Expected Duration</Label>
