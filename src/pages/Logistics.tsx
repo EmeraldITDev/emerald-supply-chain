@@ -598,6 +598,45 @@ const Logistics = () => {
             <TabsContent value="accommodation">
               <AccommodationBookings />
             </TabsContent>
+
+            {/* My Requests — Logistics Manager visibility into MRFs/SRFs they raised */}
+            <TabsContent value="my-requests" className="space-y-4">
+              {(() => {
+                const myName = user?.name;
+                const isLM = user?.role === "logistics_manager";
+                const mineMRFs = (mrfRequests || []).filter((m: any) =>
+                  isLM ? (m.requester === myName) : true,
+                );
+                const mineSRFs = (srfRequests || []).filter((s: any) =>
+                  isLM ? (s.requester === myName) : true,
+                );
+                const all = [...mineMRFs, ...mineSRFs];
+                return (
+                  <>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <FileText className="h-5 w-5" />
+                          My Procurement Activity
+                        </CardTitle>
+                        <CardDescription>
+                          Track RFQs, vendor quotations, approvals and PO progress for your logistics requests.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {all.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-6">
+                            You haven't submitted any requests yet. Use New MRF or New SRF in the sidebar.
+                          </p>
+                        ) : (
+                          <ProcurementProgressTracker mrfRequests={all as any} showTitle={false} />
+                        )}
+                      </CardContent>
+                    </Card>
+                  </>
+                );
+              })()}
+            </TabsContent>
           </Tabs>
         </div>
       </PullToRefresh>
