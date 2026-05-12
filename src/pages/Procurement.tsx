@@ -48,6 +48,14 @@ import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RFQManagement } from "@/components/RFQManagement";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 
@@ -2854,9 +2862,65 @@ const Procurement = () => {
 
             <TabsContent value="po" className="space-y-4">
               <Card>
-                <CardHeader>
-                  <CardTitle>Purchase Orders</CardTitle>
-                  <CardDescription>List of all purchase orders</CardDescription>
+                <CardHeader className="flex flex-row items-start justify-between gap-4">
+                  <div>
+                    <CardTitle>Purchase Orders</CardTitle>
+                    <CardDescription>List of all purchase orders</CardDescription>
+                  </div>
+                  {(() => {
+                    const eligible = mrfRequests.filter((m) => {
+                      const wf = getWorkflowState(m as MRF);
+                      const ready =
+                        wf === "invoice_approved" ||
+                        wf === "pending_po_upload" ||
+                        wf === "vendor_approved";
+                      const hasPO = Boolean(getMRFPONumber(m as MRF));
+                      const isDraft = Boolean(
+                        (m as MRF & { is_po_draft?: boolean }).is_po_draft,
+                      );
+                      return ready && (!hasPO || isDraft);
+                    });
+                    return (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" disabled={eligible.length === 0}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create PO
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-80 bg-popover">
+                          <DropdownMenuLabel>
+                            {eligible.length === 0
+                              ? "No approved MRFs awaiting a PO"
+                              : "Select an approved MRF"}
+                          </DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {eligible.map((m) => {
+                            const isDraft = Boolean(
+                              (m as MRF & { is_po_draft?: boolean }).is_po_draft,
+                            );
+                            return (
+                              <DropdownMenuItem
+                                key={m.id}
+                                onClick={() => {
+                                  setCreatePOMrfId(m.id);
+                                  setCreatePOOpen(true);
+                                }}
+                                className="flex flex-col items-start gap-0.5"
+                              >
+                                <span className="text-sm font-medium truncate w-full">
+                                  {m.title}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {getDisplayId(m)} • {isDraft ? "Continue Draft" : "New PO"}
+                                </span>
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    );
+                  })()}
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
