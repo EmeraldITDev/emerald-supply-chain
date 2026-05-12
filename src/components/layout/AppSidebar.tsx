@@ -162,7 +162,7 @@ export function AppSidebar() {
         }
       ];
     } else if (user?.role === "logistics_manager") {
-      // Logistics Manager: same as logistics role
+      // Logistics Manager: full logistics ops + create own MRF/SRF + read-only procurement
       return [
         {
           label: "Main",
@@ -171,9 +171,32 @@ export function AppSidebar() {
           ]
         },
         {
+          label: "Requests",
+          items: [
+            { title: "My Requests", url: "/department", icon: FileText },
+            { title: "New MRF", url: "/new-mrf", icon: FileText },
+            { title: "New SRF", url: "/new-srf", icon: FileText },
+            { title: "Annual Planning", url: "/department?tab=annual", icon: Calendar },
+          ]
+        },
+        {
           label: "Operations",
           items: [
             { title: "Logistics", url: "/logistics", icon: Truck },
+            { title: "Vendors", url: "/vendors", icon: Users },
+            { title: "Inventory", url: "/inventory", icon: Package },
+          ]
+        },
+        {
+          label: "Procurement",
+          items: [
+            { title: "Procurement Activity", url: "/procurement", icon: ShoppingCart },
+          ]
+        },
+        {
+          label: "Analytics",
+          items: [
+            { title: "Reports", url: "/reports", icon: FileText },
           ]
         }
       ];

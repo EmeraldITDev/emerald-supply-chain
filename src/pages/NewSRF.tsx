@@ -11,15 +11,17 @@ import { ArrowLeft, Loader2, Upload, FileText, X, Cloud } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { srfApi } from "@/services/api";
+import { fleetApi } from "@/services/logisticsApi";
+import type { FleetVehicle } from "@/types/logistics";
 
 const NewSRF = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Only employees can create SRF
+  // Staff and Logistics Manager can create SRF
   useEffect(() => {
-    if (user && !isEmployeeRole(user.role)) {
+    if (user && !isEmployeeRole(user.role) && user.role !== "logistics_manager") {
       toast({
         title: "Access Denied",
         description: "Only staff members can create Service Request Forms. Please contact your administrator.",
@@ -41,6 +43,43 @@ const NewSRF = () => {
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [invoiceOneDriveUrl, setInvoiceOneDriveUrl] = useState<string>("");
 
+  // Logistics Manager: link an existing vehicle so its details flow downstream
+  const isLogisticsManager = user?.role === "logistics_manager";
+  const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+
+  useEffect(() => {
+    if (!isLogisticsManager) return;
+    fleetApi.getAll().then((res) => {
+      if (res.success && Array.isArray(res.data)) setVehicles(res.data as FleetVehicle[]);
+    });
+  }, [isLogisticsManager]);
+
+  const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
+
+  const buildVehicleContext = (v: FleetVehicle): string => {
+    const parts: string[] = [];
+    parts.push(`=== VEHICLE CONTEXT ===`);
+    parts.push(`Vehicle: ${v.name || v.vehicleNumber || ""} (${v.plate || "no plate"})`);
+    if (v.make || v.model || v.year) parts.push(`Make/Model: ${[v.make, v.model, v.year].filter(Boolean).join(" ")}`);
+    if (v.type) parts.push(`Type: ${v.type}`);
+    if (v.color) parts.push(`Color: ${v.color}`);
+    if (v.fuelType) parts.push(`Fuel: ${v.fuelType}`);
+    if (v.totalDistance != null) parts.push(`Total Distance: ${Number(v.totalDistance).toLocaleString()} km`);
+    if (v.lastMaintenanceAt) parts.push(`Last Maintenance: ${new Date(v.lastMaintenanceAt).toLocaleDateString()}`);
+    if (v.nextMaintenanceAt) parts.push(`Next Scheduled: ${new Date(v.nextMaintenanceAt).toLocaleDateString()}`);
+    const history = (v.maintenanceHistory || []).slice(0, 5);
+    if (history.length) {
+      parts.push(`Recent Maintenance:`);
+      history.forEach((h: any) => {
+        const when = h.performedAt || h.performed_at || h.lastMaintenanceDate || "";
+        parts.push(`  • ${when ? new Date(when).toLocaleDateString() : "—"} — ${h.description || h.maintenance_type || h.maintenanceType || "Service"}`);
+      });
+    }
+    parts.push(`=======================`);
+    return parts.join("\n");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -54,18 +93,27 @@ const NewSRF = () => {
         if (normalized === 'high' || normalized === 'critical') return 'High';
         return 'Medium'; // Default fallback
       };
-      
+
+      // Prepend vehicle context so SCD, Procurement and Vendors all see it
+      const finalDescription = selectedVehicle
+        ? `${buildVehicleContext(selectedVehicle)}\n\n${formData.description}`
+        : formData.description;
+
       // Create FormData if invoice file is provided
       let response;
       if (invoiceFile || invoiceOneDriveUrl) {
         const formDataObj = new FormData();
         formDataObj.append('title', formData.title);
-        formDataObj.append('description', formData.description);
+        formDataObj.append('description', finalDescription);
         formDataObj.append('serviceType', formData.serviceType);
         formDataObj.append('urgency', capitalizeUrgency(formData.urgency));
         formDataObj.append('justification', formData.justification);
         formDataObj.append('estimatedCost', formData.estimatedCost);
         formDataObj.append('duration', formData.duration);
+        if (selectedVehicle) {
+          formDataObj.append('vehicle_id', selectedVehicle.id);
+          formDataObj.append('vehicle_plate', selectedVehicle.plate || '');
+        }
         if (invoiceFile) {
           formDataObj.append('invoice', invoiceFile);
         }
@@ -76,13 +124,14 @@ const NewSRF = () => {
       } else {
         response = await srfApi.create({
           title: formData.title,
-          description: formData.description,
+          description: finalDescription,
           serviceType: formData.serviceType,
           urgency: capitalizeUrgency(formData.urgency),
           justification: formData.justification,
           estimatedCost: formData.estimatedCost,
           duration: formData.duration,
-        });
+          ...(selectedVehicle ? { vehicleId: selectedVehicle.id, vehiclePlate: selectedVehicle.plate } : {}),
+        } as any);
       }
       
       if (response.success) {
@@ -218,6 +267,35 @@ const NewSRF = () => {
                   required
                 />
               </div>
+
+              {isLogisticsManager && (
+                <div className="space-y-2 rounded-md border border-dashed p-3">
+                  <Label>Linked Vehicle (Optional)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    For vehicle service requests, link the vehicle so its details and recent maintenance history are
+                    automatically forwarded to the Supply Chain Director, Procurement and vendors.
+                  </p>
+                  <Select value={selectedVehicleId || "none"} onValueChange={(v) => setSelectedVehicleId(v === "none" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a vehicle..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— None —</SelectItem>
+                      {vehicles.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {(v.name || v.vehicleNumber)} • {v.plate || "no plate"}
+                          {v.make ? ` • ${v.make} ${v.model || ""}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedVehicle && (
+                    <pre className="mt-2 max-h-48 overflow-auto rounded bg-muted/40 p-2 text-xs whitespace-pre-wrap">
+                      {buildVehicleContext(selectedVehicle)}
+                    </pre>
+                  )}
+                </div>
+              )}
 
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">

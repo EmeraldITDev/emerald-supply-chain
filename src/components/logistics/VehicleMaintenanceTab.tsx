@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Plus, CheckCircle2, Pencil } from "lucide-react";
+import { Loader2, Plus, CheckCircle2, Pencil, FileText, Trash2 } from "lucide-react";
 import { fleetApi } from "@/services/logisticsApi";
 import { useToast } from "@/hooks/use-toast";
 import type { FleetVehicle, MaintenanceSchedule } from "@/types/logistics";
@@ -78,6 +78,8 @@ const normalize = (raw: any, vehicleId: string): MaintenanceSchedule => ({
   nextMaintenanceDate: raw.next_maintenance_date || raw.nextMaintenanceDate || "",
   status: (raw.status as MaintenanceSchedule["status"]) || "scheduled",
   notes: raw.notes,
+  // @ts-ignore - documents may come from backend even if not in type
+  documents: raw.documents || raw.attachments || [],
 });
 
 export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
@@ -107,11 +109,31 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
     setError(null);
     try {
       const res = await fleetApi.listMaintenance(vehicle.id);
+      // Always include records that came back inline on the vehicle object
+      // (legacy /maintenance POST writes here as `maintenance_history`).
+      const inlineHistory: MaintenanceSchedule[] = ((vehicle as any).maintenanceHistory || []).map(
+        (h: any) => ({
+          id: (h.id || h.uuid || `inline-${h.performed_at || h.performedAt || Math.random()}`).toString(),
+          vehicleId: vehicle.id,
+          maintenanceType: h.description || h.maintenance_type || h.maintenanceType || h.type || "Maintenance",
+          intervalMonths: 0,
+          lastMaintenanceDate: h.performed_at || h.performedAt || h.last_maintenance_date || "",
+          nextMaintenanceDate: h.next_scheduled_at || h.nextScheduledAt || h.next_maintenance_date || "",
+          status: (h.status as any) || "completed",
+          notes: h.notes,
+          // @ts-ignore
+          documents: h.documents || h.attachments || [],
+        }),
+      );
       if (res.success && res.data) {
         const arr = Array.isArray(res.data) ? res.data : (res.data as any).records || [];
-        setItems(arr.map((r: any) => normalize(r, vehicle.id)));
+        const normalized = arr.map((r: any) => normalize(r, vehicle.id));
+        // De-dupe by id, prefer schedule entries over inline history
+        const byId = new Map<string, MaintenanceSchedule>();
+        [...inlineHistory, ...normalized].forEach((it) => byId.set(it.id, it));
+        setItems(Array.from(byId.values()));
       } else {
-        setItems([]);
+        setItems(inlineHistory);
         if (res.error) setError(res.error);
       }
     } catch (e: any) {
@@ -119,7 +141,7 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
     } finally {
       setLoading(false);
     }
-  }, [vehicle.id]);
+  }, [vehicle.id, vehicle]);
 
   useEffect(() => {
     fetchData();
@@ -192,6 +214,22 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
     }
   };
 
+  const handleDeleteDocument = async (recordId: string, doc: any) => {
+    const docId = doc?.id || doc?.document_id;
+    try {
+      const res = await fleetApi.deleteMaintenanceDocument(vehicle.id, recordId, docId);
+      if (res.success) {
+        toast({ title: "Document Removed" });
+        await fetchData();
+        onChanged?.();
+      } else {
+        toast({ title: "Delete Failed", description: res.error || "Unable to delete document.", variant: "destructive" });
+      }
+    } catch (e: any) {
+      toast({ title: "Delete Failed", description: e?.message || "Unable to delete document.", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -224,6 +262,7 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
                 <TableHead>Next Due</TableHead>
                 <TableHead>Interval (mo)</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Documents</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -238,6 +277,40 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
                     <Badge variant="outline" className={STATUS_BADGE[it.status] || ""}>
                       {STATUS_LABEL[it.status] || it.status}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {((it as any).documents || []).length === 0 ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {((it as any).documents || []).map((doc: any, idx: number) => {
+                          const docId = doc?.id || doc?.document_id || idx;
+                          const url = doc?.url || doc?.file_url || doc?.s3_url;
+                          const name = doc?.name || doc?.file_name || `Document ${idx + 1}`;
+                          return (
+                            <div key={docId} className="flex items-center gap-2 text-xs">
+                              <FileText className="h-3 w-3 text-muted-foreground" />
+                              {url ? (
+                                <a href={url} target="_blank" rel="noreferrer" className="truncate max-w-[140px] underline">
+                                  {name}
+                                </a>
+                              ) : (
+                                <span className="truncate max-w-[140px]">{name}</span>
+                              )}
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-5 w-5"
+                                onClick={() => handleDeleteDocument(it.id, doc)}
+                                title="Delete document"
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">

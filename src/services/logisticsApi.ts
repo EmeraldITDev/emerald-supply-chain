@@ -556,6 +556,20 @@ export const fleetApi = {
     return apiRequest<UpcomingMaintenanceItem[]>(`/fleet/maintenance/upcoming`);
   },
 
+  // Delete a document attached to a maintenance record
+  deleteMaintenanceDocument: async (
+    vehicleId: string,
+    recordId: string,
+    documentId: string,
+  ): Promise<ApiResponse<void>> => {
+    const res = await apiRequest<void>(
+      `/fleet/vehicles/${vehicleId}/maintenance/${recordId}/documents/${documentId}`,
+      { method: 'DELETE' },
+    );
+    if (res.success) window.dispatchEvent(new CustomEvent('app:refresh'));
+    return res;
+  },
+
   // -------- Module 4: Status override --------
   updateStatus: async (
     vehicleId: string,
