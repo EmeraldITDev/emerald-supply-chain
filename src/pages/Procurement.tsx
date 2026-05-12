@@ -3010,6 +3010,17 @@ const Procurement = () => {
         </CreatePODialogContent>
       </CreatePODialog>
 
+      {/* Manual PO quick-start: creates a backing MRF, then opens CreatePOForm */}
+      <ManualPOQuickStartDialog
+        open={manualPOOpen}
+        onOpenChange={setManualPOOpen}
+        onMRFCreated={(newId) => {
+          void fetchMRFs();
+          setCreatePOMrfId(newId);
+          setCreatePOOpen(true);
+        }}
+      />
+
       {/* GRN Completion Dialog */}
       {selectedMRFForGRN && (
         <GRNCompletionDialog
