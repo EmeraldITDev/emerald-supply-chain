@@ -2976,6 +2976,33 @@ const Procurement = () => {
         isGenerating={poGenerating}
       />
 
+      {/* New PO Generator (two-section form with price comparison sheet) */}
+      <CreatePODialog
+        open={createPOOpen}
+        onOpenChange={(o) => {
+          setCreatePOOpen(o);
+          if (!o) setCreatePOMrfId(null);
+        }}
+      >
+        <CreatePODialogContent className="w-[95vw] max-w-5xl max-h-[85vh] overflow-y-auto">
+          <CreatePODialogHeader>
+            <CreatePODialogTitle>Create Purchase Order</CreatePODialogTitle>
+          </CreatePODialogHeader>
+          {createPOMrfId && (
+            <CreatePOForm
+              mrfId={createPOMrfId}
+              onFinalised={() => {
+                void fetchMRFs();
+              }}
+              onRequestClose={() => {
+                setCreatePOOpen(false);
+                setCreatePOMrfId(null);
+              }}
+            />
+          )}
+        </CreatePODialogContent>
+      </CreatePODialog>
+
       {/* GRN Completion Dialog */}
       {selectedMRFForGRN && (
         <GRNCompletionDialog
