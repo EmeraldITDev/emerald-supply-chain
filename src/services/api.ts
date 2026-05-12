@@ -154,7 +154,7 @@ const getVendorAuthToken = (): { token: string | null; expired: boolean } => {
 };
 
 // Helper function for API requests
-async function apiRequest<T>(
+export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
