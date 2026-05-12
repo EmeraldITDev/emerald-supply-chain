@@ -122,8 +122,9 @@ const normalizeVehicle = (raw: any): FleetVehicle => ({
   approvalStatus: raw.approval_status || raw.approvalStatus || 'pending',
   approvedBy: raw.approved_by || raw.approvedBy,
   approvedAt: raw.approved_at || raw.approvedAt,
-  passengerCapacity: raw.passenger_capacity != null ? Number(raw.passenger_capacity) : raw.passengerCapacity,
-  cargoCapacity: raw.cargo_capacity != null ? Number(raw.cargo_capacity) : raw.cargoCapacity,
+  passengerCapacity: raw.passenger_capacity ?? raw.passengerCapacity ?? raw.capacity_passengers,
+  cargoCapacity:
+    raw.cargo_capacity ?? raw.cargoCapacity ?? raw.cargo_capacity_kg ?? raw.capacity_cargo,
   fuelType: raw.fuel_type || raw.fuelType || '',
   fuelCapacity: raw.fuel_capacity != null ? Number(raw.fuel_capacity) : raw.fuelCapacity,
   documents: raw.documents || [],
@@ -1078,7 +1079,9 @@ export const FleetManagement = () => {
                   </div>
                   <div className="text-center">
                     <Package className="h-5 w-5 mx-auto text-muted-foreground" />
-                    <p className="text-2xl font-bold">{selectedVehicle.cargoCapacity || "-"}</p>
+                    <p className="text-2xl font-bold">
+                      {selectedVehicle.cargoCapacity != null ? selectedVehicle.cargoCapacity : "-"}
+                    </p>
                     <p className="text-xs text-muted-foreground">Cargo (kg)</p>
                   </div>
                   <div className="text-center">
