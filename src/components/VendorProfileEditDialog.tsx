@@ -97,7 +97,8 @@ export function VendorProfileEditDialog({
             <div>
               <Label>Annual Revenue</Label>
               <Input
-                placeholder="e.g. 5000000"
+                type="text"
+                placeholder="e.g. 1M - 5M, 5M - 50M, +100M"
                 value={form.annualRevenue}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, annualRevenue: e.target.value }))
@@ -108,6 +109,7 @@ export function VendorProfileEditDialog({
             <div>
               <Label>Number of Employees</Label>
               <Input
+                type="text"
                 placeholder="e.g. 11-50"
                 value={form.numberOfEmployees}
                 onChange={(e) =>
