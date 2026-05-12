@@ -17,6 +17,7 @@ import type {
   FilterOptions,
   SortOptions
 } from '@/types';
+import { RFQ_STANDARD_TERMS } from '@/data/rfqPoTermsTemplate';
 
 // Configure your API base URL here
 // For Lovable previews and production, always use the deployed backend
@@ -2442,20 +2443,72 @@ export const searchApi = {
 // ============================================================
 export interface POTermsTemplate {
   type: string;
+  /** Some backends return the body as `content`. */
+  content?: string;
   standard_terms?: string;
   standardTerms?: string;
   updated_at?: string;
+}
+
+function pickStandardTermsBody(data?: POTermsTemplate): string {
+  if (!data) return '';
+  const raw = data.content ?? data.standard_terms ?? data.standardTerms ?? '';
+  return typeof raw === 'string' ? raw.trim() : '';
 }
 
 export const poTermsApi = {
   /**
    * Fetch the standard T&C template for a given document type.
    * Backend route: GET /api/po-terms-templates/{type}
+   *
+   * For `rfq`, if the backend returns 404 or an empty template, the client
+   * supplies `RFQ_STANDARD_TERMS` so procurement can proceed until the API is seeded.
    */
   getTemplate: async (
     type: 'rfq' | 'po' | string
   ): Promise<ApiResponse<POTermsTemplate>> => {
-    return apiRequest<POTermsTemplate>(`/po-terms-templates/${encodeURIComponent(type)}`);
+    const res = await apiRequest<POTermsTemplate>(
+      `/po-terms-templates/${encodeURIComponent(type)}`
+    );
+
+    if (type !== 'rfq') {
+      return res;
+    }
+
+    const mergedBody = pickStandardTermsBody(res.data);
+    if (mergedBody) {
+      return {
+        ...res,
+        success: true,
+        data: {
+          type: 'rfq',
+          ...res.data,
+          standard_terms: mergedBody,
+        },
+      };
+    }
+
+    if (res.success) {
+      return {
+        success: true,
+        data: {
+          type: 'rfq',
+          standard_terms: RFQ_STANDARD_TERMS,
+        },
+      };
+    }
+
+    if (res.status === 404) {
+      return {
+        success: true,
+        data: {
+          type: 'rfq',
+          standard_terms: RFQ_STANDARD_TERMS,
+        },
+      };
+    }
+
+    return res;
   },
 };
 

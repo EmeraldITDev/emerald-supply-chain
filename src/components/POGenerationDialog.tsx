@@ -103,7 +103,12 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
       // RFQ creation flow: pull the RFQ T&C template
       const response = await poTermsApi.getTemplate('rfq');
       if (response.success && response.data) {
-        setStandardTerms(response.data.standard_terms || response.data.standardTerms || "");
+        setStandardTerms(
+          response.data.content ||
+            response.data.standard_terms ||
+            response.data.standardTerms ||
+            ""
+        );
       } else {
         setTermsError(response.error || "Could not load standard terms");
       }
