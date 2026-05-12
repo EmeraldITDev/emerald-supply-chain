@@ -47,12 +47,17 @@ import { MaterialMovements } from "@/components/logistics/MaterialMovements";
 import { ReportingCompliance } from "@/components/logistics/ReportingCompliance";
 import { GPSTrackingPlaceholder } from "@/components/logistics/GPSTrackingPlaceholder";
 import { AccommodationBookings } from "@/components/logistics/AccommodationBookings";
+import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Logistics = () => {
   const { toast } = useToast();
-  const { 
+  const { user } = useAuth();
+  const {
     staffDrivers,
     addStaffDriver,
+    mrfRequests,
+    srfRequests,
   } = useApp();
   
   const [designateDriverOpen, setDesignateDriverOpen] = useState(false);
