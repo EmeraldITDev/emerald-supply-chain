@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Plus, CheckCircle2, Pencil } from "lucide-react";
+import { Loader2, Plus, CheckCircle2, Pencil, FileText, Trash2 } from "lucide-react";
 import { fleetApi } from "@/services/logisticsApi";
 import { useToast } from "@/hooks/use-toast";
 import type { FleetVehicle, MaintenanceSchedule } from "@/types/logistics";
@@ -78,6 +78,8 @@ const normalize = (raw: any, vehicleId: string): MaintenanceSchedule => ({
   nextMaintenanceDate: raw.next_maintenance_date || raw.nextMaintenanceDate || "",
   status: (raw.status as MaintenanceSchedule["status"]) || "scheduled",
   notes: raw.notes,
+  // @ts-ignore - documents may come from backend even if not in type
+  documents: raw.documents || raw.attachments || [],
 });
 
 export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
@@ -189,6 +191,22 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
       }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteDocument = async (recordId: string, doc: any) => {
+    const docId = doc?.id || doc?.document_id;
+    try {
+      const res = await fleetApi.deleteMaintenanceDocument(vehicle.id, recordId, docId);
+      if (res.success) {
+        toast({ title: "Document Removed" });
+        await fetchData();
+        onChanged?.();
+      } else {
+        toast({ title: "Delete Failed", description: res.error || "Unable to delete document.", variant: "destructive" });
+      }
+    } catch (e: any) {
+      toast({ title: "Delete Failed", description: e?.message || "Unable to delete document.", variant: "destructive" });
     }
   };
 
