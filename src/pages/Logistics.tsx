@@ -354,7 +354,7 @@ const Logistics = () => {
 
           {/* Module Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 w-full min-w-0">
-            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-9 h-auto">
+            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-10 h-auto">
               <TabsTrigger value="overview" className="text-xs sm:text-sm gap-1">
                 <BarChart3 className="h-4 w-4 hidden sm:block" />
                 Overview
