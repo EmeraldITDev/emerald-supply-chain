@@ -40,7 +40,7 @@ export default function Settings() {
   const canViewProfile = !isRegularEmployee;
   const canViewAuditTrail = ['chairman', 'executive', 'supply_chain_director', 'procurement', 'finance', 'logistics'].includes(user?.role || '');
   const canManageUsers = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain'].includes(user?.role || '');
-  const canUploadSignature = ['supply_chain_director', 'supply_chain', 'admin'].includes(user?.role || '');
+  const canUploadSignature = ['supply_chain_director', 'supply_chain', 'scd', 'admin'].includes((user?.role || '').toLowerCase());
 
   const handleSignatureFile = (file: File | null) => {
     setSignatureFile(file);
