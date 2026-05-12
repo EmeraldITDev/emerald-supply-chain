@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { getDisplayId } from "@/utils/displayId";
+import { getDisplayId, getMrfApiId, findMrfByAnyLinkId } from "@/utils/displayId";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -411,45 +411,57 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       }
 
       // Step 2: Send selected vendor to Supply Chain Director for approval
-      // This updates the MRF workflow state to vendor_selected
-      if (selectedRFQ.mrfId) {
+      const mrfRow =
+        enhancedQuotationData?.mrf ??
+        selectedMRF ??
+        findMrfByAnyLinkId(
+          selectedRFQ.mrf_id ?? selectedRFQ.mrfId,
+          mrfRequests,
+        );
+      const mrfPathId = getMrfApiId(mrfRow);
+
+      if (!mrfPathId) {
+        toast({
+          title: "Vendor Awarded",
+          description:
+            "Vendor was selected in RFQ, but no MRF id could be resolved for approval. Open Procurement and use Send for Approval on the correct MRF, or contact support.",
+          variant: "destructive",
+        });
+      } else {
         const { mrfApi } = await import("@/services/api");
         const sendResponse = await mrfApi.sendVendorForApproval(
-          selectedRFQ.mrfId,
+          mrfPathId,
           vendorId,
-          quotationId
+          quotationId,
         );
 
         if (sendResponse.success) {
           toast({
             title: "Vendor Selection Sent for Approval",
-            description: "Vendor has been selected and sent to Supply Chain Director for approval. You'll be able to generate PO after approval.",
+            description:
+              "Vendor has been selected and sent to Supply Chain Director for approval. You'll be able to generate PO after approval.",
           });
         } else {
-          // Enhanced error handling for sending vendor for approval
           let errorMessage = sendResponse.error || "Unknown error";
-          
-          if (errorMessage.includes("workflow state") || errorMessage.includes("not in")) {
-            errorMessage = "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
+
+          if (
+            errorMessage.includes("workflow state") ||
+            errorMessage.includes("not in")
+          ) {
+            errorMessage =
+              "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
           } else if (errorMessage.includes("executive approval")) {
             errorMessage = isEmerald
               ? "Executive approval is required before sending vendor for Supply Chain Director approval."
               : "Supply Chain Director first approval is required before sending vendor for final approval.";
           }
-          
+
           toast({
             title: "Partial Success",
             description: `Vendor was selected in RFQ, but failed to send for Supply Chain Director approval: ${errorMessage}`,
             variant: "destructive",
           });
         }
-      } else {
-        // No MRF ID in RFQ - fallback behavior
-    toast({
-      title: "Vendor Awarded",
-          description: "The selected vendor has been awarded. MRF ID not found - please contact support.",
-          variant: "default",
-    });
       }
 
     onVendorSelected?.(vendorId, selectedRFQ.id);

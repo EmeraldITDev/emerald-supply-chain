@@ -1,5 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { getDisplayId } from "@/utils/displayId";
+import {
+  getDisplayId,
+  getMrfApiId,
+  collectMrfIdAliases,
+  resolveMrfInList,
+} from "@/utils/displayId";
 import {
   Card,
   CardContent,
@@ -251,27 +256,35 @@ const Procurement = () => {
     }
   }, [rfqs]);
 
-  // Helper to check if MRF has an RFQ
-  const getRFQForMRF = (mrfId: string) => {
-    // Get the first RFQ for this MRF
+  /** RFQ linked to this MRF — match any alias so RFQ rows keyed by formatted_id still resolve. */
+  const getRFQForMRF = (mrf: MRF | MRFRequest | null | undefined) => {
+    if (!mrf) return null;
+    const ids = new Set(collectMrfIdAliases(mrf));
+    if (ids.size === 0) return null;
     return (
-      rfqs.find((rfq) => rfq.mrfId === mrfId || rfq.mrf_id === mrfId) || null
+      rfqs.find((rfq) => {
+        const link = rfq.mrfId ?? (rfq as { mrf_id?: string }).mrf_id;
+        return link != null && ids.has(String(link));
+      }) ?? null
     );
   };
 
-  const getQuotationsForMRF = (mrfId: string) => {
-    const mrfRfqs = rfqs.filter(
-      (rfq) => rfq.mrfId === mrfId || rfq.mrf_id === mrfId,
-    );
+  const getQuotationsForMRF = (mrf: MRF | MRFRequest | null | undefined) => {
+    if (!mrf) return [];
+    const ids = new Set(collectMrfIdAliases(mrf));
+    const mrfRfqs = rfqs.filter((rfq) => {
+      const link = rfq.mrfId ?? (rfq as { mrf_id?: string }).mrf_id;
+      return link != null && ids.has(String(link));
+    });
     if (mrfRfqs.length === 0) return [];
 
     const mrfQuotations: any[] = [];
     mrfRfqs.forEach((rfq) => {
       const rfqQuotations = quotations.filter(
         (q) =>
-          q.rfqId === rfq.id || // string match
-          q.rfq_id === rfq.id || // snake_case string match
-          String(q.rfq_id) === String(rfq.id) || // numeric vs string safe compare
+          q.rfqId === rfq.id ||
+          q.rfq_id === rfq.id ||
+          String(q.rfq_id) === String(rfq.id) ||
           q.rfqId === rfq.id,
       );
       mrfQuotations.push(...rfqQuotations);
@@ -870,7 +883,7 @@ const Procurement = () => {
 
   const handleGeneratePO = async (mrf: MRFRequest | MRF) => {
     // Check if MRF is Executive approved first (this is the main requirement)
-    const mrfData = mrfRequests.find((m) => m.id === mrf.id);
+    const mrfData = resolveMrfInList(mrf, mrfRequests);
     const mrfToCheck = (mrfData || (mrf as MRF)) as MRF;
     const isApproved = isInitialApprovalApproved(mrfToCheck);
     const approverName = getInitialApprovalApproverName(mrfToCheck);
@@ -886,7 +899,9 @@ const Procurement = () => {
 
     // Check available actions from backend (for additional validation)
     try {
-      const response = await mrfApi.getAvailableActions(mrf.id);
+      const response = await mrfApi.getAvailableActions(
+        getMrfApiId(mrfToCheck),
+      );
       if (response.success && response.data) {
         // If backend says canGeneratePO is false but MRF is Executive approved, still allow
         // (backend permission might be checking for later stages, but we allow after Executive approval)
@@ -1131,7 +1146,7 @@ const Procurement = () => {
     }
 
     try {
-      const response = await mrfApi.downloadPO(mrf.id, poType);
+      const response = await mrfApi.downloadPO(getMrfApiId(mrf), poType);
 
       if (response.success) {
         toast({
@@ -1198,7 +1213,9 @@ const Procurement = () => {
 
     setIsDeletingPO(true);
     try {
-      const response = await mrfApi.deletePO(selectedMRFForPODelete.id);
+      const response = await mrfApi.deletePO(
+        getMrfApiId(selectedMRFForPODelete as MRF),
+      );
       if (response.success) {
         toast({
           title: "PO Deleted",
@@ -1930,7 +1947,7 @@ const Procurement = () => {
                         const timerColor = getApprovalTimerColor(request);
                         return (
                           <div
-                            key={request.id}
+                            key={getMrfApiId(request as MRF) || request.id}
                             className="group flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 p-5 sm:p-6 border rounded-xl hover:shadow-lg hover:border-primary/30 transition-all duration-200 bg-card hover:bg-accent/30 cursor-pointer"
                             onClick={() => handleMRFClick(request)}
                           >
@@ -2125,10 +2142,9 @@ const Procurement = () => {
                                 )}
                                 {/* Quotations Section - Show if RFQ exists and has quotations */}
                                 {(() => {
-                                  const mrfQuotations = getQuotationsForMRF(
-                                    request.id,
-                                  );
-                                  const rfq = getRFQForMRF(request.id);
+                                  const mrfQuotations =
+                                    getQuotationsForMRF(request);
+                                  const rfq = getRFQForMRF(request);
                                   if (!rfq || mrfQuotations.length === 0)
                                     return null;
 
@@ -2307,7 +2323,11 @@ const Procurement = () => {
                                                     className="text-xs"
                                                     onClick={(e) => {
                                                       e.stopPropagation();
-                                                      setCreatePOMrfId(request.id);
+                                                      setCreatePOMrfId(
+                                                        getMrfApiId(
+                                                          request as MRF,
+                                                        ),
+                                                      );
                                                       setCreatePOOpen(true);
                                                     }}
                                                   >
@@ -2347,7 +2367,9 @@ const Procurement = () => {
                                                           // Then send to Supply Chain Director
                                                           const sendResponse =
                                                             await mrfApi.sendVendorForApproval(
-                                                              request.id,
+                                                              getMrfApiId(
+                                                                request as MRF,
+                                                              ),
                                                               quotation.vendorId ||
                                                                 quotation.vendor_id,
                                                               quotation.id,
@@ -2495,7 +2517,7 @@ const Procurement = () => {
                                           try {
                                             const response =
                                               await mrfApi.getFullDetails(
-                                                request.id,
+                                                getMrfApiId(request as MRF),
                                               );
                                             if (
                                               response.success &&
@@ -2588,7 +2610,7 @@ const Procurement = () => {
                                   if (!canShowPOButton) return null;
 
                                   // Check if RFQ already exists for this MRF
-                                  const existingRFQ = getRFQForMRF(request.id);
+                                  const existingRFQ = getRFQForMRF(request);
                                   const buttonText = existingRFQ
                                     ? "Send RFQ to Vendors Again"
                                     : "Send RFQ to Vendors";
@@ -2677,7 +2699,9 @@ const Procurement = () => {
                                       className="text-xs text-destructive hover:text-destructive"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleDeleteMRF(request.id);
+                                        handleDeleteMRF(
+                                          getMrfApiId(request as MRF),
+                                        );
                                       }}
                                     >
                                       <Trash2 className="h-3 w-3" />
@@ -2826,7 +2850,7 @@ const Procurement = () => {
                   <div className="space-y-3">
                     {srfRequests.map((request) => (
                       <div
-                        key={request.id}
+                        key={getMrfApiId(request as MRF) || request.id}
                         className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
                       >
                         <div className="flex items-center gap-4">
@@ -2874,7 +2898,7 @@ const Procurement = () => {
                       })
                       .map((mrf) => {
                         const poNumber = getMRFPONumber(mrf as MRF);
-                        const quotation = getQuotationsForMRF(mrf.id).find(
+                        const quotation = getQuotationsForMRF(mrf).find(
                           (q: any) =>
                             q.status === "Approved" ||
                             q.status === "approved" ||
@@ -3091,7 +3115,7 @@ const Procurement = () => {
               {/* Vendor Information */}
               {(() => {
                 const quotation = getQuotationsForMRF(
-                  selectedMRFForPODetails.id,
+                  selectedMRFForPODetails as unknown as MRF,
                 ).find(
                   (q: any) =>
                     q.status === "Approved" ||
@@ -3154,7 +3178,7 @@ const Procurement = () => {
               {/* PO Items */}
               {(() => {
                 const quotation = getQuotationsForMRF(
-                  selectedMRFForPODetails.id,
+                  selectedMRFForPODetails as unknown as MRF,
                 ).find(
                   (q: any) =>
                     q.status === "Approved" ||
@@ -3961,7 +3985,7 @@ const Procurement = () => {
                     {/* Fallback to local data if full details not loaded */}
                     {/* RFQ Information */}
                     {(() => {
-                      const rfq = getRFQForMRF(selectedMRFForDetails.id);
+                      const rfq = getRFQForMRF(selectedMRFForDetails);
                       if (rfq) {
                         return (
                           <div>
@@ -3989,7 +4013,7 @@ const Procurement = () => {
                     {/* Quotations */}
                     {(() => {
                       const mrfQuotations = getQuotationsForMRF(
-                        selectedMRFForDetails.id,
+                        selectedMRFForDetails,
                       );
                       if (mrfQuotations.length > 0) {
                         return (
