@@ -409,7 +409,8 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               <div className="space-y-2">
                 <Label>Annual Revenue *</Label>
                 <Input 
-                  placeholder="e.g. $1M - $5M"
+                  type="text"
+                  placeholder="e.g. 1M - 5M, 5M - 50M, +100M"
                   value={annualRevenue}
                   onChange={(e) => {
                     setAnnualRevenue(e.target.value);
