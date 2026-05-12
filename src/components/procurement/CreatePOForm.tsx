@@ -1,0 +1,817 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { format, formatDistanceToNow } from 'date-fns';
+import {
+  AlertCircle,
+  CalendarIcon,
+  ChevronDown,
+  Download,
+  ExternalLink,
+  Loader2,
+  Save,
+  Send,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+import { vendorApi } from '@/services/api';
+import { procurementApi } from '@/services/procurementApi';
+import { describeBackendError } from '@/utils/poStatus';
+import type { ApiResponse, MRF, Vendor } from '@/types';
+import type {
+  POFormPayload,
+  POType,
+  PriceComparisonEntry,
+  PriceComparisonRow,
+} from '@/types/procurement';
+
+import {
+  PriceComparisonTable,
+  validatePriceComparison,
+  makeEmptyRow,
+} from './PriceComparisonTable';
+
+export interface CreatePOFormProps {
+  mrfId: string;
+  /** Called once the PO is finalised so the parent can close the dialog. */
+  onFinalised?: (mrf: MRF) => void;
+  /** Called whenever the user wants to close (Cancel / X). */
+  onRequestClose: () => void;
+}
+
+const BLOCKED_EMAIL = 'douglas.anuforo@emeraldcfze.com';
+const DEFAULT_INVOICE_TO = 'accountpayables@emeraldcfze.com';
+const DEFAULT_INVOICE_CC = 'lateef.olanrewaju@emeraldcfze.com';
+const PO_TYPES: { value: POType; label: string }[] = [
+  { value: 'goods', label: 'Goods' },
+  { value: 'services', label: 'Services' },
+  { value: 'logistics', label: 'Logistics' },
+];
+
+interface FormState {
+  po_type: POType;
+  po_date: Date | undefined;
+  delivery_date: Date | undefined;
+  ship_to_address: string;
+  payment_terms: string;
+  tax_rate: string;
+  invoice_submission_email: string;
+  invoice_submission_cc: string;
+  custom_terms: string;
+  remarks: string;
+}
+
+const initialState = (): FormState => ({
+  po_type: 'goods',
+  po_date: new Date(),
+  delivery_date: undefined,
+  ship_to_address: '',
+  payment_terms: '',
+  tax_rate: '',
+  invoice_submission_email: DEFAULT_INVOICE_TO,
+  invoice_submission_cc: DEFAULT_INVOICE_CC,
+  custom_terms: '',
+  remarks: '',
+});
+
+const isValidEmail = (e: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+
+/** Coerce a backend price-comparison row into the local editable shape. */
+const hydrateRow = (e: PriceComparisonEntry): PriceComparisonRow => ({
+  _key:
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `row_${Math.random().toString(36).slice(2)}`,
+  vendor_id: e.vendor_id,
+  item_description: e.item_description ?? '',
+  unit_price: typeof e.unit_price === 'string' ? Number(e.unit_price) || '' : e.unit_price,
+  quantity: typeof e.quantity === 'string' ? Number(e.quantity) || '' : e.quantity,
+  is_selected: Boolean(e.is_selected),
+  selection_reason: e.selection_reason ?? '',
+});
+
+export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFormProps) {
+  // ---------- hydration ----------
+  const [hydrating, setHydrating] = useState(true);
+  const [hydrateSlow, setHydrateSlow] = useState(false);
+  const [hydrateError, setHydrateError] = useState<string | null>(null);
+
+  const [mrf, setMrf] = useState<MRF | null>(null);
+  const [form, setForm] = useState<FormState>(initialState());
+  const [rows, setRows] = useState<PriceComparisonRow[]>([
+    makeEmptyRow(),
+    makeEmptyRow(),
+  ]);
+
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+
+  // ---------- T&C template ----------
+  const [standardTerms, setStandardTerms] = useState('');
+  const [termsLoading, setTermsLoading] = useState(false);
+  const [termsMissing, setTermsMissing] = useState(false);
+  const [termsError, setTermsError] = useState<string | null>(null);
+
+  // ---------- save state ----------
+  const isSavingRef = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savingMode, setSavingMode] = useState<'draft' | 'finalise' | 'auto' | null>(null);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  const lastManualSaveRef = useRef<number>(0);
+  const dirtyRef = useRef(false);
+  const debounceRef = useRef<number | null>(null);
+
+  // ---------- review + cancel ----------
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+  const [finalisedMrf, setFinalisedMrf] = useState<MRF | null>(null);
+
+  // -------------------------------------------------------------------------
+  // Hydrate MRF + price comparison
+  // -------------------------------------------------------------------------
+  const hydrate = useCallback(async () => {
+    setHydrating(true);
+    setHydrateSlow(false);
+    setHydrateError(null);
+    const slowTimer = window.setTimeout(() => setHydrateSlow(true), 15000);
+    try {
+      const [mrfRes, pcRes] = await Promise.all([
+        procurementApi.getMRFForPO(mrfId),
+        procurementApi.getPriceComparison(mrfId),
+      ]);
+      if (!mrfRes.success || !mrfRes.data) {
+        setHydrateError(mrfRes.error || 'Failed to load MRF.');
+        return;
+      }
+      const m = mrfRes.data as MRF & {
+        po_special_terms?: string;
+        ship_to_address?: string;
+        tax_rate?: number | string | null;
+        invoice_submission_email?: string;
+        invoice_submission_cc?: string;
+        custom_terms?: string;
+        remarks?: string;
+        po_draft_saved_at?: string | null;
+        is_po_draft?: boolean;
+        priceComparisons?: PriceComparisonEntry[];
+      };
+      setMrf(m);
+      setForm((prev) => ({
+        ...prev,
+        ship_to_address: m.ship_to_address ?? prev.ship_to_address,
+        tax_rate:
+          m.tax_rate === null || m.tax_rate === undefined || m.tax_rate === ''
+            ? ''
+            : String(m.tax_rate),
+        invoice_submission_email:
+          m.invoice_submission_email || prev.invoice_submission_email,
+        invoice_submission_cc:
+          m.invoice_submission_cc || prev.invoice_submission_cc,
+        custom_terms: m.custom_terms ?? prev.custom_terms,
+        remarks: m.remarks ?? prev.remarks,
+      }));
+      setDraftSavedAt(m.po_draft_saved_at ?? null);
+
+      const incoming = pcRes.success && pcRes.data ? pcRes.data : m.priceComparisons;
+      if (Array.isArray(incoming) && incoming.length > 0) {
+        setRows(incoming.map(hydrateRow));
+      }
+    } catch (err) {
+      setHydrateError(err instanceof Error ? err.message : 'Failed to load MRF.');
+    } finally {
+      window.clearTimeout(slowTimer);
+      setHydrating(false);
+    }
+  }, [mrfId]);
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
+  // -------------------------------------------------------------------------
+  // Vendors (full /api/vendors list — PC table is broader than RFQ vendors)
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingVendors(true);
+    vendorApi
+      .getAll()
+      .then((res: ApiResponse<Vendor[]>) => {
+        if (cancelled) return;
+        if (res.success && Array.isArray(res.data)) {
+          setVendors(res.data.filter((v) => v.status === 'Active' || v.status === 'Pending'));
+        }
+      })
+      .finally(() => !cancelled && setLoadingVendors(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // T&C template (refetch on po_type change)
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    let cancelled = false;
+    setTermsLoading(true);
+    setTermsError(null);
+    setTermsMissing(false);
+    procurementApi
+      .getPOTermsTemplate(form.po_type)
+      .then((res) => {
+        if (cancelled) return;
+        if (!res.success) {
+          if (res.status === 404) {
+            setTermsMissing(true);
+            setStandardTerms('');
+          } else {
+            setTermsError(res.error || 'Could not load standard terms.');
+          }
+          return;
+        }
+        const data = res.data;
+        setStandardTerms(data?.content ?? data?.standard_terms ?? '');
+      })
+      .finally(() => !cancelled && setTermsLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [form.po_type]);
+
+  // -------------------------------------------------------------------------
+  // Form helpers / derived state
+  // -------------------------------------------------------------------------
+  const isDraft = Boolean(mrf?.is_po_draft) || !mrf?.po_number;
+  const isFinalised = Boolean(finalisedMrf?.po_number || mrf?.po_number);
+
+  const ccBlocked =
+    form.invoice_submission_cc.trim().toLowerCase() === BLOCKED_EMAIL.toLowerCase();
+
+  const ccInvalid =
+    form.invoice_submission_cc.trim().length > 0 && !isValidEmail(form.invoice_submission_cc);
+
+  const toInvalid =
+    form.invoice_submission_email.trim().length > 0 &&
+    !isValidEmail(form.invoice_submission_email);
+
+  const pcErrors = useMemo(
+    () => validatePriceComparison(rows, vendors),
+    [rows, vendors]
+  );
+
+  const section1Valid =
+    !!form.po_date &&
+    !!form.delivery_date &&
+    !!form.ship_to_address.trim() &&
+    !!form.payment_terms.trim() &&
+    !ccBlocked &&
+    !ccInvalid &&
+    !toInvalid &&
+    !termsMissing &&
+    !termsError;
+
+  const canFinalise = section1Valid && pcErrors.length === 0 && !isSaving && !finalisedMrf;
+
+  const hasAnyInput =
+    form.ship_to_address.trim() ||
+    form.payment_terms.trim() ||
+    form.custom_terms.trim() ||
+    form.remarks.trim() ||
+    form.tax_rate.trim() ||
+    rows.some((r) => r.vendor_id || r.item_description.trim() || r.unit_price || r.quantity);
+
+  // Mark dirty whenever inputs change (after hydrate completes)
+  useEffect(() => {
+    if (hydrating) return;
+    dirtyRef.current = true;
+  }, [form, rows, hydrating]);
+
+  // -------------------------------------------------------------------------
+  // Build the PO payload from form state.
+  // Per spec: delivery date appended to remarks, payment terms appended to custom_terms.
+  // -------------------------------------------------------------------------
+  const buildPayload = useCallback((): POFormPayload => {
+    const remarksPieces: string[] = [];
+    if (form.delivery_date)
+      remarksPieces.push(`Delivery / Service Date: ${format(form.delivery_date, 'yyyy-MM-dd')}`);
+    if (form.remarks.trim()) remarksPieces.push(form.remarks.trim());
+
+    const customPieces: string[] = [];
+    if (form.payment_terms.trim())
+      customPieces.push(`Payment Terms: ${form.payment_terms.trim()}`);
+    if (form.custom_terms.trim()) customPieces.push(form.custom_terms.trim());
+
+    return {
+      po_type: form.po_type,
+      ship_to_address: form.ship_to_address.trim() || undefined,
+      tax_rate: form.tax_rate ? Number(form.tax_rate) : undefined,
+      invoice_submission_email: form.invoice_submission_email.trim() || undefined,
+      invoice_submission_cc: form.invoice_submission_cc.trim() || undefined,
+      custom_terms: customPieces.join('\n\n') || undefined,
+      remarks: remarksPieces.join('\n\n') || undefined,
+    };
+  }, [form]);
+
+  // -------------------------------------------------------------------------
+  // Save flows
+  // -------------------------------------------------------------------------
+  const acquireLock = (mode: 'draft' | 'finalise' | 'auto'): boolean => {
+    if (isSavingRef.current) return false;
+    isSavingRef.current = true;
+    setIsSaving(true);
+    setSavingMode(mode);
+    return true;
+  };
+
+  const releaseLock = () => {
+    isSavingRef.current = false;
+    setIsSaving(false);
+    setSavingMode(null);
+  };
+
+  const saveDraft = useCallback(async () => {
+    if (!acquireLock('draft')) return;
+    try {
+      // (a) Always send current PC state — even partial — so users don't lose data.
+      const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
+      if (!pcRes.success) {
+        // Non-blocking: warn but proceed with PO draft save
+        toast.warning('Price comparison not saved', {
+          description: pcRes.error || 'You can fix it before generating the PO.',
+        });
+      }
+      // (b) Save PO draft regardless
+      const draftRes = await procurementApi.savePODraft(mrfId, buildPayload());
+      if (!draftRes.success) {
+        toast.error('Draft save failed', {
+          description: draftRes.error || 'Please try again.',
+        });
+        return;
+      }
+      const stamp = draftRes.data?.mrf?.po_draft_saved_at as string | undefined;
+      setDraftSavedAt(stamp ?? new Date().toISOString());
+      setMrf((prev) => (prev && draftRes.data?.mrf ? { ...prev, ...draftRes.data.mrf } : prev));
+      dirtyRef.current = false;
+      lastManualSaveRef.current = Date.now();
+      toast.success('Draft saved.');
+    } catch (err) {
+      toast.error('Draft save failed', {
+        description: err instanceof Error ? err.message : 'Unexpected error.',
+      });
+    } finally {
+      releaseLock();
+    }
+  }, [mrfId, rows, buildPayload]);
+
+  const finalisePO = useCallback(async () => {
+    if (!acquireLock('finalise')) return;
+    try {
+      // (a) Persist PC first; abort on failure.
+      const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
+      if (!pcRes.success) {
+        toast.error('Could not save price comparison', {
+          description: pcRes.error || 'Fix the errors and try again.',
+        });
+        return;
+      }
+      // (b) Generate PO
+      const finalRes = await procurementApi.finalisePO(mrfId, buildPayload());
+      if (!finalRes.success || !finalRes.data?.mrf) {
+        toast.error('PO generation failed', {
+          description: describeBackendError(finalRes.raw, finalRes.error || 'Please try again.'),
+        });
+        return;
+      }
+      const newMrf = finalRes.data.mrf;
+      setFinalisedMrf(newMrf);
+      const poNumber = newMrf.po_number || newMrf.poNumber || '—';
+      toast.success(`PO ${poNumber} generated`, {
+        description: 'Routed to the Supply Chain Director for signature.',
+      });
+      onFinalised?.(newMrf);
+    } catch (err) {
+      toast.error('PO generation failed', {
+        description: err instanceof Error ? err.message : 'Unexpected error.',
+      });
+    } finally {
+      releaseLock();
+    }
+  }, [mrfId, rows, buildPayload, onFinalised]);
+
+  // -------------------------------------------------------------------------
+  // Autosave — debounced 3s, draft mode only, lock-protected,
+  // paused 5s after manual save, skipped on validation failure.
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (hydrating || isFinalised) return;
+    if (!dirtyRef.current) return;
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(() => {
+      if (isSavingRef.current) return;
+      if (Date.now() - lastManualSaveRef.current < 5000) return;
+      // Gate: only autosave when PC is fully valid to avoid 422 spam.
+      if (validatePriceComparison(rows, vendors).length > 0) return;
+      // Run as auto save (uses same draft path).
+      void (async () => {
+        if (!acquireLock('auto')) return;
+        try {
+          const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
+          if (!pcRes.success) return;
+          const draftRes = await procurementApi.savePODraft(mrfId, buildPayload());
+          if (draftRes.success) {
+            const stamp = draftRes.data?.mrf?.po_draft_saved_at as string | undefined;
+            setDraftSavedAt(stamp ?? new Date().toISOString());
+            dirtyRef.current = false;
+          }
+        } catch {
+          // swallow autosave failures
+        } finally {
+          releaseLock();
+        }
+      })();
+    }, 3000);
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
+  }, [form, rows, vendors, hydrating, isFinalised, mrfId, buildPayload]);
+
+  // -------------------------------------------------------------------------
+  // Render — loading skeleton
+  // -------------------------------------------------------------------------
+  if (hydrating) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-1/3" />
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+        </div>
+        <Skeleton className="h-24" />
+        <Skeleton className="h-6 w-1/3" />
+        <Skeleton className="h-40" />
+        {hydrateSlow && (
+          <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-xs flex items-center justify-between">
+            <span>Backend slow to respond — still loading.</span>
+            <Button variant="outline" size="sm" onClick={() => void hydrate()}>
+              Retry
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (hydrateError) {
+    return (
+      <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm space-y-2">
+        <div className="flex items-center gap-2 font-medium text-destructive">
+          <AlertCircle className="h-4 w-4" />
+          Could not load MRF
+        </div>
+        <p className="text-muted-foreground">{hydrateError}</p>
+        <Button variant="outline" size="sm" onClick={() => void hydrate()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Render — form
+  // -------------------------------------------------------------------------
+  const finalisedUrl =
+    finalisedMrf?.unsigned_po_url ||
+    finalisedMrf?.unsignedPOUrl ||
+    mrf?.unsigned_po_url ||
+    mrf?.unsignedPOUrl;
+
+  return (
+    <div className="space-y-6">
+      {/* Progress chip + draft banner */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Badge variant="secondary">PO Details</Badge>
+          <span>→</span>
+          <Badge variant="secondary">Price Comparison</Badge>
+          <span>→</span>
+          <Badge variant="secondary">Review &amp; Submit</Badge>
+        </div>
+        {isDraft && draftSavedAt && (
+          <Badge variant="outline" className="text-xs">
+            Draft last saved {formatDistanceToNow(new Date(draftSavedAt), { addSuffix: true })}
+          </Badge>
+        )}
+      </div>
+
+      {/* ============== SECTION 1 — PO Details ============== */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-semibold">1. PO Details</h3>
+          <Badge variant="outline">MRF: {mrf?.formatted_id || mrf?.id || mrfId}</Badge>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>PO Type *</Label>
+            <Select
+              value={form.po_type}
+              onValueChange={(v) => setForm((s) => ({ ...s, po_type: v as POType }))}
+              disabled={isFinalised}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-popover">
+                {PO_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Vendor (from approved quotation)</Label>
+            <Input
+              value={mrf?.requester ? '' : ''}
+              placeholder="Resolved server-side from the approved quotation"
+              readOnly
+              disabled
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>PO Date *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn('w-full justify-start font-normal', !form.po_date && 'text-muted-foreground')}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {form.po_date ? format(form.po_date, 'PPP') : 'Pick a date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-popover" align="start">
+                <Calendar mode="single" selected={form.po_date} onSelect={(d) => setForm((s) => ({ ...s, po_date: d ?? undefined }))} initialFocus />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Delivery / Service Date *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn('w-full justify-start font-normal', !form.delivery_date && 'text-muted-foreground')}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {form.delivery_date ? format(form.delivery_date, 'PPP') : 'Pick a date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-popover" align="start">
+                <Calendar mode="single" selected={form.delivery_date} onSelect={(d) => setForm((s) => ({ ...s, delivery_date: d ?? undefined }))} initialFocus disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))} />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="ship-to">Ship-to / Delivery Address *</Label>
+            <Input id="ship-to" value={form.ship_to_address} onChange={(e) => setForm((s) => ({ ...s, ship_to_address: e.target.value }))} placeholder="e.g. Lekki HQ, Lagos" />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="payment-terms">Payment Terms *</Label>
+            <Input id="payment-terms" value={form.payment_terms} onChange={(e) => setForm((s) => ({ ...s, payment_terms: e.target.value }))} placeholder="e.g. Net 30 Days" />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tax-rate">Tax Rate (%)</Label>
+            <Input id="tax-rate" type="number" min="0" step="0.01" value={form.tax_rate} onChange={(e) => setForm((s) => ({ ...s, tax_rate: e.target.value }))} placeholder="e.g. 7.5" />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="invoice-to">Invoice Submission Email (To)</Label>
+            <Input id="invoice-to" type="email" value={form.invoice_submission_email} onChange={(e) => setForm((s) => ({ ...s, invoice_submission_email: e.target.value }))} aria-invalid={toInvalid} />
+            {toInvalid && <p className="text-xs text-destructive">Enter a valid email address.</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="invoice-cc">CC Email *</Label>
+            <Input id="invoice-cc" type="email" value={form.invoice_submission_cc} onChange={(e) => setForm((s) => ({ ...s, invoice_submission_cc: e.target.value }))} aria-invalid={ccBlocked || ccInvalid} />
+            {ccBlocked && <p className="text-xs text-destructive">This email address is not allowed in the CC field.</p>}
+            {ccInvalid && !ccBlocked && <p className="text-xs text-destructive">Enter a valid email address.</p>}
+          </div>
+        </div>
+
+        {/* T&C */}
+        <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-semibold">Terms &amp; Conditions</Label>
+            {termsLoading && (
+              <span className="inline-flex items-center text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" /> Loading…
+              </span>
+            )}
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Standard Terms (read-only)</Label>
+            {termsMissing ? (
+              <div className="rounded-md border border-warning/40 bg-warning/5 p-2 text-xs text-warning-foreground">
+                No standard T&amp;C template configured for this PO type. Contact admin.
+              </div>
+            ) : termsError ? (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
+                {termsError}
+              </div>
+            ) : (
+              <Textarea value={standardTerms} readOnly rows={4} className="bg-background/60 text-xs" placeholder={termsLoading ? 'Loading…' : 'No standard terms configured'} />
+            )}
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="custom-terms" className="text-xs text-muted-foreground">Additional Custom Terms (optional)</Label>
+            <Textarea id="custom-terms" rows={3} value={form.custom_terms} onChange={(e) => setForm((s) => ({ ...s, custom_terms: e.target.value }))} placeholder="Add any PO-specific terms here…" className="text-xs" />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="remarks">Additional Notes</Label>
+          <Textarea id="remarks" rows={2} value={form.remarks} onChange={(e) => setForm((s) => ({ ...s, remarks: e.target.value }))} placeholder="Special instructions, shipping requirements, etc." />
+        </div>
+      </section>
+
+      {/* ============== SECTION 2 — Price Comparison ============== */}
+      <section className="space-y-3">
+        <h3 className="text-base font-semibold">2. Price Comparison Sheet</h3>
+        <PriceComparisonTable
+          value={rows}
+          onChange={setRows}
+          vendors={vendors}
+          loadingVendors={loadingVendors}
+          disabled={isFinalised}
+        />
+      </section>
+
+      {/* ============== SECTION 3 — Review & Submit ============== */}
+      <section className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setReviewOpen((o) => !o)}
+          className="flex items-center gap-2 text-sm font-semibold hover:text-primary transition-colors"
+        >
+          <ChevronDown className={cn('h-4 w-4 transition-transform', reviewOpen && 'rotate-180')} />
+          3. Review before submitting
+        </button>
+        {reviewOpen && (
+          <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-3">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <dt className="text-muted-foreground">PO Type</dt>
+              <dd className="font-medium capitalize">{form.po_type}</dd>
+              <dt className="text-muted-foreground">PO Date</dt>
+              <dd>{form.po_date ? format(form.po_date, 'PPP') : '—'}</dd>
+              <dt className="text-muted-foreground">Delivery Date</dt>
+              <dd>{form.delivery_date ? format(form.delivery_date, 'PPP') : '—'}</dd>
+              <dt className="text-muted-foreground">Ship-to</dt>
+              <dd>{form.ship_to_address || '—'}</dd>
+              <dt className="text-muted-foreground">Payment Terms</dt>
+              <dd>{form.payment_terms || '—'}</dd>
+              <dt className="text-muted-foreground">Tax Rate</dt>
+              <dd>{form.tax_rate ? `${form.tax_rate}%` : '—'}</dd>
+              <dt className="text-muted-foreground">Invoice To</dt>
+              <dd>{form.invoice_submission_email}</dd>
+              <dt className="text-muted-foreground">CC</dt>
+              <dd>{form.invoice_submission_cc}</dd>
+            </dl>
+            <div className="border-t pt-2">
+              <p className="text-xs font-medium mb-1">Comparison ({rows.length} suppliers)</p>
+              <ul className="text-xs space-y-1">
+                {rows.map((r, i) => (
+                  <li key={r._key} className={cn('flex justify-between', r.is_selected && 'font-semibold text-success')}>
+                    <span>{i + 1}. {r.vendor_id || '—'} · {r.item_description || '—'}</span>
+                    <span className="tabular-nums">₦{((Number(r.unit_price) || 0) * (Number(r.quantity) || 0)).toLocaleString()}{r.is_selected && ' ✓'}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ============== Finalised banner ============== */}
+      {isFinalised && finalisedUrl && (
+        <div className="rounded-md border border-success/40 bg-success/10 p-3 text-sm flex items-center justify-between">
+          <span>
+            PO <strong>{finalisedMrf?.po_number || finalisedMrf?.poNumber || mrf?.po_number}</strong> generated.
+          </span>
+          <a href={finalisedUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+            <ExternalLink className="h-3.5 w-3.5" /> Open PDF
+          </a>
+        </div>
+      )}
+
+      {/* ============== Sticky footer actions ============== */}
+      <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 border-t bg-background/95 backdrop-blur flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs text-muted-foreground">
+          {isSaving && (
+            <span className="inline-flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              {savingMode === 'auto' ? 'Autosaving…' : savingMode === 'finalise' ? 'Generating PO…' : 'Saving draft…'}
+            </span>
+          )}
+          {!isSaving && draftSavedAt && (
+            <span>Saved {formatDistanceToNow(new Date(draftSavedAt), { addSuffix: true })}</span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {isFinalised && finalisedUrl && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={finalisedUrl} target="_blank" rel="noreferrer">
+                <Download className="h-3.5 w-3.5 mr-1" />
+                Download PDF
+              </a>
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (hasAnyInput && !isFinalised) setConfirmCancelOpen(true);
+              else onRequestClose();
+            }}
+            disabled={isSaving}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => void saveDraft()}
+            disabled={isSaving || !hasAnyInput || isFinalised}
+          >
+            <Save className="h-3.5 w-3.5 mr-1" />
+            Save as Draft
+          </Button>
+          <Button
+            onClick={() => void finalisePO()}
+            disabled={!canFinalise}
+            title={!canFinalise && !isSaving ? 'Complete all PO details and add at least 2 supplier quotes with one selected before generating.' : undefined}
+          >
+            <Send className="h-3.5 w-3.5 mr-1" />
+            Generate &amp; Route for Approval
+          </Button>
+        </div>
+      </div>
+
+      {/* Cancel confirmation */}
+      <AlertDialog open={confirmCancelOpen} onOpenChange={setConfirmCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved input on this PO. Save it as a draft, discard your changes, or keep editing.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>Continue editing</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                setConfirmCancelOpen(false);
+                await saveDraft();
+                onRequestClose();
+              }}
+              disabled={isSaving}
+            >
+              Save as Draft
+            </Button>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmCancelOpen(false);
+                onRequestClose();
+              }}
+            >
+              Discard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
