@@ -242,6 +242,7 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
                 <TableHead>Next Due</TableHead>
                 <TableHead>Interval (mo)</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Documents</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -256,6 +257,40 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
                     <Badge variant="outline" className={STATUS_BADGE[it.status] || ""}>
                       {STATUS_LABEL[it.status] || it.status}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {((it as any).documents || []).length === 0 ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {((it as any).documents || []).map((doc: any, idx: number) => {
+                          const docId = doc?.id || doc?.document_id || idx;
+                          const url = doc?.url || doc?.file_url || doc?.s3_url;
+                          const name = doc?.name || doc?.file_name || `Document ${idx + 1}`;
+                          return (
+                            <div key={docId} className="flex items-center gap-2 text-xs">
+                              <FileText className="h-3 w-3 text-muted-foreground" />
+                              {url ? (
+                                <a href={url} target="_blank" rel="noreferrer" className="truncate max-w-[140px] underline">
+                                  {name}
+                                </a>
+                              ) : (
+                                <span className="truncate max-w-[140px]">{name}</span>
+                              )}
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-5 w-5"
+                                onClick={() => handleDeleteDocument(it.id, doc)}
+                                title="Delete document"
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
