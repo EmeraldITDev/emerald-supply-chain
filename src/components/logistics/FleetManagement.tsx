@@ -932,13 +932,6 @@ export const FleetManagement = () => {
                                   <Eye className="mr-2 h-4 w-4" />
                                   View Details
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                  setSelectedVehicle(vehicle);
-                                  setDocumentDialogOpen(true);
-                                }}>
-                                  <Upload className="mr-2 h-4 w-4" />
-                                  Upload Document
-                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => {
                                   setSrfVehicle(vehicle);
