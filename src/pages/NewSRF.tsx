@@ -43,6 +43,43 @@ const NewSRF = () => {
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [invoiceOneDriveUrl, setInvoiceOneDriveUrl] = useState<string>("");
 
+  // Logistics Manager: link an existing vehicle so its details flow downstream
+  const isLogisticsManager = user?.role === "logistics_manager";
+  const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+
+  useEffect(() => {
+    if (!isLogisticsManager) return;
+    fleetApi.getAll().then((res) => {
+      if (res.success && Array.isArray(res.data)) setVehicles(res.data as FleetVehicle[]);
+    });
+  }, [isLogisticsManager]);
+
+  const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
+
+  const buildVehicleContext = (v: FleetVehicle): string => {
+    const parts: string[] = [];
+    parts.push(`=== VEHICLE CONTEXT ===`);
+    parts.push(`Vehicle: ${v.name || v.vehicleNumber || ""} (${v.plate || "no plate"})`);
+    if (v.make || v.model || v.year) parts.push(`Make/Model: ${[v.make, v.model, v.year].filter(Boolean).join(" ")}`);
+    if (v.type) parts.push(`Type: ${v.type}`);
+    if (v.color) parts.push(`Color: ${v.color}`);
+    if (v.fuelType) parts.push(`Fuel: ${v.fuelType}`);
+    if (v.totalDistance != null) parts.push(`Total Distance: ${Number(v.totalDistance).toLocaleString()} km`);
+    if (v.lastMaintenanceAt) parts.push(`Last Maintenance: ${new Date(v.lastMaintenanceAt).toLocaleDateString()}`);
+    if (v.nextMaintenanceAt) parts.push(`Next Scheduled: ${new Date(v.nextMaintenanceAt).toLocaleDateString()}`);
+    const history = (v.maintenanceHistory || []).slice(0, 5);
+    if (history.length) {
+      parts.push(`Recent Maintenance:`);
+      history.forEach((h: any) => {
+        const when = h.performedAt || h.performed_at || h.lastMaintenanceDate || "";
+        parts.push(`  • ${when ? new Date(when).toLocaleDateString() : "—"} — ${h.description || h.maintenance_type || h.maintenanceType || "Service"}`);
+      });
+    }
+    parts.push(`=======================`);
+    return parts.join("\n");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
