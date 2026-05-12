@@ -36,6 +36,13 @@ import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { POGenerationDialog } from "@/components/POGenerationDialog";
+import { CreatePOForm } from "@/components/procurement";
+import {
+  Dialog as CreatePODialog,
+  DialogContent as CreatePODialogContent,
+  DialogHeader as CreatePODialogHeader,
+  DialogTitle as CreatePODialogTitle,
+} from "@/components/ui/dialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RFQManagement } from "@/components/RFQManagement";
@@ -132,6 +139,10 @@ const Procurement = () => {
     useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+
+  // New PO Generator (two-section form with price comparison)
+  const [createPOOpen, setCreatePOOpen] = useState(false);
+  const [createPOMrfId, setCreatePOMrfId] = useState<string | null>(null);
 
   // Vendor registrations from dashboard API
   const [vendorRegistrations, setVendorRegistrations] = useState<
