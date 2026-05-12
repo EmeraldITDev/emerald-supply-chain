@@ -266,7 +266,9 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
   // -------------------------------------------------------------------------
   // Form helpers / derived state
   // -------------------------------------------------------------------------
-  const isDraft = Boolean(mrf?.is_po_draft) || !mrf?.po_number;
+  const isDraft =
+    Boolean((mrf as MRF & { is_po_draft?: boolean })?.is_po_draft) ||
+    !mrf?.po_number;
   const isFinalised = Boolean(finalisedMrf?.po_number || mrf?.po_number);
 
   const ccBlocked =
@@ -373,7 +375,8 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
         });
         return;
       }
-      const stamp = draftRes.data?.mrf?.po_draft_saved_at as string | undefined;
+      const stamp = (draftRes.data?.mrf as { po_draft_saved_at?: string } | undefined)
+        ?.po_draft_saved_at;
       setDraftSavedAt(stamp ?? new Date().toISOString());
       setMrf((prev) => (prev && draftRes.data?.mrf ? { ...prev, ...draftRes.data.mrf } : prev));
       dirtyRef.current = false;
@@ -444,7 +447,8 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
           if (!pcRes.success) return;
           const draftRes = await procurementApi.savePODraft(mrfId, buildPayload());
           if (draftRes.success) {
-            const stamp = draftRes.data?.mrf?.po_draft_saved_at as string | undefined;
+            const stamp = (draftRes.data?.mrf as { po_draft_saved_at?: string } | undefined)
+              ?.po_draft_saved_at;
             setDraftSavedAt(stamp ?? new Date().toISOString());
             dirtyRef.current = false;
           }
