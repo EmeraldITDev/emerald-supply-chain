@@ -17,9 +17,9 @@ const NewSRF = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Only employees can create SRF
+  // Staff and Logistics Manager can create SRF
   useEffect(() => {
-    if (user && !isEmployeeRole(user.role)) {
+    if (user && !isEmployeeRole(user.role) && user.role !== "logistics_manager") {
       toast({
         title: "Access Denied",
         description: "Only staff members can create Service Request Forms. Please contact your administrator.",
