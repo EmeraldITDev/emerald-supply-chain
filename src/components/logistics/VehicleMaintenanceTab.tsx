@@ -109,11 +109,31 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
     setError(null);
     try {
       const res = await fleetApi.listMaintenance(vehicle.id);
+      // Always include records that came back inline on the vehicle object
+      // (legacy /maintenance POST writes here as `maintenance_history`).
+      const inlineHistory: MaintenanceSchedule[] = ((vehicle as any).maintenanceHistory || []).map(
+        (h: any) => ({
+          id: (h.id || h.uuid || `inline-${h.performed_at || h.performedAt || Math.random()}`).toString(),
+          vehicleId: vehicle.id,
+          maintenanceType: h.description || h.maintenance_type || h.maintenanceType || h.type || "Maintenance",
+          intervalMonths: 0,
+          lastMaintenanceDate: h.performed_at || h.performedAt || h.last_maintenance_date || "",
+          nextMaintenanceDate: h.next_scheduled_at || h.nextScheduledAt || h.next_maintenance_date || "",
+          status: (h.status as any) || "completed",
+          notes: h.notes,
+          // @ts-ignore
+          documents: h.documents || h.attachments || [],
+        }),
+      );
       if (res.success && res.data) {
         const arr = Array.isArray(res.data) ? res.data : (res.data as any).records || [];
-        setItems(arr.map((r: any) => normalize(r, vehicle.id)));
+        const normalized = arr.map((r: any) => normalize(r, vehicle.id));
+        // De-dupe by id, prefer schedule entries over inline history
+        const byId = new Map<string, MaintenanceSchedule>();
+        [...inlineHistory, ...normalized].forEach((it) => byId.set(it.id, it));
+        setItems(Array.from(byId.values()));
       } else {
-        setItems([]);
+        setItems(inlineHistory);
         if (res.error) setError(res.error);
       }
     } catch (e: any) {
@@ -121,7 +141,7 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
     } finally {
       setLoading(false);
     }
-  }, [vehicle.id]);
+  }, [vehicle.id, vehicle]);
 
   useEffect(() => {
     fetchData();
