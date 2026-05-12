@@ -482,6 +482,17 @@ export const userApi = {
   },
 };
 
+/** Vendor-selection justification — backend may read any key; also maps to price-comparison REASON. */
+function selectionJustificationBody(text?: string | null): Record<string, string> {
+  const t = (text ?? "").trim();
+  if (!t) return {};
+  return {
+    selection_reason: t,
+    selectionReason: t,
+    remarks: t,
+  };
+}
+
 // MRF API
 export const mrfApi = {
   getAll: async (filters?: FilterOptions, sort?: SortOptions): Promise<ApiResponse<MRF[]>> => {
@@ -688,10 +699,19 @@ export const mrfApi = {
   },
 
   // Procurement Manager reviews vendor quotes and selects vendor
-  selectVendor: async (id: string, vendorId: string, quotationId: string, remarks?: string): Promise<ApiResponse<MRF>> => {
+  selectVendor: async (
+    id: string,
+    vendorId: string,
+    quotationId: string,
+    selectionReason?: string,
+  ): Promise<ApiResponse<MRF>> => {
     return apiRequest<MRF>(`/mrfs/${id}/select-vendor`, {
       method: 'POST',
-      body: JSON.stringify({ vendor_id: vendorId, quotation_id: quotationId, remarks }),
+      body: JSON.stringify({
+        vendor_id: vendorId,
+        quotation_id: quotationId,
+        ...selectionJustificationBody(selectionReason),
+      }),
     });
   },
 
@@ -955,10 +975,21 @@ export const mrfApi = {
   },
 
   // Procurement sends selected vendor to Supply Chain Director for approval
-  sendVendorForApproval: async (id: string, vendorId: string, quotationId?: string, remarks?: string): Promise<ApiResponse<MRF>> => {
+  sendVendorForApproval: async (
+    id: string,
+    vendorId: string,
+    quotationId?: string,
+    selectionReason?: string,
+  ): Promise<ApiResponse<MRF>> => {
     return apiRequest<MRF>(`/mrfs/${id}/send-vendor-for-approval`, {
       method: 'POST',
-      body: JSON.stringify({ vendor_id: vendorId, quotation_id: quotationId, remarks }),
+      body: JSON.stringify({
+        vendor_id: vendorId,
+        ...(quotationId != null && quotationId !== ''
+          ? { quotation_id: quotationId }
+          : {}),
+        ...selectionJustificationBody(selectionReason),
+      }),
     });
   },
 
@@ -1323,7 +1354,11 @@ export const rfqApi = {
   },
 
   // Select winning vendor (Procurement Manager)
-  selectVendor: async (rfqId: string, quotationId: string): Promise<ApiResponse<{
+  selectVendor: async (
+    rfqId: string,
+    quotationId: string,
+    selectionReason?: string,
+  ): Promise<ApiResponse<{
     rfq_id: string;
     status: string;
     selected_vendor: { id: string; name: string };
@@ -1331,7 +1366,10 @@ export const rfqApi = {
   }>> => {
     return apiRequest(`/rfqs/${rfqId}/select-vendor`, {
       method: 'POST',
-      body: JSON.stringify({ quotation_id: quotationId }),
+      body: JSON.stringify({
+        quotation_id: quotationId,
+        ...selectionJustificationBody(selectionReason),
+      }),
     });
   },
 

@@ -92,6 +92,13 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   const [loadingRfqDetails, setLoadingRfqDetails] = useState(false);
   const [rfqDetailsData, setRfqDetailsData] = useState<any | null>(null);
 
+  const [awardReasonOpen, setAwardReasonOpen] = useState(false);
+  const [awardReasonText, setAwardReasonText] = useState("");
+  const [pendingAward, setPendingAward] = useState<{
+    quotationId: string;
+    vendorId: string;
+  } | null>(null);
+
   // RFQ Creation form state
   const [selectionMethod, setSelectionMethod] = useState<'all_category' | 'manual' | 'preferred'>('manual');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -375,33 +382,58 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     }
   }, [compareDialogOpen, selectedRFQ]);
 
-  const handleAwardVendor = async (quotationId: string, vendorId: string) => {
+  const handleAwardVendor = async (
+    quotationId: string,
+    vendorId: string,
+    selectionReason: string,
+  ) => {
     if (!selectedRFQ) return;
 
+    const reason = selectionReason.trim();
+    if (reason.length < 10) {
+      toast({
+        title: "Reason for selection required",
+        description:
+          "Enter at least 10 characters explaining why this vendor was chosen (stored on the price comparison).",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsAwardingVendor(true);
-    
+
     try {
       const contractType =
         (enhancedQuotationData?.mrf?.contractType || "").toString();
       const isEmerald = contractType.toLowerCase().includes("emerald");
       const approverName = isEmerald ? "Executive" : "Supply Chain Director";
 
-      // Step 1: Select vendor via RFQ API (marks vendor as selected in RFQ)
-      const selectResponse = await rfqApi.selectVendor(selectedRFQ.id, quotationId);
+      const selectResponse = await rfqApi.selectVendor(
+        selectedRFQ.id,
+        quotationId,
+        reason,
+      );
 
       if (!selectResponse.success) {
-        // Enhanced error handling for workflow states
         let errorMessage = selectResponse.error || "Failed to award vendor";
-        
-        // Check for specific workflow state errors
-        if (errorMessage.includes("not in procurement review") || errorMessage.includes("workflow state")) {
+
+        if (
+          errorMessage.includes("not in procurement review") ||
+          errorMessage.includes("workflow state")
+        ) {
           errorMessage = `This MRF is not in the correct workflow state for vendor selection. Please ensure the MRF has been approved by the ${approverName} and is ready for procurement review.`;
-        } else if (errorMessage.includes("executive approval") || errorMessage.includes("not approved")) {
+        } else if (
+          errorMessage.includes("executive approval") ||
+          errorMessage.includes("not approved")
+        ) {
           errorMessage = `${approverName} approval is required before selecting a vendor. Please wait for ${approverName} approval.`;
-        } else if (errorMessage.includes("already selected") || errorMessage.includes("vendor already")) {
+        } else if (
+          errorMessage.includes("already selected") ||
+          errorMessage.includes("vendor already")
+        ) {
           errorMessage = "A vendor has already been selected for this RFQ.";
         }
-        
+
         toast({
           title: "Vendor Selection Failed",
           description: errorMessage,
@@ -410,7 +442,6 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
         return;
       }
 
-      // Step 2: Send selected vendor to Supply Chain Director for approval
       const mrfRow =
         enhancedQuotationData?.mrf ??
         selectedMRF ??
@@ -427,45 +458,50 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
             "Vendor was selected in RFQ, but no MRF id could be resolved for approval. Open Procurement and use Send for Approval on the correct MRF, or contact support.",
           variant: "destructive",
         });
-      } else {
-        const { mrfApi } = await import("@/services/api");
-        const sendResponse = await mrfApi.sendVendorForApproval(
-          mrfPathId,
-          vendorId,
-          quotationId,
-        );
-
-        if (sendResponse.success) {
-          toast({
-            title: "Vendor Selection Sent for Approval",
-            description:
-              "Vendor has been selected and sent to Supply Chain Director for approval. You'll be able to generate PO after approval.",
-          });
-        } else {
-          let errorMessage = sendResponse.error || "Unknown error";
-
-          if (
-            errorMessage.includes("workflow state") ||
-            errorMessage.includes("not in")
-          ) {
-            errorMessage =
-              "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
-          } else if (errorMessage.includes("executive approval")) {
-            errorMessage = isEmerald
-              ? "Executive approval is required before sending vendor for Supply Chain Director approval."
-              : "Supply Chain Director first approval is required before sending vendor for final approval.";
-          }
-
-          toast({
-            title: "Partial Success",
-            description: `Vendor was selected in RFQ, but failed to send for Supply Chain Director approval: ${errorMessage}`,
-            variant: "destructive",
-          });
-        }
+        return;
       }
 
-    onVendorSelected?.(vendorId, selectedRFQ.id);
-    setCompareDialogOpen(false);
+      const { mrfApi } = await import("@/services/api");
+      const sendResponse = await mrfApi.sendVendorForApproval(
+        mrfPathId,
+        vendorId,
+        quotationId,
+        reason,
+      );
+
+      if (sendResponse.success) {
+        toast({
+          title: "Vendor Selection Sent for Approval",
+          description:
+            "Vendor has been selected and sent to Supply Chain Director for approval. You'll be able to generate PO after approval.",
+        });
+        setAwardReasonOpen(false);
+        setPendingAward(null);
+        setAwardReasonText("");
+      } else {
+        let errorMessage = sendResponse.error || "Unknown error";
+
+        if (
+          errorMessage.includes("workflow state") ||
+          errorMessage.includes("not in")
+        ) {
+          errorMessage =
+            "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
+        } else if (errorMessage.includes("executive approval")) {
+          errorMessage = isEmerald
+            ? "Executive approval is required before sending vendor for Supply Chain Director approval."
+            : "Supply Chain Director first approval is required before sending vendor for final approval.";
+        }
+
+        toast({
+          title: "Partial Success",
+          description: `Vendor was selected in RFQ, but failed to send for Supply Chain Director approval: ${errorMessage}`,
+          variant: "destructive",
+        });
+      }
+
+      onVendorSelected?.(vendorId, selectedRFQ.id);
+      setCompareDialogOpen(false);
     } catch (error) {
       toast({
         title: "Error",
@@ -1062,7 +1098,14 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                               View Details
                             </Button>
                             <Button
-                              onClick={() => handleAwardVendor(quote.id, quote.vendorId)}
+                              onClick={() => {
+                                setPendingAward({
+                                  quotationId: quote.id,
+                                  vendorId: quote.vendorId,
+                                });
+                                setAwardReasonText("");
+                                setAwardReasonOpen(true);
+                              }}
                               className={idx === 0 ? 'bg-success hover:bg-success/90' : ''}
                               disabled={isAwardingVendor}
                             >
@@ -1094,6 +1137,76 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               <p className="text-muted-foreground">No quotations received yet</p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={awardReasonOpen}
+        onOpenChange={(open) => {
+          setAwardReasonOpen(open);
+          if (!open && !isAwardingVendor) {
+            setPendingAward(null);
+            setAwardReasonText("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Reason for vendor selection</DialogTitle>
+            <DialogDescription>
+              This text is sent with your selection and stored on the price comparison.
+              Minimum 10 characters.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="rfq-award-reason">Justification</Label>
+            <Textarea
+              id="rfq-award-reason"
+              rows={5}
+              value={awardReasonText}
+              onChange={(e) => setAwardReasonText(e.target.value)}
+              placeholder="e.g. Lowest compliant bid, best delivery, meets technical requirements…"
+              disabled={isAwardingVendor}
+              className="resize-y min-h-[120px]"
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (!isAwardingVendor) {
+                  setAwardReasonOpen(false);
+                  setPendingAward(null);
+                  setAwardReasonText("");
+                }
+              }}
+              disabled={isAwardingVendor}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={isAwardingVendor || !pendingAward}
+              onClick={() => {
+                if (!pendingAward) return;
+                void handleAwardVendor(
+                  pendingAward.quotationId,
+                  pendingAward.vendorId,
+                  awardReasonText,
+                );
+              }}
+            >
+              {isAwardingVendor ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending…
+                </>
+              ) : (
+                "Award & send for approval"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

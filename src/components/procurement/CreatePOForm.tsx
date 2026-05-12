@@ -517,7 +517,8 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
     mrf?.unsignedPOUrl;
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden">
+      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overflow-x-hidden pr-1 pb-1">
       {/* Progress chip + draft banner */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -732,8 +733,10 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
         </div>
       )}
 
-      {/* ============== Sticky footer actions ============== */}
-      <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 border-t bg-background/95 backdrop-blur flex flex-wrap items-center justify-between gap-2">
+      </div>
+
+      {/* Footer actions — fixed below scroll area so fields are never covered */}
+      <div className="mt-2 flex flex-shrink-0 flex-wrap items-center justify-between gap-2 border-t bg-background/95 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="text-xs text-muted-foreground">
           {isSaving && (
             <span className="inline-flex items-center gap-1">

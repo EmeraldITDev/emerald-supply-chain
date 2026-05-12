@@ -73,7 +73,7 @@ import {
   formatDays,
   formatAmount,
 } from "@/utils/normalizeQuotation";
-import type { VendorRegistration, MRF } from "@/types";
+import type { VendorRegistration, MRF, RFQ } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
 import { normalizeAttachments } from "@/utils/attachments";
@@ -99,9 +99,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 const Procurement = () => {
@@ -149,6 +151,18 @@ const Procurement = () => {
   const [createPOOpen, setCreatePOOpen] = useState(false);
   const [createPOMrfId, setCreatePOMrfId] = useState<string | null>(null);
   const [manualPOOpen, setManualPOOpen] = useState(false);
+
+  /** "Select & Send for Approval" — collect justification before RFQ + MRF calls */
+  const [vendorSelectionDialogOpen, setVendorSelectionDialogOpen] =
+    useState(false);
+  const [vendorSelectionTarget, setVendorSelectionTarget] = useState<{
+    request: MRFRequest;
+    rfq: RFQ;
+    quotation: Record<string, unknown>;
+  } | null>(null);
+  const [vendorSelectionReason, setVendorSelectionReason] = useState("");
+  const [vendorSelectionSubmitting, setVendorSelectionSubmitting] =
+    useState(false);
 
   // Vendor registrations from dashboard API
   const [vendorRegistrations, setVendorRegistrations] = useState<
@@ -439,6 +453,100 @@ const Procurement = () => {
   const isEmeraldContract = (mrf: MRF): boolean => {
     return getMRFContractType(mrf).toLowerCase().includes("emerald");
   };
+
+  const confirmVendorSelectionSend = useCallback(async () => {
+    const reason = vendorSelectionReason.trim();
+    if (reason.length < 10) {
+      toast({
+        title: "Reason for selection required",
+        description:
+          "Enter at least 10 characters explaining why this vendor was chosen (stored with the price comparison).",
+        variant: "destructive",
+      });
+      return;
+    }
+    const t = vendorSelectionTarget;
+    if (!t) return;
+    const { request, rfq, quotation } = t;
+    const qid = String(quotation.id ?? "");
+    const vid =
+      String(quotation.vendorId ?? "") ||
+      String((quotation as { vendor_id?: string }).vendor_id ?? "");
+    if (!qid || !vid) {
+      toast({
+        title: "Error",
+        description: "Missing quotation or vendor id.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setVendorSelectionSubmitting(true);
+    try {
+      const selectResponse = await rfqApi.selectVendor(rfq.id, qid, reason);
+      if (!selectResponse.success) {
+        toast({
+          title: "Error",
+          description: selectResponse.error || "Failed to select quotation",
+          variant: "destructive",
+        });
+        return;
+      }
+      const sendResponse = await mrfApi.sendVendorForApproval(
+        getMrfApiId(request as MRF),
+        vid,
+        qid,
+        reason,
+      );
+      if (sendResponse.success) {
+        toast({
+          title: "Quotation Selected",
+          description:
+            "Vendor quotation has been selected and sent to Supply Chain Director for approval.",
+        });
+        setVendorSelectionDialogOpen(false);
+        setVendorSelectionTarget(null);
+        setVendorSelectionReason("");
+        await fetchMRFs();
+        await fetchRFQs();
+        await fetchQuotations();
+        return;
+      }
+      let errorMessage =
+        sendResponse.error || "Failed to send quotation for approval";
+      const isEmerald = isEmeraldContract(request as MRF);
+      if (
+        errorMessage.includes("workflow state") ||
+        errorMessage.includes("not in")
+      ) {
+        errorMessage =
+          "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
+      } else if (errorMessage.includes("executive approval")) {
+        errorMessage = isEmerald
+          ? "Executive approval is required before sending vendor for Supply Chain Director approval."
+          : "Supply Chain Director first approval is required before sending vendor for final approval.";
+      }
+      toast({
+        title: "Approval Request Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to process quotation selection",
+        variant: "destructive",
+      });
+    } finally {
+      setVendorSelectionSubmitting(false);
+    }
+  }, [
+    vendorSelectionReason,
+    vendorSelectionTarget,
+    toast,
+    fetchMRFs,
+    fetchRFQs,
+    fetchQuotations,
+  ]);
 
   // Helper to check if Supply Chain Director has approved (either initial MRF approval or vendor selection approval)
   const isSupplyChainApproved = (mrf: MRF): boolean => {
@@ -2351,99 +2459,17 @@ const Procurement = () => {
                                                     size="sm"
                                                     variant="default"
                                                     className="text-xs"
-                                                    onClick={async (e) => {
+                                                    onClick={(e) => {
                                                       e.stopPropagation();
-                                                      // Select quotation and send to Supply Chain Director
-                                                      try {
-                                                        // First select vendor in RFQ
-                                                        const selectResponse =
-                                                          await rfqApi.selectVendor(
-                                                            rfq.id,
-                                                            quotation.id,
-                                                          );
-                                                        if (
-                                                          selectResponse.success
-                                                        ) {
-                                                          // Then send to Supply Chain Director
-                                                          const sendResponse =
-                                                            await mrfApi.sendVendorForApproval(
-                                                              getMrfApiId(
-                                                                request as MRF,
-                                                              ),
-                                                              quotation.vendorId ||
-                                                                quotation.vendor_id,
-                                                              quotation.id,
-                                                            );
-                                                          if (
-                                                            sendResponse.success
-                                                          ) {
-                                                            toast({
-                                                              title:
-                                                                "Quotation Selected",
-                                                              description:
-                                                                "Vendor quotation has been selected and sent to Supply Chain Director for approval.",
-                                                            });
-                                                            await fetchMRFs();
-                                                            await fetchRFQs();
-                                                            await fetchQuotations();
-                                                          } else {
-                                                            let errorMessage =
-                                                              sendResponse.error ||
-                                                              "Failed to send quotation for approval";
-                                                            const isEmerald =
-                                                              isEmeraldContract(
-                                                                request as MRF,
-                                                              );
-
-                                                            if (
-                                                              errorMessage.includes(
-                                                                "workflow state",
-                                                              ) ||
-                                                              errorMessage.includes(
-                                                                "not in",
-                                                              )
-                                                            ) {
-                                                              errorMessage =
-                                                                "The MRF workflow state is not valid for sending vendor for approval. Please ensure the MRF is in the correct stage.";
-                                                            } else if (
-                                                              errorMessage.includes(
-                                                                "executive approval",
-                                                              )
-                                                            ) {
-                                                              errorMessage =
-                                                                isEmerald
-                                                                  ? "Executive approval is required before sending vendor for Supply Chain Director approval."
-                                                                  : "Supply Chain Director first approval is required before sending vendor for final approval.";
-                                                            }
-
-                                                            toast({
-                                                              title:
-                                                                "Approval Request Failed",
-                                                              description:
-                                                                errorMessage,
-                                                              variant:
-                                                                "destructive",
-                                                            });
-                                                          }
-                                                        } else {
-                                                          toast({
-                                                            title: "Error",
-                                                            description:
-                                                              selectResponse.error ||
-                                                              "Failed to select quotation",
-                                                            variant:
-                                                              "destructive",
-                                                          });
-                                                        }
-                                                      } catch (error) {
-                                                        toast({
-                                                          title: "Error",
-                                                          description:
-                                                            "Failed to process quotation selection",
-                                                          variant:
-                                                            "destructive",
-                                                        });
-                                                      }
+                                                      setVendorSelectionTarget({
+                                                        request,
+                                                        rfq,
+                                                        quotation,
+                                                      });
+                                                      setVendorSelectionReason("");
+                                                      setVendorSelectionDialogOpen(
+                                                        true,
+                                                      );
                                                     }}
                                                   >
                                                     Select & Send for Approval
@@ -3015,24 +3041,98 @@ const Procurement = () => {
           if (!o) setCreatePOMrfId(null);
         }}
       >
-        <CreatePODialogContent className="w-[95vw] max-w-5xl max-h-[85vh] overflow-y-auto">
-          <CreatePODialogHeader>
+        <CreatePODialogContent className="flex w-[95vw] max-w-5xl max-h-[85vh] flex-col gap-4 overflow-hidden p-6">
+          <CreatePODialogHeader className="flex-shrink-0 pr-8">
             <CreatePODialogTitle>Create Purchase Order</CreatePODialogTitle>
           </CreatePODialogHeader>
           {createPOMrfId && (
-            <CreatePOForm
-              mrfId={createPOMrfId}
-              onFinalised={() => {
-                void fetchMRFs();
-              }}
-              onRequestClose={() => {
-                setCreatePOOpen(false);
-                setCreatePOMrfId(null);
-              }}
-            />
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <CreatePOForm
+                mrfId={createPOMrfId}
+                onFinalised={() => {
+                  void fetchMRFs();
+                }}
+                onRequestClose={() => {
+                  setCreatePOOpen(false);
+                  setCreatePOMrfId(null);
+                }}
+              />
+            </div>
           )}
         </CreatePODialogContent>
       </CreatePODialog>
+
+      <Dialog
+        open={vendorSelectionDialogOpen}
+        onOpenChange={(open) => {
+          setVendorSelectionDialogOpen(open);
+          if (!open && !vendorSelectionSubmitting) {
+            setVendorSelectionTarget(null);
+            setVendorSelectionReason("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Reason for vendor selection</DialogTitle>
+            <DialogDescription>
+              This justification is sent with your selection and recorded on the
+              price comparison (selection reason). Minimum 10 characters.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="vendor-selection-reason">
+              Why this vendor / quotation?
+            </Label>
+            <Textarea
+              id="vendor-selection-reason"
+              rows={5}
+              value={vendorSelectionReason}
+              onChange={(e) => setVendorSelectionReason(e.target.value)}
+              placeholder="e.g. Best total cost, shortest lead time, meets spec, prior performance…"
+              disabled={vendorSelectionSubmitting}
+              className="resize-y min-h-[120px]"
+            />
+            {vendorSelectionTarget && (
+              <p className="text-xs text-muted-foreground">
+                MRF:{" "}
+                {getDisplayId(vendorSelectionTarget.request as unknown as MRF)}{" "}
+                · RFQ: {getDisplayId(vendorSelectionTarget.rfq)}
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (!vendorSelectionSubmitting) {
+                  setVendorSelectionDialogOpen(false);
+                  setVendorSelectionTarget(null);
+                  setVendorSelectionReason("");
+                }
+              }}
+              disabled={vendorSelectionSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void confirmVendorSelectionSend()}
+              disabled={vendorSelectionSubmitting}
+            >
+              {vendorSelectionSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending…
+                </>
+              ) : (
+                "Select & send for approval"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Manual PO quick-start: creates a backing MRF, then opens CreatePOForm */}
       <ManualPOQuickStartDialog
