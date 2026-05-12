@@ -36,6 +36,13 @@ import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { POGenerationDialog } from "@/components/POGenerationDialog";
+import { CreatePOForm } from "@/components/procurement";
+import {
+  Dialog as CreatePODialog,
+  DialogContent as CreatePODialogContent,
+  DialogHeader as CreatePODialogHeader,
+  DialogTitle as CreatePODialogTitle,
+} from "@/components/ui/dialog";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RFQManagement } from "@/components/RFQManagement";
@@ -132,6 +139,10 @@ const Procurement = () => {
     useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+
+  // New PO Generator (two-section form with price comparison)
+  const [createPOOpen, setCreatePOOpen] = useState(false);
+  const [createPOMrfId, setCreatePOMrfId] = useState<string | null>(null);
 
   // Vendor registrations from dashboard API
   const [vendorRegistrations, setVendorRegistrations] = useState<
@@ -2284,246 +2295,22 @@ const Procurement = () => {
 
                                               if (showGeneratePO) {
                                                 // Show "Generate PO" button after SCD approval
+                                                // Open the new two-section Create PO form
+                                                const isDraft = Boolean(
+                                                  (request as MRF & { is_po_draft?: boolean }).is_po_draft,
+                                                );
                                                 return (
                                                   <Button
                                                     size="sm"
                                                     variant="default"
                                                     className="text-xs"
-                                                    onClick={async (e) => {
+                                                    onClick={(e) => {
                                                       e.stopPropagation();
-                                                      // Create PO record and forward to Finance
-                                                      try {
-                                                        // Auto-generate PO number: PO-YYYY-MMDD-XXX format
-                                                        const now = new Date();
-                                                        const year =
-                                                          now.getFullYear();
-                                                        const month = String(
-                                                          now.getMonth() + 1,
-                                                        ).padStart(2, "0");
-                                                        const day = String(
-                                                          now.getDate(),
-                                                        ).padStart(2, "0");
-                                                        const random =
-                                                          Math.floor(
-                                                            Math.random() *
-                                                              1000,
-                                                          )
-                                                            .toString()
-                                                            .padStart(3, "0");
-                                                        const poNumber = `PO-${year}-${month}${day}-${random}`;
-
-                                                        // Get approved quotation with items
-                                                        const mrfQuotations =
-                                                          getQuotationsForMRF(
-                                                            request.id,
-                                                          );
-                                                        const approvedQuotation =
-                                                          mrfQuotations.find(
-                                                            (q: any) =>
-                                                              q.status ===
-                                                                "Approved" ||
-                                                              q.status ===
-                                                                "approved" ||
-                                                              q.status ===
-                                                                "awarded",
-                                                          );
-
-                                                        // Fetch quotation details with items from API
-                                                        let quotationItems: any[] =
-                                                          [];
-                                                        if (approvedQuotation) {
-                                                          const rfq =
-                                                            getRFQForMRF(
-                                                              request.id,
-                                                            );
-                                                          if (rfq) {
-                                                            try {
-                                                              const quotationResponse =
-                                                                await rfqApi.getQuotations(
-                                                                  rfq.id,
-                                                                );
-                                                              if (
-                                                                quotationResponse.success &&
-                                                                quotationResponse
-                                                                  .data
-                                                                  ?.quotations
-                                                              ) {
-                                                                // Find the approved quotation in the response
-                                                                const fullQuotation =
-                                                                  quotationResponse.data.quotations.find(
-                                                                    (
-                                                                      item: any,
-                                                                    ) =>
-                                                                      item
-                                                                        .quotation
-                                                                        ?.id ===
-                                                                        approvedQuotation.id ||
-                                                                      item
-                                                                        .quotation
-                                                                        ?.id ===
-                                                                        approvedQuotation.quotationId ||
-                                                                      (item.quotation &&
-                                                                        approvedQuotation.id &&
-                                                                        item
-                                                                          .quotation
-                                                                          .id ===
-                                                                          approvedQuotation.id),
-                                                                  );
-
-                                                                // Extract items from the quotation
-                                                                if (
-                                                                  fullQuotation
-                                                                ) {
-                                                                  const fqAny =
-                                                                    fullQuotation as any;
-                                                                  if (
-                                                                    fqAny.items &&
-                                                                    Array.isArray(
-                                                                      fqAny.items,
-                                                                    ) &&
-                                                                    fqAny.items
-                                                                      .length >
-                                                                      0
-                                                                  ) {
-                                                                    quotationItems =
-                                                                      fqAny.items;
-                                                                  } else if (
-                                                                    fqAny
-                                                                      .quotation
-                                                                      ?.items &&
-                                                                    Array.isArray(
-                                                                      fqAny
-                                                                        .quotation
-                                                                        .items,
-                                                                    ) &&
-                                                                    fqAny
-                                                                      .quotation
-                                                                      .items
-                                                                      .length >
-                                                                      0
-                                                                  ) {
-                                                                    quotationItems =
-                                                                      fqAny
-                                                                        .quotation
-                                                                        .items;
-                                                                  }
-                                                                }
-
-                                                                // If still no items, try to get from context quotation (cast to any to access items)
-                                                                const quotationWithItems =
-                                                                  approvedQuotation as any;
-                                                                if (
-                                                                  quotationItems.length ===
-                                                                    0 &&
-                                                                  quotationWithItems.items &&
-                                                                  Array.isArray(
-                                                                    quotationWithItems.items,
-                                                                  )
-                                                                ) {
-                                                                  quotationItems =
-                                                                    quotationWithItems.items;
-                                                                }
-                                                              }
-                                                            } catch (error) {
-                                                              console.warn(
-                                                                "Failed to fetch quotation items:",
-                                                                error,
-                                                              );
-                                                              // Fallback to items from context if available
-                                                              const quotationWithItems =
-                                                                approvedQuotation as any;
-                                                              if (
-                                                                quotationWithItems.items &&
-                                                                Array.isArray(
-                                                                  quotationWithItems.items,
-                                                                )
-                                                              ) {
-                                                                quotationItems =
-                                                                  quotationWithItems.items;
-                                                              }
-                                                            }
-                                                          }
-                                                        }
-
-                                                        // Log items for debugging
-                                                        if (
-                                                          quotationItems.length ===
-                                                          0
-                                                        ) {
-                                                          console.warn(
-                                                            "No items found for quotation:",
-                                                            {
-                                                              quotationId:
-                                                                approvedQuotation?.id,
-                                                              rfqId: rfq?.id,
-                                                              mrfId: request.id,
-                                                              approvedQuotation:
-                                                                approvedQuotation,
-                                                            },
-                                                          );
-                                                        } else {
-                                                        }
-
-                                                        // Create PO record - no document generation, just create the PO and move to Purchase Orders
-                                                        // Backend will create the PO record with the PO number and update workflow state
-                                                        // Include items if available
-                                                        const poResponse =
-                                                          await mrfApi.generatePO(
-                                                            request.id,
-                                                            poNumber,
-                                                            undefined,
-                                                            quotationItems,
-                                                          );
-                                                        if (
-                                                          poResponse.success
-                                                        ) {
-                                                          toast({
-                                                            title: "PO Created",
-                                                            description: `Purchase Order ${poNumber} has been created and added to Purchase Orders.`,
-                                                          });
-                                                          // Switch to Purchase Orders tab to show the new PO
-                                                          setTab("po");
-                                                          await fetchMRFs();
-                                                          await fetchRFQs();
-                                                          await fetchQuotations();
-                                                        } else {
-                                                          // Show detailed error message from backend
-                                                          const errorMessage =
-                                                            poResponse.error ||
-                                                            "Failed to create PO";
-                                                          console.error(
-                                                            "PO creation error:",
-                                                            errorMessage,
-                                                          );
-                                                          toast({
-                                                            title:
-                                                              "Error Creating PO",
-                                                            description:
-                                                              errorMessage,
-                                                            variant:
-                                                              "destructive",
-                                                          });
-                                                        }
-                                                      } catch (error) {
-                                                        console.error(
-                                                          "PO creation exception:",
-                                                          error,
-                                                        );
-                                                        const errorMessage =
-                                                          error instanceof Error
-                                                            ? error.message
-                                                            : "Failed to create PO";
-                                                        toast({
-                                                          title: "Error",
-                                                          description:
-                                                            errorMessage,
-                                                          variant:
-                                                            "destructive",
-                                                        });
-                                                      }
+                                                      setCreatePOMrfId(request.id);
+                                                      setCreatePOOpen(true);
                                                     }}
                                                   >
-                                                    Generate PO
+                                                    {isDraft ? "Continue PO Draft" : "Generate PO"}
                                                   </Button>
                                                 );
                                               } else {
@@ -3188,6 +2975,33 @@ const Procurement = () => {
         onSave={handleSavePO}
         isGenerating={poGenerating}
       />
+
+      {/* New PO Generator (two-section form with price comparison sheet) */}
+      <CreatePODialog
+        open={createPOOpen}
+        onOpenChange={(o) => {
+          setCreatePOOpen(o);
+          if (!o) setCreatePOMrfId(null);
+        }}
+      >
+        <CreatePODialogContent className="w-[95vw] max-w-5xl max-h-[85vh] overflow-y-auto">
+          <CreatePODialogHeader>
+            <CreatePODialogTitle>Create Purchase Order</CreatePODialogTitle>
+          </CreatePODialogHeader>
+          {createPOMrfId && (
+            <CreatePOForm
+              mrfId={createPOMrfId}
+              onFinalised={() => {
+                void fetchMRFs();
+              }}
+              onRequestClose={() => {
+                setCreatePOOpen(false);
+                setCreatePOMrfId(null);
+              }}
+            />
+          )}
+        </CreatePODialogContent>
+      </CreatePODialog>
 
       {/* GRN Completion Dialog */}
       {selectedMRFForGRN && (
