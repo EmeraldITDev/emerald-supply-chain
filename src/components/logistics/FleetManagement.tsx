@@ -941,7 +941,6 @@ export const FleetManagement = () => {
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => {
-                                  setSelectedVehicle(vehicle);
                                   setSrfVehicle(vehicle);
                                   setSrfDialogOpen(true);
                                 }} hidden={!canInitiateSRF}>
