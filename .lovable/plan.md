@@ -1,210 +1,152 @@
-# Module 5 — Materials Tracking Frontend (v3 — final)
 
-Implements both sections of the uploaded spec: enhanced Material Movement form and Material Job Completion Certificate (JCC). New domain — "movements in transit", **distinct from the existing inventory-style `MaterialsTracking.tsx`**, which is left intact.
+# PO Generator with Price Comparison — Implementation Plan (v3)
 
-## Pre-Flight Verifications (resolve before build)
+Builds the two-section "Create PO" flow described in `po_generator_frontend.md`, scoped to an existing MRF. Replaces the current single-shot Generate PO action in Procurement with a multi-section form (PO Details → Price Comparison → Review & Submit), Save-as-Draft + Finalise behavior, and a status badge helper for the PO list.
 
-1. **Vendor field source** — confirm `vendor_id` lookup uses the existing vendors endpoint (`vendorsApi.getAll`). Reuse if yes; otherwise request the logistics-specific endpoint.
-2. **`condition_of_goods` enum** — confirm backend accepts exactly `NEW | USED | DAMAGED`. Display: New / Used / Damaged.
-3. **`condition_on_arrival` enum on JCC** — confirm exactly `GOOD | DAMAGED | PARTIAL`. Display: Good / Damaged / Partial Delivery.
-4. **`GET /jcc/prefill` shape** — confirm response is array of `{ materialName, quantity, condition, remarks }`. If wrapped, normalise once in `materialsMovementsApi`.
-5. **`GET /jcc/pdf` availability** — if not yet live, ship the button **disabled** with tooltip *"PDF download will be available once backend rendering is enabled."* No client-side PDF substitute.
-6. **Reference number** — confirmed by spec (`JCC/MAT/[YYYYMM]-[seq]`, backend on first `POST /jcc`). Read-only.
-7. **`vendor_id` nullable / `vendor_name` free-text** — confirmed by spec. One of the two required.
-8. **StatCard counts source** — confirm whether `GET /api/materials` returns top-level aggregates or a separate `GET /api/materials/summary` endpoint exists. If list is paginated, **never** derive from current page.
-9. **Vendor address for Emerald-owned movements** — default plan: include optional `vendor_address` Textarea on the form when Emerald-owned mode is on; if backend rejects, drop the address line gracefully on the JCC header.
+Legacy `generatePO()` in `src/services/api.ts` stays untouched (other callers depend on it). The new flow uses a new `procurementApi` group.
 
-## API Wiring (`src/services/logisticsApi.ts`)
+---
 
-New `materialsMovementsApi` group (named to avoid collision with the existing inventory `materialsApi`). All routes via `apiRequest`. Every successful mutation dispatches `app:refresh`. Auto-retry on 5xx/network. Snake_case → camelCase mapped at the boundary in single normalisers (`normalizeMovement`, `normalizeJCC`).
+## Resolved Clarifications (v2 → v3)
 
-**Movements**
-- `list(params?)` → `GET /api/materials` (params: status, category, search, dateFrom, dateTo, destination)
-- `getSummary()` → `GET /api/materials/summary` *(only if pre-flight #8 confirms)*
-- `get(id)` → `GET /api/materials/:id`
-- `create(body)` → `POST /api/materials`
-- `update(id, body)` → `PATCH /api/materials/:id`
-- `cancel(id)` → `DELETE /api/materials/:id` (soft-delete)
-- `markInTransit(id)` → `POST /api/materials/:id/mark-in-transit`
-- `markDelivered(id)` → `POST /api/materials/:id/mark-delivered`
+**v3 additions:**
 
-**Material JCC**
-- `getJCC(materialId)` → `GET /api/materials/:materialId/jcc` (404 → `null`, not throw)
-- `createJCC(materialId, body)` → `POST /api/materials/:materialId/jcc`
-- `updateJCC(materialId, body)` → `PATCH /api/materials/:materialId/jcc` (Draft only — server enforces)
-- `getJCCPrefill(materialId)` → `GET /api/materials/:materialId/jcc/prefill` (called conditionally — see §5.2)
-- `submitJCC(materialId)` → `POST /api/materials/:materialId/jcc/submit`
-- `approveJCC(materialId)` → `POST /api/materials/:materialId/jcc/approve`
-- `downloadJCCPdf(materialId)` → `GET /api/materials/:materialId/jcc/pdf` (blob)
+- **Lock release on error** — every code path that acquires `isSavingRef.current = true` releases it inside a `finally` block. Pseudocode pattern enforced in `CreatePOForm`:
+  ```ts
+  if (isSavingRef.current) return;
+  isSavingRef.current = true;
+  setIsSaving(true);
+  try {
+    await savePriceComparison(...);
+    await savePODraft(...);
+  } catch (err) {
+    // surface error to UI
+  } finally {
+    isSavingRef.current = false;
+    setIsSaving(false);
+  }
+  ```
+  This applies to manual Save Draft, Generate & Route, AND the autosave tick. The form can never freeze permanently from an unhandled throw.
 
-## Types (`src/types/logistics.ts`)
+- **`app:refresh` only on success** — the dispatch lives **inside each `procurementApi` mutation, after the `await` resolves and only when the response is `success: true`**. Failed mutations (network error, 4xx, 5xx, validation) do NOT dispatch. Pattern:
+  ```ts
+  const res = await apiRequest(...);
+  if (res.success) window.dispatchEvent(new Event('app:refresh'));
+  return res;
+  ```
+  No optimistic dispatching before the await, no dispatching in catch blocks.
 
-```ts
-type MaterialMovementStatus = 'pending' | 'in_transit' | 'delivered' | 'cancelled';
-type MaterialJCCStatus = 'draft' | 'submitted' | 'approved';
-type ConditionOfGoods = 'NEW' | 'USED' | 'DAMAGED';
-type ConditionOnArrival = 'GOOD' | 'DAMAGED' | 'PARTIAL';
+**v2 carryovers:**
 
-interface MaterialMovement {
-  id; materialName; category; quantity;
-  pickupLocation; destination;
-  vendorId?: string; vendorName?: string; vendorAddress?: string; vendorPhone;
-  vehiclePlate; driverName; driverPhone;
-  expectedPickupAt; expectedDeliveryAt;
-  conditionOfGoods: ConditionOfGoods;
-  status: MaterialMovementStatus;
-  linkedPoNumber?: string;
-  jccId?: string; jccStatus?: MaterialJCCStatus;
-  createdAt; updatedAt;
-}
+1. **Autosave race condition** — `isSavingRef` lock checked-and-set atomically. Held autosave ticks are dropped (not queued). Autosave is paused for 5s after any successful manual save.
+2. **Save Draft preserves partial PC rows** — always sends current PC state (even partial / empty). PC failure → non-blocking warning toast, draft save still proceeds. Strict validation enforced only on Generate & Route.
+3. **Empty PC array** — client sends `{ rows: [] }`; if backend rejects, we catch it and skip the PC call so the PO draft still saves.
+4. **Hydration loading state** — `Skeleton` matching the two-section structure inside the dialog. 15s timeout shows "Backend slow to respond — retry?" inline state.
+5. **Mobile/tablet** — desktop-first. Dialog uses `w-[95vw] max-w-5xl max-h-[85vh] overflow-y-auto`. Section 2 table wrapped in `overflow-x-auto`.
+6. **`po_draft_saved_at`** — primary from `data.mrf.po_draft_saved_at`; fallback to client-stamped `Date.now()` if backend omits it.
 
-interface MaterialJCCLineItem { id?; sn; materialName; quantity; condition; remarks; }
+**Open question — answered:** PC supplier combobox uses the **full `/api/vendors` list**, not just RFQ vendors. The PC documents alternatives considered, which can include non-RFQ vendors. The Section 1 vendor (server-resolved from approved quotation) is read-only display; the form does not enforce equality between it and the PC's Selected row (backend remains the source of truth).
 
-interface MaterialJCC {
-  id; materialId; referenceNumber; dateIssued;
-  certificationStatement; conditionOnArrival: ConditionOnArrival;
-  lineItems: MaterialJCCLineItem[];
-  status: MaterialJCCStatus;
-  signatoryName; signatoryTitle; signatureUrl?;
-  vendorName; vendorAddress?; linkedPoNumber?;
-  createdAt; updatedAt;
-}
+---
 
-interface MaterialMovementSummary { total; pending; in_transit; delivered; cancelled; }
-```
+## Pre-Flight Verifications (still required)
 
-## Status Helper (`src/utils/materialStatus.ts`)
+1. **PO number** — backend-generated only; never collected on form. Read-only after finalise.
+2. **CC email** — defaults `lateef.olanrewaju@emeraldcfze.com`, editable, blocklist rejects `douglas.anuforo@emeraldcfze.com` (client validator, never auto-suggested).
+3. **Vendor combobox** — uses `vendor_id` string (e.g. `VND-001`), not numeric `id`.
+4. **T&C** — only `po_type` + optional `custom_terms` are sent; standard text never POSTed back. 404 from `/po-terms-templates/{type}` → inline warning + Generate disabled.
+5. **MRF eligibility** — entry button visible only when `rfqStatus === 'approved'` AND `status ∈ {pending_po_upload, procurement, po rejected}`. Label flips to "Continue PO Draft" when `is_po_draft`.
+6. **Persistence order** — Save Draft / Finalise both: (a) `PUT price-comparisons`, (b) `POST generate-po`. On Finalise, (a) failure aborts (b). On Save Draft, (a) failure shows non-blocking warning and (b) still runs.
+7. **Role gating** — Save Draft / Generate / Regenerate restricted to `procurement_manager | procurement | admin`. View-only for `supply_chain_director`.
 
-```ts
-formatMaterialStatus(s):
-  pending     → "Pending"     (neutral / muted)
-  in_transit  → "In Transit"  (warning / amber)
-  delivered   → "Delivered"   (success / green)
-  cancelled   → "Cancelled"   (destructive / red)
-  fallback    → Title-Case + console.warn
-
-materialStatusBadgeClass(s) — token classes.
-
-formatJCCStatus(s):
-  draft     → "Draft"     (neutral)
-  submitted → "Submitted" (info / blue)
-  approved  → "Approved"  (success / green)
-```
-
-All badges and conditional UI route through these helpers — no string literals.
-
-## 5.1 — Material Movements List + Form
-
-**New `MaterialMovements.tsx`** (mounted as a new "Material Movements" sub-tab in `Logistics.tsx`, distinct from the legacy "Materials" inventory tab — both coexist).
-
-**StatCards (Total / Pending / In Transit / Delivered):**
-- Data source per pre-flight #8. **Selection logic — one-time on mount** (cached for the component lifetime, not re-evaluated on filter changes):
-  1. Try `getSummary()`. If 200, use it and remember `source = 'summary'`.
-  2. Else inspect first `list()` response for top-level aggregate fields (`total`, `pending`, `in_transit`, `delivered`, `cancelled`). If present, remember `source = 'list-aggregates'` and read them from every subsequent `list()` response.
-  3. Else `source = 'unavailable'` → render `<Skeleton>` permanently with non-blocking helper *"Counts pending backend support"*. Never derive from `data.length`.
-- After mutations (create/update/cancel/mark*), refresh via the same source: `getSummary()` if `source === 'summary'`, otherwise rely on the next `list()` response.
-
-**Filters & search:**
-- Status, category, date range, destination text.
-- Search by material name / destination / vehicle plate.
-- **Search input debounced 300ms** before firing `list(params)` (small `useDebouncedValue` hook). Status/category/date filters fire immediately.
-
-**Table columns:** Material Name, Category, Quantity, Pickup, Destination, Status badge, Expected Delivery, Actions.
-
-**Top-right `+ New Material Movement`** (CRUD roles only).
-
-**Row actions (DropdownMenu):**
-- **View** → opens detail drawer.
-- **Edit** → opens form (only if status is `pending` or `in_transit`).
-- **Mark In Transit** → AlertDialog confirm → `markInTransit`. Visible only when `pending`.
-- **Mark Delivered** → AlertDialog confirm → `markDelivered`. Visible only when `in_transit` AND `jccStatus === 'approved'`. When JCC missing/not approved, render disabled with tooltip *"Approve the JCC before marking this movement as delivered."*
-- **Cancel** → AlertDialog confirm → `cancel`.
-
-**New `MaterialMovementForm.tsx`** (Dialog, max 85vh, internal scroll):
-
-- Fields per spec table. Required marked `*`.
-- **Vendor section:**
-  - Default: searchable vendor combobox (reuse Procurement vendor dropdown if present; otherwise `Command`-based combobox over `vendorsApi.getAll`). Address read from selected vendor record.
-  - Checkbox *"Emerald-owned vehicle (no vendor record)"* → toggles to free-text `Vendor Name` Input **plus optional `Vendor Address` Textarea** (per pre-flight #9). Submitting sends `vendor_name` (and `vendor_address` when present) instead of `vendor_id`.
-- Datetimes use `<Input type="datetime-local">`. Inline validation: delivery > pickup; min 10-digit phones; condition required.
-- Submit calls `create` or `update`. On success: toast, close, refresh list (and StatCards via the cached source).
-
-## 5.2 — Material JCC
-
-**New `MaterialJCCDialog.tsx`** (large Dialog, max 85vh internal scroll; mounted from movement detail "Close Movement / Issue JCC" button).
-
-**Open sequence (strict order):**
-
-1. `getJCC(materialId)`:
-   - If record present → rehydrate header, certification, condition, line items. Reference number read-only.
-   - If 404 (`null`) → empty local state. Reference shows `—` with helper *"Generated when you save."*
-2. **Conditionally** call `getJCCPrefill(materialId)` **only when** there is no existing JCC OR the existing JCC is `draft` AND its line items are empty. Skip entirely for `submitted` / `approved` JCCs.
-   - If suggestions returned AND local line items still empty → one-shot `AlertDialog`: *"Pre-fill line items from material movement details?"* Yes auto-fills, No leaves empty.
-
-**Header section (read-only, auto-filled):** company info from `useApp` settings (or static fallback consistent with existing PO layout); JCC reference; Date Issued (date picker, defaults today, editable while draft); Vendor Name + Address from the movement record.
-- If `vendorAddress` is missing (Emerald-owned with none provided), render the vendor block with name only — **no empty "Address:" label**, no placeholder dash.
-- Linked PO number rendered only if present.
-
-**Certification statement:** editable `<Textarea>` pre-filled with the spec text. Locked once status is `submitted` or `approved`.
-
-**Condition on Arrival:** `<Select>` Good / Damaged / Partial Delivery — required to enable Submit.
-
-**Line items table:** SN (auto), Material Name, Quantity, Condition, Remarks; `+ Add Row`; per-row remove (×); minimum 1 row to submit. Inputs disabled when status ≠ `draft`.
-
-**Signatory section (read-only):** current user's name and title from `AuthContext`; signature image from `user.signatureUrl` if present (same field as SCD PO signature), else *"Signature will be applied on approval."*
-
-**Mode resolution (drives footer button visibility):**
-
-```ts
-const canManage = canManageMovementsRole(role);
-const canApprove = canApproveMaterialJCCRole(role);
-const isDraftEditable = (jcc?.status ?? 'draft') === 'draft' && canManage;
-const isPendingApproval = jcc?.status === 'submitted';
-const readOnly = !isDraftEditable && !(isPendingApproval && canApprove);
-```
-
-**Actions (footer) — explicit visibility rules:**
-
-- **Save as Draft** — visible **only when** `isDraftEditable`. First save → `createJCC`, then `updateJCC`. Captures returned `referenceNumber`.
-- **Submit JCC** — visible **only when** `isDraftEditable`. Disabled until: condition selected, ≥1 line item with all fields filled, certification non-empty.
-- **Approve JCC** — visible **only when** `isPendingApproval && canApprove` (`supply_chain_director` only). Calls `approveJCC`. Movement detail refetches afterward; backend is source of truth for status flip to `delivered`.
-- **Download PDF** — always visible. Disabled with tooltip if pre-flight #5 says unavailable, OR if status ≠ `approved`.
-- **Preview Draft (browser render)** — always visible.
-- **Close** — always visible.
-
-> **Read-only context summary (locked):** when neither `isDraftEditable` nor (`isPendingApproval && canApprove`) is true — i.e. a read-only role viewing any JCC, or any user viewing a submitted/approved JCC without approval rights — the dialog renders Header, Certification, Condition, Line Items, and Signatory in disabled state and the footer shows **only Download PDF, Preview Draft, and Close**. Save Draft / Submit / Approve are not rendered (not just disabled).
-
-**Preview Draft watermark (locked):** absolutely-positioned full-page diagonal text *"DRAFT PREVIEW — NOT OFFICIAL CERTIFICATE"*, rotated −30°, centered, font-weight 800, font-size ~96px, color `hsl(var(--destructive) / 0.18)`, `pointer-events: none`, `z-index: 50`. Repeated once vertically so it spans short and long pages. Rendered inside the print stylesheet (`@media print`) so it survives `window.print()`.
-
-**Movement detail integration (inside the View drawer):**
-- If no JCC and status ∈ {`in_transit`, `delivered`} → **Close Movement / Issue JCC** button (CRUD roles only).
-- If JCC exists → **View JCC** link + JCC status badge via `formatJCCStatus`. Clicking opens the same dialog; mode resolution above governs the rest.
-
-## Role Gating (`AuthContext` `role`)
-
-- Full CRUD on movements + Save/Submit JCC: `logistics_officer | logistics_manager | logistics | admin`.
-- Read-only (no buttons, no actions menu): `supply_chain_director | procurement_manager`.
-- Approve JCC: `supply_chain_director` only.
-- Implemented via `canManageMovements(role)` / `canApproveMaterialJCC(role)` helpers colocated with components.
+---
 
 ## Files
 
 **New**
-- `src/components/logistics/MaterialMovements.tsx`
-- `src/components/logistics/MaterialMovementForm.tsx`
-- `src/components/logistics/MaterialJCCDialog.tsx`
-- `src/utils/materialStatus.ts`
+- `src/services/procurementApi.ts` — `getPOTermsTemplate(type)`, `getPriceComparison(mrfId)`, `savePriceComparison(mrfId, rows)`, `savePODraft(mrfId, payload)`, `finalisePO(mrfId, payload)`, `getMRFForPO(mrfId)`. All through existing `apiRequest`. **`app:refresh` dispatched only after a successful response is awaited.**
+- `src/types/procurement.ts` — `POTermsTemplate`, `PriceComparisonRow`, `PriceComparisonEntry`, `POFormPayload`, `POProjection`, `POStatusKey`.
+- `src/utils/poStatus.ts` — `formatPOStatus({status, workflow_state, is_po_draft, signed_po_url})` and `poStatusBadgeClass(key)` using semantic tokens.
+- `src/components/procurement/PriceComparisonTable.tsx` — controlled component: `value`, `onChange`, `vendors` (full list), `disabled`. Two starter rows, Add/Remove (min 2 visual guard), live total, single-Selected radio with `bg-success/10` highlight, inline validation badges. `overflow-x-auto`.
+- `src/components/procurement/CreatePOForm.tsx` — owns hydration, dirty tracking, autosave (3s debounce, lock-protected via `try/finally`, draft mode only, paused 5s after manual save), submit flow, cancel-confirm modal, sticky footer. Skeleton during hydration. 15s slow-backend retry banner.
+- `src/components/procurement/index.ts` — barrel export.
 
 **Edited**
-- `src/services/logisticsApi.ts` — add `materialsMovementsApi` and JCC methods (do NOT touch existing inventory `materialsApi`).
-- `src/types/logistics.ts` — add types and enums above.
-- `src/pages/Logistics.tsx` — add new "Material Movements" tab.
-- `src/components/logistics/index.ts` — export new components.
+- `src/pages/Procurement.tsx` — opens `CreatePOForm` in a `Dialog` (`w-[95vw] max-w-5xl max-h-[85vh] overflow-y-auto`) on eligible MRF rows. Button label flips between "Generate PO" and "Continue PO Draft" based on `is_po_draft`. Paperclip icon + tooltip when `priceComparisons?.length > 0`. Status badge column driven by `formatPOStatus()`.
+
+---
+
+## Section 1 — PO Details (fields → API binding)
+
+| Field | Binding |
+|---|---|
+| MRF chip (read-only) | from URL/context |
+| PO Type (Goods/Services/Logistics) | `po_type` — drives template fetch |
+| Vendor (read-only, server-resolved from approved quotation) | display only |
+| PO Date | display only (server stamps `po_generated_at`) |
+| Delivery / Service Date | appended into `remarks` |
+| Ship-to Address | `ship_to_address` |
+| Payment Terms | appended into `custom_terms` |
+| Tax Rate (%) | `tax_rate` |
+| Invoice To Email | `invoice_submission_email`, default `accountpayables@emeraldcfze.com` |
+| CC Email | `invoice_submission_cc`, default `lateef.olanrewaju@emeraldcfze.com`; blocks `douglas.anuforo@emeraldcfze.com` |
+| Standard T&C | read-only block from `data.content` |
+| Custom Terms | `custom_terms` textarea |
+| Additional Notes | `remarks` |
+
+On `po_type` change → refetch template; 404 shows inline warning and disables Generate.
+
+---
+
+## Section 2 — Price Comparison Sheet
+
+Editable table: Supplier (combobox over **full vendor list**), Item Description, Unit Price (₦), Quantity, Total (live `unit × qty`, read-only display), Notes / Selection Reason, Selected (radio).
+
+- Starts with 2 empty rows. "+ Add Supplier" / "×" remove (min 2 visual guard, not enforced on Save Draft so users don't lose typed data).
+- Selected row: `bg-success/10` highlight.
+- Inline validation badges only block **Generate**, not Save Draft.
+- Persistence: `PUT /api/mrfs/{id}/price-comparisons` — bulk replace.
+- Autosave: debounced 3s, draft mode only, lock-protected, paused 5s after manual save, skipped on validation failure.
+
+---
+
+## Section 3 — Review & Submit
+
+Collapsible read-only summary (collapsed by default). When `is_po_draft`, banner: "Draft last saved {relative time}".
+
+---
+
+## Footer Actions
+
+- **Save as Draft** — enabled with any Section 1 input. Lock-acquired in `try/finally`. Always sends current PC state. PC failure → warning toast, draft save still proceeds. Success → "Draft saved." toast, refresh saved-at stamp, pause autosave 5s.
+- **Generate & Route for Approval** — enabled only when all required PO fields valid + ≥ 2 PC rows + 1 selected + all required PC fields filled. Lock-acquired in `try/finally`. PC save first; abort on failure with inline error. On success: `POST generate-po`, toast `"PO {po_number} generated and routed to Supply Chain Director."`, close form, expose "Open PDF" → `unsigned_po_url`.
+- **Download Draft PDF** — visible only after finalisation; opens `unsigned_po_url`.
+- **Cancel** — confirm modal "Save as Draft / Discard / Continue editing" if any data entered.
+
+Disabled-Generate tooltip: *"Complete all PO details and add at least 2 supplier quotes with one selected before generating."*
+
+Backend error code → friendly message map (`FORBIDDEN`, `NOT_FOUND`, `RFQ_NOT_APPROVED`, `INVALID_STATUS`, `DUPLICATE_PO_NUMBER`, `PO_ALREADY_SIGNED`, `VALIDATION_ERROR` with field-level surfacing).
+
+---
+
+## PO List View — Status Badges
+
+`formatPOStatus()` priority: `signed > rejected > draft > status-based`.
+
+| Inputs | Label | Variant |
+|---|---|---|
+| `signed_po_url` set or `workflow_state: po_signed` / `status: po signed` | Signed | success |
+| `status: po rejected` | Rejected | destructive |
+| `is_po_draft` (no `unsigned_po_url`) | Draft PO | neutral |
+| `status: pending_po_upload` | Awaiting PO | neutral |
+| `status: awaiting_scd_signature` | Pending Signature | warning |
+| `status: supply_chain` | With Supply Chain | neutral |
+| `status: finance` | With Finance | info |
+
+Row actions: View / Continue Draft (when draft) / Download Unsigned (when `unsigned_po_url`) / Download Signed (when `signed_po_url`) / Regenerate (procurement, while not signed). Paperclip on rows with non-empty `priceComparisons`.
+
+---
 
 ## Out of Scope
 
-- Inventory management (legacy `MaterialsTracking.tsx` stays as-is).
-- Backend implementation of any endpoint.
-- Client-rendered official JCC PDF.
-- Push/email notification transport.
-- Auto-flipping movement status to `delivered` on JCC approval from the frontend (backend is source of truth; FE refetches).
+SCD signing (`upload-signed-po`), PO rejection flow, "suggest historical average price" affordance, multi-currency formatting, mobile-first redesign of the form.
