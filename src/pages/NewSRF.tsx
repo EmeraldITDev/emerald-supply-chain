@@ -11,6 +11,8 @@ import { ArrowLeft, Loader2, Upload, FileText, X, Cloud } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { srfApi } from "@/services/api";
+import { fleetApi } from "@/services/logisticsApi";
+import type { FleetVehicle } from "@/types/logistics";
 
 const NewSRF = () => {
   const navigate = useNavigate();
