@@ -93,18 +93,27 @@ const NewSRF = () => {
         if (normalized === 'high' || normalized === 'critical') return 'High';
         return 'Medium'; // Default fallback
       };
-      
+
+      // Prepend vehicle context so SCD, Procurement and Vendors all see it
+      const finalDescription = selectedVehicle
+        ? `${buildVehicleContext(selectedVehicle)}\n\n${formData.description}`
+        : formData.description;
+
       // Create FormData if invoice file is provided
       let response;
       if (invoiceFile || invoiceOneDriveUrl) {
         const formDataObj = new FormData();
         formDataObj.append('title', formData.title);
-        formDataObj.append('description', formData.description);
+        formDataObj.append('description', finalDescription);
         formDataObj.append('serviceType', formData.serviceType);
         formDataObj.append('urgency', capitalizeUrgency(formData.urgency));
         formDataObj.append('justification', formData.justification);
         formDataObj.append('estimatedCost', formData.estimatedCost);
         formDataObj.append('duration', formData.duration);
+        if (selectedVehicle) {
+          formDataObj.append('vehicle_id', selectedVehicle.id);
+          formDataObj.append('vehicle_plate', selectedVehicle.plate || '');
+        }
         if (invoiceFile) {
           formDataObj.append('invoice', invoiceFile);
         }
@@ -115,13 +124,14 @@ const NewSRF = () => {
       } else {
         response = await srfApi.create({
           title: formData.title,
-          description: formData.description,
+          description: finalDescription,
           serviceType: formData.serviceType,
           urgency: capitalizeUrgency(formData.urgency),
           justification: formData.justification,
           estimatedCost: formData.estimatedCost,
           duration: formData.duration,
-        });
+          ...(selectedVehicle ? { vehicleId: selectedVehicle.id, vehiclePlate: selectedVehicle.plate } : {}),
+        } as any);
       }
       
       if (response.success) {
