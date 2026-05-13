@@ -226,6 +226,16 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
   const payGapMm = 2.5;
   const payValue = (model.paymentTermsDisplay || '—').trim();
   doc.text(payValue, COL_L + labelWidth + payGapMm, y);
+  y += 4;
+  const ctLabel = 'Contract type:';
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  const ctLabelW = doc.getTextWidth(ctLabel);
+  doc.text(ctLabel, COL_L, y);
+  doc.setFont('helvetica', 'normal');
+  const ctValue = (model.contractTypeDisplay || '—').trim();
+  doc.text(ctValue, COL_L + ctLabelW + payGapMm, y);
+  y += 4;
 
   const tx = COL_L + 118;
   const tw = 66;
@@ -261,22 +271,35 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.text(model.approverName, COL_L, y);
-  y += 2;
+  y += 6;
 
-  const lineY = y + 10;
+  /** Signature image sits on this baseline (fixed size, centered). */
+  const sigSlotW = 110;
+  const sigDrawW = 34;
+  const sigDrawH = 8;
+  const sigLineY = y + sigDrawH + 1;
+  const sigX = COL_L + (sigSlotW - sigDrawW) / 2;
   doc.setDrawColor(0, 0, 0);
-  doc.line(COL_L, lineY, COL_L + 110, lineY);
-
+  doc.setLineWidth(0.35);
+  doc.line(COL_L, sigLineY, COL_L + sigSlotW, sigLineY);
   if (model.signatureDataUrl) {
     try {
       const fmt = model.signatureDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-      doc.addImage(model.signatureDataUrl, fmt, COL_L + 35, y - 2, 55, 18);
+      doc.addImage(
+        model.signatureDataUrl,
+        fmt,
+        sigX,
+        sigLineY - sigDrawH,
+        sigDrawW,
+        sigDrawH,
+      );
     } catch {
       // ignore
     }
   }
+  doc.setLineWidth(0.2);
 
-  y = lineY + 12;
+  y = sigLineY + 12;
   doc.setFont('helvetica', 'bold');
   doc.text('Date', COL_L, y);
   y += 5;

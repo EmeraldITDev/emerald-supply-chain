@@ -147,6 +147,26 @@ export function ManualPOQuickStartDialog({
             />
           </div>
 
+          <div className="space-y-2">
+            <Label>Contract type *</Label>
+            <Select value={contractType} onValueChange={setContractType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select contract type" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                {CONTRACT_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Required by the server for routing (e.g. Emerald vs non-Emerald approval paths). Same
+              options as New Material Request.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Category *</Label>
@@ -179,26 +199,6 @@ export function ManualPOQuickStartDialog({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Contract type *</Label>
-            <Select value={contractType} onValueChange={setContractType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select contract type" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover">
-                {CONTRACT_TYPE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Required for routing (e.g. Emerald vs non-Emerald approval paths). Same options as
-              New Material Request.
-            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

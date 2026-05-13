@@ -30,6 +30,20 @@ export interface EmeraldPoLineItem {
   amount: number;
 }
 
+/** Human-readable contract type for PO footer (matches Manual PO / New MRF options). */
+export function formatContractTypeForPo(mrf: { contract_type?: string; contractType?: string }): string {
+  const raw = (mrf.contract_type || mrf.contractType || '').trim();
+  if (!raw) return '—';
+  const key = raw.toLowerCase();
+  const labels: Record<string, string> = {
+    emerald: 'Emerald Contract',
+    oando: 'Oando Contract',
+    dangote: 'Dangote Contract',
+    heritage: 'Heritage Contract',
+  };
+  return labels[key] || raw;
+}
+
 export interface EmeraldPoDisplayModel {
   companyName: string;
   companyAddressLines: string[];
@@ -43,6 +57,7 @@ export interface EmeraldPoDisplayModel {
   invoiceSubmissionLine: string;
   standardTermsLines: string[];
   paymentTermsDisplay: string;
+  contractTypeDisplay: string;
   subtotal: number;
   taxAmount: number;
   total: number;
@@ -205,6 +220,8 @@ export function buildEmeraldPoDisplayModel(input: {
   const paymentTermsDisplay =
     parsePaymentTermsFromCustomTerms(mrf.custom_terms) || 'Net 30';
 
+  const contractTypeDisplay = formatContractTypeForPo(mrf);
+
   const categoryLine = (mrf.category || 'Procurement').replace(/-/g, ' ');
   const description =
     row?.item_description?.trim() || mrf.description?.trim() || mrf.title || '—';
@@ -233,6 +250,7 @@ export function buildEmeraldPoDisplayModel(input: {
     invoiceSubmissionLine,
     standardTermsLines,
     paymentTermsDisplay,
+    contractTypeDisplay,
     subtotal,
     taxAmount,
     total,
