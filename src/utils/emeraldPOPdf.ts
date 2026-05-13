@@ -273,18 +273,38 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
   doc.text(model.approverName, COL_L, y);
   y += 6;
 
-  /** Signature image sits on this baseline (fixed size, centered). */
+  /** Signature image with aspect ratio preservation. */
   const sigSlotW = 110;
-  const sigDrawW = 34;
-  const sigDrawH = 8;
-  const sigLineY = y + sigDrawH + 1;
-  const sigX = COL_L + (sigSlotW - sigDrawW) / 2;
+  const sigMaxW = 34;
+  const sigMaxH = 8;
+  let sigDrawW = sigMaxW;
+  let sigDrawH = sigMaxH;
+  const sigLineY = y + sigMaxH + 1;
+  let sigX = COL_L + (sigSlotW - sigDrawW) / 2;
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.35);
   doc.line(COL_L, sigLineY, COL_L + sigSlotW, sigLineY);
   if (model.signatureDataUrl) {
     try {
       const fmt = model.signatureDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+      // Calculate aspect ratio if image loads
+      try {
+        const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () =>
+            resolve({ w: img.naturalWidth || img.width, h: img.naturalHeight || img.height });
+          img.onerror = () => reject(new Error('sig load'));
+          img.src = model.signatureDataUrl!;
+        });
+        if (dims.w > 0 && dims.h > 0) {
+          const scale = Math.min(sigMaxW / dims.w, sigMaxH / dims.h);
+          sigDrawW = dims.w * scale;
+          sigDrawH = dims.h * scale;
+          sigX = COL_L + (sigSlotW - sigDrawW) / 2;
+        }
+      } catch {
+        // Fall back to default dimensions
+      }
       doc.addImage(
         model.signatureDataUrl,
         fmt,
