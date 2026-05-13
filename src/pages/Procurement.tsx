@@ -2545,16 +2545,9 @@ const Procurement = () => {
                                   return (
                                     <div className="mt-4 rounded-lg border border-dashed border-primary/35 bg-muted/20 p-4">
                                       <p className="text-xs text-muted-foreground mb-2 leading-snug">
-                                        No RFQ on file — open the PO generator with{" "}
-                                        <span className="font-medium text-foreground">
-                                          fast_track
-                                        </span>{" "}
-                                        and{" "}
-                                        <span className="font-medium text-foreground">
-                                          allow_missing_rfq
-                                        </span>{" "}
-                                        so the server can build the PDF from the MRF,
-                                        price comparison, and your overrides.
+                                        No RFQ or quotations on file for this MRF. You can still create a PO using the
+                                        fast-track form: enter suppliers and pricing in the price comparison sheet, then
+                                        generate the PO for Supply Chain Director approval.
                                       </p>
                                       <Button
                                         size="sm"
@@ -3140,7 +3133,11 @@ const Procurement = () => {
       >
         <CreatePODialogContent className="flex w-[95vw] max-w-5xl max-h-[85vh] flex-col gap-4 overflow-hidden p-6">
           <CreatePODialogHeader className="flex-shrink-0 pr-8">
-            <CreatePODialogTitle>Create Purchase Order</CreatePODialogTitle>
+            <CreatePODialogTitle>
+              {createPOFastTrack || createPOAllowMissingRfq
+                ? 'Create Purchase Order (fast-track)'
+                : 'Create Purchase Order'}
+            </CreatePODialogTitle>
           </CreatePODialogHeader>
           {createPOMrfId && (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

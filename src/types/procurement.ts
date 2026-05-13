@@ -74,20 +74,23 @@ export interface POFormPayload {
   /** When true, persists fields without rendering PDF or moving the workflow. */
   save_as_draft?: boolean;
   /**
-   * When true (Purchase Orders tab → Create PO path), backend skips executive
-   * distribution and routes the generated PO to SCD signature (`awaiting_scd_signature`).
-   * Alias accepted server-side: `bypassExecutiveReview`, `bypass_executive_review`.
+   * When true, backend skips executive distribution and routes the generated PO to SCD signature
+   * (`awaiting_scd_signature`). Typical for urgent / direct procurement from the Purchase Orders tab.
+   * Aliases accepted server-side: `bypassExecutiveReview`, `bypass_executive_review`.
    */
   fast_track?: boolean;
   /**
-   * Relaxes RFQ presence checks; use with procurement flows that may have no RFQ.
-   * Often paired with `fast_track` for overview / manual PO; can be used alone if needed.
+   * When true, the server can finalise PO generation without a linked RFQ / quotation record on the MRF.
+   * Use with a completed price comparison sheet (directory and/or manual suppliers). Often set together with {@link fast_track}.
    */
   allow_missing_rfq?: boolean;
-  /** Optional request overrides when there is no vendor on the MRF / no price comparisons (numeric internal id). */
+  /**
+   * Optional vendor fields some backends accept for legacy PDF paths. Prefer the price comparison
+   * sheet for supplier selection; do not treat these as a separate “override” flow in the UI.
+   */
   vendor_id?: number;
   vendor_name?: string;
-  /** Top-level overrides for PDF generation (in addition to embedded payment/delivery in remarks/custom_terms). */
+  /** Top-level fields for PDF generation (in addition to payment/delivery embedded in remarks/custom_terms). */
   payment_terms?: string;
   /** ISO date `yyyy-MM-dd`. */
   delivery_date?: string;

@@ -29,6 +29,8 @@ export interface PriceComparisonTableProps {
   vendors: Vendor[];
   disabled?: boolean;
   loadingVendors?: boolean;
+  /** New rows from “Add Supplier” start in this mode (fast-track defaults to manual entry). */
+  defaultSupplierModeForNewRows?: 'directory' | 'manual';
 }
 
 /**
@@ -40,19 +42,24 @@ const vendorStringId = (v: Vendor): string => {
   return anyV.formatted_id ?? anyV.vendor_id ?? v.id;
 };
 
-export const makeEmptyRow = (): PriceComparisonRow => ({
-  _key:
-    typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID()
-      : `row_${Math.random().toString(36).slice(2)}`,
-  vendor_id: undefined,
-  manual_vendor: undefined,
-  item_description: '',
-  unit_price: '',
-  quantity: '',
-  is_selected: false,
-  selection_reason: '',
-});
+export const makeEmptyRow = (opts?: {
+  supplierMode?: 'directory' | 'manual';
+}): PriceComparisonRow => {
+  const mode = opts?.supplierMode ?? 'directory';
+  return {
+    _key:
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `row_${Math.random().toString(36).slice(2)}`,
+    vendor_id: undefined,
+    manual_vendor: mode === 'manual' ? { name: '' } : undefined,
+    item_description: '',
+    unit_price: '',
+    quantity: '',
+    is_selected: false,
+    selection_reason: '',
+  };
+};
 
 /**
  * Get display name for a row (either from directory vendor or manual vendor name).
@@ -123,6 +130,7 @@ export function PriceComparisonTable({
   vendors,
   disabled = false,
   loadingVendors = false,
+  defaultSupplierModeForNewRows = 'directory',
 }: PriceComparisonTableProps) {
   const update = (key: string, patch: Partial<PriceComparisonRow>) => {
     onChange(value.map((r) => (r._key === key ? { ...r, ...patch } : r)));
@@ -139,7 +147,8 @@ export function PriceComparisonTable({
     });
   };
 
-  const addRow = () => onChange([...value, makeEmptyRow()]);
+  const addRow = () =>
+    onChange([...value, makeEmptyRow({ supplierMode: defaultSupplierModeForNewRows })]);
 
   const removeRow = (key: string) => {
     if (value.length <= 2) return; // visual guard, min 2
@@ -154,9 +163,10 @@ export function PriceComparisonTable({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Add at least two supplier quotes below. Select from your directory or add suppliers
-          not yet registered. Mark the selected supplier. This comparison will be saved against
-          the MRF and attached to the PO when routed for approval.
+          Add at least two supplier quotes. Use <span className="font-medium text-foreground">Directory</span> to pick
+          an existing vendor, or <span className="font-medium text-foreground">Manual</span> to type name, contact, and
+          pricing without a directory record. Mark exactly one row as selected. This sheet is saved on the MRF and
+          attached when the PO is generated for approval.
         </p>
         <Button
           type="button"

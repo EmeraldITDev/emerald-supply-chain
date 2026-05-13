@@ -63,13 +63,13 @@ import { buildEmeraldPurchaseOrderPdf } from '@/utils/emeraldPOPdf';
 export interface CreatePOFormProps {
   mrfId: string;
   /**
-   * Set when opened from Purchase Orders → Create PO (manual MRF). Sends
-   * `fast_track: true` on generate-po (draft + finalise).
+   * When true, generate-po sends `fast_track: true` so the PO skips executive distribution
+   * and is routed to the Supply Chain Director for signature (urgent / direct procurement).
    */
   fastTrack?: boolean;
   /**
-   * When true, sends `allow_missing_rfq: true` (manual PO or MRF overview with no RFQ).
-   * Often combined with {@link fastTrack}.
+   * When true, generate-po sends `allow_missing_rfq: true` so the backend can finalise without
+   * a linked RFQ / quotation record (same use case as fast-track; often set together).
    */
   allowMissingRfq?: boolean;
   /** Called once the PO is finalised so the parent can close the dialog. */
@@ -132,9 +132,6 @@ const hydrateRow = (e: PriceComparisonEntry): PriceComparisonRow => ({
   is_selected: Boolean(e.is_selected),
   selection_reason: e.selection_reason ?? '',
 });
-  is_selected: Boolean(e.is_selected),
-  selection_reason: e.selection_reason ?? '',
-});
 
 export function CreatePOForm({
   mrfId,
@@ -143,10 +140,8 @@ export function CreatePOForm({
   onFinalised,
   onRequestClose,
 }: CreatePOFormProps) {
-  // ---------- workflow selection ----------
-  const [workflow, setWorkflow] = useState<'standard' | 'manual'>(
-    fastTrack ? 'manual' : 'standard'
-  );
+  /** Urgent / direct procurement: Purchase Orders tab or “no RFQ” path — still uses full price comparison, not vendor-ID shortcuts. */
+  const isDirectProcurement = fastTrack || allowMissingRfq;
 
   // ---------- hydration ----------
   const [hydrating, setHydrating] = useState(true);
@@ -155,9 +150,9 @@ export function CreatePOForm({
 
   const [mrf, setMrf] = useState<MRF | null>(null);
   const [form, setForm] = useState<FormState>(initialState());
-  const [rows, setRows] = useState<PriceComparisonRow[]>([
-    makeEmptyRow(),
-    makeEmptyRow(),
+  const [rows, setRows] = useState<PriceComparisonRow[]>(() => [
+    makeEmptyRow({ supplierMode: fastTrack || allowMissingRfq ? 'manual' : 'directory' }),
+    makeEmptyRow({ supplierMode: fastTrack || allowMissingRfq ? 'manual' : 'directory' }),
   ]);
 
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -331,6 +326,23 @@ export function CreatePOForm({
     [rows, vendors]
   );
 
+  const selectedSupplierLabel = useMemo(() => {
+    const sel = rows.find((r) => r.is_selected);
+    if (!sel) return '— (mark one row in the price comparison)';
+    if (sel.manual_vendor?.name?.trim()) return sel.manual_vendor.name.trim();
+    if (sel.vendor_id) {
+      const v = vendors.find(
+        (x) =>
+          (x as Vendor & { formatted_id?: string; vendor_id?: string }).formatted_id ===
+            sel.vendor_id ||
+          (x as Vendor & { vendor_id?: string }).vendor_id === sel.vendor_id ||
+          x.id === sel.vendor_id,
+      );
+      return v?.name ?? sel.vendor_id;
+    }
+    return '—';
+  }, [rows, vendors]);
+
   const section1Valid =
     !!form.po_date &&
     !!form.delivery_date &&
@@ -489,11 +501,8 @@ export function CreatePOForm({
   const saveDraft = useCallback(async () => {
     if (!acquireLock('draft')) return;
     try {
-      // (a) Send current PC when valid or when not using vendor-override shortcut.
       const pcInvalid = validatePriceComparison(rows, vendors).length > 0;
-      const skipPcPersist =
-        allowMissingRfq && overrideVendorSufficient && pcInvalid;
-      if (!skipPcPersist) {
+      if (!pcInvalid) {
         const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
         if (!pcRes.success) {
           toast.warning('Price comparison not saved', {
@@ -683,28 +692,23 @@ export function CreatePOForm({
         )}
       </div>
 
-      {fastTrack && !isFinalised && (
-        <div className="rounded-md border border-primary/35 bg-primary/5 px-3 py-2 text-xs text-muted-foreground leading-snug">
-          <span className="font-medium text-foreground">Fast-track: complete the price comparison</span>
+      {!isDirectProcurement && !isFinalised && (
+        <div className="rounded-md border border-muted-foreground/20 bg-muted/20 px-3 py-2 text-xs text-muted-foreground leading-snug">
+          <span className="font-medium text-foreground">Standard PO</span>
           {' — '}
-          You can add suppliers not yet in the directory from the price comparison step. After completion,
-          Procurement will route the PO to the Supply Chain Director for signature.
+          This MRF is in the normal procurement workflow. Complete PO details and the price comparison sheet;
+          the generated PO is routed for Supply Chain Director signature like other approved requests.
         </div>
       )}
 
-      {allowMissingRfq && !isFinalised && (
-        <div className="rounded-md border border-muted-foreground/25 bg-muted/30 px-3 py-2 text-xs text-muted-foreground leading-snug">
-          <span className="font-medium text-foreground">allow_missing_rfq</span>
+      {isDirectProcurement && !isFinalised && (
+        <div className="rounded-md border border-primary/35 bg-primary/5 px-3 py-2 text-xs text-muted-foreground leading-snug">
+          <span className="font-medium text-foreground">Fast-track / direct procurement</span>
           {' — '}
-          The generate-po request includes{' '}
-          <span className="font-medium text-foreground">allow_missing_rfq: true</span>
-          {fastTrack ? (
-            <>
-              {' '}
-              and <span className="font-medium text-foreground">fast_track: true</span>
-            </>
-          ) : null}{' '}
-          so the backend can proceed without an RFQ when appropriate.
+          Use this path for urgent buys without waiting on a full RFQ cycle. Enter at least two supplier quotes
+          below (pick from the directory or use <span className="font-medium text-foreground">Manual</span> to type
+          vendor name, contact, and pricing). When you generate the PO, it goes to the Supply Chain Director for
+          signing and approval.
         </div>
       )}
 
@@ -733,13 +737,12 @@ export function CreatePOForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Vendor (from approved quotation)</Label>
-            <Input
-              value={mrf?.requester ? '' : ''}
-              placeholder="Resolved server-side from the approved quotation"
-              readOnly
-              disabled
-            />
+            <Label>Selected supplier (from price comparison)</Label>
+            <Input value={selectedSupplierLabel} readOnly disabled className="bg-muted/40" />
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Mark exactly one row as selected in section 2. For fast-track, that supplier can be from the directory
+              or entered manually.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -893,6 +896,7 @@ export function CreatePOForm({
           vendors={vendors}
           loadingVendors={loadingVendors}
           disabled={isFinalised}
+          defaultSupplierModeForNewRows={isDirectProcurement ? 'manual' : 'directory'}
         />
       </section>
 
