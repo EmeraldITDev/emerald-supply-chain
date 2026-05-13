@@ -59,6 +59,7 @@ import {
 import { EmeraldPurchaseOrderPreview } from './EmeraldPurchaseOrderPreview';
 import { buildEmeraldPoDisplayModel, coercePOTermsMode } from '@/utils/emeraldPoDocumentModel';
 import { buildEmeraldPurchaseOrderPdf } from '@/utils/emeraldPOPdf';
+import { openEmeraldPurchaseOrderPdfInNewTab } from '@/utils/emeraldPoPdfActions';
 
 export interface CreatePOFormProps {
   mrfId: string;
@@ -480,6 +481,18 @@ export function CreatePOForm({
       toast.error(e instanceof Error ? e.message : 'Could not build PDF');
     }
   }, [emeraldPreviewModel, finalisedMrf, mrf, mrfId]);
+
+  const openEmeraldPoInNewTab = useCallback(async () => {
+    if (!emeraldPreviewModel) {
+      toast.error('PO preview is not ready yet.');
+      return;
+    }
+    try {
+      await openEmeraldPurchaseOrderPdfInNewTab(emeraldPreviewModel);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not open PDF');
+    }
+  }, [emeraldPreviewModel]);
 
   // -------------------------------------------------------------------------
   // Save flows
@@ -958,7 +971,8 @@ export function CreatePOForm({
               <div className="space-y-2 border-t pt-3">
                 <p className="text-xs font-semibold">Purchase Order — Emerald layout (preview)</p>
                 <p className="text-[11px] text-muted-foreground">
-                  Matches the standard company PO format. The system PDF after you generate may differ until the server template is updated; use this preview and download for a consistent layout.
+                  This is the standard Emerald company PO layout. <strong>Open PDF</strong> and downloads use this
+                  format by default.
                 </p>
                 <div className="max-h-[min(520px,70vh)] overflow-y-auto rounded-md border bg-muted/40 p-2">
                   <EmeraldPurchaseOrderPreview model={emeraldPreviewModel} />
@@ -979,15 +993,25 @@ export function CreatePOForm({
       </section>
 
       {/* ============== Finalised banner ============== */}
-      {isFinalised && finalisedUrl && (
+      {isFinalised && (
         <div className="rounded-md border border-success/40 bg-success/10 p-3 text-sm space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <span>
               PO <strong>{finalisedMrf?.po_number || finalisedMrf?.poNumber || mrf?.po_number}</strong> generated.
             </span>
-            <a href={finalisedUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline flex-shrink-0">
-              <ExternalLink className="h-3.5 w-3.5" /> Open PDF
-            </a>
+            {emeraldPreviewModel ? (
+              <button
+                type="button"
+                onClick={() => void openEmeraldPoInNewTab()}
+                className="inline-flex items-center gap-1 text-primary hover:underline flex-shrink-0 font-medium bg-transparent border-0 cursor-pointer p-0"
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Open PDF
+              </button>
+            ) : finalisedUrl ? (
+              <a href={finalisedUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline flex-shrink-0">
+                <ExternalLink className="h-3.5 w-3.5" /> Open PDF
+              </a>
+            ) : null}
           </div>
           {finalisedFastTracked && (
             <p className="text-xs text-muted-foreground border-t border-success/25 pt-2">
@@ -1014,7 +1038,13 @@ export function CreatePOForm({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {isFinalised && finalisedUrl && (
+          {isFinalised && emeraldPreviewModel && (
+            <Button variant="outline" size="sm" type="button" onClick={() => void downloadEmeraldPreviewPdf()}>
+              <Download className="h-3.5 w-3.5 mr-1" />
+              Download PDF
+            </Button>
+          )}
+          {isFinalised && !emeraldPreviewModel && finalisedUrl && (
             <Button variant="outline" size="sm" asChild>
               <a href={finalisedUrl} target="_blank" rel="noreferrer">
                 <Download className="h-3.5 w-3.5 mr-1" />

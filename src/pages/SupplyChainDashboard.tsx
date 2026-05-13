@@ -52,6 +52,7 @@ import {
   blobToDataUrl,
   fetchUrlAsDataUrl,
 } from "@/utils/emeraldPOPdf";
+import { openEmeraldPurchaseOrderForMrf } from "@/utils/emeraldPoPdfActions";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { VendorRegistration } from "@/types";
 import type { MRF } from "@/types";
@@ -492,26 +493,27 @@ const SupplyChainDashboard = () => {
     setSignedPOs((prev) => ({ ...prev, [mrfId]: file }));
   };
 
-  const handleDownloadPO = (mrf: MRF) => {
-    // Download the unsigned PO uploaded by Procurement
+  const handleDownloadPO = async (mrf: MRF) => {
+    const r = await openEmeraldPurchaseOrderForMrf(mrf);
+    if (r.ok) return;
+
     const poShareUrl = getUnsignedPOShareUrl(mrf);
     const poUrl = getUnsignedPOUrl(mrf);
     const poUrlToUse = poShareUrl || poUrl;
 
     if (poUrlToUse) {
-      // If it's a full URL (OneDrive share URL or full URL), open it directly
       if (poUrlToUse.startsWith("http")) {
         window.open(poUrlToUse, "_blank");
       } else {
-        // Assume it's a relative path from the backend
         const baseUrl =
           import.meta.env.VITE_API_BASE_URL ||
           "https://supply-chain-backend-hwh6.onrender.com/api";
         window.open(`${baseUrl.replace("/api", "")}/${poUrlToUse}`, "_blank");
       }
-    } else {
-      toast.error("PO document not available for download");
+      toast.info("Opened server PO copy", { description: r.error });
+      return;
     }
+    toast.error(r.error || "PO document not available for download");
   };
 
   // Handle reject vendor selection or PO

@@ -6,8 +6,8 @@ import { getEmeraldPoLogoPublicPath, type EmeraldPoDisplayModel } from '@/utils/
 export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplayModel }) {
   return (
     <div className="emerald-po-preview rounded-md border border-border bg-white p-6 text-black shadow-sm print:shadow-none print:border-0">
-      <div className="flex justify-between gap-4 border-b border-slate-200 pb-4">
-        <div className="min-w-0 flex-1 space-y-1 text-sm">
+        <div className="flex justify-between gap-6 border-b border-slate-200 pb-5">
+        <div className="min-w-0 flex-1 space-y-1.5 text-sm pr-2">
           <p className="text-base font-bold">{model.companyName}</p>
           {model.companyAddressLines.map((line) => (
             <p key={line} className="text-slate-800">
@@ -22,7 +22,7 @@ export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplay
         <img
           src={getEmeraldPoLogoPublicPath()}
           alt="Emerald Industrial Co. FZE"
-          className="h-[72px] w-auto max-w-[min(220px,42%)] shrink-0 object-contain object-right"
+          className="h-[92px] w-auto max-w-[min(240px,46%)] shrink-0 object-contain object-right ml-4 mt-0.5"
         />
       </div>
 
@@ -89,8 +89,9 @@ export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplay
               </li>
             ))}
           </ul>
-          <p className="pt-2">
-            <span className="font-bold">Payment Terms:</span> {model.paymentTermsDisplay}
+          <p className="pt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="font-bold shrink-0">Payment Terms:</span>
+            <span className="text-slate-800 pl-1">{model.paymentTermsDisplay}</span>
           </p>
         </div>
 

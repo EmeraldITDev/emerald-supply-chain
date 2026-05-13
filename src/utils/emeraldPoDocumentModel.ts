@@ -67,7 +67,14 @@ function vendorNameForId(vendors: Vendor[], vendorId: string): string {
 function parsePaymentTermsFromCustomTerms(custom?: string | null): string | null {
   if (!custom?.trim()) return null;
   const m = custom.match(/Payment\s*Terms:\s*([^\n]+)/i);
-  return m?.[1]?.trim() || null;
+  let v = m?.[1]?.trim();
+  if (!v) {
+    const loose = custom.match(/Payment\s+Terms\s+([^\n]+)/i);
+    v = loose?.[1]?.trim();
+  }
+  if (!v) return null;
+  const cleaned = v.replace(/^Payment\s*Terms\s*:?\s*/i, '').trim();
+  return cleaned || v;
 }
 
 export function coercePOTermsMode(v: unknown): POTermsMode {
@@ -167,9 +174,15 @@ export function buildEmeraldPoDisplayModel(input: {
   const taxAmount = subtotal * (taxRate / 100);
   const total = subtotal + taxAmount;
 
-  const supplierName = row
-    ? (row as PriceComparisonEntry).vendor_name?.trim() || vendorNameForId(vendors, String(row.vendor_id))
-    : '—';
+  const supplierName = (() => {
+    if (!row) return '—';
+    const pe = row as PriceComparisonEntry;
+    if (pe.vendor_name?.trim()) return pe.vendor_name.trim();
+    const pr = row as PriceComparisonRow;
+    if (pr.manual_vendor?.name?.trim()) return pr.manual_vendor.name.trim();
+    if (pr.vendor_id) return vendorNameForId(vendors, String(pr.vendor_id));
+    return '—';
+  })();
 
   const shipTo =
     mrf.ship_to_address?.trim() ||

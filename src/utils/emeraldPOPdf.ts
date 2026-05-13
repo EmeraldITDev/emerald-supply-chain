@@ -47,10 +47,9 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
   const titleBlue: [number, number, number] = [70, 150, 185];
   const headerText: [number, number, number] = [45, 65, 82];
 
-  const logoX = 150;
-  const logoY = y - 2;
-  const logoW = 52;
-  const logoH = 14;
+  const logoY = 10;
+  const logoMaxW = 58;
+  const logoMaxH = 24;
   let logoDrawn = false;
   try {
     const rel = getEmeraldPoLogoPublicPath();
@@ -60,30 +59,54 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
         : rel;
     const logoData = await fetchUrlAsDataUrl(logoFetchUrl);
     if (logoData) {
-      doc.addImage(logoData, 'PNG', logoX, logoY, logoW, logoH);
+      let drawW = logoMaxW;
+      let drawH = logoMaxH;
+      try {
+        const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () =>
+            resolve({ w: img.naturalWidth || img.width, h: img.naturalHeight || img.height });
+          img.onerror = () => reject(new Error('logo load'));
+          img.src = logoData;
+        });
+        if (dims.w > 0 && dims.h > 0) {
+          const scale = Math.min(logoMaxW / dims.w, logoMaxH / dims.h);
+          drawW = dims.w * scale;
+          drawH = dims.h * scale;
+        }
+      } catch {
+        drawW = logoMaxW;
+        drawH = logoMaxH * 0.55;
+      }
+      const logoRight = COL_L + COL_W;
+      const drawX = logoRight - drawW;
+      doc.addImage(logoData, 'PNG', drawX, logoY, drawW, drawH);
       logoDrawn = true;
     }
   } catch {
     // fall through to placeholder
   }
   if (!logoDrawn) {
+    const phW = 50;
+    const phH = 22;
+    const phX = COL_L + COL_W - phW;
     doc.setFillColor(teal[0], teal[1], teal[2]);
-    doc.roundedRect(logoX, logoY, 46, 18, 2, 2, 'F');
+    doc.roundedRect(phX, logoY, phW, phH, 2, 2, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text('E', logoX + 6, logoY + 12);
+    doc.setFontSize(18);
+    doc.text('E', phX + 7, logoY + 15);
     doc.setFontSize(7);
-    doc.text('EMERALD', logoX + 16, logoY + 8);
-    doc.text('INDUSTRIAL', logoX + 16, logoY + 12);
-    doc.text('CO. FZE', logoX + 16, logoY + 16);
+    doc.text('EMERALD', phX + 18, logoY + 10);
+    doc.text('INDUSTRIAL', phX + 18, logoY + 14);
+    doc.text('CO. FZE', phX + 18, logoY + 18);
   }
 
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text(model.companyName, COL_L, y);
-  y += 6;
+  doc.text(model.companyName, COL_L, y + 4);
+  y += 10;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   for (const line of model.companyAddressLines) {
@@ -196,9 +219,13 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
   y += 2;
   doc.setFont('helvetica', 'bold');
   const payLabel = 'Payment Terms:';
+  doc.setFontSize(8);
+  const labelWidth = doc.getTextWidth(payLabel);
   doc.text(payLabel, COL_L, y);
   doc.setFont('helvetica', 'normal');
-  doc.text(` ${model.paymentTermsDisplay}`, COL_L + doc.getTextWidth(payLabel), y);
+  const payGapMm = 2.5;
+  const payValue = (model.paymentTermsDisplay || '—').trim();
+  doc.text(payValue, COL_L + labelWidth + payGapMm, y);
 
   const tx = COL_L + 118;
   const tw = 66;

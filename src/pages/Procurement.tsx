@@ -79,6 +79,7 @@ import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
 import { normalizeAttachments } from "@/utils/attachments";
 import { isPORevisionRequired, getRejectionReason } from "@/utils/poHelpers";
+import { openEmeraldPurchaseOrderForMrf } from "@/utils/emeraldPoPdfActions";
 import {
   Select,
   SelectContent,
@@ -1252,6 +1253,23 @@ const Procurement = () => {
     if (signedPOUrl && signedPOUrl.startsWith("http")) {
       window.open(signedPOUrl, "_blank");
       return;
+    }
+
+    const hasGeneratedPo = Boolean(mrf.po_number || mrf.poNumber);
+    if (!signedPOUrl && hasGeneratedPo) {
+      const emerald = await openEmeraldPurchaseOrderForMrf(mrf);
+      if (emerald.ok) {
+        toast({
+          title: "Opening PO",
+          description: "Emerald layout PDF opened in a new tab.",
+        });
+        return;
+      }
+      toast({
+        title: "Emerald PO layout unavailable",
+        description: `${emerald.error} Trying the server copy if available.`,
+        variant: "default",
+      });
     }
 
     if (unsignedPOUrl && unsignedPOUrl.startsWith("http")) {
