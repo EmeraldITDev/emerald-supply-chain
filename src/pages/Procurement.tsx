@@ -150,6 +150,8 @@ const Procurement = () => {
   // New PO Generator (two-section form with price comparison)
   const [createPOOpen, setCreatePOOpen] = useState(false);
   const [createPOMrfId, setCreatePOMrfId] = useState<string | null>(null);
+  /** True when Create PO was opened from Purchase Orders tab → manual MRF (sends fast_track on generate-po). */
+  const [createPOFastTrack, setCreatePOFastTrack] = useState(false);
   const [manualPOOpen, setManualPOOpen] = useState(false);
 
   /** "Select & Send for Approval" — collect justification before RFQ + MRF calls */
@@ -355,6 +357,8 @@ const Procurement = () => {
     if (!s) return "N/A";
     if (s === "executive_review" || s === "executive")
       return "Executive Approval";
+    if (s === "awaiting_scd_signature" || s === "awaiting-scd-signature")
+      return "SCD signature pending";
     if (s === "supply_chain_director_review" || s === "supply_chain")
       return "Supply Chain Director Approval";
     if (s === "procurement") return "Procurement Review";
@@ -443,6 +447,17 @@ const Procurement = () => {
   // Get workflow state helper
   const getWorkflowState = (mrf: MRF) => {
     return (mrf.workflow_state || mrf.workflowState || "").toLowerCase();
+  };
+
+  /** Primary status line for list badges — maps fast-track / SCD-signature workflow to clear copy. */
+  const getMRFStatusBadgeText = (mrf: MRF | MRFRequest): string => {
+    const wf = getWorkflowState(mrf as MRF);
+    const raw = String((mrf as MRF).status ?? "").trim();
+    const norm = (wf || raw).toLowerCase().replace(/[\s-]+/g, "_");
+    if (norm === "awaiting_scd_signature") return "SCD signature pending";
+    if (raw) return raw;
+    if (wf) return wf;
+    return "Pending";
   };
 
   const getMRFContractType = (mrf: MRF): string => {
@@ -2431,6 +2446,7 @@ const Procurement = () => {
                                                     className="text-xs"
                                                     onClick={(e) => {
                                                       e.stopPropagation();
+                                                      setCreatePOFastTrack(false);
                                                       setCreatePOMrfId(
                                                         getMrfApiId(
                                                           request as MRF,
@@ -2511,7 +2527,7 @@ const Procurement = () => {
                                 <Badge
                                   className={getStatusColor(request.status)}
                                 >
-                                  {request.status}
+                                  {getMRFStatusBadgeText(request as unknown as MRF)}
                                 </Badge>
                               </div>
                               <div className="flex flex-wrap items-center gap-2.5">
@@ -2835,7 +2851,7 @@ const Procurement = () => {
                                 </div>
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <Badge className={getStatusColor(mrf.status)}>
-                                    {mrf.status}
+                                    {getMRFStatusBadgeText(mrf)}
                                   </Badge>
                                 </div>
                               </div>
@@ -2971,14 +2987,15 @@ const Procurement = () => {
                                 </p>
                                 <p className="text-sm text-muted-foreground">
                                   Amount: ₦{parseFloat(amount).toLocaleString()}{" "}
-                                  • Status: {workflowState} • Date:{" "}
+                                  • Status:{" "}
+                                  {getPrettyMRFStageLabel(workflowState)} • Date:{" "}
                                   {formatMRFDate(getMRFDate(mrf as MRF))}
                                 </p>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge className={getStatusColor(mrf.status)}>
-                                {workflowState}
+                                {getPrettyMRFStageLabel(workflowState)}
                               </Badge>
                               <Button
                                 variant="outline"
@@ -3038,7 +3055,10 @@ const Procurement = () => {
         open={createPOOpen}
         onOpenChange={(o) => {
           setCreatePOOpen(o);
-          if (!o) setCreatePOMrfId(null);
+          if (!o) {
+            setCreatePOMrfId(null);
+            setCreatePOFastTrack(false);
+          }
         }}
       >
         <CreatePODialogContent className="flex w-[95vw] max-w-5xl max-h-[85vh] flex-col gap-4 overflow-hidden p-6">
@@ -3049,12 +3069,14 @@ const Procurement = () => {
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <CreatePOForm
                 mrfId={createPOMrfId}
+                fastTrack={createPOFastTrack}
                 onFinalised={() => {
                   void fetchMRFs();
                 }}
                 onRequestClose={() => {
                   setCreatePOOpen(false);
                   setCreatePOMrfId(null);
+                  setCreatePOFastTrack(false);
                 }}
               />
             </div>
@@ -3140,6 +3162,7 @@ const Procurement = () => {
         onOpenChange={setManualPOOpen}
         onMRFCreated={(newId) => {
           void fetchMRFs();
+          setCreatePOFastTrack(true);
           setCreatePOMrfId(newId);
           setCreatePOOpen(true);
         }}
@@ -3191,9 +3214,7 @@ const Procurement = () => {
                   <Badge
                     className={getStatusColor(selectedMRFForPODetails.status)}
                   >
-                    {(selectedMRFForPODetails as any).workflow_state ||
-                      selectedMRFForPODetails.status ||
-                      "Pending"}
+                    {getMRFStatusBadgeText(selectedMRFForPODetails as unknown as MRF)}
                   </Badge>
                 </div>
                 <div>

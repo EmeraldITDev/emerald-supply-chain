@@ -40,7 +40,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 import { vendorApi } from '@/services/api';
-import { procurementApi } from '@/services/procurementApi';
+import { procurementApi, type GeneratePOResponse } from '@/services/procurementApi';
 import { describeBackendError } from '@/utils/poStatus';
 import type { ApiResponse, MRF, Vendor } from '@/types';
 import type {
@@ -62,6 +62,11 @@ import { buildEmeraldPurchaseOrderPdf } from '@/utils/emeraldPOPdf';
 
 export interface CreatePOFormProps {
   mrfId: string;
+  /**
+   * Set when opened from Purchase Orders → Create PO (manual MRF). Sends
+   * `fast_track: true` on generate-po (draft + finalise).
+   */
+  fastTrack?: boolean;
   /** Called once the PO is finalised so the parent can close the dialog. */
   onFinalised?: (mrf: MRF) => void;
   /** Called whenever the user wants to close (Cancel / X). */
@@ -122,7 +127,12 @@ const hydrateRow = (e: PriceComparisonEntry): PriceComparisonRow => ({
   selection_reason: e.selection_reason ?? '',
 });
 
-export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFormProps) {
+export function CreatePOForm({
+  mrfId,
+  fastTrack = false,
+  onFinalised,
+  onRequestClose,
+}: CreatePOFormProps) {
   // ---------- hydration ----------
   const [hydrating, setHydrating] = useState(true);
   const [hydrateSlow, setHydrateSlow] = useState(false);
@@ -157,6 +167,12 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
   const [reviewOpen, setReviewOpen] = useState(false);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [finalisedMrf, setFinalisedMrf] = useState<MRF | null>(null);
+  /** Mirrors `data.fast_tracked` from generate-po when the PO tab fast-track path was used. */
+  const [finalisedFastTracked, setFinalisedFastTracked] = useState(false);
+
+  useEffect(() => {
+    setFinalisedFastTracked(false);
+  }, [mrfId]);
 
   // -------------------------------------------------------------------------
   // Hydrate MRF + price comparison
@@ -352,8 +368,9 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
       terms_mode: form.terms_mode,
       custom_terms: customPieces.join('\n\n') || undefined,
       remarks: remarksPieces.join('\n\n') || undefined,
+      ...(fastTrack ? { fast_track: true as const } : {}),
     };
-  }, [form]);
+  }, [form, fastTrack]);
 
   const emeraldPreviewModel = useMemo(() => {
     if (!mrf) return null;
@@ -493,10 +510,25 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
         return;
       }
       const newMrf = finalRes.data.mrf;
+      const gen = finalRes.data as GeneratePOResponse;
+      const wf = String(
+        (newMrf as MRF & { workflow_state?: string }).workflow_state ||
+          (newMrf as MRF & { workflowState?: string }).workflowState ||
+          newMrf.status ||
+          '',
+      ).toLowerCase();
+      const fastTrackedSuccess = Boolean(
+        gen.fast_tracked ??
+          gen.fastTracked ??
+          wf === 'awaiting_scd_signature',
+      );
+      setFinalisedFastTracked(fastTrackedSuccess);
       setFinalisedMrf(newMrf);
       const poNumber = newMrf.po_number || newMrf.poNumber || '—';
       toast.success(`PO ${poNumber} generated`, {
-        description: 'Routed to the Supply Chain Director for signature.',
+        description: fastTrackedSuccess
+          ? 'Fast-track: awaiting Supply Chain Director signature (executive review skipped).'
+          : 'Routed to the Supply Chain Director for signature.',
       });
       onFinalised?.(newMrf);
     } catch (err) {
@@ -616,6 +648,16 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
           </Badge>
         )}
       </div>
+
+      {fastTrack && !isFinalised && (
+        <div className="rounded-md border border-primary/35 bg-primary/5 px-3 py-2 text-xs text-muted-foreground leading-snug">
+          <span className="font-medium text-foreground">Fast-track PO</span>
+          {' — '}
+          Generating will skip executive distribution and set the MRF to{' '}
+          <span className="font-medium text-foreground">awaiting SCD signature</span>
+          {' '}so the Supply Chain Director can sign or upload the signed PO.
+        </div>
+      )}
 
       {/* ============== SECTION 1 — PO Details ============== */}
       <section className="space-y-4">
@@ -880,13 +922,21 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
 
       {/* ============== Finalised banner ============== */}
       {isFinalised && finalisedUrl && (
-        <div className="rounded-md border border-success/40 bg-success/10 p-3 text-sm flex items-center justify-between">
-          <span>
-            PO <strong>{finalisedMrf?.po_number || finalisedMrf?.poNumber || mrf?.po_number}</strong> generated.
-          </span>
-          <a href={finalisedUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-            <ExternalLink className="h-3.5 w-3.5" /> Open PDF
-          </a>
+        <div className="rounded-md border border-success/40 bg-success/10 p-3 text-sm space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <span>
+              PO <strong>{finalisedMrf?.po_number || finalisedMrf?.poNumber || mrf?.po_number}</strong> generated.
+            </span>
+            <a href={finalisedUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline flex-shrink-0">
+              <ExternalLink className="h-3.5 w-3.5" /> Open PDF
+            </a>
+          </div>
+          {finalisedFastTracked && (
+            <p className="text-xs text-muted-foreground border-t border-success/25 pt-2">
+              <span className="font-medium text-foreground">SCD signature pending</span>
+              {' — '}Executive review was skipped. The Supply Chain Director signs via the dashboard or uploads the signed PO; completion matches the regular flow after signature.
+            </p>
+          )}
         </div>
       )}
 
@@ -938,7 +988,7 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
             title={!canFinalise && !isSaving ? 'Complete all PO details and add at least 2 supplier quotes with one selected before generating.' : undefined}
           >
             <Send className="h-3.5 w-3.5 mr-1" />
-            Generate &amp; Route for Approval
+            {fastTrack ? 'Generate & route to SCD (fast-track)' : 'Generate & Route for Approval'}
           </Button>
         </div>
       </div>

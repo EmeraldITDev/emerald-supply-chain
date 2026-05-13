@@ -60,6 +60,12 @@ export interface POFormPayload {
   terms_mode?: POTermsMode;
   /** When true, persists fields without rendering PDF or moving the workflow. */
   save_as_draft?: boolean;
+  /**
+   * When true (Purchase Orders tab → Create PO path), backend skips executive
+   * distribution and routes the generated PO to SCD signature (`awaiting_scd_signature`).
+   * Alias accepted server-side: `bypassExecutiveReview`, `bypass_executive_review`.
+   */
+  fast_track?: boolean;
 }
 
 /**

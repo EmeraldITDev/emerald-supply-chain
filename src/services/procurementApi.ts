@@ -7,6 +7,14 @@ import type {
   PriceComparisonRow,
 } from '@/types/procurement';
 
+/** Successful POST /mrfs/{id}/generate-po body (after `apiRequest` unwraps `data`). */
+export type GeneratePOResponse = {
+  mrf: MRF;
+  po_url?: string;
+  fast_tracked?: boolean;
+  fastTracked?: boolean;
+};
+
 /**
  * Procurement API — PO generator + price comparison endpoints.
  * Every successful mutation dispatches the global `app:refresh` event so
@@ -88,8 +96,8 @@ export const procurementApi = {
   savePODraft: async (
     mrfId: string,
     payload: POFormPayload
-  ): Promise<ApiResponse<{ mrf: MRF }>> => {
-    const res = await apiRequest<{ mrf: MRF }>(
+  ): Promise<ApiResponse<GeneratePOResponse>> => {
+    const res = await apiRequest<GeneratePOResponse>(
       `/mrfs/${encodeURIComponent(mrfId)}/generate-po`,
       {
         method: 'POST',
@@ -104,10 +112,10 @@ export const procurementApi = {
   finalisePO: async (
     mrfId: string,
     payload: POFormPayload
-  ): Promise<ApiResponse<{ mrf: MRF; po_url?: string }>> => {
+  ): Promise<ApiResponse<GeneratePOResponse>> => {
     const { save_as_draft: _ignored, ...rest } = payload;
     void _ignored;
-    const res = await apiRequest<{ mrf: MRF; po_url?: string }>(
+    const res = await apiRequest<GeneratePOResponse>(
       `/mrfs/${encodeURIComponent(mrfId)}/generate-po`,
       {
         method: 'POST',
