@@ -259,6 +259,16 @@ export const FleetManagement = () => {
     fetchData();
   }, [statusFilter, ownershipFilter]);
 
+  // Sync selectedVehicle whenever vehicles array updates
+  useEffect(() => {
+    if (selectedVehicle && vehicles.length > 0) {
+      const updatedVehicle = vehicles.find(v => v.id === selectedVehicle.id);
+      if (updatedVehicle) {
+        setSelectedVehicle(updatedVehicle);
+      }
+    }
+  }, [vehicles, selectedVehicle?.id]);
+
   const handleCreateVehicle = async () => {
     if (!formData.plate || !formData.name || !formData.type) {
       toast({
