@@ -31,10 +31,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Plus, CheckCircle2, Pencil, FileText, Trash2 } from "lucide-react";
+import { Loader2, Plus, CheckCircle2, Pencil, FileText, Trash2, Send } from "lucide-react";
 import { fleetApi } from "@/services/logisticsApi";
 import { useToast } from "@/hooks/use-toast";
 import type { FleetVehicle, MaintenanceSchedule } from "@/types/logistics";
+import { MaintenanceSRFDialog } from "./MaintenanceSRFDialog";
 
 interface Props {
   vehicle: FleetVehicle;
@@ -91,6 +92,8 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
   const [editing, setEditing] = useState<MaintenanceSchedule | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [completeTarget, setCompleteTarget] = useState<MaintenanceSchedule | null>(null);
+  const [srfDialogOpen, setSrfDialogOpen] = useState(false);
+  const [srfMaintenance, setSrfMaintenance] = useState<MaintenanceSchedule | null>(null);
 
   const [form, setForm] = useState({
     maintenance_type: "",
@@ -322,6 +325,17 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
                           <CheckCircle2 className="h-4 w-4 text-success" />
                         </Button>
                       )}
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => {
+                          setSrfMaintenance(it);
+                          setSrfDialogOpen(true);
+                        }}
+                        title="Initiate Service Request Form"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -408,6 +422,20 @@ export const VehicleMaintenanceTab = ({ vehicle, onChanged }: Props) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Maintenance SRF Dialog */}
+      {srfMaintenance && (
+        <MaintenanceSRFDialog
+          open={srfDialogOpen}
+          onOpenChange={setSrfDialogOpen}
+          maintenance={srfMaintenance}
+          vehicle={vehicle}
+          onSuccess={() => {
+            setSrfMaintenance(null);
+            onChanged?.();
+          }}
+        />
+      )}
     </div>
   );
 };
