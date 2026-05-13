@@ -6,7 +6,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2, Building, Mail, Phone, MapPin, Globe, Calendar, Star, User, Download, AlertTriangle, Edit, Save, RotateCcw, Trash2 } from "lucide-react";
+import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2, Building, Mail, Phone, MapPin, Globe, Calendar, Star, User, Download, AlertTriangle, Edit, Save, RotateCcw, Trash2, KeyRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -622,7 +622,11 @@ const VendorPortal = () => {
     setIsChangingPassword(true);
     
     try {
-      const response = await vendorAuthApi.changePassword(currentPasswordForChange, newPassword);
+      const response = await vendorAuthApi.changePassword(
+        currentPasswordForChange,
+        newPassword,
+        confirmPassword
+      );
       
       if (response.success) {
         setShowPasswordChange(false);
@@ -2291,6 +2295,29 @@ const VendorPortal = () => {
                 <CardDescription>Manage your account preferences and security settings</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Change password */}
+                <div className="p-4 border rounded-lg">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-sm mb-1 flex items-center gap-2">
+                        <KeyRound className="h-4 w-4 shrink-0" />
+                        Change password
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Update your password while signed in. You will need your current password.
+                      </p>
+                    </div>
+                    <Button
+                      variant="default"
+                      className="gap-2 shrink-0 sm:self-start"
+                      onClick={() => setShowPasswordChange(true)}
+                    >
+                      <KeyRound className="h-4 w-4" />
+                      Change password
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Password Reset Request */}
                 <div className="p-4 border rounded-lg">
                   <div className="flex items-start justify-between mb-3">
@@ -2355,6 +2382,77 @@ const VendorPortal = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Change password (settings — uses vendor session token) */}
+      <Dialog
+        open={showPasswordChange}
+        onOpenChange={(open) => {
+          setShowPasswordChange(open);
+          if (!open) {
+            setNewPassword("");
+            setConfirmPassword("");
+            setCurrentPasswordForChange("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change password</DialogTitle>
+            <DialogDescription>
+              Enter your current password, then choose a new password (at least 8 characters).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="vendor-current-password">Current password</Label>
+              <PasswordInput
+                id="vendor-current-password"
+                value={currentPasswordForChange}
+                onChange={(e) => setCurrentPasswordForChange(e.target.value)}
+                autoComplete="current-password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="vendor-new-password">New password</Label>
+              <PasswordInput
+                id="vendor-new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="vendor-confirm-password">Confirm new password</Label>
+              <PasswordInput
+                id="vendor-confirm-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowPasswordChange(false)}
+              disabled={isChangingPassword}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={handlePasswordChange} disabled={isChangingPassword} className="gap-2">
+              {isChangingPassword ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Updating…
+                </>
+              ) : (
+                "Save new password"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* RFQ Details Dialog */}
       <Dialog open={selectedRfqForDetails !== null} onOpenChange={() => setSelectedRfqForDetails(null)}>

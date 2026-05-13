@@ -2340,10 +2340,20 @@ export const vendorAuthApi = {
     });
   },
 
-  changePassword: async (currentPassword: string, newPassword: string): Promise<ApiResponse<void>> => {
+  changePassword: async (
+    currentPassword: string,
+    newPassword: string,
+    newPasswordConfirmation?: string
+  ): Promise<ApiResponse<void>> => {
     return apiRequest<void>('/vendors/auth/change-password', {
       method: 'POST',
-      body: JSON.stringify({ currentPassword, newPassword }),
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+        ...(newPasswordConfirmation != null && newPasswordConfirmation !== ''
+          ? { newPassword_confirmation: newPasswordConfirmation }
+          : {}),
+      }),
     });
   },
 
