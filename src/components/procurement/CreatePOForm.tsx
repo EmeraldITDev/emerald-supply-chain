@@ -35,6 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -45,6 +46,7 @@ import type { ApiResponse, MRF, Vendor } from '@/types';
 import type {
   POFormPayload,
   POType,
+  POTermsMode,
   PriceComparisonEntry,
   PriceComparisonRow,
 } from '@/types/procurement';
@@ -55,7 +57,7 @@ import {
   makeEmptyRow,
 } from './PriceComparisonTable';
 import { EmeraldPurchaseOrderPreview } from './EmeraldPurchaseOrderPreview';
-import { buildEmeraldPoDisplayModel } from '@/utils/emeraldPoDocumentModel';
+import { buildEmeraldPoDisplayModel, coercePOTermsMode } from '@/utils/emeraldPoDocumentModel';
 import { buildEmeraldPurchaseOrderPdf } from '@/utils/emeraldPOPdf';
 
 export interface CreatePOFormProps {
@@ -84,6 +86,7 @@ interface FormState {
   tax_rate: string;
   invoice_submission_email: string;
   invoice_submission_cc: string;
+  terms_mode: POTermsMode;
   custom_terms: string;
   remarks: string;
 }
@@ -97,6 +100,7 @@ const initialState = (): FormState => ({
   tax_rate: '',
   invoice_submission_email: DEFAULT_INVOICE_TO,
   invoice_submission_cc: DEFAULT_INVOICE_CC,
+  terms_mode: 'standard',
   custom_terms: '',
   remarks: '',
 });
@@ -195,6 +199,10 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
           m.invoice_submission_email || prev.invoice_submission_email,
         invoice_submission_cc:
           m.invoice_submission_cc || prev.invoice_submission_cc,
+        terms_mode: coercePOTermsMode(
+          (m as { terms_mode?: string; termsMode?: string }).terms_mode ??
+            (m as { terms_mode?: string; termsMode?: string }).termsMode,
+        ),
         custom_terms: m.custom_terms ?? prev.custom_terms,
         remarks: m.remarks ?? prev.remarks,
       }));
@@ -280,6 +288,9 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
   const ccInvalid =
     form.invoice_submission_cc.trim().length > 0 && !isValidEmail(form.invoice_submission_cc);
 
+  const termsModeCustomInvalid =
+    form.terms_mode === 'custom' && !form.custom_terms.trim();
+
   const toInvalid =
     form.invoice_submission_email.trim().length > 0 &&
     !isValidEmail(form.invoice_submission_email);
@@ -298,7 +309,8 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
     !ccInvalid &&
     !toInvalid &&
     !termsMissing &&
-    !termsError;
+    !termsError &&
+    !termsModeCustomInvalid;
 
   const canFinalise = section1Valid && pcErrors.length === 0 && !isSaving && !finalisedMrf;
 
@@ -337,6 +349,7 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
       tax_rate: form.tax_rate ? Number(form.tax_rate) : undefined,
       invoice_submission_email: form.invoice_submission_email.trim() || undefined,
       invoice_submission_cc: form.invoice_submission_cc.trim() || undefined,
+      terms_mode: form.terms_mode,
       custom_terms: customPieces.join('\n\n') || undefined,
       remarks: remarksPieces.join('\n\n') || undefined,
     };
@@ -370,6 +383,8 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
       rows,
       vendors,
       standardTermsBody: standardTerms,
+      terms_mode: form.terms_mode,
+      user_terms_text: form.custom_terms.trim() || undefined,
       includeSignature: false,
       poDate: form.po_date,
       approvalDate: form.po_date ?? new Date(),
@@ -705,6 +720,33 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
               </span>
             )}
           </div>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Terms on generated PO</Label>
+            <ToggleGroup
+              type="single"
+              value={form.terms_mode}
+              onValueChange={(v) => {
+                if (v) setForm((s) => ({ ...s, terms_mode: v as POTermsMode }));
+              }}
+              disabled={isFinalised}
+              variant="outline"
+              className="flex w-full flex-wrap justify-stretch gap-1 sm:flex-nowrap"
+            >
+              <ToggleGroupItem value="standard" className="min-w-0 flex-1 px-2 text-xs sm:text-sm">
+                Standard only
+              </ToggleGroupItem>
+              <ToggleGroupItem value="custom" className="min-w-0 flex-1 px-2 text-xs sm:text-sm">
+                My terms only
+              </ToggleGroupItem>
+              <ToggleGroupItem value="both" className="min-w-0 flex-1 px-2 text-xs sm:text-sm">
+                Both
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Standard uses the template below. My terms uses only your additional text (required).
+              Both includes the template and your text. Payment terms above are always sent.
+            </p>
+          </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Standard Terms (read-only)</Label>
             {termsMissing ? (
@@ -720,8 +762,28 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
             )}
           </div>
           <div className="space-y-1">
-            <Label htmlFor="custom-terms" className="text-xs text-muted-foreground">Additional Custom Terms (optional)</Label>
-            <Textarea id="custom-terms" rows={3} value={form.custom_terms} onChange={(e) => setForm((s) => ({ ...s, custom_terms: e.target.value }))} placeholder="Add any PO-specific terms here…" className="text-xs" />
+            <Label htmlFor="custom-terms" className="text-xs text-muted-foreground">
+              Additional custom terms
+              {form.terms_mode === 'custom' ? ' (required)' : ' (optional)'}
+            </Label>
+            <Textarea
+              id="custom-terms"
+              rows={3}
+              value={form.custom_terms}
+              onChange={(e) => setForm((s) => ({ ...s, custom_terms: e.target.value }))}
+              placeholder="Add any PO-specific terms here…"
+              className={cn('text-xs', termsModeCustomInvalid && 'border-destructive')}
+              disabled={isFinalised}
+            />
+            {termsModeCustomInvalid && (
+              <p className="text-xs text-destructive">Enter your custom terms when using &quot;My terms only&quot;.</p>
+            )}
+            {form.terms_mode === 'standard' && form.custom_terms.trim() && (
+              <p className="text-[11px] text-muted-foreground">
+                Text here is still saved with your draft and sent to the server, but the preview uses
+                standard-only until you switch to Both or My terms.
+              </p>
+            )}
           </div>
         </div>
 
@@ -772,6 +834,14 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
               <dd>{form.invoice_submission_email}</dd>
               <dt className="text-muted-foreground">CC</dt>
               <dd>{form.invoice_submission_cc}</dd>
+              <dt className="text-muted-foreground">Terms on PO</dt>
+              <dd className="capitalize">
+                {form.terms_mode === 'standard'
+                  ? 'Standard only'
+                  : form.terms_mode === 'custom'
+                    ? 'My terms only'
+                    : 'Standard + custom (both)'}
+              </dd>
             </dl>
             <div className="border-t pt-2">
               <p className="text-xs font-medium mb-1">Comparison ({rows.length} suppliers)</p>

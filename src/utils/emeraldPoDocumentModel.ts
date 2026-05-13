@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import type { MRF, Vendor } from '@/types';
-import type { PriceComparisonEntry, PriceComparisonRow } from '@/types/procurement';
+import type { POTermsMode, PriceComparisonEntry, PriceComparisonRow } from '@/types/procurement';
 
 /** Display name shown on signed POs (Supply Chain Director). */
 export const EMERALD_PO_APPROVER_NAME = 'Mrs. Viva Musa';
@@ -70,12 +70,48 @@ function parsePaymentTermsFromCustomTerms(custom?: string | null): string | null
   return m?.[1]?.trim() || null;
 }
 
+export function coercePOTermsMode(v: unknown): POTermsMode {
+  if (v === 'standard' || v === 'custom' || v === 'both') return v;
+  return 'standard';
+}
+
+/** Strip payment clause blocks from stored `custom_terms` for “user clauses” preview. */
+export function userClausesFromStoredCustomTerms(stored?: string | null): string | undefined {
+  if (!stored?.trim()) return undefined;
+  const out = stored
+    .split(/\n\s*\n/)
+    .filter((block) => !/^Payment\s*Terms:/im.test(block.trim()))
+    .join('\n\n')
+    .trim();
+  return out || undefined;
+}
+
 function splitStandardTerms(text: string | undefined): string[] {
   if (!text?.trim()) return [];
   return text
     .split(/\n+/)
     .map((l) => l.replace(/^[-•*]\s*/, '').trim())
     .filter(Boolean);
+}
+
+function templateTermLines(standardTermsBody?: string): string[] {
+  const fromTemplate = splitStandardTerms(standardTermsBody);
+  return fromTemplate.length > 0 ? fromTemplate : [...DEFAULT_STANDARD_TERMS];
+}
+
+/** Bullets for the PO “standard terms” block based on mode (preview / client PDF). */
+export function resolvePoTermsLines(input: {
+  terms_mode?: POTermsMode;
+  standardTermsBody?: string;
+  /** User’s “Additional custom terms” field only (not payment line). */
+  user_terms_text?: string;
+}): string[] {
+  const mode = input.terms_mode ?? 'standard';
+  const templateLines = templateTermLines(input.standardTermsBody);
+  const userLines = splitStandardTerms(input.user_terms_text);
+  if (mode === 'standard') return templateLines;
+  if (mode === 'custom') return userLines.length > 0 ? userLines : ['—'];
+  return [...templateLines, ...userLines];
 }
 
 type MRFExtras = MRF & {
@@ -95,6 +131,9 @@ export function buildEmeraldPoDisplayModel(input: {
   rows: Array<PriceComparisonRow | PriceComparisonEntry>;
   vendors: Vendor[];
   standardTermsBody?: string;
+  terms_mode?: POTermsMode;
+  /** User “additional custom terms” textarea (excludes payment, which is a separate field). */
+  user_terms_text?: string;
   /** When true, include signature block (SCD signed). */
   includeSignature: boolean;
   signatureDataUrl?: string | null;
@@ -102,8 +141,18 @@ export function buildEmeraldPoDisplayModel(input: {
   poDate?: Date;
   approvalDate?: Date;
 }): EmeraldPoDisplayModel {
-  const { mrf, rows, vendors, standardTermsBody, includeSignature, signatureDataUrl, poDate, approvalDate } =
-    input;
+  const {
+    mrf,
+    rows,
+    vendors,
+    standardTermsBody,
+    terms_mode,
+    user_terms_text,
+    includeSignature,
+    signatureDataUrl,
+    poDate,
+    approvalDate,
+  } = input;
 
   const row = pickSelectedRow(rows);
   const qty = Number(row?.quantity) || 0;
@@ -134,9 +183,11 @@ export function buildEmeraldPoDisplayModel(input: {
   const invoiceCc = mrf.invoice_submission_cc?.trim() || 'lateef.olanrewaju@emeraldcfze.com';
   const invoiceSubmissionLine = `Invoice submission: ${invoiceTo} cc: ${invoiceCc}`;
 
-  const fromTemplate = splitStandardTerms(standardTermsBody);
-  const standardTermsLines =
-    fromTemplate.length > 0 ? fromTemplate : [...DEFAULT_STANDARD_TERMS];
+  const standardTermsLines = resolvePoTermsLines({
+    terms_mode,
+    standardTermsBody,
+    user_terms_text,
+  });
 
   const paymentTermsDisplay =
     parsePaymentTermsFromCustomTerms(mrf.custom_terms) || 'Net 30';
@@ -177,4 +228,14 @@ export function buildEmeraldPoDisplayModel(input: {
     approvalDateDisplay: format(approvalDate ?? new Date(), 'MMMM d, yyyy'),
     signatureDataUrl: includeSignature ? signatureDataUrl ?? null : null,
   };
+}
+
+/** Public asset: official Emerald logo (`public/emerald-po-logo.png`) for PO header. */
+export function getEmeraldPoLogoPublicPath(): string {
+  const base =
+    typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL != null
+      ? String(import.meta.env.BASE_URL)
+      : '/';
+  if (base === '/') return '/emerald-po-logo.png';
+  return `${base.replace(/\/$/, '')}/emerald-po-logo.png`;
 }

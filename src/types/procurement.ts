@@ -5,6 +5,9 @@
 
 export type POType = 'goods' | 'services' | 'logistics';
 
+/** How standard vs custom clauses are applied on the generated PO. */
+export type POTermsMode = 'standard' | 'custom' | 'both';
+
 export interface POTermsTemplate {
   id?: number | string;
   po_type: string;
@@ -53,6 +56,8 @@ export interface POFormPayload {
   invoice_submission_email?: string;
   invoice_submission_cc?: string;
   remarks?: string;
+  /** Which terms appear on the PO; backend may use this with `custom_terms`. */
+  terms_mode?: POTermsMode;
   /** When true, persists fields without rendering PDF or moving the workflow. */
   save_as_draft?: boolean;
 }

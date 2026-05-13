@@ -1,4 +1,4 @@
-import type { EmeraldPoDisplayModel } from '@/utils/emeraldPoDocumentModel';
+import { getEmeraldPoLogoPublicPath, type EmeraldPoDisplayModel } from '@/utils/emeraldPoDocumentModel';
 
 /**
  * On-screen / print preview matching the Emerald Purchase Order reference layout.
@@ -19,16 +19,11 @@ export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplay
             {model.companyWebsite}
           </a>
         </div>
-        <div className="flex h-[72px] w-[120px] shrink-0 items-center rounded-md bg-[#20707d] px-2 text-white">
-          <span className="text-2xl font-bold">E</span>
-          <div className="ml-2 text-[9px] font-semibold leading-tight tracking-tight">
-            EMERALD
-            <br />
-            INDUSTRIAL
-            <br />
-            CO. FZE
-          </div>
-        </div>
+        <img
+          src={getEmeraldPoLogoPublicPath()}
+          alt="Emerald Industrial Co. FZE"
+          className="h-[72px] w-auto max-w-[min(220px,42%)] shrink-0 object-contain object-right"
+        />
       </div>
 
       <h2 className="mt-4 text-2xl font-normal tracking-tight text-[#4696b9]">Purchase Order</h2>

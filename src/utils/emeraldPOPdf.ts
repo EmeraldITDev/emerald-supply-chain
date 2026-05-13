@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import type { EmeraldPoDisplayModel } from '@/utils/emeraldPoDocumentModel';
+import { getEmeraldPoLogoPublicPath, type EmeraldPoDisplayModel } from '@/utils/emeraldPoDocumentModel';
 
 const M = 14;
 const PAGE_BOTTOM = 285;
@@ -18,6 +18,26 @@ function ensureY(doc: jsPDF, y: number, need: number): number {
   return y;
 }
 
+export async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ''));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+export async function fetchUrlAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return blobToDataUrl(blob);
+  } catch {
+    return null;
+  }
+}
+
 export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel): Promise<Blob> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   let y = M;
@@ -29,16 +49,35 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
 
   const logoX = 150;
   const logoY = y - 2;
-  doc.setFillColor(teal[0], teal[1], teal[2]);
-  doc.roundedRect(logoX, logoY, 46, 18, 2, 2, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text('E', logoX + 6, logoY + 12);
-  doc.setFontSize(7);
-  doc.text('EMERALD', logoX + 16, logoY + 8);
-  doc.text('INDUSTRIAL', logoX + 16, logoY + 12);
-  doc.text('CO. FZE', logoX + 16, logoY + 16);
+  const logoW = 52;
+  const logoH = 14;
+  let logoDrawn = false;
+  try {
+    const rel = getEmeraldPoLogoPublicPath();
+    const logoFetchUrl =
+      typeof window !== 'undefined' && window.location?.origin
+        ? new URL(rel, window.location.origin).href
+        : rel;
+    const logoData = await fetchUrlAsDataUrl(logoFetchUrl);
+    if (logoData) {
+      doc.addImage(logoData, 'PNG', logoX, logoY, logoW, logoH);
+      logoDrawn = true;
+    }
+  } catch {
+    // fall through to placeholder
+  }
+  if (!logoDrawn) {
+    doc.setFillColor(teal[0], teal[1], teal[2]);
+    doc.roundedRect(logoX, logoY, 46, 18, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('E', logoX + 6, logoY + 12);
+    doc.setFontSize(7);
+    doc.text('EMERALD', logoX + 16, logoY + 8);
+    doc.text('INDUSTRIAL', logoX + 16, logoY + 12);
+    doc.text('CO. FZE', logoX + 16, logoY + 16);
+  }
 
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'bold');
@@ -220,24 +259,4 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
   doc.line(COL_L, y + 8, COL_L + 110, y + 8);
 
   return doc.output('blob');
-}
-
-export async function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result || ''));
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(blob);
-  });
-}
-
-export async function fetchUrlAsDataUrl(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url, { mode: 'cors' });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return blobToDataUrl(blob);
-  } catch {
-    return null;
-  }
 }

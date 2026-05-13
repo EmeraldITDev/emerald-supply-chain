@@ -46,7 +46,7 @@ import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { authApi, mrfApi, vendorApi } from "@/services/api";
 import { procurementApi } from "@/services/procurementApi";
-import { buildEmeraldPoDisplayModel } from "@/utils/emeraldPoDocumentModel";
+import { buildEmeraldPoDisplayModel, coercePOTermsMode, userClausesFromStoredCustomTerms } from "@/utils/emeraldPoDocumentModel";
 import {
   buildEmeraldPurchaseOrderPdf,
   blobToDataUrl,
@@ -445,6 +445,14 @@ const SupplyChainDashboard = () => {
         rows,
         vendors,
         standardTermsBody,
+        terms_mode: coercePOTermsMode(
+          (fullMrf as { terms_mode?: string; termsMode?: string }).terms_mode ??
+            (fullMrf as { terms_mode?: string; termsMode?: string }).termsMode,
+        ),
+        user_terms_text: userClausesFromStoredCustomTerms(
+          (fullMrf as { custom_terms?: string; customTerms?: string }).custom_terms ??
+            (fullMrf as { custom_terms?: string; customTerms?: string }).customTerms,
+        ),
         includeSignature: true,
         signatureDataUrl: sigDataUrl,
       });
