@@ -156,7 +156,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
 
   // Normalize backend snake_case response to camelCase Trip interface
   const normalizeTrip = (raw: any): Trip => ({
-    id: raw.id?.toString(),
+    id: (() => {
+      const candidates = [raw.id, raw.trip_id, raw.uuid];
+      for (const c of candidates) {
+        if (c != null && c !== '') return String(c);
+      }
+      return String(raw.trip_code || raw.trip_number || raw.tripCode || '');
+    })(),
     tripNumber: raw.trip_code || raw.tripNumber || raw.trip_number || `TRIP-${raw.id}`,
     type: raw.trip_type || raw.type || "personnel",
     status: raw.status || "draft",
@@ -524,10 +530,21 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       return;
     }
 
+    const tripId = String(selectedTrip.id ?? "").trim();
+    if (!tripId) {
+      toast({
+        title: "Cannot assign vendor",
+        description:
+          "This trip has no server id. Refresh the trip list and try again, or contact support if the problem persists.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const vendor = vendorList.find(v => v.id === selectedVendorId);
-      const response = await tripsApi.assignVendor(selectedTrip.id, selectedVendorId);
+      const response = await tripsApi.assignVendor(tripId, selectedVendorId);
 
       if (response.success) {
         toast({

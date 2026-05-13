@@ -70,6 +70,43 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+/** Build a readable error string from Laravel / generic JSON error bodies. */
+function formatLogisticsApiError(data: unknown, status: number): string {
+  if (!data || typeof data !== 'object') {
+    return `Request failed with status ${status}`;
+  }
+  const d = data as Record<string, unknown>;
+  const pickStr = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '');
+  const msg =
+    pickStr(d.message) ||
+    pickStr(d.error) ||
+    pickStr(d.exception);
+  if (msg) return msg;
+  const errs = d.errors;
+  if (errs && typeof errs === 'object' && !Array.isArray(errs)) {
+    const parts: string[] = [];
+    for (const [k, v] of Object.entries(errs as Record<string, unknown>)) {
+      if (Array.isArray(v)) {
+        for (const x of v) parts.push(`${k}: ${String(x)}`);
+      } else if (v != null) {
+        parts.push(`${k}: ${String(v)}`);
+      }
+    }
+    if (parts.length) return parts.join(' ');
+  }
+  return `Request failed with status ${status}`;
+}
+
+/** Vendor id as JSON: integer when numeric (common Laravel rule), else string. */
+function vendorAssignmentPayload(vendorId: string): Record<string, string | number> {
+  const vid = String(vendorId ?? '').trim();
+  if (/^\d+$/.test(vid)) {
+    const n = Number(vid);
+    return { vendor_id: n, vendorId: n };
+  }
+  return { vendor_id: vid, vendorId: vid };
+}
+
 // Helper function for API calls
 async function apiRequest<T>(
   endpoint: string,
@@ -107,9 +144,9 @@ async function apiRequest<T>(
     const data = await response.json();
 
     if (!response.ok) {
-      return { 
-        success: false, 
-        error: data.message || data.error || `Request failed with status ${response.status}` 
+      return {
+        success: false,
+        error: formatLogisticsApiError(data, response.status),
       };
     }
 
@@ -191,11 +228,12 @@ export const tripsApi = {
   },
 
   // Assign vendor to trip
-  // Backend expects: vendor_id (snake_case) - sends notification to vendor
+  // Backend expects vendor_id (often integer); duplicate vendorId for camelCase consumers.
   assignVendor: async (tripId: string, vendorId: string): Promise<ApiResponse<Trip>> => {
-    return apiRequest<Trip>(`/trips/${tripId}/assign-vendor`, {
+    const tid = String(tripId ?? '').trim();
+    return apiRequest<Trip>(`/trips/${encodeURIComponent(tid)}/assign-vendor`, {
       method: 'POST',
-      body: JSON.stringify({ vendor_id: vendorId }),
+      body: JSON.stringify(vendorAssignmentPayload(vendorId)),
     });
   },
 
@@ -948,9 +986,10 @@ export const tripVendorApi = {
     return apiRequest<VendorTripResponse[]>(`/trips/${tripId}/vendor-responses`);
   },
   selectVendor: async (tripId: string, vendorId: string): Promise<ApiResponse<Trip>> => {
-    return apiRequest<Trip>(`/trips/${tripId}/select-vendor`, {
+    const tid = String(tripId ?? '').trim();
+    return apiRequest<Trip>(`/trips/${encodeURIComponent(tid)}/select-vendor`, {
       method: 'POST',
-      body: JSON.stringify({ vendor_id: vendorId }),
+      body: JSON.stringify(vendorAssignmentPayload(vendorId)),
     });
   },
   routeToProcurement: async (tripId: string): Promise<ApiResponse<{ routed: boolean }>> => {
