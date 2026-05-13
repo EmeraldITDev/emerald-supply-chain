@@ -143,6 +143,11 @@ export function CreatePOForm({
   onFinalised,
   onRequestClose,
 }: CreatePOFormProps) {
+  // ---------- workflow selection ----------
+  const [workflow, setWorkflow] = useState<'standard' | 'manual'>(
+    fastTrack ? 'manual' : 'standard'
+  );
+
   // ---------- hydration ----------
   const [hydrating, setHydrating] = useState(true);
   const [hydrateSlow, setHydrateSlow] = useState(false);
