@@ -66,6 +66,18 @@ export interface POFormPayload {
    * Alias accepted server-side: `bypassExecutiveReview`, `bypass_executive_review`.
    */
   fast_track?: boolean;
+  /**
+   * Relaxes RFQ presence checks; use with procurement flows that may have no RFQ.
+   * Often paired with `fast_track` for overview / manual PO; can be used alone if needed.
+   */
+  allow_missing_rfq?: boolean;
+  /** Optional request overrides when there is no vendor on the MRF / no price comparisons (numeric internal id). */
+  vendor_id?: number;
+  vendor_name?: string;
+  /** Top-level overrides for PDF generation (in addition to embedded payment/delivery in remarks/custom_terms). */
+  payment_terms?: string;
+  /** ISO date `yyyy-MM-dd`. */
+  delivery_date?: string;
 }
 
 /**

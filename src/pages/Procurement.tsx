@@ -153,6 +153,8 @@ const Procurement = () => {
   const [createPOMrfId, setCreatePOMrfId] = useState<string | null>(null);
   /** True when Create PO was opened from Purchase Orders tab → manual MRF (sends fast_track on generate-po). */
   const [createPOFastTrack, setCreatePOFastTrack] = useState(false);
+  /** True when opening PO generator without an RFQ (manual PO or MRF overview no-RFQ path). */
+  const [createPOAllowMissingRfq, setCreatePOAllowMissingRfq] = useState(false);
   const [manualPOOpen, setManualPOOpen] = useState(false);
 
   /** "Select & Send for Approval" — collect justification before RFQ + MRF calls */
@@ -2461,6 +2463,9 @@ const Procurement = () => {
                                                         return;
                                                       }
                                                       setCreatePOFastTrack(false);
+                                                      setCreatePOAllowMissingRfq(
+                                                        false,
+                                                      );
                                                       setCreatePOMrfId(apiId);
                                                       setCreatePOOpen(true);
                                                     }}
@@ -2506,6 +2511,67 @@ const Procurement = () => {
                                           </div>
                                         ))}
                                       </div>
+                                    </div>
+                                  );
+                                })()}
+                                {(() => {
+                                  const mrfQuotations =
+                                    getQuotationsForMRF(request);
+                                  const rfq = getRFQForMRF(request);
+                                  const wfState = getWorkflowState(
+                                    request as MRF,
+                                  );
+                                  const showGeneratePO =
+                                    wfState === "invoice_approved" ||
+                                    wfState === "pending_po_upload" ||
+                                    wfState === "vendor_approved";
+                                  if (!showGeneratePO) return null;
+                                  if (rfq && mrfQuotations.length > 0)
+                                    return null;
+
+                                  const row = request as MRF;
+                                  const apiId = getMrfApiId(row);
+                                  if (!apiId) return null;
+
+                                  const isProcurement =
+                                    user?.role === "procurement" ||
+                                    user?.role === "procurement_manager";
+                                  if (!isProcurement) return null;
+
+                                  const isDraft = Boolean(
+                                    (row as MRF & { is_po_draft?: boolean })
+                                      .is_po_draft,
+                                  );
+                                  return (
+                                    <div className="mt-4 rounded-lg border border-dashed border-primary/35 bg-muted/20 p-4">
+                                      <p className="text-xs text-muted-foreground mb-2 leading-snug">
+                                        No RFQ on file — open the PO generator with{" "}
+                                        <span className="font-medium text-foreground">
+                                          fast_track
+                                        </span>{" "}
+                                        and{" "}
+                                        <span className="font-medium text-foreground">
+                                          allow_missing_rfq
+                                        </span>{" "}
+                                        so the server can build the PDF from the MRF,
+                                        price comparison, and your overrides.
+                                      </p>
+                                      <Button
+                                        size="sm"
+                                        variant="default"
+                                        className="text-xs"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setCreatePOFastTrack(true);
+                                          setCreatePOAllowMissingRfq(true);
+                                          setCreatePOMrfId(apiId);
+                                          setCreatePOOpen(true);
+                                        }}
+                                      >
+                                        {isDraft
+                                          ? "Continue PO (no RFQ)"
+                                          : "Generate PO (no RFQ)"}
+                                      </Button>
                                     </div>
                                   );
                                 })()}
@@ -3068,6 +3134,7 @@ const Procurement = () => {
           if (!o) {
             setCreatePOMrfId(null);
             setCreatePOFastTrack(false);
+            setCreatePOAllowMissingRfq(false);
           }
         }}
       >
@@ -3081,6 +3148,7 @@ const Procurement = () => {
                 key={createPOMrfId}
                 mrfId={createPOMrfId}
                 fastTrack={createPOFastTrack}
+                allowMissingRfq={createPOAllowMissingRfq}
                 onFinalised={() => {
                   void fetchMRFs();
                 }}
@@ -3088,6 +3156,7 @@ const Procurement = () => {
                   setCreatePOOpen(false);
                   setCreatePOMrfId(null);
                   setCreatePOFastTrack(false);
+                  setCreatePOAllowMissingRfq(false);
                 }}
               />
             </div>
@@ -3174,6 +3243,7 @@ const Procurement = () => {
         onMRFCreated={(newId) => {
           void fetchMRFs();
           setCreatePOFastTrack(true);
+          setCreatePOAllowMissingRfq(true);
           setCreatePOMrfId(newId);
           setCreatePOOpen(true);
         }}
