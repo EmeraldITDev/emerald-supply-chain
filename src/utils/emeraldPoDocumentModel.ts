@@ -11,7 +11,7 @@ export const EMERALD_COMPANY = {
     'Plot A10, Calabar Free Trade Zone, Calabar,',
     'Cross River 540001 NG',
   ],
-  email: 'temitope.lawal@emeraldcfze.com',
+  email: 'info@emeraldcfze.com',
   website: 'https://emeraldcfze.com/',
 } as const;
 
