@@ -2625,6 +2625,33 @@ export const signatureApi = {
       return { success: false, error: e instanceof Error ? e.message : 'Network error' };
     }
   },
+
+  /**
+   * Remove the user's saved digital signature.
+   * Backend: DELETE /api/users/{id}/signature
+   */
+  remove: async (userId: string): Promise<ApiResponse<void>> => {
+    const { token, expired } = getAuthToken();
+    if (expired || !token) {
+      return { success: false, error: 'Authentication token has expired. Please log in again.' };
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/users/${encodeURIComponent(userId)}/signature`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return {
+          success: false,
+          error: data.message || data.error || `Remove failed (${res.status})`,
+        };
+      }
+      return { success: true, data: undefined };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : 'Network error' };
+    }
+  },
 };
 
 // ============================================================

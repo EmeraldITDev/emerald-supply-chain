@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, Loader2, XCircle, PenLine } from "lucide-react";
+import { Upload, Loader2, XCircle, PenLine, X } from "lucide-react";
 import { mrfApi } from "@/services/api";
 import type { MRF, AvailableActions } from "@/types";
 
@@ -35,6 +35,8 @@ export const SupplyChainActionButtons: React.FC<SupplyChainActionButtonsProps> =
 }) => {
   const [availableActions, setAvailableActions] = useState<AvailableActions | null>(null);
   const [loading, setLoading] = useState(true);
+  const attachSigInputRef = useRef<HTMLInputElement | null>(null);
+  const signedPoInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const fetchActions = async () => {
@@ -90,12 +92,33 @@ export const SupplyChainActionButtons: React.FC<SupplyChainActionButtonsProps> =
             signature, then forwards to Finance. Use a one-off image below, or your file saved
             in Settings → Digital Signature.
           </p>
-          <Input
-            type="file"
-            accept="image/png,image/jpeg,image/jpg"
-            onChange={(e) => onAttachSignatureFileChange(e.target.files?.[0] || null)}
-            disabled={isLoading}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              ref={attachSigInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg"
+              className="max-w-[220px] flex-1 min-w-0"
+              onChange={(e) => onAttachSignatureFileChange(e.target.files?.[0] || null)}
+              disabled={isLoading}
+            />
+            {attachSignatureFile && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="shrink-0 text-muted-foreground"
+                disabled={isLoading}
+                onClick={() => {
+                  onAttachSignatureFileChange(null);
+                  if (attachSigInputRef.current) attachSigInputRef.current.value = "";
+                }}
+                aria-label="Remove selected signature image"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
           {attachSignatureFile && (
             <p className="text-xs text-muted-foreground">Selected: {attachSignatureFile.name}</p>
           )}
@@ -129,12 +152,33 @@ export const SupplyChainActionButtons: React.FC<SupplyChainActionButtonsProps> =
             Optional: upload your own fully signed PDF or Word document instead of using Attach
             Signature above.
           </p>
-          <Input
-            type="file"
-            accept=".pdf,.doc,.docx"
-            onChange={(e) => onSignedPOFileChange(e.target.files?.[0] || null)}
-            disabled={isLoading}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              ref={signedPoInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              className="max-w-[220px] flex-1 min-w-0"
+              onChange={(e) => onSignedPOFileChange(e.target.files?.[0] || null)}
+              disabled={isLoading}
+            />
+            {signedPOFile && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="shrink-0 text-muted-foreground"
+                disabled={isLoading}
+                onClick={() => {
+                  onSignedPOFileChange(null);
+                  if (signedPoInputRef.current) signedPoInputRef.current.value = "";
+                }}
+                aria-label="Remove selected signed PO file"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
           {signedPOFile && (
             <p className="text-xs text-muted-foreground">Selected: {signedPOFile.name}</p>
           )}

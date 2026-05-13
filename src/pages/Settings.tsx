@@ -10,14 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { AuditTrail } from "@/components/AuditTrail";
 import { NotificationPreferences } from "@/components/NotificationPreferences";
 import UserManagement from "@/pages/UserManagement";
-import { Settings as SettingsIcon, User, Bell, Shield, Database } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, Database, Loader2, Trash2 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/services/api";
 import { signatureApi } from "@/services/api";
 import { toast } from "sonner";
-import { useState, useRef } from "react";
-import { Loader2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import { PasswordInput } from "@/components/ui/password-input";
 
 export default function Settings() {
@@ -33,7 +32,36 @@ export default function Settings() {
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
+  const [isRemovingSignature, setIsRemovingSignature] = useState(false);
+  const [savedSignatureUrl, setSavedSignatureUrl] = useState<string | null>(null);
   const signatureInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const fromUser =
+      user && "signature_url" in user
+        ? (user as { signature_url?: string | null }).signature_url
+        : null;
+    const fromUserAlt =
+      user && "signatureUrl" in user
+        ? (user as { signatureUrl?: string | null }).signatureUrl
+        : null;
+    const fromContext = fromUser ?? fromUserAlt ?? null;
+    if (fromContext) {
+      setSavedSignatureUrl(fromContext);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem("userData") || sessionStorage.getItem("userData");
+      if (!raw) {
+        setSavedSignatureUrl(null);
+        return;
+      }
+      const parsed = JSON.parse(raw) as { signature_url?: string; signatureUrl?: string };
+      setSavedSignatureUrl(parsed.signature_url || parsed.signatureUrl || null);
+    } catch {
+      setSavedSignatureUrl(null);
+    }
+  }, [user]);
 
   // Role-based access control
   const isRegularEmployee = user?.role === "employee" || user?.role === "general_employee";
@@ -72,17 +100,19 @@ export default function Settings() {
             if (raw) {
               const parsed = JSON.parse(raw) as Record<string, unknown>;
               parsed.signature_url = sigUrl;
+              delete parsed.signatureUrl;
               if (localStorage.getItem("userData")) localStorage.setItem("userData", JSON.stringify(parsed));
               if (sessionStorage.getItem("userData")) sessionStorage.setItem("userData", JSON.stringify(parsed));
             }
           } catch {
             /* ignore */
           }
+          setSavedSignatureUrl(sigUrl);
           window.dispatchEvent(new Event("app:refresh"));
         }
         handleSignatureFile(null);
         if (signatureInputRef.current) signatureInputRef.current.value = "";
-        window.dispatchEvent(new CustomEvent("app:refresh"));
+        window.dispatchEvent(new Event("app:refresh"));
       } else {
         toast.error(res.error || "Failed to upload signature.");
       }
@@ -90,6 +120,51 @@ export default function Settings() {
       toast.error("Failed to upload signature.");
     } finally {
       setIsUploadingSignature(false);
+    }
+  };
+
+  const clearStoredSignatureFields = () => {
+    try {
+      const raw = localStorage.getItem("userData") || sessionStorage.getItem("userData");
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        delete parsed.signature_url;
+        delete parsed.signatureUrl;
+        if (localStorage.getItem("userData")) localStorage.setItem("userData", JSON.stringify(parsed));
+        if (sessionStorage.getItem("userData")) sessionStorage.setItem("userData", JSON.stringify(parsed));
+      }
+    } catch {
+      /* ignore */
+    }
+    setSavedSignatureUrl(null);
+    window.dispatchEvent(new Event("app:refresh"));
+  };
+
+  const handleRemoveSignature = async () => {
+    if (!user?.id) {
+      toast.error("You must be signed in to remove a signature.");
+      return;
+    }
+    if (!savedSignatureUrl) {
+      toast.error("No saved signature to remove.");
+      return;
+    }
+    setIsRemovingSignature(true);
+    try {
+      const res = await signatureApi.remove(String(user.id));
+      if (res.success) {
+        toast.success("Saved signature removed.");
+        clearStoredSignatureFields();
+      } else {
+        toast.error(
+          res.error ||
+            "Could not remove signature. Ensure the API supports DELETE /users/{id}/signature.",
+        );
+      }
+    } catch {
+      toast.error("Failed to remove signature.");
+    } finally {
+      setIsRemovingSignature(false);
     }
   };
 
@@ -329,6 +404,35 @@ export default function Settings() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {savedSignatureUrl && (
+                    <div className="rounded-md border bg-muted/30 p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-muted-foreground">Saved signature</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => void handleRemoveSignature()}
+                          disabled={isRemovingSignature || isUploadingSignature}
+                        >
+                          {isRemovingSignature ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Remove
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      <img
+                        src={savedSignatureUrl}
+                        alt="Saved signature"
+                        className="max-h-24 object-contain"
+                      />
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="signature-file">Signature Image</Label>
                     <Input
@@ -348,7 +452,24 @@ export default function Settings() {
                   </div>
                   {signaturePreview && (
                     <div className="rounded-md border bg-muted/30 p-4">
-                      <p className="text-xs text-muted-foreground mb-2">Preview</p>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <p className="text-xs text-muted-foreground">Preview (not saved yet)</p>
+                        {signatureFile && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-muted-foreground"
+                            onClick={() => {
+                              handleSignatureFile(null);
+                              if (signatureInputRef.current) signatureInputRef.current.value = "";
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Clear
+                          </Button>
+                        )}
+                      </div>
                       <img
                         src={signaturePreview}
                         alt="Signature preview"
