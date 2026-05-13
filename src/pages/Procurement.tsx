@@ -1258,19 +1258,18 @@ const Procurement = () => {
     const hasGeneratedPo = Boolean(mrf.po_number || mrf.poNumber);
     if (!signedPOUrl && hasGeneratedPo) {
       const emerald = await openEmeraldPurchaseOrderForMrf(mrf);
-      if (emerald.ok === true) {
+      if (emerald.ok) {
         toast({
           title: "Opening PO",
           description: "Emerald layout PDF opened in a new tab.",
         });
         return;
-      } else {
-        toast({
-          title: "Emerald PO layout unavailable",
-          description: `${emerald.error} Trying the server copy if available.`,
-          variant: "default",
-        });
       }
+      toast({
+        title: "Emerald PO layout unavailable",
+        description: `${emerald.error ?? "Unknown error"} Trying the server copy if available.`,
+        variant: "default",
+      });
     }
 
     if (unsignedPOUrl && unsignedPOUrl.startsWith("http")) {

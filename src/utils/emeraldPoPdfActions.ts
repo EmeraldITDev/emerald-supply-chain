@@ -29,13 +29,15 @@ export async function openEmeraldPurchaseOrderPdfInNewTab(
  * Load MRF + price comparison + vendors from the API, build the Emerald PO model, and open it.
  * Use for “View / Open PO” anywhere the server stores a generated PO but the canonical layout is Emerald.
  */
+export type OpenEmeraldPoForMrfResult = { ok: boolean; error?: string };
+
 export async function openEmeraldPurchaseOrderForMrf(
   mrf: MRF,
   options?: {
     includeSignature?: boolean;
     signatureDataUrl?: string | null;
   },
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<OpenEmeraldPoForMrfResult> {
   const mrfId = getMrfApiId(mrf) || mrf.id;
   if (!mrfId) {
     return { ok: false, error: 'Missing MRF identifier.' };

@@ -495,9 +495,9 @@ const SupplyChainDashboard = () => {
 
   const handleDownloadPO = async (mrf: MRF) => {
     const r = await openEmeraldPurchaseOrderForMrf(mrf);
-    if (r.ok === true) return;
+    if (r.ok) return;
 
-    const errMsg = r.error;
+    const errMsg = r.error ?? "Unknown error";
     const poShareUrl = getUnsignedPOShareUrl(mrf);
     const poUrl = getUnsignedPOUrl(mrf);
     const poUrlToUse = poShareUrl || poUrl;
