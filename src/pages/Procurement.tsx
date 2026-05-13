@@ -4,6 +4,7 @@ import {
   getMrfApiId,
   collectMrfIdAliases,
   resolveMrfInList,
+  findMrfByAnyLinkId,
 } from "@/utils/displayId";
 import {
   Card,
@@ -418,7 +419,7 @@ const Procurement = () => {
 
   // Convert MRF (API type) to MRFRequest (UI component type)
   const convertToMRFRequest = (mrf: MRF): MRFRequest => ({
-    id: mrf.id,
+    id: getMrfApiId(mrf) || String(mrf.id ?? ""),
     title: mrf.title,
     category: mrf.category,
     description: mrf.description,
@@ -1098,7 +1099,9 @@ const Procurement = () => {
     if (!selectedMRFForPO) return;
 
     // Validate the contract-type dependent initial approval before sending RFQs to vendors
-    const mrfData = mrfRequests.find((m) => m.id === selectedMRFForPO.id);
+    const mrfData =
+      (findMrfByAnyLinkId(selectedMRFForPO.id, mrfRequests) as MRF | null) ??
+      mrfRequests.find((m) => m.id === selectedMRFForPO.id);
     const mrfToCheck = (mrfData || (selectedMRFForPO as any)) as MRF;
     if (!mrfData || !isInitialApprovalApproved(mrfToCheck)) {
       toast({
@@ -2446,12 +2449,19 @@ const Procurement = () => {
                                                     className="text-xs"
                                                     onClick={(e) => {
                                                       e.stopPropagation();
+                                                      const row = request as MRF;
+                                                      const apiId = getMrfApiId(row);
+                                                      if (!apiId) {
+                                                        toast({
+                                                          title: "Missing MRF identifier",
+                                                          description:
+                                                            "Could not resolve this row's id for PO generation (expected formatted id or mrf id). Try refreshing the list.",
+                                                          variant: "destructive",
+                                                        });
+                                                        return;
+                                                      }
                                                       setCreatePOFastTrack(false);
-                                                      setCreatePOMrfId(
-                                                        getMrfApiId(
-                                                          request as MRF,
-                                                        ),
-                                                      );
+                                                      setCreatePOMrfId(apiId);
                                                       setCreatePOOpen(true);
                                                     }}
                                                   >
@@ -3068,6 +3078,7 @@ const Procurement = () => {
           {createPOMrfId && (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <CreatePOForm
+                key={createPOMrfId}
                 mrfId={createPOMrfId}
                 fastTrack={createPOFastTrack}
                 onFinalised={() => {

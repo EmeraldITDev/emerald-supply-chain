@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { mrfApi } from '@/services/api';
 import type { MRF } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { getMrfApiId } from '@/utils/displayId';
 
 export interface ManualPOQuickStartDialogProps {
   open: boolean;
@@ -108,13 +109,13 @@ export function ManualPOQuickStartDialog({
         return;
       }
       const mrf = res.data as MRF;
-      const id = (mrf as MRF & { id?: string }).id;
-      if (!id) {
+      const pathId = getMrfApiId(mrf);
+      if (!pathId) {
         toast.error('Backend did not return a request id.');
         return;
       }
       toast.success('Request created. Continue with PO details.');
-      onMRFCreated(id);
+      onMRFCreated(pathId);
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Unexpected error.');

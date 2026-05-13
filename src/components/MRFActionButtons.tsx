@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { mrfApi } from "@/services/api";
 import type { MRF, AvailableActions } from "@/types";
 import { toast } from "sonner";
+import { getMrfApiId } from "@/utils/displayId";
 
 interface MRFActionButtonsProps {
   mrf: MRF;
@@ -34,12 +35,13 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
   const { user } = useAuth();
   const [availableActions, setAvailableActions] = useState<AvailableActions | null>(null);
   const [loading, setLoading] = useState(true);
+  const mrfPathId = getMrfApiId(mrf) || String(mrf.id ?? "");
 
   useEffect(() => {
     const fetchActions = async () => {
       try {
         setLoading(true);
-        const response = await mrfApi.getAvailableActions(mrf.id);
+        const response = await mrfApi.getAvailableActions(mrfPathId);
         if (response.success && response.data) {
           setAvailableActions(response.data);
         }
@@ -51,7 +53,7 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
     };
 
     fetchActions();
-  }, [mrf.id]);
+  }, [mrfPathId]);
 
   // Show loading state (optional - can render nothing)
   if (loading && !compact) {
