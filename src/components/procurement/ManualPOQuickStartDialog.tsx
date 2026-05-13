@@ -22,6 +22,7 @@ import {
 import { toast } from 'sonner';
 import { mrfApi } from '@/services/api';
 import type { MRF } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface ManualPOQuickStartDialogProps {
   open: boolean;
@@ -40,13 +41,23 @@ const CATEGORY_OPTIONS = [
   'other',
 ];
 
+/** Same values as New MRF — must match backend `contract_type` validation. */
+const CONTRACT_TYPE_OPTIONS = [
+  { value: 'emerald', label: 'Emerald Contract' },
+  { value: 'oando', label: 'Oando Contract' },
+  { value: 'dangote', label: 'Dangote Contract' },
+  { value: 'heritage', label: 'Heritage Contract' },
+] as const;
+
 export function ManualPOQuickStartDialog({
   open,
   onOpenChange,
   onMRFCreated,
 }: ManualPOQuickStartDialogProps) {
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('equipment');
+  const [contractType, setContractType] = useState('');
   const [urgency, setUrgency] = useState<'Low' | 'Medium' | 'High'>('Medium');
   const [quantity, setQuantity] = useState('1');
   const [estimatedCost, setEstimatedCost] = useState('');
@@ -57,6 +68,7 @@ export function ManualPOQuickStartDialog({
     if (!open) {
       setTitle('');
       setCategory('equipment');
+      setContractType('');
       setUrgency('Medium');
       setQuantity('1');
       setEstimatedCost('');
@@ -69,6 +81,7 @@ export function ManualPOQuickStartDialog({
     title.trim().length > 0 &&
     description.trim().length > 0 &&
     quantity.trim().length > 0 &&
+    contractType.length > 0 &&
     !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,6 +89,7 @@ export function ManualPOQuickStartDialog({
     if (!canSubmit) return;
     setSubmitting(true);
     try {
+      const dept = user?.department?.trim();
       const res = await mrfApi.create({
         title: title.trim(),
         category,
@@ -85,6 +99,9 @@ export function ManualPOQuickStartDialog({
         estimatedCost: estimatedCost.trim(),
         justification:
           'Manual PO created without RFQ — vendor and pricing captured directly on the purchase order.',
+        contract_type: contractType,
+        contractType,
+        ...(dept ? { department: dept } : {}),
       });
       if (!res.success || !res.data) {
         toast.error(res.error || 'Could not create the backing request.');
@@ -161,6 +178,26 @@ export function ManualPOQuickStartDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Contract type *</Label>
+            <Select value={contractType} onValueChange={setContractType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select contract type" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                {CONTRACT_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Required for routing (e.g. Emerald vs non-Emerald approval paths). Same options as
+              New Material Request.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

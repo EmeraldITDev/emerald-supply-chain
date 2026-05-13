@@ -54,6 +54,9 @@ import {
   validatePriceComparison,
   makeEmptyRow,
 } from './PriceComparisonTable';
+import { EmeraldPurchaseOrderPreview } from './EmeraldPurchaseOrderPreview';
+import { buildEmeraldPoDisplayModel } from '@/utils/emeraldPoDocumentModel';
+import { buildEmeraldPurchaseOrderPdf } from '@/utils/emeraldPOPdf';
 
 export interface CreatePOFormProps {
   mrfId: string;
@@ -338,6 +341,70 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
       remarks: remarksPieces.join('\n\n') || undefined,
     };
   }, [form]);
+
+  const emeraldPreviewModel = useMemo(() => {
+    if (!mrf) return null;
+    const payload = buildPayload();
+    const merged = {
+      ...mrf,
+      ship_to_address:
+        form.ship_to_address.trim() ||
+        (mrf as MRF & { ship_to_address?: string }).ship_to_address,
+      tax_rate:
+        form.tax_rate.trim() === ''
+          ? (mrf as MRF & { tax_rate?: number | string }).tax_rate
+          : Number(form.tax_rate),
+      invoice_submission_email: form.invoice_submission_email.trim() || undefined,
+      invoice_submission_cc: form.invoice_submission_cc.trim() || undefined,
+      custom_terms: payload.custom_terms ?? (mrf as MRF & { custom_terms?: string }).custom_terms,
+      remarks: payload.remarks ?? (mrf as MRF & { remarks?: string }).remarks,
+      po_number:
+        (finalisedMrf?.po_number ||
+          finalisedMrf?.poNumber ||
+          mrf.po_number ||
+          mrf.poNumber ||
+          'DRAFT') as string,
+    } as MRF & { ship_to_address?: string; tax_rate?: number | string; custom_terms?: string };
+    return buildEmeraldPoDisplayModel({
+      mrf: merged,
+      rows,
+      vendors,
+      standardTermsBody: standardTerms,
+      includeSignature: false,
+      poDate: form.po_date,
+      approvalDate: form.po_date ?? new Date(),
+    });
+  }, [
+    mrf,
+    form,
+    rows,
+    vendors,
+    standardTerms,
+    finalisedMrf,
+    buildPayload,
+  ]);
+
+  const downloadEmeraldPreviewPdf = useCallback(async () => {
+    if (!emeraldPreviewModel) return;
+    try {
+      const blob = await buildEmeraldPurchaseOrderPdf(emeraldPreviewModel);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const num =
+        finalisedMrf?.po_number ||
+        finalisedMrf?.poNumber ||
+        mrf?.po_number ||
+        mrf?.poNumber ||
+        mrfId;
+      a.href = url;
+      a.download = `PO-${num}-emerald-layout.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('PDF downloaded');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not build PDF');
+    }
+  }, [emeraldPreviewModel, finalisedMrf, mrf, mrfId]);
 
   // -------------------------------------------------------------------------
   // Save flows
@@ -717,6 +784,26 @@ export function CreatePOForm({ mrfId, onFinalised, onRequestClose }: CreatePOFor
                 ))}
               </ul>
             </div>
+            {emeraldPreviewModel && (
+              <div className="space-y-2 border-t pt-3">
+                <p className="text-xs font-semibold">Purchase Order — Emerald layout (preview)</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Matches the standard company PO format. The system PDF after you generate may differ until the server template is updated; use this preview and download for a consistent layout.
+                </p>
+                <div className="max-h-[min(520px,70vh)] overflow-y-auto rounded-md border bg-muted/40 p-2">
+                  <EmeraldPurchaseOrderPreview model={emeraldPreviewModel} />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void downloadEmeraldPreviewPdf()}
+                >
+                  <Download className="h-3.5 w-3.5 mr-1" />
+                  Download PDF (Emerald layout)
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </section>

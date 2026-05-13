@@ -114,6 +114,7 @@ const NewMRF = () => {
           urgency: urgencyValue,
           justification: formData.justification,
           contractType: formData.contractType,
+          contract_type: formData.contractType,
           department: formData.department || user?.department || "",
         };
         // Include estimatedCost - use 0 if not provided (backend expects a number)
@@ -146,6 +147,7 @@ const NewMRF = () => {
           urgency: urgencyValue,
           justification: formData.justification,
           contractType: formData.contractType,
+          contract_type: formData.contractType,
           department: formData.department || user?.department || "",
         };
         // Include estimatedCost - use 0 if not provided (backend expects a number)

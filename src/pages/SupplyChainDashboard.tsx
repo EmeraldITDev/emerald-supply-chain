@@ -44,7 +44,14 @@ import { getRejectionReason } from "@/utils/poHelpers";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
-import { mrfApi } from "@/services/api";
+import { authApi, mrfApi, vendorApi } from "@/services/api";
+import { procurementApi } from "@/services/procurementApi";
+import { buildEmeraldPoDisplayModel } from "@/utils/emeraldPoDocumentModel";
+import {
+  buildEmeraldPurchaseOrderPdf,
+  blobToDataUrl,
+  fetchUrlAsDataUrl,
+} from "@/utils/emeraldPOPdf";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { VendorRegistration } from "@/types";
 import type { MRF } from "@/types";
@@ -53,6 +60,21 @@ import { SupplyChainActionButtons } from "@/components/SupplyChainActionButtons"
 import { SupplyChainVendorApprovalButtons } from "@/components/SupplyChainVendorApprovalButtons";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { MRFApprovalDialog } from "@/components/MRFApprovalDialog";
+
+function readStoredUserSignatureUrl(): string | null {
+  try {
+    const raw =
+      localStorage.getItem("userData") || sessionStorage.getItem("userData");
+    if (!raw) return null;
+    const o = JSON.parse(raw) as {
+      signature_url?: string;
+      signatureUrl?: string;
+    };
+    return o.signature_url || o.signatureUrl || null;
+  } catch {
+    return null;
+  }
+}
 
 const SupplyChainDashboard = () => {
   const { user } = useAuth();
@@ -65,6 +87,10 @@ const SupplyChainDashboard = () => {
   const [signedPOs, setSignedPOs] = useState<{ [key: string]: File | null }>(
     {},
   );
+  const [attachSignatureFiles, setAttachSignatureFiles] = useState<{
+    [key: string]: File | null;
+  }>({});
+  const [signaturePresenceTick, setSignaturePresenceTick] = useState(0);
   const [quotationDetailsDialogOpen, setQuotationDetailsDialogOpen] =
     useState(false);
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
@@ -110,6 +136,17 @@ const SupplyChainDashboard = () => {
   useEffect(() => {
     fetchMRFs();
   }, [fetchMRFs]);
+
+  useEffect(() => {
+    const onRefresh = () => setSignaturePresenceTick((t) => t + 1);
+    window.addEventListener("app:refresh", onRefresh);
+    return () => window.removeEventListener("app:refresh", onRefresh);
+  }, []);
+
+  const hasProfileSignature = useMemo(() => {
+    void signaturePresenceTick;
+    return Boolean(user?.signature_url || readStoredUserSignatureUrl());
+  }, [user?.signature_url, signaturePresenceTick]);
 
   useEffect(() => {
     const fetchVendorRegistrations = async () => {
@@ -342,6 +379,102 @@ const SupplyChainDashboard = () => {
       }
     } catch (error) {
       toast.error("Failed to connect to server");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleAttachSignature = async (mrfId: string) => {
+    const override = attachSignatureFiles[mrfId] || null;
+    setActionLoading(mrfId);
+    try {
+      const fullRes = await mrfApi.getById(mrfId);
+      if (!fullRes.success || !fullRes.data) {
+        toast.error(fullRes.error || "Could not load MRF for signing");
+        return;
+      }
+      const fullMrf = fullRes.data;
+
+      const pcRes = await procurementApi.getPriceComparison(mrfId);
+      const rows = pcRes.success && pcRes.data ? pcRes.data : [];
+
+      const vendorsRes = await vendorApi.getAll();
+      const vendors = vendorsRes.success && Array.isArray(vendorsRes.data) ? vendorsRes.data : [];
+
+      let sigDataUrl: string | null = null;
+      if (override) {
+        if (override.size > 2 * 1024 * 1024) {
+          toast.error("Signature image must be 2MB or less.");
+          return;
+        }
+        sigDataUrl = await blobToDataUrl(override);
+      } else {
+        const me = await authApi.getCurrentUser();
+        const url =
+          (me.data as { signature_url?: string; signatureUrl?: string } | undefined)
+            ?.signature_url ||
+          (me.data as { signature_url?: string; signatureUrl?: string } | undefined)
+            ?.signatureUrl ||
+          user?.signature_url ||
+          readStoredUserSignatureUrl() ||
+          null;
+        if (url) {
+          sigDataUrl = await fetchUrlAsDataUrl(url);
+        }
+      }
+
+      if (!sigDataUrl) {
+        toast.error(
+          "No signature available. Choose a PNG/JPG above, or upload one in Settings → Digital Signature.",
+        );
+        return;
+      }
+
+      const poType = String(
+        (fullMrf as { po_type?: string }).po_type || "goods",
+      ) as "goods" | "services" | "logistics";
+      let standardTermsBody: string | undefined;
+      const termsRes = await procurementApi.getPOTermsTemplate(poType);
+      if (termsRes.success && termsRes.data) {
+        standardTermsBody =
+          termsRes.data.content || termsRes.data.standard_terms || undefined;
+      }
+
+      const model = buildEmeraldPoDisplayModel({
+        mrf: fullMrf,
+        rows,
+        vendors,
+        standardTermsBody,
+        includeSignature: true,
+        signatureDataUrl: sigDataUrl,
+      });
+
+      const blob = await buildEmeraldPurchaseOrderPdf(model);
+      const poNum = getPONumber(fullMrf);
+      const file = new File([blob], `PO-${poNum}-signed.pdf`, {
+        type: "application/pdf",
+      });
+
+      const response = await mrfApi.uploadSignedPO(mrfId, file);
+      if (response.success) {
+        toast.success(
+          "Signature attached — signed Purchase Order sent to Finance.",
+        );
+        setAttachSignatureFiles((prev) => ({ ...prev, [mrfId]: null }));
+        setSignedPOs((prev) => ({ ...prev, [mrfId]: null }));
+        try {
+          window.dispatchEvent(new Event("app:refresh"));
+        } catch {
+          /* ignore */
+        }
+        await fetchMRFs();
+      } else {
+        toast.error(response.error || "Failed to attach signature");
+      }
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Failed to attach signature",
+      );
     } finally {
       setActionLoading(null);
     }
@@ -1088,16 +1221,27 @@ const SupplyChainDashboard = () => {
                               {/* Upload signed PO - Uses available actions */}
                               <SupplyChainActionButtons
                                 mrf={mrf}
+                                onAttachSignature={handleAttachSignature}
                                 onUploadSignedPO={handleUploadSignedPO}
                                 onRejectPO={() => {
                                   setSelectedMRFForRejection(mrf);
                                   setRejectDialogOpen(true);
                                 }}
                                 signedPOFile={signedPOs[mrf.id] || null}
-                                onFileChange={(file) =>
+                                attachSignatureFile={
+                                  attachSignatureFiles[mrf.id] || null
+                                }
+                                onSignedPOFileChange={(file) =>
                                   handleFileChange(mrf.id, file)
                                 }
+                                onAttachSignatureFileChange={(file) =>
+                                  setAttachSignatureFiles((prev) => ({
+                                    ...prev,
+                                    [mrf.id]: file,
+                                  }))
+                                }
                                 isLoading={isActionLoading}
+                                hasSavedProfileSignature={hasProfileSignature}
                               />
                             </CardContent>
                           </Card>

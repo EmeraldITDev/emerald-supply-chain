@@ -10,6 +10,9 @@ export interface User {
   is_admin?: boolean;
   can_manage_users?: boolean;
   createdAt: string;
+  /** Public URL to a saved signature image (Supply Chain Director). */
+  signature_url?: string | null;
+  signatureUrl?: string | null;
 }
 
 export interface LoginCredentials {
@@ -141,6 +144,10 @@ export interface CreateMRFData {
   quantity: string;
   estimatedCost: string;
   justification: string;
+  /** Backend validation often expects snake_case. */
+  contract_type?: string;
+  contractType?: string;
+  department?: string;
 }
 
 // SRF (Service Requisition Form) Types

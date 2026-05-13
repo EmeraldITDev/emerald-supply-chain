@@ -65,6 +65,21 @@ export default function Settings() {
       const res = await signatureApi.upload(String(user.id), signatureFile);
       if (res.success) {
         toast.success("Digital signature uploaded.");
+        const sigUrl = res.data?.signature_url || res.data?.signatureUrl;
+        if (sigUrl) {
+          try {
+            const raw = localStorage.getItem("userData") || sessionStorage.getItem("userData");
+            if (raw) {
+              const parsed = JSON.parse(raw) as Record<string, unknown>;
+              parsed.signature_url = sigUrl;
+              if (localStorage.getItem("userData")) localStorage.setItem("userData", JSON.stringify(parsed));
+              if (sessionStorage.getItem("userData")) sessionStorage.setItem("userData", JSON.stringify(parsed));
+            }
+          } catch {
+            /* ignore */
+          }
+          window.dispatchEvent(new Event("app:refresh"));
+        }
         handleSignatureFile(null);
         if (signatureInputRef.current) signatureInputRef.current.value = "";
         window.dispatchEvent(new CustomEvent("app:refresh"));
@@ -308,8 +323,9 @@ export default function Settings() {
                 <CardHeader>
                   <CardTitle>Digital Signature</CardTitle>
                   <CardDescription>
-                    Upload your signature image (PNG or JPG, transparent background recommended).
-                    This signature is applied to Purchase Orders when you sign them.
+                    Upload your signature image (PNG or JPG, transparent background recommended). It is
+                    used when you click Attach Signature on Purchase Orders, and when you save it from
+                    this page.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

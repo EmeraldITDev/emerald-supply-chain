@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { authApi } from "@/services/api";
+import type { User } from "@/types";
 
 export type UserRole = "employee" | "general_employee" | "regular_staff" | "staff" | "procurement_manager" | "finance" | "executive" | "supply_chain_director" | "supply_chain" | "chairman" | "logistics_manager" | "procurement" | "logistics";
 
@@ -32,6 +33,7 @@ export interface AuthUser {
   name: string;
   department: string | null;
   employeeId?: number;
+  signature_url?: string | null;
 }
 
 interface AuthContextType {
@@ -100,6 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Verify token is still valid by calling /auth/me
         authApi.getCurrentUser().then((response) => {
           if (response.success && response.data) {
+            const d = response.data as User & { signatureUrl?: string };
             const updatedUser: AuthUser = {
               id: response.data.id,
               email: response.data.email,
@@ -107,6 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               name: response.data.name,
               department: response.data.department,
               employeeId: response.data.employeeId,
+              signature_url: d.signature_url ?? d.signatureUrl ?? null,
             };
             setUser(updatedUser);
             storage.setItem("userData", JSON.stringify(updatedUser));
@@ -181,6 +185,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           name: userData.name,
           department: userData.department,
           employeeId: userData.employeeId,
+          signature_url:
+            (userData as User & { signatureUrl?: string }).signature_url ??
+            (userData as User & { signatureUrl?: string }).signatureUrl ??
+            null,
         };
 
         setUser(authUser);
