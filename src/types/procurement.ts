@@ -18,12 +18,24 @@ export interface POTermsTemplate {
   updated_at?: string;
 }
 
+/** Manual vendor data for price comparison rows without a directory entry. */
+export interface ManualVendor {
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  contact_person?: string;
+  contact_person_email?: string;
+}
+
 /** Row authored client-side, sent to the backend on PUT /price-comparisons. */
 export interface PriceComparisonRow {
   /** Local-only key for React rendering. */
   _key: string;
-  /** Vendor's stable string id (e.g. VND-001) — NOT the numeric internal id. */
-  vendor_id: string;
+  /** Vendor's stable string id (e.g. VND-001) — NOT the numeric internal id. Send when using directory vendor. */
+  vendor_id?: string;
+  /** Manual vendor data — send when adding supplier not yet in directory. */
+  manual_vendor?: ManualVendor;
   item_description: string;
   unit_price: number | '';
   quantity: number | '';
@@ -34,9 +46,10 @@ export interface PriceComparisonRow {
 /** Row returned from the backend (includes server-computed fields). */
 export interface PriceComparisonEntry {
   id?: number | string;
-  vendor_id: string;
+  vendor_id?: string;
   vendor_internal_id?: number | string;
   vendor_name?: string;
+  manual_vendor?: ManualVendor;
   item_description: string;
   unit_price: number | string;
   quantity: number | string;

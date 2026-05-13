@@ -125,9 +125,13 @@ const hydrateRow = (e: PriceComparisonEntry): PriceComparisonRow => ({
       ? crypto.randomUUID()
       : `row_${Math.random().toString(36).slice(2)}`,
   vendor_id: e.vendor_id,
+  manual_vendor: e.manual_vendor,
   item_description: e.item_description ?? '',
   unit_price: typeof e.unit_price === 'string' ? Number(e.unit_price) || '' : e.unit_price,
   quantity: typeof e.quantity === 'string' ? Number(e.quantity) || '' : e.quantity,
+  is_selected: Boolean(e.is_selected),
+  selection_reason: e.selection_reason ?? '',
+});
   is_selected: Boolean(e.is_selected),
   selection_reason: e.selection_reason ?? '',
 });
@@ -175,14 +179,9 @@ export function CreatePOForm({
   const [finalisedMrf, setFinalisedMrf] = useState<MRF | null>(null);
   /** Mirrors `data.fast_tracked` from generate-po when the PO tab fast-track path was used. */
   const [finalisedFastTracked, setFinalisedFastTracked] = useState(false);
-  /** Optional numeric vendor id + name for generate-po when price comparison is incomplete. */
-  const [overrideVendorId, setOverrideVendorId] = useState('');
-  const [overrideVendorName, setOverrideVendorName] = useState('');
 
   useEffect(() => {
     setFinalisedFastTracked(false);
-    setOverrideVendorId('');
-    setOverrideVendorName('');
   }, [mrfId]);
 
   // -------------------------------------------------------------------------
@@ -327,15 +326,6 @@ export function CreatePOForm({
     [rows, vendors]
   );
 
-  const overrideVendorSufficient = useMemo(() => {
-    const idNum = Number(overrideVendorId.trim());
-    return (
-      Number.isFinite(idNum) &&
-      idNum > 0 &&
-      overrideVendorName.trim().length > 0
-    );
-  }, [overrideVendorId, overrideVendorName]);
-
   const section1Valid =
     !!form.po_date &&
     !!form.delivery_date &&
@@ -350,7 +340,7 @@ export function CreatePOForm({
 
   const canFinalise =
     section1Valid &&
-    (pcErrors.length === 0 || (allowMissingRfq && overrideVendorSufficient)) &&
+    pcErrors.length === 0 &&
     !isSaving &&
     !finalisedMrf;
 
@@ -403,14 +393,10 @@ export function CreatePOForm({
       if (form.delivery_date) {
         base.delivery_date = format(form.delivery_date, 'yyyy-MM-dd');
       }
-      if (overrideVendorSufficient) {
-        base.vendor_id = Math.floor(Number(overrideVendorId.trim()));
-        base.vendor_name = overrideVendorName.trim();
-      }
     }
 
     return base;
-  }, [form, fastTrack, allowMissingRfq, overrideVendorSufficient, overrideVendorId, overrideVendorName]);
+  }, [form, fastTrack, allowMissingRfq]);
 
   const emeraldPreviewModel = useMemo(() => {
     if (!mrf) return null;
@@ -532,22 +518,17 @@ export function CreatePOForm({
     } finally {
       releaseLock();
     }
-  }, [mrfId, rows, buildPayload, allowMissingRfq, overrideVendorSufficient, vendors]);
+  }, [mrfId, rows, buildPayload, vendors]);
 
   const finalisePO = useCallback(async () => {
     if (!acquireLock('finalise')) return;
     try {
-      const pcInvalid = validatePriceComparison(rows, vendors).length > 0;
-      const skipPcPersist =
-        allowMissingRfq && overrideVendorSufficient && pcInvalid;
-      if (!skipPcPersist) {
-        const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
-        if (!pcRes.success) {
-          toast.error('Could not save price comparison', {
-            description: pcRes.error || 'Fix the errors and try again.',
-          });
-          return;
-        }
+      const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
+      if (!pcRes.success) {
+        toast.error('Could not save price comparison', {
+          description: pcRes.error || 'Fix the errors and try again.',
+        });
+        return;
       }
       const finalRes = await procurementApi.finalisePO(mrfId, buildPayload());
       if (!finalRes.success || !finalRes.data?.mrf) {
@@ -585,7 +566,7 @@ export function CreatePOForm({
     } finally {
       releaseLock();
     }
-  }, [mrfId, rows, buildPayload, onFinalised, allowMissingRfq, overrideVendorSufficient, vendors]);
+  }, [mrfId, rows, buildPayload, onFinalised, vendors]);
 
   // -------------------------------------------------------------------------
   // Autosave — debounced 3s, draft mode only, lock-protected,
@@ -598,20 +579,15 @@ export function CreatePOForm({
     debounceRef.current = window.setTimeout(() => {
       if (isSavingRef.current) return;
       if (Date.now() - lastManualSaveRef.current < 5000) return;
-      // Gate: autosave when PC is valid, or when no-RFQ mode has vendor overrides (avoids 422 spam otherwise).
+      // Gate: autosave when PC is valid (prevents 422 spam).
       const pcInvalid = validatePriceComparison(rows, vendors).length > 0;
-      if (pcInvalid && !(allowMissingRfq && overrideVendorSufficient)) return;
+      if (pcInvalid) return;
       // Run as auto save (uses same draft path).
       void (async () => {
         if (!acquireLock('auto')) return;
         try {
-          const pcInvalid = validatePriceComparison(rows, vendors).length > 0;
-          const skipPcPersist =
-            allowMissingRfq && overrideVendorSufficient && pcInvalid;
-          if (!skipPcPersist) {
-            const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
-            if (!pcRes.success) return;
-          }
+          const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
+          if (!pcRes.success) return;
           const draftRes = await procurementApi.savePODraft(mrfId, buildPayload());
           if (draftRes.success) {
             const stamp = (draftRes.data?.mrf as { po_draft_saved_at?: string } | undefined)
@@ -629,7 +605,7 @@ export function CreatePOForm({
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [form, rows, vendors, hydrating, isFinalised, mrfId, buildPayload, allowMissingRfq, overrideVendorSufficient]);
+  }, [form, rows, vendors, hydrating, isFinalised, mrfId, buildPayload]);
 
   // -------------------------------------------------------------------------
   // Render — loading skeleton
@@ -704,11 +680,10 @@ export function CreatePOForm({
 
       {fastTrack && !isFinalised && (
         <div className="rounded-md border border-primary/35 bg-primary/5 px-3 py-2 text-xs text-muted-foreground leading-snug">
-          <span className="font-medium text-foreground">Fast-track PO</span>
+          <span className="font-medium text-foreground">Fast-track: complete the price comparison</span>
           {' — '}
-          Generating will skip executive distribution and set the MRF to{' '}
-          <span className="font-medium text-foreground">awaiting SCD signature</span>
-          {' '}so the Supply Chain Director can sign or upload the signed PO.
+          You can add suppliers not yet in the directory from the price comparison step. After completion,
+          Procurement will route the PO to the Supply Chain Director for signature.
         </div>
       )}
 
@@ -725,52 +700,6 @@ export function CreatePOForm({
             </>
           ) : null}{' '}
           so the backend can proceed without an RFQ when appropriate.
-        </div>
-      )}
-
-      {allowMissingRfq && !isFinalised && (
-        <div className="rounded-md border border-border bg-muted/15 p-3 space-y-3 text-sm">
-          <div>
-            <p className="text-xs font-medium text-foreground">Optional vendor overrides</p>
-            <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-              Use when there is no vendor on the MRF or the price comparison is incomplete. Enter the
-              vendor&apos;s numeric id from your vendor master and display name — or complete the price
-              comparison below instead. Payment terms and delivery date from section 1 are also sent as{' '}
-              <span className="font-medium">payment_terms</span> and <span className="font-medium">delivery_date</span> on the request when this mode is on.
-            </p>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="po-override-vendor-id" className="text-xs">
-                Vendor id (numeric)
-              </Label>
-              <Input
-                id="po-override-vendor-id"
-                inputMode="numeric"
-                placeholder="e.g. 123"
-                value={overrideVendorId}
-                onChange={(e) => setOverrideVendorId(e.target.value.replace(/[^\d]/g, ''))}
-                disabled={isFinalised}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="po-override-vendor-name" className="text-xs">
-                Vendor name
-              </Label>
-              <Input
-                id="po-override-vendor-name"
-                placeholder="e.g. Acme Ltd"
-                value={overrideVendorName}
-                onChange={(e) => setOverrideVendorName(e.target.value)}
-                disabled={isFinalised}
-              />
-            </div>
-          </div>
-          {pcErrors.length > 0 && !overrideVendorSufficient && (
-            <p className="text-[11px] text-amber-700 dark:text-amber-300">
-              Price comparison is incomplete — add overrides here or fix the comparison table to generate.
-            </p>
-          )}
         </div>
       )}
 
@@ -1003,12 +932,17 @@ export function CreatePOForm({
             <div className="border-t pt-2">
               <p className="text-xs font-medium mb-1">Comparison ({rows.length} suppliers)</p>
               <ul className="text-xs space-y-1">
-                {rows.map((r, i) => (
-                  <li key={r._key} className={cn('flex justify-between', r.is_selected && 'font-semibold text-success')}>
-                    <span>{i + 1}. {r.vendor_id || '—'} · {r.item_description || '—'}</span>
-                    <span className="tabular-nums">₦{((Number(r.unit_price) || 0) * (Number(r.quantity) || 0)).toLocaleString()}{r.is_selected && ' ✓'}</span>
-                  </li>
-                ))}
+                {rows.map((r, i) => {
+                  const vendorName = r.manual_vendor?.name
+                    ? r.manual_vendor.name
+                    : r.vendor_id || '—';
+                  return (
+                    <li key={r._key} className={cn('flex justify-between', r.is_selected && 'font-semibold text-success')}>
+                      <span>{i + 1}. {vendorName} · {r.item_description || '—'}</span>
+                      <span className="tabular-nums">₦{((Number(r.unit_price) || 0) * (Number(r.quantity) || 0)).toLocaleString()}{r.is_selected && ' ✓'}</span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
             {emeraldPreviewModel && (

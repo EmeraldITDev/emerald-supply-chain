@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Trash2, Plus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -9,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Table,
   TableBody,
@@ -19,7 +21,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import type { Vendor } from '@/types';
-import type { PriceComparisonRow } from '@/types/procurement';
+import type { PriceComparisonRow, ManualVendor } from '@/types/procurement';
 
 export interface PriceComparisonTableProps {
   value: PriceComparisonRow[];
@@ -43,13 +45,33 @@ export const makeEmptyRow = (): PriceComparisonRow => ({
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `row_${Math.random().toString(36).slice(2)}`,
-  vendor_id: '',
+  vendor_id: undefined,
+  manual_vendor: undefined,
   item_description: '',
   unit_price: '',
   quantity: '',
   is_selected: false,
   selection_reason: '',
 });
+
+/**
+ * Get display name for a row (either from directory vendor or manual vendor name).
+ */
+const getRowVendorName = (row: PriceComparisonRow, vendors: Vendor[]): string => {
+  if (row.manual_vendor?.name) return row.manual_vendor.name;
+  if (row.vendor_id) {
+    const vendor = vendors.find((v) => vendorStringId(v) === row.vendor_id);
+    return vendor?.name ?? row.vendor_id;
+  }
+  return '—';
+};
+
+/**
+ * Determine the mode of a row: 'directory' or 'manual'
+ */
+const getRowMode = (row: PriceComparisonRow): 'directory' | 'manual' => {
+  return row.manual_vendor ? 'manual' : 'directory';
+};
 
 /** Validation summary used by the parent form to gate Generate. */
 export function validatePriceComparison(rows: PriceComparisonRow[], vendors: Vendor[]): string[] {
@@ -59,12 +81,33 @@ export function validatePriceComparison(rows: PriceComparisonRow[], vendors: Ven
   if (selected.length === 0) errors.push('Mark exactly one row as the selected supplier.');
   if (selected.length > 1) errors.push('Only one row can be marked as selected.');
   rows.forEach((r, i) => {
-    if (!r.vendor_id) errors.push(`Row ${i + 1}: choose a supplier.`);
-    else if (
-      vendors.length > 0 &&
-      !vendors.some((v) => vendorStringId(v) === r.vendor_id)
-    )
-      errors.push(`Row ${i + 1}: supplier does not match a known vendor.`);
+    // Check that either vendor_id or manual_vendor is set (but not both)
+    const hasVendorId = !!r.vendor_id;
+    const hasManualVendor = !!r.manual_vendor?.name;
+    
+    if (!hasVendorId && !hasManualVendor) {
+      errors.push(`Row ${i + 1}: select a supplier or add manual vendor details.`);
+    } else if (hasVendorId && hasManualVendor) {
+      errors.push(`Row ${i + 1}: use either directory vendor OR manual vendor, not both.`);
+    }
+    
+    // Validate vendor_id if using directory mode
+    if (hasVendorId && !hasManualVendor) {
+      if (
+        vendors.length > 0 &&
+        !vendors.some((v) => vendorStringId(v) === r.vendor_id)
+      ) {
+        errors.push(`Row ${i + 1}: supplier does not match a known vendor.`);
+      }
+    }
+    
+    // Validate manual_vendor if using manual mode
+    if (hasManualVendor && !hasVendorId) {
+      if (!r.manual_vendor!.name.trim()) {
+        errors.push(`Row ${i + 1}: vendor name is required.`);
+      }
+    }
+    
     if (!r.item_description.trim()) errors.push(`Row ${i + 1}: item description is required.`);
     const up = typeof r.unit_price === 'number' ? r.unit_price : Number(r.unit_price);
     if (!Number.isFinite(up) || up <= 0) errors.push(`Row ${i + 1}: enter a unit price > 0.`);
@@ -89,6 +132,13 @@ export function PriceComparisonTable({
     onChange(value.map((r) => ({ ...r, is_selected: r._key === key })));
   };
 
+  const setMode = (key: string, mode: 'directory' | 'manual') => {
+    update(key, {
+      vendor_id: mode === 'directory' ? undefined : undefined,
+      manual_vendor: mode === 'manual' ? { name: '' } : undefined,
+    });
+  };
+
   const addRow = () => onChange([...value, makeEmptyRow()]);
 
   const removeRow = (key: string) => {
@@ -104,8 +154,9 @@ export function PriceComparisonTable({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Add at least two supplier quotes below. Mark the selected supplier. This comparison
-          will be saved against the MRF and attached to the PO when routed for approval.
+          Add at least two supplier quotes below. Select from your directory or add suppliers
+          not yet registered. Mark the selected supplier. This comparison will be saved against
+          the MRF and attached to the PO when routed for approval.
         </p>
         <Button
           type="button"
@@ -124,12 +175,12 @@ export function PriceComparisonTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-[60px] text-center">Selected</TableHead>
-              <TableHead className="min-w-[180px]">Supplier *</TableHead>
+              <TableHead className="min-w-[200px]">Supplier / Source *</TableHead>
               <TableHead className="min-w-[200px]">Item / Service Description *</TableHead>
               <TableHead className="min-w-[120px]">Unit Price (₦) *</TableHead>
               <TableHead className="min-w-[90px]">Qty *</TableHead>
               <TableHead className="min-w-[120px]">Total (₦)</TableHead>
-              <TableHead className="min-w-[180px]">Notes / Reason</TableHead>
+              <TableHead className="min-w-[160px]">Notes / Reason</TableHead>
               <TableHead className="w-[60px]" />
             </TableRow>
           </TableHeader>
@@ -138,6 +189,9 @@ export function PriceComparisonTable({
               const up = Number(row.unit_price) || 0;
               const qty = Number(row.quantity) || 0;
               const total = up * qty;
+              const mode = getRowMode(row);
+              const vendorName = getRowVendorName(row, vendors);
+
               return (
                 <TableRow
                   key={row._key}
@@ -155,24 +209,97 @@ export function PriceComparisonTable({
                     />
                   </TableCell>
                   <TableCell className="align-top">
-                    <Select
-                      value={row.vendor_id || undefined}
-                      onValueChange={(v) => update(row._key, { vendor_id: v })}
-                      disabled={disabled || loadingVendors}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue
-                          placeholder={loadingVendors ? 'Loading…' : 'Select supplier'}
-                        />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover max-h-64">
-                        {vendors.map((v) => (
-                          <SelectItem key={v.id} value={vendorStringId(v)}>
-                            {v.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-2">
+                      <ToggleGroup
+                        type="single"
+                        value={mode}
+                        onValueChange={(m) => m && setMode(row._key, m as 'directory' | 'manual')}
+                        disabled={disabled}
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start"
+                      >
+                        <ToggleGroupItem value="directory" className="text-xs flex-1">
+                          Directory
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="manual" className="text-xs flex-1">
+                          Manual
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+
+                      {mode === 'directory' ? (
+                        <Select
+                          value={row.vendor_id || undefined}
+                          onValueChange={(v) =>
+                            update(row._key, { vendor_id: v, manual_vendor: undefined })
+                          }
+                          disabled={disabled || loadingVendors}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue
+                              placeholder={loadingVendors ? 'Loading…' : 'Select supplier'}
+                            />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover max-h-64">
+                            {vendors.map((v) => (
+                              <SelectItem key={v.id} value={vendorStringId(v)}>
+                                {v.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <Input
+                            value={row.manual_vendor?.name || ''}
+                            onChange={(e) =>
+                              update(row._key, {
+                                manual_vendor: {
+                                  ...(row.manual_vendor || {}),
+                                  name: e.target.value,
+                                } as ManualVendor,
+                                vendor_id: undefined,
+                              })
+                            }
+                            placeholder="Vendor name"
+                            disabled={disabled}
+                            className="h-9 text-xs"
+                          />
+                          <div className="grid grid-cols-2 gap-1">
+                            <Input
+                              type="email"
+                              value={row.manual_vendor?.email || ''}
+                              onChange={(e) =>
+                                update(row._key, {
+                                  manual_vendor: {
+                                    ...(row.manual_vendor || {}),
+                                    email: e.target.value,
+                                  } as ManualVendor,
+                                })
+                              }
+                              placeholder="Email (optional)"
+                              disabled={disabled}
+                              className="h-8 text-xs"
+                            />
+                            <Input
+                              type="tel"
+                              value={row.manual_vendor?.phone || ''}
+                              onChange={(e) =>
+                                update(row._key, {
+                                  manual_vendor: {
+                                    ...(row.manual_vendor || {}),
+                                    phone: e.target.value,
+                                  } as ManualVendor,
+                                })
+                              }
+                              placeholder="Phone (optional)"
+                              disabled={disabled}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="align-top">
                     <Input

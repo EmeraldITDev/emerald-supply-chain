@@ -41,14 +41,23 @@ function serializeRow(row: PriceComparisonRow) {
     typeof row.quantity === 'string' && row.quantity !== ''
       ? Number(row.quantity)
       : row.quantity;
-  return {
-    vendor_id: row.vendor_id,
+  
+  const serialized: any = {
     item_description: row.item_description,
     unit_price: typeof unit_price === 'number' ? unit_price : 0,
     quantity: typeof quantity === 'number' ? quantity : 0,
     is_selected: Boolean(row.is_selected),
     selection_reason: row.selection_reason || null,
   };
+  
+  // Include either vendor_id or manual_vendor (not both)
+  if (row.vendor_id) {
+    serialized.vendor_id = row.vendor_id;
+  } else if (row.manual_vendor) {
+    serialized.manual_vendor = row.manual_vendor;
+  }
+  
+  return serialized;
 }
 
 export const procurementApi = {
