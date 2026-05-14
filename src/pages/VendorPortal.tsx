@@ -20,7 +20,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EnhancedVendorRegistration } from "@/components/EnhancedVendorRegistration";
-import { OTHERS_VENDOR_CATEGORY } from "@/types/vendor-registration";
 import { VendorQuoteSubmission } from "@/components/VendorQuoteSubmission";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatMRFDate } from "@/utils/dateUtils";
@@ -956,12 +955,8 @@ const VendorPortal = () => {
               // EnhancedVendorRegistration sends categories as array, backend expects single string
               let categoryValue = '';
               if (registration.categories && Array.isArray(registration.categories) && registration.categories.length > 0) {
-                const otherSpec = (registration as { otherCategorySpecification?: string }).otherCategorySpecification?.trim();
-                const cats = registration.categories.map((c) =>
-                  c === OTHERS_VENDOR_CATEGORY && otherSpec ? `Others (${otherSpec})` : c,
-                );
-                categoryValue = cats.join(', ');
-              } else if ((registration as any).category && typeof (registration as any).category === 'string') {
+                categoryValue = registration.categories.join(", ");
+              } else if ((registration as { category?: string }).category && typeof (registration as { category?: string }).category === "string") {
                 categoryValue = (registration as any).category;
               } else {
                 // This should not happen if validation worked, but provide fallback
@@ -995,20 +990,25 @@ const VendorPortal = () => {
                 registration.postalCode
               ].filter(Boolean).join(', ');
 
+              const categoryOtherRaw =
+                (registration as { categoryOther?: string }).categoryOther?.trim() ||
+                (registration as { otherCategorySpecification?: string }).otherCategorySpecification?.trim();
+
               // Use registerSimple which handles FormData for file uploads
               // Backend accepts: companyName, category, email, phone, address, taxId, contactPerson, financialInfo, documents
               const registrationPayload = {
                 companyName: registration.companyName?.trim() || '',
                 category: categoryValue.trim(),
+                categoryOther: categoryOtherRaw || undefined,
                 email: registration.email?.trim() || '',
                 phone: (registration.phone || registration.alternatePhone)?.trim() || undefined,
                 address: (fullAddress || registration.address)?.trim() || undefined,
                 taxId: registration.taxId?.trim() || undefined,
                 contactPerson: registration.contactPerson?.trim() || undefined,
                 website: registration.website?.trim() || undefined,
-                annual_revenue: registration.annualRevenue ? String(registration.annualRevenue).trim() : undefined,
-                number_of_employees: registration.numberOfEmployees ? String(registration.numberOfEmployees).trim() : undefined,
-                year_established: registration.yearEstablished ? Number(registration.yearEstablished) : undefined,
+                annualRevenue: registration.annualRevenue ? String(registration.annualRevenue).trim() : undefined,
+                numberOfEmployees: registration.numberOfEmployees ? String(registration.numberOfEmployees).trim() : undefined,
+                yearEstablished: registration.yearEstablished ? Number(registration.yearEstablished) : undefined,
                 financialInfo: registration.financialInfo
                   ? {
                       bankName: registration.financialInfo.bankName,

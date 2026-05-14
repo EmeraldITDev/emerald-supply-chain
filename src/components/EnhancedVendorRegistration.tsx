@@ -11,9 +11,11 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, FileText, CheckCircle, AlertCircle, X, AlertTriangle, Info, Building2, Loader2, Wallet } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES, OTHERS_VENDOR_CATEGORY, type VendorDocument, type VendorDocumentType, type EnhancedVendorRegistration as VendorRegType } from "@/types/vendor-registration";
+import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES, type VendorDocument, type VendorDocumentType, type VendorDocumentRequirement, type EnhancedVendorRegistration as VendorRegType } from "@/types/vendor-registration";
 import { COUNTRIES_SORTED, getCountryByCode, getDialCodeForCountry } from "@/data/countries";
 import { getBanksForCountry, hasBankListForCountry } from "@/data/banks-by-country";
+import { vendorApi } from "@/services/api";
+import { parseVendorCategoriesApiPayload, effectiveVendorDocumentRequired, isOthersVendorCategoryLabel } from "@/utils/vendorCategoriesApi";
 
 
 interface EnhancedVendorRegistrationProps {
@@ -58,7 +60,25 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
   // Documents state
   const [uploadedDocuments, setUploadedDocuments] = useState<VendorDocument[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [otherCategorySpecification, setOtherCategorySpecification] = useState("");
+  const [categoryOther, setCategoryOther] = useState("");
+  const [categoryOptions, setCategoryOptions] = useState<string[]>(() => [...VENDOR_CATEGORIES]);
+  const [documentRequiredByType, setDocumentRequiredByType] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await vendorApi.getCategories();
+      if (cancelled || !res.success || res.data == null) return;
+      const { categoryLabels, documentRequiredByType: slotReq } = parseVendorCategoriesApiPayload(res.data);
+      if (categoryLabels.length > 0) {
+        setCategoryOptions(categoryLabels);
+      }
+      setDocumentRequiredByType(slotReq);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Sync country name when countryCode changes
   useEffect(() => {
@@ -87,13 +107,19 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
     return "";
   }, [countryCode]);
 
-  // Calculate required documents based on OEM status
+  const docEffectiveRequired = useMemo(
+    () => (doc: VendorDocumentRequirement) =>
+      effectiveVendorDocumentRequired(doc, isOEMRepresentative, documentRequiredByType),
+    [isOEMRepresentative, documentRequiredByType],
+  );
+
+  // Required uploads for validation / progress (API `complianceDocumentSlots[].required` overrides static flags)
   const requiredDocuments = useMemo(() => {
-    return VENDOR_DOCUMENT_REQUIREMENTS.filter(doc => {
-      if (doc.isOEMOnly) return isOEMRepresentative;
-      return doc.isRequired;
+    return VENDOR_DOCUMENT_REQUIREMENTS.filter((doc) => {
+      if (doc.isOEMOnly && !isOEMRepresentative) return false;
+      return docEffectiveRequired(doc);
     });
-  }, [isOEMRepresentative]);
+  }, [isOEMRepresentative, docEffectiveRequired]);
 
   // Check which documents are missing
   const missingDocuments = useMemo(() => {
@@ -104,10 +130,11 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
   // Calculate completion percentage
   const completionPercentage = useMemo(() => {
     const totalRequired = requiredDocuments.length;
-    const uploaded = requiredDocuments.filter(doc => 
+    if (totalRequired === 0) return 100;
+    const uploaded = requiredDocuments.filter(doc =>
       uploadedDocuments.some(d => d.type === doc.type)
     ).length;
-    return totalRequired > 0 ? Math.round((uploaded / totalRequired) * 100) : 0;
+    return Math.round((uploaded / totalRequired) * 100);
   }, [requiredDocuments, uploadedDocuments]);
 
   const handleFileUpload = (docType: VendorDocumentType, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,9 +164,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
         fileSize: file.size,
         uploadDate: new Date().toISOString(),
         status: "Pending",
-        isRequired: Boolean(
-          docReq?.isRequired || (docReq?.isOEMOnly && isOEMRepresentative),
-        ),
+        isRequired: docReq ? docEffectiveRequired(docReq) : false,
       };
 
       // Replace if exists, otherwise add
@@ -163,8 +188,8 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
   const handleCategoryToggle = (category: string) => {
     setSelectedCategories((prev) => {
       if (prev.includes(category)) {
-        if (category === OTHERS_VENDOR_CATEGORY) {
-          setOtherCategorySpecification("");
+        if (isOthersVendorCategoryLabel(category)) {
+          setCategoryOther("");
         }
         return prev.filter((c) => c !== category);
       }
@@ -177,14 +202,6 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
 
     if (!companyName.trim()) errors.companyName = "Company name is required";
     if (selectedCategories.length === 0) errors.categories = "Select at least one business category";
-    if (selectedCategories.includes(OTHERS_VENDOR_CATEGORY)) {
-      if (!otherCategorySpecification.trim()) {
-        errors.otherCategorySpecification =
-          "Describe the services you provide (required when \"Others\" is selected)";
-      } else if (otherCategorySpecification.trim().length < 3) {
-        errors.otherCategorySpecification = "Please enter at least 3 characters";
-      }
-    }
     if (!email.trim()) errors.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Invalid email format";
     if (!phone.trim()) errors.phone = "Phone number is required";
@@ -246,8 +263,8 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
     const registration: Partial<VendorRegType> = {
       companyName,
       categories: selectedCategories,
-      otherCategorySpecification: selectedCategories.includes(OTHERS_VENDOR_CATEGORY)
-        ? otherCategorySpecification.trim()
+      categoryOther: selectedCategories.some(isOthersVendorCategoryLabel)
+        ? categoryOther.trim() || undefined
         : undefined,
       isOEMRepresentative,
       email,
@@ -445,7 +462,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               <Label>Business Categories * (Select all that apply)</Label>
               {formErrors.categories && <p className="text-sm text-destructive">{formErrors.categories}</p>}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {VENDOR_CATEGORIES.map((category) => (
+                {categoryOptions.map((category) => (
                   <div 
                     key={category}
                     className={`flex items-center space-x-2 p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -463,24 +480,24 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
                   </div>
                 ))}
               </div>
-              {selectedCategories.includes(OTHERS_VENDOR_CATEGORY) && (
+              {selectedCategories.some(isOthersVendorCategoryLabel) && (
                 <div className="space-y-2">
-                  <Label htmlFor="other-category-spec">Please specify your services *</Label>
+                  <Label htmlFor="category-other">Additional details (optional)</Label>
                   <Textarea
-                    id="other-category-spec"
+                    id="category-other"
                     placeholder="e.g. Laundry, event catering, facility management…"
-                    value={otherCategorySpecification}
+                    value={categoryOther}
                     onChange={(e) => {
-                      setOtherCategorySpecification(e.target.value);
-                      if (formErrors.otherCategorySpecification) {
-                        setFormErrors((prev) => ({ ...prev, otherCategorySpecification: "" }));
+                      setCategoryOther(e.target.value);
+                      if (formErrors.categoryOther) {
+                        setFormErrors((prev) => ({ ...prev, categoryOther: "" }));
                       }
                     }}
-                    className={formErrors.otherCategorySpecification ? "border-destructive" : ""}
+                    className={formErrors.categoryOther ? "border-destructive" : ""}
                     rows={3}
                   />
-                  {formErrors.otherCategorySpecification && (
-                    <p className="text-sm text-destructive">{formErrors.otherCategorySpecification}</p>
+                  {formErrors.categoryOther && (
+                    <p className="text-sm text-destructive">{formErrors.categoryOther}</p>
                   )}
                 </div>
               )}
@@ -496,7 +513,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               <div className="flex-1">
                 <Label htmlFor="oem" className="cursor-pointer">I am an OEM Representative</Label>
                 <p className="text-xs text-muted-foreground">
-                  Additional documents will be required (OEM Certificate, Authorization Letter, Bank Reference)
+                  OEM-specific documents appear when checked; whether each upload is required follows procurement settings from the server.
                 </p>
               </div>
             </div>
@@ -815,7 +832,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
                 if (docReq.isOEMOnly && !isOEMRepresentative) return null;
 
                 const uploadedDoc = getDocumentStatus(docReq.type);
-                const isRequired = docReq.isRequired || (docReq.isOEMOnly && isOEMRepresentative);
+                const isRequired = docEffectiveRequired(docReq);
 
                 return (
                   <div 

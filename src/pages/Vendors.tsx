@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send, AlertTriangle, AlertCircle } from "lucide-react";
 import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES } from "@/types/vendor-registration";
+import { parseVendorCategoriesApiPayload, isOthersVendorCategoryLabel } from "@/utils/vendorCategoriesApi";
 import { Textarea } from "@/components/ui/textarea";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { useAuth } from "@/contexts/AuthContext";
@@ -88,8 +89,26 @@ const Vendors = () => {
   // New vendor form
   const [newVendorName, setNewVendorName] = useState("");
   const [newVendorCategory, setNewVendorCategory] = useState("");
+  const [newVendorCategoryOther, setNewVendorCategoryOther] = useState("");
+  const [inviteCategoryOptions, setInviteCategoryOptions] = useState<string[]>(() => [...VENDOR_CATEGORIES]);
   const [newVendorEmail, setNewVendorEmail] = useState("");
   const [isInvitingVendor, setIsInvitingVendor] = useState(false);
+
+  useEffect(() => {
+    if (!addVendorDialogOpen) return;
+    let cancelled = false;
+    (async () => {
+      const res = await vendorApi.getCategories();
+      if (cancelled || !res.success || res.data == null) return;
+      const { categoryLabels } = parseVendorCategoriesApiPayload(res.data);
+      if (categoryLabels.length > 0) {
+        setInviteCategoryOptions(categoryLabels);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [addVendorDialogOpen]);
 
 
   // Copy to clipboard helper
@@ -710,12 +729,18 @@ const Vendors = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Category</Label>
-                  <Select value={newVendorCategory} onValueChange={setNewVendorCategory}>
+                  <Select
+                    value={newVendorCategory}
+                    onValueChange={(v) => {
+                      setNewVendorCategory(v);
+                      if (!isOthersVendorCategoryLabel(v)) setNewVendorCategoryOther("");
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {VENDOR_CATEGORIES.map((c) => (
+                      {inviteCategoryOptions.map((c) => (
                         <SelectItem key={c} value={c}>
                           {c}
                         </SelectItem>
@@ -723,6 +748,17 @@ const Vendors = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                {isOthersVendorCategoryLabel(newVendorCategory) && (
+                  <div className="space-y-2">
+                    <Label>Category details (optional)</Label>
+                    <Textarea
+                      placeholder="Briefly describe the vendor's services"
+                      value={newVendorCategoryOther}
+                      onChange={(e) => setNewVendorCategoryOther(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>Contact Email</Label>
                   <Input 
@@ -754,6 +790,7 @@ const Vendors = () => {
                         companyName: newVendorName,
                         email: newVendorEmail,
                         category: newVendorCategory,
+                        categoryOther: newVendorCategoryOther.trim() || undefined,
                       });
                       
                       if (response.success) {
@@ -765,6 +802,7 @@ const Vendors = () => {
                         // Reset form
                         setNewVendorName("");
                         setNewVendorCategory("");
+                        setNewVendorCategoryOther("");
                         setNewVendorEmail("");
                         setAddVendorDialogOpen(false);
                       } else {

@@ -1924,6 +1924,11 @@ export const vendorPortalApi = {
 
 // Vendor API
 export const vendorApi = {
+  /** Public vendor registration config: categories + complianceDocumentSlots (required flags). */
+  getCategories: async (): Promise<ApiResponse<unknown>> => {
+    return apiRequest<unknown>('/vendors/categories');
+  },
+
   getAll: async (filters?: FilterOptions): Promise<ApiResponse<Vendor[]>> => {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
@@ -2019,7 +2024,12 @@ export const vendorApi = {
     if (data.yearEstablished != null && String(data.yearEstablished).trim()) {
       formData.append('year_established', String(data.yearEstablished).trim());
     }
-    
+    const co = data.categoryOther?.trim();
+    if (co) {
+      formData.append('category_other', co);
+      formData.append('categoryOther', co);
+    }
+
     // Optional financial information
     if (data.financialInfo && typeof data.financialInfo === 'object') {
       const fi = data.financialInfo;
@@ -2311,10 +2321,26 @@ export const vendorApi = {
   },
 
   // Invite a potential vendor to register via email
-  inviteVendor: async (data: { companyName: string; email: string; category: string }): Promise<ApiResponse<{ success: boolean }>> => {
+  inviteVendor: async (data: {
+    companyName: string;
+    email: string;
+    category: string;
+    categoryOther?: string;
+    category_other?: string;
+  }): Promise<ApiResponse<{ success: boolean }>> => {
+    const body: Record<string, string> = {
+      companyName: data.companyName,
+      email: data.email,
+      category: data.category,
+    };
+    const other = (data.categoryOther ?? data.category_other)?.trim();
+    if (other) {
+      body.category_other = other;
+      body.categoryOther = other;
+    }
     return apiRequest<{ success: boolean }>('/vendors/invite', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(body),
     });
   },
 

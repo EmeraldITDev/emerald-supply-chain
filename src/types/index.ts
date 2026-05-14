@@ -313,6 +313,8 @@ export interface VendorRegistrationFinancialInfo {
 export interface CreateVendorRegistrationData {
   companyName: string;
   category: string;
+  /** When category includes "Others", optional elaboration for the backend */
+  categoryOther?: string;
   email: string;
   phone: string;
   address: string;

@@ -83,7 +83,9 @@ export interface EnhancedVendorRegistration {
   id: string;
   companyName: string;
   categories: string[]; // Multiple categories
-  /** Required when the "Others" category is selected (see `OTHERS_VENDOR_CATEGORY`). */
+  /** Optional free text when "Others" is selected; sent as `category_other` / `categoryOther` on register. */
+  categoryOther?: string;
+  /** @deprecated Use `categoryOther` */
   otherCategorySpecification?: string;
   isOEMRepresentative: boolean;
   email: string;
