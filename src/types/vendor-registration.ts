@@ -43,11 +43,11 @@ export interface VendorDocumentRequirement {
 export const VENDOR_DOCUMENT_REQUIREMENTS: VendorDocumentRequirement[] = [
   { type: 'CAC', label: 'CAC Certificate', description: 'Corporate Affairs Commission registration certificate', isRequired: true, expiresAnnually: false, isOEMOnly: false },
   { type: 'TIN', label: 'Tax Certificate', description: 'Valid Tax Certificate', isRequired: true, expiresAnnually: false, isOEMOnly: false },
-  { type: 'HSE_CERTIFICATE', label: 'HSE Documents', description: 'Health, Safety & Environment documents (e.g., ISO 9001, ISO 14001, ISO 45001, OHSAS 18001, Safety Policy, Environmental Policy)', isRequired: true, expiresAnnually: false, isOEMOnly: false },
-  { type: 'NUPRC_DPR', label: 'NUPRC (DPR)', description: 'Nigerian Upstream Petroleum Regulatory Commission permit (expires annually)', isRequired: true, expiresAnnually: true, isOEMOnly: false },
-  { type: 'PENCOM', label: 'PENCOM', description: 'Pension Commission compliance certificate (expires 31st December)', isRequired: true, expiresAnnually: true, isOEMOnly: false },
-  { type: 'ITF', label: 'ITF', description: 'Industrial Training Fund certificate (expires 31st December)', isRequired: true, expiresAnnually: true, isOEMOnly: false },
-  { type: 'NSITF', label: 'NSITF', description: 'Nigeria Social Insurance Trust Fund certificate (expires 31st December)', isRequired: true, expiresAnnually: true, isOEMOnly: false },
+  { type: 'HSE_CERTIFICATE', label: 'HSE Documents', description: 'Health, Safety & Environment documents (e.g., ISO 9001, ISO 14001, ISO 45001, OHSAS 18001, Safety Policy, Environmental Policy)', isRequired: false, expiresAnnually: false, isOEMOnly: false },
+  { type: 'NUPRC_DPR', label: 'NUPRC (DPR)', description: 'Nigerian Upstream Petroleum Regulatory Commission permit (expires annually)', isRequired: false, expiresAnnually: true, isOEMOnly: false },
+  { type: 'PENCOM', label: 'PENCOM', description: 'Pension Commission compliance certificate (expires 31st December)', isRequired: false, expiresAnnually: true, isOEMOnly: false },
+  { type: 'ITF', label: 'ITF', description: 'Industrial Training Fund certificate (expires 31st December)', isRequired: false, expiresAnnually: true, isOEMOnly: false },
+  { type: 'NSITF', label: 'NSITF', description: 'Nigeria Social Insurance Trust Fund certificate (expires 31st December)', isRequired: false, expiresAnnually: true, isOEMOnly: false },
   { type: 'LETTER_OF_INTRODUCTION', label: 'Letter of Introduction', description: 'Company introduction letter on letterhead', isRequired: true, expiresAnnually: false, isOEMOnly: false },
   { type: 'COMPANY_PROFILE', label: 'Company Profile', description: 'Detailed company profile with capabilities', isRequired: true, expiresAnnually: false, isOEMOnly: false },
   { type: 'CAC_FORM_7', label: 'CAC Form 7', description: 'Particulars of Directors', isRequired: true, expiresAnnually: false, isOEMOnly: false },
@@ -76,10 +76,15 @@ export interface VendorFinancialInfo {
   countryCode?: string;
 }
 
+/** Category value when the vendor selects custom services not in the predefined list. */
+export const OTHERS_VENDOR_CATEGORY = "Others" as const;
+
 export interface EnhancedVendorRegistration {
   id: string;
   companyName: string;
   categories: string[]; // Multiple categories
+  /** Required when the "Others" category is selected (see `OTHERS_VENDOR_CATEGORY`). */
+  otherCategorySpecification?: string;
   isOEMRepresentative: boolean;
   email: string;
   phone: string;
@@ -143,4 +148,6 @@ export const VENDOR_CATEGORIES = [
   'Manufacturing',
   'Chemicals',
   'Medical Supplies',
+  'Accommodation/Hotel',
+  OTHERS_VENDOR_CATEGORY,
 ] as const;

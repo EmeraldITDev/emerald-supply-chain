@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send, AlertTriangle, AlertCircle } from "lucide-react";
-import { VENDOR_DOCUMENT_REQUIREMENTS } from "@/types/vendor-registration";
+import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES } from "@/types/vendor-registration";
 import { Textarea } from "@/components/ui/textarea";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { useAuth } from "@/contexts/AuthContext";
@@ -715,10 +715,11 @@ const Vendors = () => {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Raw Materials">Raw Materials</SelectItem>
-                      <SelectItem value="Equipment">Equipment</SelectItem>
-                      <SelectItem value="Safety Equipment">Safety Equipment</SelectItem>
-                      <SelectItem value="Office Supplies">Office Supplies</SelectItem>
+                      {VENDOR_CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

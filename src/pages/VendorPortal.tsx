@@ -20,6 +20,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EnhancedVendorRegistration } from "@/components/EnhancedVendorRegistration";
+import { OTHERS_VENDOR_CATEGORY } from "@/types/vendor-registration";
 import { VendorQuoteSubmission } from "@/components/VendorQuoteSubmission";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatMRFDate } from "@/utils/dateUtils";
@@ -955,8 +956,11 @@ const VendorPortal = () => {
               // EnhancedVendorRegistration sends categories as array, backend expects single string
               let categoryValue = '';
               if (registration.categories && Array.isArray(registration.categories) && registration.categories.length > 0) {
-                // Join multiple categories with comma
-                categoryValue = registration.categories.join(', ');
+                const otherSpec = (registration as { otherCategorySpecification?: string }).otherCategorySpecification?.trim();
+                const cats = registration.categories.map((c) =>
+                  c === OTHERS_VENDOR_CATEGORY && otherSpec ? `Others (${otherSpec})` : c,
+                );
+                categoryValue = cats.join(', ');
               } else if ((registration as any).category && typeof (registration as any).category === 'string') {
                 categoryValue = (registration as any).category;
               } else {
@@ -1036,7 +1040,7 @@ const VendorPortal = () => {
                 if (response.data) {
                   addVendorRegistration({
                     companyName: registration.companyName || '',
-                    category: registration.categories?.join(', ') || '',
+                    category: registrationPayload.category,
                     email: registration.email || '',
                     phone: registration.phone || '',
                     address: registration.address || '',

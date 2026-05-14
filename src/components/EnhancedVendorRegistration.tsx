@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, FileText, CheckCircle, AlertCircle, X, AlertTriangle, Info, Building2, Loader2, Wallet } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES, type VendorDocument, type VendorDocumentType, type EnhancedVendorRegistration as VendorRegType } from "@/types/vendor-registration";
+import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES, OTHERS_VENDOR_CATEGORY, type VendorDocument, type VendorDocumentType, type EnhancedVendorRegistration as VendorRegType } from "@/types/vendor-registration";
 import { COUNTRIES_SORTED, getCountryByCode, getDialCodeForCountry } from "@/data/countries";
 import { getBanksForCountry, hasBankListForCountry } from "@/data/banks-by-country";
 
@@ -58,6 +58,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
   // Documents state
   const [uploadedDocuments, setUploadedDocuments] = useState<VendorDocument[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [otherCategorySpecification, setOtherCategorySpecification] = useState("");
 
   // Sync country name when countryCode changes
   useEffect(() => {
@@ -136,7 +137,9 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
         fileSize: file.size,
         uploadDate: new Date().toISOString(),
         status: "Pending",
-        isRequired: docReq?.isRequired || false,
+        isRequired: Boolean(
+          docReq?.isRequired || (docReq?.isOEMOnly && isOEMRepresentative),
+        ),
       };
 
       // Replace if exists, otherwise add
@@ -158,9 +161,12 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
   };
 
   const handleCategoryToggle = (category: string) => {
-    setSelectedCategories(prev => {
+    setSelectedCategories((prev) => {
       if (prev.includes(category)) {
-        return prev.filter(c => c !== category);
+        if (category === OTHERS_VENDOR_CATEGORY) {
+          setOtherCategorySpecification("");
+        }
+        return prev.filter((c) => c !== category);
       }
       return [...prev, category];
     });
@@ -171,6 +177,14 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
 
     if (!companyName.trim()) errors.companyName = "Company name is required";
     if (selectedCategories.length === 0) errors.categories = "Select at least one business category";
+    if (selectedCategories.includes(OTHERS_VENDOR_CATEGORY)) {
+      if (!otherCategorySpecification.trim()) {
+        errors.otherCategorySpecification =
+          "Describe the services you provide (required when \"Others\" is selected)";
+      } else if (otherCategorySpecification.trim().length < 3) {
+        errors.otherCategorySpecification = "Please enter at least 3 characters";
+      }
+    }
     if (!email.trim()) errors.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Invalid email format";
     if (!phone.trim()) errors.phone = "Phone number is required";
@@ -232,6 +246,9 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
     const registration: Partial<VendorRegType> = {
       companyName,
       categories: selectedCategories,
+      otherCategorySpecification: selectedCategories.includes(OTHERS_VENDOR_CATEGORY)
+        ? otherCategorySpecification.trim()
+        : undefined,
       isOEMRepresentative,
       email,
       phone,
@@ -446,6 +463,27 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
                   </div>
                 ))}
               </div>
+              {selectedCategories.includes(OTHERS_VENDOR_CATEGORY) && (
+                <div className="space-y-2">
+                  <Label htmlFor="other-category-spec">Please specify your services *</Label>
+                  <Textarea
+                    id="other-category-spec"
+                    placeholder="e.g. Laundry, event catering, facility management…"
+                    value={otherCategorySpecification}
+                    onChange={(e) => {
+                      setOtherCategorySpecification(e.target.value);
+                      if (formErrors.otherCategorySpecification) {
+                        setFormErrors((prev) => ({ ...prev, otherCategorySpecification: "" }));
+                      }
+                    }}
+                    className={formErrors.otherCategorySpecification ? "border-destructive" : ""}
+                    rows={3}
+                  />
+                  {formErrors.otherCategorySpecification && (
+                    <p className="text-sm text-destructive">{formErrors.otherCategorySpecification}</p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* OEM Representative */}
@@ -756,10 +794,11 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Required Documents
+              Compliance documents
             </CardTitle>
             <CardDescription>
-              All documents marked with * are mandatory. Files must be PDF, DOC, DOCX, JPG, or PNG format (max 10MB each).
+              Documents marked with * are required. HSE, NUPRC (DPR), PENCOM, ITF, and NSITF are optional but
+              encouraged where they apply to your business. Files must be PDF, DOC, DOCX, JPG, or PNG (max 10MB each).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -861,7 +900,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
             Your application will be reviewed by our procurement team within 3-5 business days. 
             Once approved, you'll receive login credentials and access to RFQs via email.
             <strong className="block mt-2">
-              Documents that expire annually (e.g., HSE Certificate) will require re-upload before expiry.
+              Documents that expire annually may require re-upload before expiry.
             </strong>
           </AlertDescription>
         </Alert>
