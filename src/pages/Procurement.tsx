@@ -53,6 +53,7 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RFQManagement } from "@/components/RFQManagement";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
+import { SRFProgressTracker } from "@/components/SRFProgressTracker";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
@@ -148,6 +149,11 @@ const Procurement = () => {
     useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+
+  // SRF Details Dialog
+  const [srfDetailsDialogOpen, setSRFDetailsDialogOpen] = useState(false);
+  const [selectedSRFForDetails, setSelectedSRFForDetails] =
+    useState<any | null>(null);
 
   // New PO Generator (two-section form with price comparison)
   const [createPOOpen, setCreatePOOpen] = useState(false);
@@ -2980,9 +2986,9 @@ const Procurement = () => {
                     {srfRequests.map((request) => (
                       <div
                         key={getMrfApiId(request as MRF) || request.id}
-                        className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card cursor-pointer"
+                        className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card"
                       >
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 flex-1">
                           <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
                             <FileText className="h-6 w-6 text-primary" />
                           </div>
@@ -2996,9 +3002,22 @@ const Procurement = () => {
                             </p>
                           </div>
                         </div>
-                        <Badge className={getStatusColor(request.status)}>
-                          {request.status}
-                        </Badge>
+                        <div className="flex items-center gap-3">
+                          <Badge className={getStatusColor(request.status)}>
+                            {request.status}
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedSRFForDetails(request);
+                              setSRFDetailsDialogOpen(true);
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            View Details
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -4303,6 +4322,120 @@ const Procurement = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* SRF Details Dialog */}
+      {selectedSRFForDetails && (
+        <Dialog
+          open={srfDetailsDialogOpen}
+          onOpenChange={(open) => {
+            setSRFDetailsDialogOpen(open);
+            if (!open) {
+              setSelectedSRFForDetails(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Service Request Form Details</DialogTitle>
+              <DialogDescription>
+                {selectedSRFForDetails.title}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 mt-4">
+              {/* Progress Tracker */}
+              <SRFProgressTracker 
+                srf={selectedSRFForDetails}
+                showTitle={true}
+              />
+
+              {/* SRF Basic Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">SRF ID</Label>
+                  <p className="font-medium">{getDisplayId(selectedSRFForDetails)}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge className={getStatusColor(selectedSRFForDetails.status)}>
+                    {selectedSRFForDetails.status}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Service Type</Label>
+                  <p className="font-medium">
+                    {selectedSRFForDetails.serviceType || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Urgency</Label>
+                  <Badge variant="outline">
+                    {selectedSRFForDetails.urgency || "Normal"}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Requester</Label>
+                  <p className="font-medium">
+                    {selectedSRFForDetails.requester || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Created Date</Label>
+                  <p className="font-medium">
+                    {formatMRFDate(selectedSRFForDetails.date)}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Department</Label>
+                  <p className="font-medium">
+                    {selectedSRFForDetails.department || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Estimated Cost</Label>
+                  <p className="font-medium">
+                    ₦{parseFloat(selectedSRFForDetails.estimatedCost || "0").toLocaleString()}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Description</Label>
+                  <p className="font-medium text-sm">
+                    {selectedSRFForDetails.description || "No description provided"}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Justification</Label>
+                  <p className="font-medium text-sm">
+                    {selectedSRFForDetails.justification || "No justification provided"}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Duration</Label>
+                  <p className="font-medium text-sm">
+                    {selectedSRFForDetails.duration || "Not specified"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Workflow Information */}
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-4">Workflow Status</h3>
+                <div className="space-y-3">
+                  <div className="p-3 border rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium mb-1">Current Step</p>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedSRFForDetails.status === 'Pending' && 'Awaiting Supply Chain Director Approval'}
+                      {selectedSRFForDetails.status === 'Approved' && 'In Procurement - Sourcing Quotes'}
+                      {selectedSRFForDetails.status === 'In Progress' && 'In PO Generation Phase'}
+                      {selectedSRFForDetails.status === 'Completed' && 'Process Complete'}
+                      {selectedSRFForDetails.status === 'Rejected' && 'Request Rejected - Please create a new SRF'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </DashboardLayout>
   );
 };
