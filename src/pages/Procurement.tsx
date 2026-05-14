@@ -3479,16 +3479,29 @@ const Procurement = () => {
                 return (
                   <div className="border-t pt-4">
                     <h3 className="font-semibold mb-3">PO Document</h3>
-                    <Button
-                      onClick={() => {
-                        handleDownloadPO(
-                          selectedMRFForPODetails as unknown as MRF,
-                        );
-                      }}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Purchase Order
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => {
+                          handleDownloadPO(
+                            selectedMRFForPODetails as unknown as MRF,
+                          );
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Purchase Order
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => {
+                          handleDeletePO(
+                            selectedMRFForPODetails as unknown as MRF,
+                          );
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete PO
+                      </Button>
+                    </div>
                   </div>
                 );
               })()}
