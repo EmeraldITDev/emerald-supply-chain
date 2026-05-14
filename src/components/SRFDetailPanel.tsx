@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { SRFProgressTracker } from "@/components/SRFProgressTracker";
+import { getDisplayId } from "@/utils/displayId";
 import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
 import { formatMRFDate } from "@/utils/dateUtils";
 import { getSrfStatusBadgeClass } from "@/utils/srfStatusBadge";
