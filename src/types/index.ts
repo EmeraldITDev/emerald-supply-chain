@@ -169,7 +169,9 @@ export interface SRF {
   estimatedCost: string;
   estimated_cost?: string;
   justification: string;
-  requester: string;
+  /** API may send a string, nested `{ name }`, or use `requesterName` / `requester_name`. */
+  requester?: string | { name?: string };
+  requesterName?: string;
   requester_name?: string;
   requesterId?: string;
   requester_id?: string;
@@ -202,8 +204,10 @@ export interface RFQ {
   formattedId?: string;
   legacy_id?: string;
   legacyId?: string;
-  mrfId: string;       // camelCase (if ever transformed)
-  mrf_id: string;      // snake_case — what Laravel actually returns
+  mrfId?: string;
+  mrf_id?: string;
+  srfId?: string;
+  srf_id?: string;
   mrfTitle: string;
   mrf_title: string;
   description: string;
@@ -219,7 +223,10 @@ export interface RFQ {
 }
 
 export interface CreateRFQData {
-  mrfId: string;
+  /** Set for material requisitions */
+  mrfId?: string;
+  /** Set for service requisitions */
+  srfId?: string;
   description: string;
   quantity: string;
   estimatedCost: string;

@@ -1336,6 +1336,25 @@ export const srfApi = {
       body: JSON.stringify({ reason }),
     });
   },
+
+  /** Procurement: selected quotation sent for Supply Chain Director approval (parallel to MRF). */
+  sendVendorForApproval: async (
+    id: string,
+    vendorId: string,
+    quotationId?: string,
+    selectionReason?: string,
+  ): Promise<ApiResponse<SRF>> => {
+    return apiRequest<SRF>(`/srfs/${encodeURIComponent(id)}/send-vendor-for-approval`, {
+      method: 'POST',
+      body: JSON.stringify({
+        vendor_id: vendorId,
+        ...(quotationId != null && quotationId !== ''
+          ? { quotation_id: quotationId }
+          : {}),
+        ...selectionJustificationBody(selectionReason),
+      }),
+    });
+  },
 };
 
 // RFQ API
@@ -1352,9 +1371,31 @@ export const rfqApi = {
   },
 
   create: async (data: CreateRFQData): Promise<ApiResponse<RFQ>> => {
+    const payload: Record<string, unknown> = {
+      description: data.description,
+      quantity: data.quantity,
+      estimatedCost: data.estimatedCost,
+      estimated_cost: data.estimatedCost,
+      deadline: data.deadline,
+      vendorIds: data.vendorIds,
+      vendor_ids: data.vendorIds,
+      title: data.title,
+      category: data.category,
+      paymentTerms: data.paymentTerms,
+      payment_terms: data.paymentTerms,
+      notes: data.notes,
+    };
+    if (data.mrfId) {
+      payload.mrfId = data.mrfId;
+      payload.mrf_id = data.mrfId;
+    }
+    if (data.srfId) {
+      payload.srfId = data.srfId;
+      payload.srf_id = data.srfId;
+    }
     return apiRequest<RFQ>('/rfqs', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
   },
 

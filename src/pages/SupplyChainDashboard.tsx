@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDisplayId } from "@/utils/displayId";
+import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
+import { getWorkflowStageLabel } from "@/utils/workflowStageLabels";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
@@ -399,6 +401,7 @@ const SupplyChainDashboard = () => {
       );
       if (response.success) {
         toast.success("SRF approved — routed to Procurement");
+        window.dispatchEvent(new CustomEvent("app:refresh"));
       } else {
         toast.error(response.error || "Failed to approve SRF");
       }
@@ -421,6 +424,7 @@ const SupplyChainDashboard = () => {
       const response = await srfApi.supplyChainDirectorReject(srfId, reason);
       if (response.success) {
         toast.error("SRF rejected — sent back to requester");
+        window.dispatchEvent(new CustomEvent("app:refresh"));
       } else {
         toast.error(response.error || "Failed to reject SRF");
       }
@@ -790,8 +794,10 @@ const SupplyChainDashboard = () => {
                       </CardTitle>
                       <CardDescription>
                         Pending SRFs at{" "}
-                        <span className="font-mono text-xs">
-                          supply_chain_director_review
+                        {getWorkflowStageLabel("supply_chain_director_review")}
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {" "}
+                          (supply_chain_director_review)
                         </span>
                         . Approve or reject here, or open in Procurement for
                         full details and progress.
@@ -814,7 +820,8 @@ const SupplyChainDashboard = () => {
                                   {srf.title}
                                 </p>
                                 <p className="text-sm text-muted-foreground truncate">
-                                  {getDisplayId(srf)} • {srf.requester || "—"}{" "}
+                                  {getDisplayId(srf)} •{" "}
+                                  {getSrfRequesterDisplayName(srf)}{" "}
                                   •{" "}
                                   {formatMRFDate(
                                     srf.createdAt ||

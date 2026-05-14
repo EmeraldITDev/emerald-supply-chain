@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { getDisplayId, getMrfApiId } from "@/utils/displayId";
+import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
 import { formatMRFDate } from "@/utils/dateUtils";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { SRFDetailPanel } from "@/components/SRFDetailPanel";
@@ -104,7 +105,9 @@ export function LogisticsMyRequestsList({
     const fr = filterRequester ? norm(filterRequester) : "";
     const match = (requester: string) => !fr || norm(requester) === fr;
 
-    const srfs = srfRequests.filter((s) => match(s.requester)).map((data) => ({ kind: "srf" as const, data }));
+    const srfs = srfRequests
+      .filter((s) => match(getSrfRequesterDisplayName(s)))
+      .map((data) => ({ kind: "srf" as const, data }));
     const mrfs = mrfRequests.filter((m) => match(m.requester)).map((data) => ({ kind: "mrf" as const, data }));
     return [...srfs, ...mrfs].sort((a, b) => {
       const da = new Date((a.kind === "srf" ? a.data.createdAt || a.data.date : a.data.date) || 0).getTime();

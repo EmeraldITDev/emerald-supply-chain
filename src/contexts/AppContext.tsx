@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { mrfApi, srfApi, rfqApi } from "@/services/api";
 import { normalizeQuotation } from "@/utils/normalizeQuotation";
+import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
 import type { MRF, SRF, RFQ as RFQType } from "@/types";
 
 // Types
@@ -403,7 +404,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             srf.created_at ||
             srf.date ||
             "",
-          requester: srf.requester_name || srf.requester || "Unknown",
+          requester: getSrfRequesterDisplayName(srf),
           department: srf.department,
           currentStage: srf.current_stage || srf.currentStage,
           workflowState: srf.workflow_state || srf.workflowState,
@@ -910,6 +911,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const removeStaffDriver = (id: string) => {
     setStaffDrivers(staffDrivers.filter((driver) => driver.id !== id));
   };
+
+  useEffect(() => {
+    const onRefresh = () => {
+      void refreshSRFs();
+    };
+    window.addEventListener("app:refresh", onRefresh);
+    return () => window.removeEventListener("app:refresh", onRefresh);
+  }, []);
 
   return (
     <AppContext.Provider

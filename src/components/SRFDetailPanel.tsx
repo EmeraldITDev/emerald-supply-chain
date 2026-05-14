@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { SRFProgressTracker } from "@/components/SRFProgressTracker";
-import { getDisplayId } from "@/utils/displayId";
+import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
 import { formatMRFDate } from "@/utils/dateUtils";
 import { getSrfStatusBadgeClass } from "@/utils/srfStatusBadge";
 import type { SRFRequest } from "@/contexts/AppContext";
@@ -25,7 +25,7 @@ function detailToTrackerSrf(detail: SRFRequest): SRF {
     duration: detail.duration,
     estimatedCost: detail.estimatedCost,
     justification: detail.justification,
-    requester: detail.requester,
+    requester: getSrfRequesterDisplayName(detail),
     date: detail.date,
     status: detail.status as SRF["status"],
     current_stage: detail.currentStage,
@@ -96,7 +96,7 @@ export function SRFDetailPanel({
         </div>
         <div>
           <Label className="text-muted-foreground">Requester</Label>
-          <p className="font-medium">{detail.requester || "N/A"}</p>
+          <p className="font-medium">{getSrfRequesterDisplayName(detail)}</p>
         </div>
         <div>
           <Label className="text-muted-foreground">Created Date</Label>

@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, XCircle } from "lucide-react";
-import type { SRF } from "@/types";
+import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
 
 interface SRFDirectorApprovalDialogProps {
   srf: SRF | null;
@@ -37,8 +37,7 @@ export function SRFDirectorApprovalDialog({
 
   const serviceType =
     srf.serviceType || (srf as { service_type?: string }).service_type || "—";
-  const requester =
-    srf.requester || (srf as { requester_name?: string }).requester_name || "—";
+  const requester = getSrfRequesterDisplayName(srf);
   const est =
     srf.estimatedCost ||
     (srf as { estimated_cost?: string }).estimated_cost ||

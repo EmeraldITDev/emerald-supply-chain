@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { getDisplayId } from "@/utils/displayId";
+import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
@@ -438,7 +439,10 @@ const DepartmentDashboard = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 <div className="space-y-3">
-                  {srfRequests.filter(srf => srf.requester === user?.name || srf.requester === user?.email).length === 0 ? (
+                  {srfRequests.filter(srf => {
+                    const rn = getSrfRequesterDisplayName(srf);
+                    return rn === user?.name || rn === user?.email;
+                  }).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No SRFs found.</p>
@@ -448,7 +452,10 @@ const DepartmentDashboard = () => {
                     </div>
                   ) : (
                     srfRequests
-                      .filter(srf => srf.requester === user?.name || srf.requester === user?.email)
+                      .filter(srf => {
+                        const rn = getSrfRequesterDisplayName(srf);
+                        return rn === user?.name || rn === user?.email;
+                      })
                       .map((srf) => (
                         <Card key={srf.id}>
                           <CardContent className="p-4">

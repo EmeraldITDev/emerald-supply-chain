@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDisplayId } from "@/utils/displayId";
+import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,7 +30,10 @@ const EmployeeDashboard = () => {
 
   // Filter to show only current user's requests
   const myMRFs = mrfRequests.filter(mrf => mrf.requester === user?.name || mrf.requester === "Current User");
-  const mySRFs = srfRequests.filter(srf => srf.requester === user?.name || srf.requester === "Current User");
+  const mySRFs = srfRequests.filter((srf) => {
+    const rn = getSrfRequesterDisplayName(srf);
+    return rn === user?.name || rn === user?.email || rn === "Current User";
+  });
 
   const pendingMRFs = myMRFs.filter(mrf => mrf.status === "Submitted" || mrf.status.includes("Pending") || (mrf.status.includes("Approved") && mrf.currentStage !== "approved"));
   const approvedMRFs = myMRFs.filter(mrf => mrf.status === "Approved" && mrf.currentStage === "approved");
