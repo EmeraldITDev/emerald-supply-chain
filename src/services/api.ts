@@ -1307,6 +1307,21 @@ export const srfApi = {
       method: 'DELETE',
     });
   },
+
+  /** Supply Chain Director approves SRF at supply_chain_director_review (same shape as MRF approve). */
+  supplyChainDirectorApprove: async (id: string, remarks?: string): Promise<ApiResponse<SRF>> => {
+    return apiRequest<SRF>(`/srfs/${encodeURIComponent(id)}/supply-chain-director-approve`, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'approve', remarks }),
+    });
+  },
+
+  supplyChainDirectorReject: async (id: string, reason: string): Promise<ApiResponse<SRF>> => {
+    return apiRequest<SRF>(`/srfs/${encodeURIComponent(id)}/supply-chain-director-reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
 };
 
 // RFQ API

@@ -63,6 +63,7 @@ import { SupplyChainActionButtons } from "@/components/SupplyChainActionButtons"
 import { SupplyChainVendorApprovalButtons } from "@/components/SupplyChainVendorApprovalButtons";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { MRFApprovalDialog } from "@/components/MRFApprovalDialog";
+import { SRFDirectorApprovalDialog } from "@/components/SRFDirectorApprovalDialog";
 
 function readStoredUserSignatureUrl(): string | null {
   try {
@@ -120,6 +121,10 @@ const SupplyChainDashboard = () => {
   const [scdDashStats, setScdDashStats] = useState<{
     pendingSrfDirectorApprovals?: number;
   } | null>(null);
+  const [srfForDirectorApproval, setSrfForDirectorApproval] =
+    useState<SRF | null>(null);
+  const [srfDirectorApprovalOpen, setSrfDirectorApprovalOpen] =
+    useState(false);
 
   const fetchPendingDirectorSrfs = useCallback(async () => {
     setPendingDirectorSrfsLoading(true);
@@ -379,6 +384,53 @@ const SupplyChainDashboard = () => {
       setFirstApprovalDialogOpen(false);
       setMrfForFirstApproval(null);
       await fetchMRFs();
+    }
+  };
+
+  const handleSrfDirectorApprove = async (remarks: string) => {
+    const target = srfForDirectorApproval;
+    if (!target) return;
+    const srfId = getDisplayId(target) || String(target.id);
+    setActionLoading(srfId);
+    try {
+      const response = await srfApi.supplyChainDirectorApprove(
+        srfId,
+        remarks,
+      );
+      if (response.success) {
+        toast.success("SRF approved — routed to Procurement");
+      } else {
+        toast.error(response.error || "Failed to approve SRF");
+      }
+    } catch {
+      toast.error("Failed to connect to server");
+    } finally {
+      setActionLoading(null);
+      setSrfDirectorApprovalOpen(false);
+      setSrfForDirectorApproval(null);
+      await fetchPendingDirectorSrfs();
+    }
+  };
+
+  const handleSrfDirectorReject = async (reason: string) => {
+    const target = srfForDirectorApproval;
+    if (!target) return;
+    const srfId = getDisplayId(target) || String(target.id);
+    setActionLoading(srfId);
+    try {
+      const response = await srfApi.supplyChainDirectorReject(srfId, reason);
+      if (response.success) {
+        toast.error("SRF rejected — sent back to requester");
+      } else {
+        toast.error(response.error || "Failed to reject SRF");
+      }
+    } catch {
+      toast.error("Failed to connect to server");
+    } finally {
+      setActionLoading(null);
+      setSrfDirectorApprovalOpen(false);
+      setSrfForDirectorApproval(null);
+      await fetchPendingDirectorSrfs();
     }
   };
 
@@ -741,45 +793,72 @@ const SupplyChainDashboard = () => {
                         <span className="font-mono text-xs">
                           supply_chain_director_review
                         </span>
-                        . Open in Procurement to review details and progress.
+                        . Approve or reject here, or open in Procurement for
+                        full details and progress.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        {pendingDirectorSrfs.map((srf) => (
-                          <div
-                            key={String(srf.id)}
-                            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4"
-                          >
-                            <div className="min-w-0">
-                              <p className="font-semibold truncate">{srf.title}</p>
-                              <p className="text-sm text-muted-foreground truncate">
-                                {getDisplayId(srf)} • {srf.requester || "—"} •{" "}
-                                {formatMRFDate(
-                                  srf.createdAt ||
-                                    srf.created_at ||
-                                    srf.date ||
-                                    "",
-                                )}
-                              </p>
+                        {pendingDirectorSrfs.map((srf) => {
+                          const srfActionId =
+                            getDisplayId(srf) || String(srf.id);
+                          const isSrfActionLoading =
+                            actionLoading === srfActionId;
+                          return (
+                            <div
+                              key={String(srf.id)}
+                              className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4"
+                            >
+                              <div className="min-w-0">
+                                <p className="font-semibold truncate">
+                                  {srf.title}
+                                </p>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {getDisplayId(srf)} • {srf.requester || "—"}{" "}
+                                  •{" "}
+                                  {formatMRFDate(
+                                    srf.createdAt ||
+                                      srf.created_at ||
+                                      srf.date ||
+                                      "",
+                                  )}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                <Badge variant="secondary">{srf.status}</Badge>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  disabled={isSrfActionLoading}
+                                  onClick={() => {
+                                    setSrfForDirectorApproval(srf);
+                                    setSrfDirectorApprovalOpen(true);
+                                  }}
+                                >
+                                  {isSrfActionLoading ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                  )}
+                                  Review & Approve / Reject
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={isSrfActionLoading}
+                                  onClick={() =>
+                                    navigate(
+                                      `/procurement?tab=srf&srf=${encodeURIComponent(getDisplayId(srf))}`,
+                                    )
+                                  }
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Open
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Badge variant="secondary">{srf.status}</Badge>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  navigate(
-                                    `/procurement?tab=srf&srf=${encodeURIComponent(getDisplayId(srf))}`,
-                                  )
-                                }
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                Open
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>
@@ -1563,6 +1642,17 @@ const SupplyChainDashboard = () => {
         onApprove={handleFirstApprovalApprove}
         onReject={handleFirstApprovalReject}
         currentUserRole="supply_chain_director_review"
+      />
+
+      <SRFDirectorApprovalDialog
+        srf={srfForDirectorApproval}
+        open={srfDirectorApprovalOpen}
+        onOpenChange={(open) => {
+          setSrfDirectorApprovalOpen(open);
+          if (!open) setSrfForDirectorApproval(null);
+        }}
+        onApprove={handleSrfDirectorApprove}
+        onReject={handleSrfDirectorReject}
       />
 
       {/* Complete Quotation Details Dialog */}

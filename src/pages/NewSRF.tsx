@@ -13,6 +13,7 @@ import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { srfApi } from "@/services/api";
 import { fleetApi } from "@/services/logisticsApi";
 import type { FleetVehicle } from "@/types/logistics";
+import { normalizeFleetVehicle, displayFleetVehiclePlate } from "@/utils/normalizeFleetVehicle";
 
 const NewSRF = () => {
   const navigate = useNavigate();
@@ -66,18 +67,18 @@ const NewSRF = () => {
       ?.fleetSrfDraft;
     if (!fleet?.vehicle) return;
     fleetDraftApplied.current = true;
-    const v = fleet.vehicle;
-    setSelectedVehicleId(String(v.id));
+    const v = normalizeFleetVehicle(fleet.vehicle as Record<string, unknown>);
+    setSelectedVehicleId(v.id);
     setFormData((prev) => ({
       ...prev,
       title:
         prev.title ||
-        `Fleet Maintenance SRF — ${v.name || v.vehicleNumber || "Vehicle"} (${v.plate || "no plate"})`,
+        `Fleet Maintenance SRF — ${v.name || v.vehicleNumber || "Vehicle"} (${displayFleetVehiclePlate(v)})`,
       serviceType: prev.serviceType || "maintenance",
       urgency: prev.urgency || "medium",
       description:
         prev.description ||
-        `Fleet-initiated service request for ${v.name || v.vehicleNumber || "vehicle"} (${v.plate || "plate TBD"}). ` +
+        `Fleet-initiated service request for ${v.name || v.vehicleNumber || "vehicle"} (${displayFleetVehiclePlate(v)}). ` +
           `Complete scope, timeline, preferred vendors, and cost estimate before submission.` +
           (fleet.srfId ? `\n\n(Draft reference: ${fleet.srfId})` : ""),
     }));
@@ -87,16 +88,19 @@ const NewSRF = () => {
   useEffect(() => {
     if (!isFleetLogistics) return;
     fleetApi.getAll().then((res) => {
-      if (res.success && Array.isArray(res.data)) setVehicles(res.data as FleetVehicle[]);
+      if (res.success && Array.isArray(res.data)) {
+        setVehicles((res.data as Record<string, unknown>[]).map(normalizeFleetVehicle));
+      }
     });
   }, [isFleetLogistics]);
 
-  const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
+  const selectedVehicle =
+    vehicles.find((v) => String(v.id) === String(selectedVehicleId)) || null;
 
   const buildVehicleContext = (v: FleetVehicle): string => {
     const parts: string[] = [];
     parts.push(`=== VEHICLE CONTEXT ===`);
-    parts.push(`Vehicle: ${v.name || v.vehicleNumber || ""} (${v.plate || "no plate"})`);
+    parts.push(`Vehicle: ${v.name || v.vehicleNumber || ""} (${displayFleetVehiclePlate(v)})`);
     if (v.make || v.model || v.year) parts.push(`Make/Model: ${[v.make, v.model, v.year].filter(Boolean).join(" ")}`);
     if (v.type) parts.push(`Type: ${v.type}`);
     if (v.color) parts.push(`Color: ${v.color}`);
@@ -311,18 +315,26 @@ const NewSRF = () => {
                     For vehicle service requests, link the vehicle so its details and recent maintenance history are
                     automatically forwarded to the Supply Chain Director, Procurement and vendors.
                   </p>
-                  <Select value={selectedVehicleId || "none"} onValueChange={(v) => setSelectedVehicleId(v === "none" ? "" : v)}>
-                    <SelectTrigger>
+                  <Select
+                    value={selectedVehicleId ? String(selectedVehicleId) : "none"}
+                    onValueChange={(v) => setSelectedVehicleId(v === "none" ? "" : v)}
+                  >
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a vehicle..." />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {vehicles.map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {(v.name || v.vehicleNumber)} • {v.plate || "no plate"}
-                          {v.make ? ` • ${v.make} ${v.model || ""}` : ""}
-                        </SelectItem>
-                      ))}
+                      {vehicles.map((v) => {
+                        const vid = String(v.id);
+                        const label = `${v.name || v.vehicleNumber || "Vehicle"} • ${displayFleetVehiclePlate(v)}${
+                          v.make ? ` • ${v.make} ${v.model || ""}` : ""
+                        }`;
+                        return (
+                          <SelectItem key={vid} value={vid}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   {selectedVehicle && (

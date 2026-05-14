@@ -70,7 +70,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { fleetApi } from "@/services/logisticsApi";
 import { useAuth } from "@/contexts/AuthContext";
-import type { FleetVehicle, VehicleDocument, MaintenanceRecord, FleetAlert, VehicleStatus, VehicleOwnership } from "@/types/logistics";
+import type { FleetVehicle, MaintenanceRecord, FleetAlert, VehicleStatus, VehicleOwnership } from "@/types/logistics";
+import { normalizeFleetVehicle, mapFleetListDocument } from "@/utils/normalizeFleetVehicle";
 import { formatVehicleStatus, vehicleStatusBadgeClass, isInactiveOrUnderMaintenance } from "@/utils/vehicleStatus";
 import { VehicleDocumentsTab } from "./VehicleDocumentsTab";
 import { VehicleMaintenanceTab } from "./VehicleMaintenanceTab";
@@ -104,45 +105,6 @@ const documentTypes = [
   { value: "permit", label: "Transport Permit" },
   { value: "other", label: "Other" },
 ];
-
-// Normalize backend snake_case response to camelCase FleetVehicle interface
-const normalizeVehicle = (raw: any): FleetVehicle => ({
-  id: raw.id?.toString(),
-  vehicleNumber: raw.vehicle_number || raw.vehicleNumber || `VEH-${raw.id}`,
-  plate: raw.plate || raw.plate_number || '',
-  name: raw.name || raw.vehicle_name || '',
-  type: raw.type || raw.vehicle_type || '',
-  make: raw.make || '',
-  model: raw.model || '',
-  year: raw.year ? Number(raw.year) : undefined,
-  color: raw.color || '',
-  ownership: raw.ownership || 'owned',
-  vendorId: raw.vendor_id?.toString() || raw.vendorId,
-  vendorName: raw.vendor?.name || raw.vendor_name || raw.vendorName || '',
-  status: raw.status || 'available',
-  approvalStatus: raw.approval_status || raw.approvalStatus || 'pending',
-  approvedBy: raw.approved_by || raw.approvedBy,
-  approvedAt: raw.approved_at || raw.approvedAt,
-  passengerCapacity: raw.passenger_capacity ?? raw.passengerCapacity ?? raw.capacity_passengers,
-  cargoCapacity:
-    raw.cargo_capacity ?? raw.cargoCapacity ?? raw.cargo_capacity_kg ?? raw.capacity_cargo,
-  fuelType: raw.fuel_type || raw.fuelType || '',
-  fuelCapacity: raw.fuel_capacity != null ? Number(raw.fuel_capacity) : raw.fuelCapacity,
-  documents: raw.documents || [],
-  lastMaintenanceAt: raw.last_maintenance_at || raw.lastMaintenanceAt,
-  nextMaintenanceAt: raw.next_maintenance_at || raw.nextMaintenanceAt,
-  maintenanceHistory: raw.maintenance_history || raw.maintenanceHistory || [],
-  currentDriverId: raw.current_driver_id?.toString() || raw.currentDriverId,
-  currentDriverName: raw.current_driver_name || raw.currentDriverName,
-  currentTripId: raw.current_trip_id?.toString() || raw.currentTripId,
-  totalTrips: raw.total_trips || raw.totalTrips || 0,
-  totalDistance: raw.total_distance || raw.totalDistance || 0,
-  gpsEnabled: raw.gps_enabled || raw.gpsEnabled,
-  gpsDeviceId: raw.gps_device_id || raw.gpsDeviceId,
-  lastKnownLocation: raw.last_known_location || raw.lastKnownLocation,
-  createdAt: raw.created_at || raw.createdAt || '',
-  updatedAt: raw.updated_at || raw.updatedAt,
-});
 
 export const FleetManagement = () => {
   const navigate = useNavigate();
@@ -246,7 +208,7 @@ export const FleetManagement = () => {
 
       if (vehiclesRes.success && vehiclesRes.data) {
         const vehiclesData = Array.isArray(vehiclesRes.data) ? vehiclesRes.data : [];
-        setVehicles(vehiclesData.map(normalizeVehicle));
+        setVehicles(vehiclesData.map(normalizeFleetVehicle));
       } else {
         setVehicles([]);
       }
@@ -263,6 +225,27 @@ export const FleetManagement = () => {
       setAlerts([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /** GET /fleet/.../documents and merge into table + detail dialog (list payload often omits `documents`). */
+  const refreshVehicleDocumentsFromApi = async (vehicleId: string) => {
+    try {
+      const res = await fleetApi.listDocuments(vehicleId);
+      if (!res.success || !res.data) return;
+      const arr = Array.isArray(res.data)
+        ? res.data
+        : (res.data as { documents?: unknown[] }).documents || [];
+      const vid = String(vehicleId);
+      const mapped = arr.map((d: any) => mapFleetListDocument(d, vid));
+      setVehicles((prev) =>
+        prev.map((v) => (String(v.id) === vid ? { ...v, documents: mapped } : v)),
+      );
+      setSelectedVehicle((cur) =>
+        cur && String(cur.id) === vid ? { ...cur, documents: mapped } : cur,
+      );
+    } catch {
+      /* ignore */
     }
   };
 
@@ -407,7 +390,9 @@ export const FleetManagement = () => {
           description: `${documentFile.name} has been uploaded`,
         });
         setDocumentDialogOpen(false);
-        fetchData();
+        const vid = selectedVehicle.id;
+        await fetchData();
+        await refreshVehicleDocumentsFromApi(vid);
       } else {
         toast({
           title: "Failed to Upload Document",
@@ -1104,7 +1089,15 @@ export const FleetManagement = () => {
                 </div>
               </TabsContent>
               <TabsContent value="documents" className="space-y-4">
-                <VehicleDocumentsTab vehicle={selectedVehicle} onChanged={fetchData} />
+                <VehicleDocumentsTab
+                  vehicle={selectedVehicle}
+                  onChanged={() => {
+                    void (async () => {
+                      await fetchData();
+                      await refreshVehicleDocumentsFromApi(selectedVehicle.id);
+                    })();
+                  }}
+                />
               </TabsContent>
               <TabsContent value="maintenance" className="space-y-4">
                 <VehicleMaintenanceTab vehicle={selectedVehicle} onChanged={fetchData} />
