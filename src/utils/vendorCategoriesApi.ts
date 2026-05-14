@@ -9,6 +9,36 @@ export function isOthersVendorCategoryLabel(label: string): boolean {
   return t === OTHERS_VENDOR_CATEGORY || t.toLowerCase() === "others";
 }
 
+/** Read `category_other` / `categoryOther` from an API or UI vendor object. */
+export function pickCategoryOtherFromUnknown(source: unknown): string | undefined {
+  if (!source || typeof source !== "object") return undefined;
+  const o = source as Record<string, unknown>;
+  const v = o.category_other ?? o.categoryOther;
+  if (typeof v === "string" && v.trim()) return v.trim();
+  return undefined;
+}
+
+/**
+ * Renders stored `category` (comma-separated labels) with an optional Others elaboration,
+ * e.g. `Accommodation/Hotel, Others` + `Logistics` → `Accommodation/Hotel, Others: Logistics`.
+ */
+export function formatVendorCategoryDisplay(
+  category: string | null | undefined,
+  categoryOther?: string | null | undefined,
+): string {
+  const cat = (category ?? "").trim();
+  const other = (categoryOther ?? "").trim();
+  if (!cat) return other ? `Others: ${other}` : "";
+  if (!other) return cat;
+  if (/\bothers\s*:/i.test(cat)) return cat;
+  const parts = cat.split(",").map((p) => p.trim()).filter(Boolean);
+  const hasOthers = parts.some((p) => isOthersVendorCategoryLabel(p));
+  if (!hasOthers) {
+    return `${cat}, Others: ${other}`;
+  }
+  return parts.map((p) => (isOthersVendorCategoryLabel(p) ? `Others: ${other}` : p)).join(", ");
+}
+
 /** Normalized GET /api/vendors/categories (or similar) payload. */
 export function parseVendorCategoriesApiPayload(raw: unknown): {
   categoryLabels: string[];

@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateLagos, formatRelativeTime as formatRelativeTimeUtil } from "@/utils/dateUtils";
 import type { VendorRegistration } from "@/types";
+import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -306,7 +307,7 @@ const Dashboard = () => {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{reg.companyName}</p>
                         <p className="text-xs sm:text-sm text-muted-foreground">
-                          {reg.category} • {formatRegistrationDate(reg)}
+                          {formatVendorCategoryDisplay(reg.category, pickCategoryOtherFromUnknown(reg))} • {formatRegistrationDate(reg)}
                         </p>
                         {reg.contactPerson && (
                           <p className="text-xs text-muted-foreground mt-1">Contact: {reg.contactPerson}</p>

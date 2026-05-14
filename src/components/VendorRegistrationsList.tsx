@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { vendorApi } from "@/services/api";
 import { VendorRegistration } from "@/types";
+import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
 import {
   Building2,
   Clock,
@@ -113,7 +114,7 @@ const VendorRegistrationsList = ({
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 {getStatusBadge(registration.status)}
                 <span className="text-xs text-muted-foreground">
-                  {registration.category}
+                  {formatVendorCategoryDisplay(registration.category, pickCategoryOtherFromUnknown(registration))}
                 </span>
               </div>
             </div>

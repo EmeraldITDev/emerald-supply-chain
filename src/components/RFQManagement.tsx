@@ -20,11 +20,13 @@ import { normalizeQuotation, displayNumeric, displayString, displayCurrency, for
 import type { NormalizedQuotation } from "@/utils/normalizeQuotation";
 import { normalizeAttachments } from "@/utils/attachments";
 import type { MRFRequest, RFQ, Quotation } from "@/contexts/AppContext";
+import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
 
 interface Vendor {
   id: string;
   name: string;
   category: string;
+  categoryOther?: string | null;
   rating: number;
   orders: number;
   status: string;
@@ -56,6 +58,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
             id: vendor.id,
             name: vendor.name || vendor.company_name,
             category: vendor.category || 'Unknown',
+            categoryOther: pickCategoryOtherFromUnknown(vendor) ?? null,
             status: vendor.status || 'Active',
             kyc: vendor.kyc_status || 'Verified',
             rating: vendor.rating || 0,
@@ -883,7 +886,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                                   <p className="font-medium">{vendor.name}</p>
                                   {getVendorBadge(vendor)}
                                 </div>
-                                <p className="text-sm text-muted-foreground">{vendor.category}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {formatVendorCategoryDisplay(vendor.category, vendor.categoryOther)}
+                                </p>
                               </div>
                             </div>
                             <div className="text-right">
@@ -938,7 +943,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                             <Award className="h-5 w-5 text-amber-500" />
                             <div>
                               <p className="font-medium">{vendor.name}</p>
-                              <p className="text-sm text-muted-foreground">{vendor.category}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {formatVendorCategoryDisplay(vendor.category, vendor.categoryOther)}
+                              </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-1">

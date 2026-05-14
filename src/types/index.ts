@@ -265,6 +265,8 @@ export interface Vendor {
   id: string;
   name: string;
   category: string;
+  /** Free text when "Others" was selected at registration; pair with `category` for display. */
+  categoryOther?: string | null;
   rating: number;
   totalOrders: number;
   status: 'Active' | 'Inactive' | 'Pending';
@@ -283,6 +285,7 @@ export interface VendorRegistration {
   id: string;
   companyName: string;
   category: string;
+  categoryOther?: string | null;
   email: string;
   phone: string;
   address: string;

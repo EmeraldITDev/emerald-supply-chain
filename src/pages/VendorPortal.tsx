@@ -24,6 +24,7 @@ import { VendorQuoteSubmission } from "@/components/VendorQuoteSubmission";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatMRFDate } from "@/utils/dateUtils";
 import { normalizeAttachments } from "@/utils/attachments";
+import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
 import type { Vendor } from "@/types";
 import { VendorTripSubmissionForm } from "@/components/logistics/VendorTripSubmissionForm";
 import { vendorTripApi } from "@/services/logisticsApi";
@@ -1999,7 +2000,12 @@ const VendorPortal = () => {
                     </div>
                     <div>
                       <Label className="text-muted-foreground text-xs">Category</Label>
-                      <p className="font-medium">{(currentVendor as any)?.category || 'N/A'}</p>
+                      <p className="font-medium">
+                        {formatVendorCategoryDisplay(
+                          (currentVendor as { category?: string })?.category,
+                          pickCategoryOtherFromUnknown(currentVendor),
+                        ) || "N/A"}
+                      </p>
                     </div>
                     <div>
                       <Label className="text-muted-foreground text-xs">Rating</Label>

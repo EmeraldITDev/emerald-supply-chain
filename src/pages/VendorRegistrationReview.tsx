@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { vendorApi } from "@/services/api";
 import { VendorRegistration } from "@/types";
+import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
 import { VENDOR_DOCUMENT_REQUIREMENTS, VendorDocument } from "@/types/vendor-registration";
 import {
   ArrowLeft,
@@ -499,7 +500,16 @@ const VendorRegistrationReview = () => {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Category</Label>
-                  <p className="font-medium">{registration?.category || (Array.isArray(enhancedReg?.categories) ? enhancedReg.categories.join(", ") : "N/A")}</p>
+                  <p className="font-medium">
+                    {formatVendorCategoryDisplay(
+                      registration?.category ||
+                        (Array.isArray(enhancedReg?.categories) ? enhancedReg.categories.join(", ") : ""),
+                      pickCategoryOtherFromUnknown(registration) ||
+                        (enhancedReg && typeof (enhancedReg as { categoryOther?: string }).categoryOther === "string"
+                          ? (enhancedReg as { categoryOther?: string }).categoryOther
+                          : undefined),
+                    ) || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Tax ID</Label>

@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send, AlertTriangle, AlertCircle } from "lucide-react";
 import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES } from "@/types/vendor-registration";
-import { parseVendorCategoriesApiPayload, isOthersVendorCategoryLabel } from "@/utils/vendorCategoriesApi";
+import { parseVendorCategoriesApiPayload, isOthersVendorCategoryLabel, formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
 import { Textarea } from "@/components/ui/textarea";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { useAuth } from "@/contexts/AuthContext";
@@ -197,6 +197,12 @@ const Vendors = () => {
           ...apiData,
           id: vendor.id, // Keep original ID
           name: apiData.name || apiData.company_name || vendor.name,
+          category: apiData.category ?? vendor.category,
+          categoryOther:
+            pickCategoryOtherFromUnknown(apiData) ??
+            pickCategoryOtherFromUnknown(vendor) ??
+            vendor.categoryOther ??
+            null,
         };
         setSelectedVendor(fullVendor);
       }
@@ -403,6 +409,7 @@ const Vendors = () => {
           displayId: vendor.vendor_id || `V${String(vendor.id).padStart(3, '0')}`,
           name: vendor.name || vendor.company_name,
           category: vendor.category || 'Unknown',
+          categoryOther: pickCategoryOtherFromUnknown(vendor) ?? null,
           status: vendor.status || 'Active',
           kyc: vendor.kyc_status || 'Verified',
           rating: vendor.rating || 0,
@@ -504,6 +511,7 @@ const Vendors = () => {
             displayId: vendor.vendor_id || `V${String(vendor.id).padStart(3, '0')}`,
             name: vendor.name || vendor.company_name,
             category: vendor.category || 'Unknown',
+            categoryOther: pickCategoryOtherFromUnknown(vendor) ?? null,
             status: vendor.status || 'Active',
             kyc: vendor.kyc_status || 'Verified',
             rating: vendor.rating || 0,
@@ -916,7 +924,7 @@ const Vendors = () => {
                       </div>
                       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                         <span>Orders: {vendor.orders}</span>
-                        <span>Category: {vendor.category}</span>
+                        <span>Category: {formatVendorCategoryDisplay(vendor.category, vendor.categoryOther)}</span>
                       </div>
                     </div>
                   ))}
@@ -946,7 +954,7 @@ const Vendors = () => {
                       <Badge className={getStatusColor(vendor.kyc)}>{vendor.kyc}</Badge>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-                      <span className="whitespace-nowrap">Category: {vendor.category}</span>
+                      <span className="whitespace-nowrap">Category: {formatVendorCategoryDisplay(vendor.category, vendor.categoryOther)}</span>
                       <span className="whitespace-nowrap">Orders: {vendor.orders}</span>
                       <span className="flex items-center gap-1 whitespace-nowrap">
                         <Star className="h-3 w-3 fill-primary text-primary" />
@@ -1009,7 +1017,9 @@ const Vendors = () => {
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Category</Label>
-                  <p className="font-medium">{selectedVendor.category}</p>
+                  <p className="font-medium">
+                    {formatVendorCategoryDisplay(selectedVendor.category, selectedVendor.categoryOther)}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Rating</Label>
@@ -1213,7 +1223,21 @@ const Vendors = () => {
                                     try {
                                       const response = await vendorApi.getById(selectedVendor.id);
                                       if (response.success && response.data) {
-                                        setSelectedVendor(response.data);
+                                        const apiData = response.data as Record<string, unknown>;
+                                        setSelectedVendor((prev: any) =>
+                                          prev
+                                            ? {
+                                                ...prev,
+                                                ...apiData,
+                                                documents: (apiData as { documents?: unknown }).documents ?? prev.documents,
+                                                category:
+                                                  (typeof apiData.category === "string" && apiData.category) ||
+                                                  prev.category,
+                                                categoryOther:
+                                                  pickCategoryOtherFromUnknown(apiData) ?? prev.categoryOther,
+                                              }
+                                            : response.data,
+                                        );
                                         toast({ title: "URLs regenerated", description: "Document URLs have been refreshed." });
                                       }
                                     } catch {
@@ -1452,7 +1476,9 @@ const Vendors = () => {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Category</Label>
-                  <p className="font-medium">{reviewingVendor.category}</p>
+                  <p className="font-medium">
+                    {formatVendorCategoryDisplay(reviewingVendor.category, pickCategoryOtherFromUnknown(reviewingVendor))}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Email</Label>

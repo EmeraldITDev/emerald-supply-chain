@@ -14,6 +14,7 @@ import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { mrfApi } from "@/services/api";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { MRF, VendorRegistration } from "@/types";
+import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
 import { OneDriveLink } from "@/components/OneDriveLink";
 
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
@@ -271,7 +272,7 @@ const ExecutiveDashboard = () => {
                                 Vendor Registration: {reg.companyName}
                               </CardTitle>
                               <CardDescription className="text-xs sm:text-sm truncate">
-                                {reg.category} • {reg.contactPerson} • {reg.email}
+                                {formatVendorCategoryDisplay(reg.category, pickCategoryOtherFromUnknown(reg))} • {reg.contactPerson} • {reg.email}
                               </CardDescription>
                             </div>
                             <Badge variant="outline" className="text-xs">
@@ -287,7 +288,9 @@ const ExecutiveDashboard = () => {
                             </div>
                             <div>
                               <p className="font-semibold">Category:</p>
-                              <p className="text-muted-foreground">{reg.category}</p>
+                              <p className="text-muted-foreground">
+                                {formatVendorCategoryDisplay(reg.category, pickCategoryOtherFromUnknown(reg))}
+                              </p>
                             </div>
                             <div>
                               <p className="font-semibold">Contact:</p>

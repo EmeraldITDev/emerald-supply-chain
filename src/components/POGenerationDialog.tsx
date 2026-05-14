@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import type { MRFRequest } from "@/contexts/AppContext";
 import { vendorApi, poTermsApi } from "@/services/api";
 import type { Vendor } from "@/types";
+import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
 
 interface POGenerationDialogProps {
   open: boolean;
@@ -281,7 +282,9 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
                         >
                           {v.name}
                           {v.category && (
-                            <span className="text-xs text-muted-foreground ml-2">({v.category})</span>
+                            <span className="text-xs text-muted-foreground ml-2">
+                              ({formatVendorCategoryDisplay(v.category, pickCategoryOtherFromUnknown(v))})
+                            </span>
                           )}
                         </label>
                       </div>
