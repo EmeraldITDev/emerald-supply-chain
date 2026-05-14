@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { getDisplayId } from "@/utils/displayId";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -32,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { formatMRFDate } from "@/utils/dateUtils";
 import {
   formatAmount,
   formatDays,
@@ -44,7 +46,7 @@ import { getRejectionReason } from "@/utils/poHelpers";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
-import { authApi, mrfApi, vendorApi } from "@/services/api";
+import { authApi, mrfApi, vendorApi, dashboardApi, srfApi } from "@/services/api";
 import { procurementApi } from "@/services/procurementApi";
 import { buildEmeraldPoDisplayModel, coercePOTermsMode, userClausesFromStoredCustomTerms } from "@/utils/emeraldPoDocumentModel";
 import {
@@ -55,7 +57,7 @@ import {
 import { openEmeraldPurchaseOrderForMrf } from "@/utils/emeraldPoPdfActions";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { VendorRegistration } from "@/types";
-import type { MRF } from "@/types";
+import type { MRF, SRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { SupplyChainActionButtons } from "@/components/SupplyChainActionButtons";
 import { SupplyChainVendorApprovalButtons } from "@/components/SupplyChainVendorApprovalButtons";
@@ -79,6 +81,7 @@ function readStoredUserSignatureUrl(): string | null {
 
 const SupplyChainDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -111,7 +114,49 @@ const SupplyChainDashboard = () => {
   const [vendorRegistrationsLoading, setVendorRegistrationsLoading] =
     useState(true);
 
-  // Non-Emerald contract: Supply Chain Director first approval (MRF approval)
+  const [pendingDirectorSrfs, setPendingDirectorSrfs] = useState<SRF[]>([]);
+  const [pendingDirectorSrfsLoading, setPendingDirectorSrfsLoading] =
+    useState(true);
+  const [scdDashStats, setScdDashStats] = useState<{
+    pendingSrfDirectorApprovals?: number;
+  } | null>(null);
+
+  const fetchPendingDirectorSrfs = useCallback(async () => {
+    setPendingDirectorSrfsLoading(true);
+    try {
+      const [dashRes, srfRes] = await Promise.all([
+        dashboardApi.getSupplyChainDirectorDashboard(),
+        srfApi.getAll(),
+      ]);
+      const dash = dashRes.success ? (dashRes.data as Record<string, unknown>) : null;
+      const fromDash = dash?.srfsAwaitingSupplyChainDirectorApproval;
+      let list: SRF[] = [];
+      if (Array.isArray(fromDash)) {
+        list = fromDash as SRF[];
+      } else if (srfRes.success && srfRes.data) {
+        const raw = Array.isArray(srfRes.data) ? srfRes.data : [];
+        list = raw.filter((s: SRF) => {
+          const st = String(
+            (s as { current_stage?: string }).current_stage ||
+              s.currentStage ||
+              "",
+          ).toLowerCase();
+          return st === "supply_chain_director_review";
+        });
+      }
+      setPendingDirectorSrfs(list);
+      const stats = dash?.stats as { pendingSrfDirectorApprovals?: number } | undefined;
+      setScdDashStats(stats ?? null);
+    } catch {
+      setPendingDirectorSrfs([]);
+    } finally {
+      setPendingDirectorSrfsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchPendingDirectorSrfs();
+  }, [fetchPendingDirectorSrfs]);
   const [mrfForFirstApproval, setMrfForFirstApproval] = useState<MRF | null>(
     null,
   );
@@ -582,7 +627,7 @@ const SupplyChainDashboard = () => {
       <PullToRefresh
         onRefresh={async () => {
           toast.info("Refreshing data...");
-          await fetchMRFs();
+          await Promise.all([fetchMRFs(), fetchPendingDirectorSrfs()]);
           toast.success("Data refreshed");
         }}
       >
@@ -621,7 +666,7 @@ const SupplyChainDashboard = () => {
 
             <TabsContent value="action-items" className="space-y-6">
               {/* Summary Cards */}
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
@@ -655,6 +700,24 @@ const SupplyChainDashboard = () => {
                     </p>
                   </CardContent>
                 </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      SRFs Pending Director
+                    </CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {scdDashStats?.pendingSrfDirectorApprovals ??
+                        pendingDirectorSrfs.length}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Awaiting supply chain review
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
 
               {/* Vendor Registrations Section */}
@@ -665,6 +728,62 @@ const SupplyChainDashboard = () => {
                 externalRegistrations={vendorRegistrations}
                 externalLoading={vendorRegistrationsLoading}
               />
+
+              {!pendingDirectorSrfsLoading &&
+                pendingDirectorSrfs.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>
+                        Service requests awaiting Supply Chain Director
+                      </CardTitle>
+                      <CardDescription>
+                        Pending SRFs at{" "}
+                        <span className="font-mono text-xs">
+                          supply_chain_director_review
+                        </span>
+                        . Open in Procurement to review details and progress.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {pendingDirectorSrfs.map((srf) => (
+                          <div
+                            key={String(srf.id)}
+                            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4"
+                          >
+                            <div className="min-w-0">
+                              <p className="font-semibold truncate">{srf.title}</p>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {getDisplayId(srf)} • {srf.requester || "—"} •{" "}
+                                {formatMRFDate(
+                                  srf.createdAt ||
+                                    srf.created_at ||
+                                    srf.date ||
+                                    "",
+                                )}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Badge variant="secondary">{srf.status}</Badge>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  navigate(
+                                    `/procurement?tab=srf&srf=${encodeURIComponent(getDisplayId(srf))}`,
+                                  )
+                                }
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Open
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
               {/* Non-Emerald First Approvals (Supply Chain Director approves MRF first) */}
               {pendingFirstApprovals.length > 0 && (

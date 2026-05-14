@@ -161,16 +161,28 @@ export interface SRF {
   contract_type?: string;
   contractType?: string;
   title: string;
-  serviceType: string;
-  urgency: 'Low' | 'Medium' | 'High';
+  serviceType?: string;
+  service_type?: string;
+  urgency: 'Low' | 'Medium' | 'High' | string;
   description: string;
   duration: string;
   estimatedCost: string;
+  estimated_cost?: string;
   justification: string;
   requester: string;
-  requesterId: string;
+  requester_name?: string;
+  requesterId?: string;
+  requester_id?: string;
   date: string;
-  status: 'Pending' | 'Approved' | 'Rejected' | 'In Progress' | 'Completed';
+  created_at?: string;
+  createdAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
+  current_stage?: string;
+  currentStage?: string;
+  workflow_state?: string;
+  workflowState?: string;
+  status: 'Pending' | 'Approved' | 'Rejected' | 'In Progress' | 'Completed' | string;
 }
 
 export interface CreateSRFData {

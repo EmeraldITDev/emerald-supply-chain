@@ -5,6 +5,7 @@ import {
   collectMrfIdAliases,
   resolveMrfInList,
   findMrfByAnyLinkId,
+  matchesSrfQueryParam,
 } from "@/utils/displayId";
 import {
   Card,
@@ -36,7 +37,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -75,7 +76,7 @@ import {
   formatDays,
   formatAmount,
 } from "@/utils/normalizeQuotation";
-import type { VendorRegistration, MRF, RFQ } from "@/types";
+import type { VendorRegistration, MRF, RFQ, SRF } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
 import { normalizeAttachments } from "@/utils/attachments";
@@ -766,7 +767,25 @@ const Procurement = () => {
   const vendorFromQuery = searchParams.get("vendor") || undefined;
   const vendorFilter = vendorFromState || vendorFromQuery || undefined;
 
+  const srfDeepLinkHandled = useRef<string>("");
+  const mrfDeepLinkHandled = useRef<string>("");
+
   const [tab, setTab] = useState<string>(vendorFilter ? "po" : "mrf");
+
+  const tabFromQuery = searchParams.get("tab");
+  useEffect(() => {
+    const allowed = new Set([
+      "mrn",
+      "mrf",
+      "all-mrfs",
+      "rfq",
+      "srf",
+      "po",
+    ]);
+    if (tabFromQuery && allowed.has(tabFromQuery)) {
+      setTab(tabFromQuery);
+    }
+  }, [tabFromQuery]);
   const [poDetailsDialogOpen, setPODetailsDialogOpen] = useState(false);
   const [selectedMRFForPODetails, setSelectedMRFForPODetails] =
     useState<MRFRequest | null>(null);
@@ -783,6 +802,60 @@ const Procurement = () => {
   useEffect(() => {
     if (vendorFilter) setTab("po");
   }, [vendorFilter]);
+
+  // Deep links: /procurement?srf=SRF-... or ?mrf=MRF-...
+  useEffect(() => {
+    const srfQ = searchParams.get("srf");
+    if (!srfQ || !srfRequests.length) {
+      if (!srfQ) srfDeepLinkHandled.current = "";
+      return;
+    }
+    if (srfDeepLinkHandled.current === srfQ) return;
+    const found = srfRequests.find((r) => matchesSrfQueryParam(r, srfQ));
+    if (!found) return;
+    srfDeepLinkHandled.current = srfQ;
+    setTab("srf");
+    setSelectedSRFForDetails(found);
+    setSRFDetailsDialogOpen(true);
+  }, [searchParams, srfRequests]);
+
+  useEffect(() => {
+    const mrfQ = searchParams.get("mrf");
+    if (!mrfQ || !mrfRequests.length) {
+      if (!mrfQ) mrfDeepLinkHandled.current = "";
+      return;
+    }
+    if (mrfDeepLinkHandled.current === mrfQ) return;
+    const found = findMrfByAnyLinkId(mrfQ, mrfRequests) as MRF | null;
+    if (!found) return;
+    mrfDeepLinkHandled.current = mrfQ;
+    setTab("mrf");
+    let cancelled = false;
+    (async () => {
+      setSelectedMRFForDetails(found);
+      setMrfDetailsDialogOpen(true);
+      setLoadingFullDetails(true);
+      try {
+        const response = await mrfApi.getFullDetails(getMrfApiId(found));
+        if (!cancelled && response.success && response.data) {
+          setMrfFullDetails(response.data);
+        }
+      } catch {
+        if (!cancelled) {
+          toast({
+            title: "Error",
+            description: "Failed to load MRF details",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (!cancelled) setLoadingFullDetails(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, mrfRequests, toast]);
 
   // Fetch vendor registrations directly so both procurement and procurement managers can review them
   useEffect(() => {
@@ -2646,6 +2719,15 @@ const Procurement = () => {
                                             request as MRF,
                                           );
                                           setMrfDetailsDialogOpen(true);
+                                          setSearchParams(
+                                            (prev) => {
+                                              const p = new URLSearchParams(prev);
+                                              p.delete("srf");
+                                              p.set("mrf", getDisplayId(request as MRF));
+                                              return p;
+                                            },
+                                            { replace: true },
+                                          );
 
                                           // Fetch full details
                                           setLoadingFullDetails(true);
@@ -2998,7 +3080,11 @@ const Procurement = () => {
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {getDisplayId(request)} • {request.requester} •{" "}
-                              {request.date}
+                              {formatMRFDate(
+                                (request as { createdAt?: string }).createdAt ||
+                                  (request as { created_at?: string }).created_at ||
+                                  request.date,
+                              )}
                             </p>
                           </div>
                         </div>
@@ -3012,6 +3098,15 @@ const Procurement = () => {
                             onClick={() => {
                               setSelectedSRFForDetails(request);
                               setSRFDetailsDialogOpen(true);
+                              setSearchParams(
+                                (prev) => {
+                                  const p = new URLSearchParams(prev);
+                                  p.delete("mrf");
+                                  p.set("srf", getDisplayId(request));
+                                  return p;
+                                },
+                                { replace: true },
+                              );
                             }}
                           >
                             <FileText className="h-4 w-4 mr-2" />
@@ -3672,16 +3767,24 @@ const Procurement = () => {
       </AlertDialog>
 
       {/* MRF Details Dialog */}
-      <Dialog
-        open={mrfDetailsDialogOpen}
-        onOpenChange={(open) => {
-          setMrfDetailsDialogOpen(open);
-          if (!open) {
-            setMrfFullDetails(null);
-            setSelectedMRFForDetails(null);
-          }
-        }}
-      >
+        <Dialog
+          open={mrfDetailsDialogOpen}
+          onOpenChange={(open) => {
+            setMrfDetailsDialogOpen(open);
+            if (!open) {
+              setMrfFullDetails(null);
+              setSelectedMRFForDetails(null);
+              setSearchParams(
+                (prev) => {
+                  const p = new URLSearchParams(prev);
+                  p.delete("mrf");
+                  return p;
+                },
+                { replace: true },
+              );
+            }
+          }}
+        >
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>MRF Full Details</DialogTitle>
@@ -3699,7 +3802,7 @@ const Procurement = () => {
               <div className="space-y-6 mt-4">
                 {/* Progress Tracker */}
                 <MRFProgressTracker
-                  mrfId={selectedMRFForDetails.id}
+                  mrfId={getMrfApiId(selectedMRFForDetails)}
                   showTitle={true}
                   contractType={
                     (selectedMRFForDetails as any).contract_type ||
@@ -4331,6 +4434,14 @@ const Procurement = () => {
             setSRFDetailsDialogOpen(open);
             if (!open) {
               setSelectedSRFForDetails(null);
+              setSearchParams(
+                (prev) => {
+                  const p = new URLSearchParams(prev);
+                  p.delete("srf");
+                  return p;
+                },
+                { replace: true },
+              );
             }
           }}
         >
@@ -4344,7 +4455,29 @@ const Procurement = () => {
             <div className="space-y-6 mt-4">
               {/* Progress Tracker */}
               <SRFProgressTracker 
-                srf={selectedSRFForDetails}
+                srf={{
+                  id: selectedSRFForDetails.id,
+                  formatted_id: (selectedSRFForDetails as { formatted_id?: string }).formatted_id,
+                  formattedId: (selectedSRFForDetails as { formattedId?: string }).formattedId,
+                  title: selectedSRFForDetails.title,
+                  serviceType: selectedSRFForDetails.serviceType,
+                  urgency: (String(selectedSRFForDetails.urgency || "medium").toLowerCase() === "low"
+                    ? "Low"
+                    : String(selectedSRFForDetails.urgency || "").toLowerCase() === "high" ||
+                        String(selectedSRFForDetails.urgency || "").toLowerCase() === "critical"
+                      ? "High"
+                      : "Medium") as SRF["urgency"],
+                  description: selectedSRFForDetails.description,
+                  duration: selectedSRFForDetails.duration,
+                  estimatedCost: selectedSRFForDetails.estimatedCost,
+                  justification: selectedSRFForDetails.justification,
+                  requester: selectedSRFForDetails.requester,
+                  date: selectedSRFForDetails.date,
+                  status: selectedSRFForDetails.status as SRF["status"],
+                  current_stage: (selectedSRFForDetails as { currentStage?: string }).currentStage,
+                  currentStage: (selectedSRFForDetails as { currentStage?: string }).currentStage,
+                  department: (selectedSRFForDetails as { department?: string }).department,
+                }}
                 showTitle={true}
               />
 
@@ -4381,7 +4514,11 @@ const Procurement = () => {
                 <div>
                   <Label className="text-muted-foreground">Created Date</Label>
                   <p className="font-medium">
-                    {formatMRFDate(selectedSRFForDetails.date)}
+                    {formatMRFDate(
+                      (selectedSRFForDetails as { createdAt?: string }).createdAt ||
+                        (selectedSRFForDetails as { created_at?: string }).created_at ||
+                        selectedSRFForDetails.date,
+                    )}
                   </p>
                 </div>
                 <div>

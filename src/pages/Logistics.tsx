@@ -47,7 +47,7 @@ import { MaterialMovements } from "@/components/logistics/MaterialMovements";
 import { ReportingCompliance } from "@/components/logistics/ReportingCompliance";
 import { GPSTrackingPlaceholder } from "@/components/logistics/GPSTrackingPlaceholder";
 import { AccommodationBookings } from "@/components/logistics/AccommodationBookings";
-import { ProcurementProgressTracker } from "@/components/ProcurementProgressTracker";
+import { LogisticsMyRequestsList } from "@/components/logistics/LogisticsMyRequestsList";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Logistics = () => {
@@ -58,6 +58,8 @@ const Logistics = () => {
     addStaffDriver,
     mrfRequests,
     srfRequests,
+    refreshSRFs,
+    refreshMRFs,
   } = useApp();
   
   const [designateDriverOpen, setDesignateDriverOpen] = useState(false);
@@ -601,41 +603,30 @@ const Logistics = () => {
 
             {/* My Requests — Logistics Manager visibility into MRFs/SRFs they raised */}
             <TabsContent value="my-requests" className="space-y-4">
-              {(() => {
-                const myName = user?.name;
-                const isLM = user?.role === "logistics_manager";
-                const mineMRFs = (mrfRequests || []).filter((m: any) =>
-                  isLM ? (m.requester === myName) : true,
-                );
-                const mineSRFs = (srfRequests || []).filter((s: any) =>
-                  isLM ? (s.requester === myName) : true,
-                );
-                const all = [...mineMRFs, ...mineSRFs];
-                return (
-                  <>
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <FileText className="h-5 w-5" />
-                          My Procurement Activity
-                        </CardTitle>
-                        <CardDescription>
-                          Track RFQs, vendor quotations, approvals and PO progress for your logistics requests.
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {all.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-6">
-                            You haven't submitted any requests yet. Use New MRF or New SRF in the sidebar.
-                          </p>
-                        ) : (
-                          <ProcurementProgressTracker mrfRequests={all as any} showTitle={false} />
-                        )}
-                      </CardContent>
-                    </Card>
-                  </>
-                );
-              })()}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    My Procurement Activity
+                  </CardTitle>
+                  <CardDescription>
+                    Your service and material requests as line items. Open View Details for the live workflow tracker.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <LogisticsMyRequestsList
+                    srfRequests={srfRequests || []}
+                    mrfRequests={mrfRequests || []}
+                    filterRequester={
+                      user?.role === "logistics_manager" ? user?.name ?? null : null
+                    }
+                    isActive={activeTab === "my-requests"}
+                    onRefresh={async () => {
+                      await Promise.all([refreshSRFs(), refreshMRFs()]);
+                    }}
+                  />
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>

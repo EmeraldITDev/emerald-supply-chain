@@ -95,3 +95,21 @@ export function resolveMrfInList<T = unknown>(
  */
 export const isFormattedId = (s: string): boolean =>
   /^[A-Z]+(-[A-Z0-9]+){2,}-\d{4}-\d+$/.test(s ?? "");
+
+/** Id aliases for an SRF row (list vs deep link query param). */
+export function collectSrfIdAliases(s: unknown): string[] {
+  if (!s || typeof s !== "object") return [];
+  const o = s as Record<string, unknown>;
+  const keys = ["formatted_id", "formattedId", "legacy_id", "legacyId", "id"] as const;
+  const out: string[] = [];
+  for (const k of keys) {
+    const v = o[k];
+    if (v !== undefined && v !== null && String(v) !== "") out.push(String(v));
+  }
+  return [...new Set(out)];
+}
+
+export function matchesSrfQueryParam(entity: unknown, q: string): boolean {
+  const decoded = decodeURIComponent(q.trim());
+  return collectSrfIdAliases(entity).some((a) => a === decoded);
+}

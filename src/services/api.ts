@@ -1229,6 +1229,10 @@ export const srfApi = {
     return apiRequest<SRF[]>(`/srfs?${params.toString()}`);
   },
 
+  getById: async (id: string): Promise<ApiResponse<SRF>> => {
+    return apiRequest<SRF>(`/srfs/${encodeURIComponent(id)}`);
+  },
+
   create: async (data: CreateSRFData): Promise<ApiResponse<SRF>> => {
     return apiRequest<SRF>('/srfs', {
       method: 'POST',

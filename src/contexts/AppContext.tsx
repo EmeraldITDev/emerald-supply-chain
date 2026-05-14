@@ -46,6 +46,10 @@ export interface MRFRequest {
 
 export interface SRFRequest {
   id: string;
+  formatted_id?: string;
+  formattedId?: string;
+  legacy_id?: string;
+  legacyId?: string;
   title: string;
   serviceType: string;
   description: string;
@@ -56,6 +60,11 @@ export interface SRFRequest {
   status: string;
   date: string;
   requester: string;
+  department?: string;
+  currentStage?: string;
+  workflowState?: string;
+  createdAt?: string;
+  updatedAt?: string;
   // Document support
   documents?: string[]; // Array of base64 encoded documents
 }
@@ -376,7 +385,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const rawData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.srfs || [];
         // Convert API SRF type to AppContext SRFRequest type
         const converted = rawData.map((srf: any) => ({
-          id: srf.id,
+          id: String(srf.id ?? ""),
+          formatted_id: srf.formatted_id,
+          formattedId: srf.formattedId,
+          legacy_id: srf.legacy_id,
+          legacyId: srf.legacyId,
           title: srf.title,
           serviceType: srf.service_type || srf.serviceType || "",
           description: srf.description,
@@ -385,8 +398,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           urgency: String(srf.urgency).toLowerCase(),
           justification: srf.justification,
           status: srf.status,
-          date: srf.created_at || srf.date || "",
+          date:
+            srf.createdAt ||
+            srf.created_at ||
+            srf.date ||
+            "",
           requester: srf.requester_name || srf.requester || "Unknown",
+          department: srf.department,
+          currentStage: srf.current_stage || srf.currentStage,
+          workflowState: srf.workflow_state || srf.workflowState,
+          createdAt: srf.createdAt || srf.created_at,
+          updatedAt: srf.updatedAt || srf.updated_at,
         }));
         setSrfRequests(converted);
       }

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,20 +16,28 @@ import type { FleetVehicle } from "@/types/logistics";
 
 const NewSRF = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Staff and Logistics Manager can create SRF
+  const canAccessNewSrf =
+    !!user &&
+    (isEmployeeRole(user.role) ||
+      user.role === "logistics_manager" ||
+      user.role === "logistics" ||
+      (user.role as string) === "logistics_officer");
+
+  // Staff and logistics roles can create SRF
   useEffect(() => {
-    if (user && !isEmployeeRole(user.role) && user.role !== "logistics_manager") {
+    if (user && !canAccessNewSrf) {
       toast({
         title: "Access Denied",
-        description: "Only staff members can create Service Request Forms. Please contact your administrator.",
+        description: "You do not have permission to create Service Request Forms.",
         variant: "destructive",
       });
       navigate("/dashboard", { replace: true });
     }
-  }, [user, navigate, toast]);
+  }, [user, navigate, toast, canAccessNewSrf]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -43,17 +51,44 @@ const NewSRF = () => {
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [invoiceOneDriveUrl, setInvoiceOneDriveUrl] = useState<string>("");
 
-  // Logistics Manager: link an existing vehicle so its details flow downstream
-  const isLogisticsManager = user?.role === "logistics_manager";
+    user?.role === "logistics_manager" ||
+    user?.role === "logistics" ||
+    (user?.role as string) === "logistics_officer";
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
 
+  const fleetDraftApplied = useRef(false);
+
   useEffect(() => {
-    if (!isLogisticsManager) return;
+    if (fleetDraftApplied.current) return;
+    const fleet = (location.state as { fleetSrfDraft?: { vehicle: FleetVehicle; srfId?: string } })
+      ?.fleetSrfDraft;
+    if (!fleet?.vehicle) return;
+    fleetDraftApplied.current = true;
+    const v = fleet.vehicle;
+    setSelectedVehicleId(String(v.id));
+    setFormData((prev) => ({
+      ...prev,
+      title:
+        prev.title ||
+        `Fleet Maintenance SRF — ${v.name || v.vehicleNumber || "Vehicle"} (${v.plate || "no plate"})`,
+      serviceType: prev.serviceType || "maintenance",
+      urgency: prev.urgency || "medium",
+      description:
+        prev.description ||
+        `Fleet-initiated service request for ${v.name || v.vehicleNumber || "vehicle"} (${v.plate || "plate TBD"}). ` +
+          `Complete scope, timeline, preferred vendors, and cost estimate before submission.` +
+          (fleet.srfId ? `\n\n(Draft reference: ${fleet.srfId})` : ""),
+    }));
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state, navigate]);
+
+  useEffect(() => {
+    if (!isFleetLogistics) return;
     fleetApi.getAll().then((res) => {
       if (res.success && Array.isArray(res.data)) setVehicles(res.data as FleetVehicle[]);
     });
-  }, [isLogisticsManager]);
+  }, [isFleetLogistics]);
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
 
@@ -268,7 +303,7 @@ const NewSRF = () => {
                 />
               </div>
 
-              {isLogisticsManager && (
+              {isFleetLogistics && (
                 <div className="space-y-2 rounded-md border border-dashed p-3">
                   <Label>Linked Vehicle (Optional)</Label>
                   <p className="text-xs text-muted-foreground">

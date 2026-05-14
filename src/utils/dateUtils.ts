@@ -90,8 +90,18 @@ export const formatDateLagos = (
 
 /**
  * Format a date string for MRF display (short format with time)
+ * Calendar-only values (YYYY-MM-DD) are shown as a date with no clock time so
+ * they are not interpreted as midnight UTC (which reads as 01:00 in Lagos).
  */
 export const formatMRFDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'N/A';
+  const trimmed = String(dateString).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return formatDateLagos(trimmed, {
+      includeTime: false,
+      format: 'short',
+    });
+  }
   return formatDateLagos(dateString, {
     includeTime: true,
     format: 'short',

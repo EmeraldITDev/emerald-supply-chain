@@ -19,6 +19,48 @@ import {
 import { cn } from "@/lib/utils";
 import type { SRF } from "@/types";
 
+function effectiveSrfWorkflowStatus(srf: SRF): string {
+  const status = String(srf.status || "Pending").trim();
+  const stageRaw = srf.current_stage ?? srf.currentStage ?? "";
+  const stage = String(stageRaw).toLowerCase();
+  if (
+    status === "Completed" ||
+    status === "Rejected" ||
+    status === "In Progress"
+  ) {
+    return status;
+  }
+  if (
+    stage.includes("paid") ||
+    stage.includes("completed") ||
+    stage.includes("grn_complete")
+  ) {
+    return "Completed";
+  }
+  if (stage.includes("reject")) return "Rejected";
+  if (
+    stage.includes("po_generated") ||
+    stage.includes("po_") ||
+    stage.includes("finance") ||
+    stage.includes("payment") ||
+    stage.includes("processing_payment")
+  ) {
+    return "In Progress";
+  }
+  if (
+    stage.includes("procurement") ||
+    stage.includes("rfq") ||
+    stage.includes("quote") ||
+    stage.includes("vendor") ||
+    stage.includes("final_approval") ||
+    stage.includes("scd_approved") ||
+    stage.includes("supply_chain_director_approved")
+  ) {
+    return "Approved";
+  }
+  return status;
+}
+
 interface SRFProgressTrackerProps {
   srf: SRF;
   showTitle?: boolean;
@@ -96,7 +138,8 @@ export const SRFProgressTracker = ({ srf, showTitle = true }: SRFProgressTracker
         ],
       };
 
-      const currentSteps = statusMap[srf.status] || statusMap['Pending'];
+      const effective = effectiveSrfWorkflowStatus(srf);
+      const currentSteps = statusMap[effective] || statusMap[srf.status] || statusMap['Pending'];
       const completedCount = currentSteps.filter(s => s.status === 'completed').length;
       const progress = Math.round((completedCount / currentSteps.length) * 100);
       
@@ -105,7 +148,7 @@ export const SRFProgressTracker = ({ srf, showTitle = true }: SRFProgressTracker
     };
 
     determineSteps();
-  }, [srf.status]);
+  }, [srf.status, srf.current_stage, srf.currentStage]);
 
   const getStatusStyles = (status: string) => {
     switch (status) {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -144,6 +145,7 @@ const normalizeVehicle = (raw: any): FleetVehicle => ({
 });
 
 export const FleetManagement = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   const canInitiateSRF = !!user && ["logistics_officer", "logistics_manager", "logistics"].includes(user.role as string);
@@ -205,6 +207,15 @@ export const FleetManagement = () => {
         });
         window.dispatchEvent(new CustomEvent("app:refresh"));
         setSrfDialogOpen(false);
+        navigate("/new-srf", {
+          replace: false,
+          state: {
+            fleetSrfDraft: {
+              vehicle: srfVehicle,
+              srfId: sid != null ? String(sid) : undefined,
+            },
+          },
+        });
         setSrfVehicle(null);
         fetchData();
       } else {
