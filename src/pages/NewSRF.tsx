@@ -51,6 +51,7 @@ const NewSRF = () => {
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [invoiceOneDriveUrl, setInvoiceOneDriveUrl] = useState<string>("");
 
+  const isFleetLogistics =
     user?.role === "logistics_manager" ||
     user?.role === "logistics" ||
     (user?.role as string) === "logistics_officer";

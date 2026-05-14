@@ -54,12 +54,12 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RFQManagement } from "@/components/RFQManagement";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
-import { SRFProgressTracker } from "@/components/SRFProgressTracker";
+import { SRFDetailPanel } from "@/components/SRFDetailPanel";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 
-import type { MRFRequest } from "@/contexts/AppContext";
+import type { MRFRequest, SRFRequest } from "@/contexts/AppContext";
 import {
   dashboardApi,
   mrfApi,
@@ -76,7 +76,7 @@ import {
   formatDays,
   formatAmount,
 } from "@/utils/normalizeQuotation";
-import type { VendorRegistration, MRF, RFQ, SRF } from "@/types";
+import type { VendorRegistration, MRF, RFQ } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
 import { normalizeAttachments } from "@/utils/attachments";
@@ -4453,122 +4453,10 @@ const Procurement = () => {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 mt-4">
-              {/* Progress Tracker */}
-              <SRFProgressTracker 
-                srf={{
-                  id: selectedSRFForDetails.id,
-                  formatted_id: (selectedSRFForDetails as { formatted_id?: string }).formatted_id,
-                  formattedId: (selectedSRFForDetails as { formattedId?: string }).formattedId,
-                  title: selectedSRFForDetails.title,
-                  serviceType: selectedSRFForDetails.serviceType,
-                  urgency: (String(selectedSRFForDetails.urgency || "medium").toLowerCase() === "low"
-                    ? "Low"
-                    : String(selectedSRFForDetails.urgency || "").toLowerCase() === "high" ||
-                        String(selectedSRFForDetails.urgency || "").toLowerCase() === "critical"
-                      ? "High"
-                      : "Medium") as SRF["urgency"],
-                  description: selectedSRFForDetails.description,
-                  duration: selectedSRFForDetails.duration,
-                  estimatedCost: selectedSRFForDetails.estimatedCost,
-                  justification: selectedSRFForDetails.justification,
-                  requester: selectedSRFForDetails.requester,
-                  date: selectedSRFForDetails.date,
-                  status: selectedSRFForDetails.status as SRF["status"],
-                  current_stage: (selectedSRFForDetails as { currentStage?: string }).currentStage,
-                  currentStage: (selectedSRFForDetails as { currentStage?: string }).currentStage,
-                  department: (selectedSRFForDetails as { department?: string }).department,
-                }}
-                showTitle={true}
+              <SRFDetailPanel
+                detail={selectedSRFForDetails as SRFRequest}
+                trackerShowTitle
               />
-
-              {/* SRF Basic Information */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">SRF ID</Label>
-                  <p className="font-medium">{getDisplayId(selectedSRFForDetails)}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Status</Label>
-                  <Badge className={getStatusColor(selectedSRFForDetails.status)}>
-                    {selectedSRFForDetails.status}
-                  </Badge>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Service Type</Label>
-                  <p className="font-medium">
-                    {selectedSRFForDetails.serviceType || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Urgency</Label>
-                  <Badge variant="outline">
-                    {selectedSRFForDetails.urgency || "Normal"}
-                  </Badge>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Requester</Label>
-                  <p className="font-medium">
-                    {selectedSRFForDetails.requester || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Created Date</Label>
-                  <p className="font-medium">
-                    {formatMRFDate(
-                      (selectedSRFForDetails as { createdAt?: string }).createdAt ||
-                        (selectedSRFForDetails as { created_at?: string }).created_at ||
-                        selectedSRFForDetails.date,
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Department</Label>
-                  <p className="font-medium">
-                    {selectedSRFForDetails.department || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Estimated Cost</Label>
-                  <p className="font-medium">
-                    ₦{parseFloat(selectedSRFForDetails.estimatedCost || "0").toLocaleString()}
-                  </p>
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-muted-foreground">Description</Label>
-                  <p className="font-medium text-sm">
-                    {selectedSRFForDetails.description || "No description provided"}
-                  </p>
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-muted-foreground">Justification</Label>
-                  <p className="font-medium text-sm">
-                    {selectedSRFForDetails.justification || "No justification provided"}
-                  </p>
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-muted-foreground">Duration</Label>
-                  <p className="font-medium text-sm">
-                    {selectedSRFForDetails.duration || "Not specified"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Workflow Information */}
-              <div className="border-t pt-4">
-                <h3 className="font-semibold mb-4">Workflow Status</h3>
-                <div className="space-y-3">
-                  <div className="p-3 border rounded-lg bg-muted/50">
-                    <p className="text-sm font-medium mb-1">Current Step</p>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedSRFForDetails.status === 'Pending' && 'Awaiting Supply Chain Director Approval'}
-                      {selectedSRFForDetails.status === 'Approved' && 'In Procurement - Sourcing Quotes'}
-                      {selectedSRFForDetails.status === 'In Progress' && 'In PO Generation Phase'}
-                      {selectedSRFForDetails.status === 'Completed' && 'Process Complete'}
-                      {selectedSRFForDetails.status === 'Rejected' && 'Request Rejected - Please create a new SRF'}
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
           </DialogContent>
         </Dialog>

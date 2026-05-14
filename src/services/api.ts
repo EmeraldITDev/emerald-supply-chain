@@ -1301,6 +1301,12 @@ export const srfApi = {
       body: JSON.stringify(data),
     });
   },
+
+  delete: async (id: string): Promise<ApiResponse<void>> => {
+    return apiRequest<void>(`/srfs/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // RFQ API

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Package } from "lucide-react";
+import { FileText, Loader2, Package, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -7,15 +7,29 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { getDisplayId, getMrfApiId } from "@/utils/displayId";
 import { formatMRFDate } from "@/utils/dateUtils";
-import { SRFProgressTracker } from "@/components/SRFProgressTracker";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
+import { SRFDetailPanel } from "@/components/SRFDetailPanel";
+import { getSrfStatusBadgeClass } from "@/utils/srfStatusBadge";
+import { srfApi } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import type { SRFRequest, MRFRequest } from "@/contexts/AppContext";
-import type { SRF } from "@/types";
 import type { MRF } from "@/types";
 
 function statusBadgeClass(status: string): string {
@@ -25,33 +39,6 @@ function statusBadgeClass(status: string): string {
   if (s.includes("progress") || s.includes("procurement")) return "bg-primary/15 text-primary border-primary/30";
   if (s.includes("approv")) return "bg-info/15 text-info border-info/30";
   return "bg-warning/15 text-warning border-warning/30";
-}
-
-function srfRequestToTrackerPayload(r: SRFRequest): SRF {
-  const u = (r.urgency || "medium").toLowerCase();
-  const urgencyCap =
-    u === "low" ? "Low" : u === "high" || u === "critical" ? "High" : "Medium";
-  const st = (r.status || "Pending") as SRF["status"];
-  return {
-    id: r.id,
-    formatted_id: r.formatted_id,
-    formattedId: r.formattedId,
-    legacy_id: r.legacy_id,
-    legacyId: r.legacyId,
-    title: r.title,
-    serviceType: r.serviceType,
-    urgency: urgencyCap,
-    description: r.description,
-    duration: r.duration,
-    estimatedCost: r.estimatedCost,
-    justification: r.justification,
-    requester: r.requester,
-    date: r.date,
-    status: st,
-    current_stage: r.currentStage,
-    currentStage: r.currentStage,
-    department: r.department,
-  };
 }
 
 function mrfRequestToMrf(m: MRFRequest): MRF {
@@ -86,6 +73,10 @@ export interface LogisticsMyRequestsListProps {
   onRefresh?: () => void | Promise<void>;
 }
 
+function canDeletePendingSrf(s: SRFRequest): boolean {
+  return String(s.status || "").trim().toLowerCase() === "pending";
+}
+
 export function LogisticsMyRequestsList({
   srfRequests,
   mrfRequests,
@@ -93,10 +84,14 @@ export function LogisticsMyRequestsList({
   isActive,
   onRefresh,
 }: LogisticsMyRequestsListProps) {
+  const { toast } = useToast();
+  const { user } = useAuth();
   const [srfOpen, setSrfOpen] = useState(false);
   const [mrfOpen, setMrfOpen] = useState(false);
   const [selectedSrf, setSelectedSrf] = useState<SRFRequest | null>(null);
   const [selectedMrf, setSelectedMrf] = useState<MRFRequest | null>(null);
+  const [deleteSrfOpen, setDeleteSrfOpen] = useState(false);
+  const [deletingSrf, setDeletingSrf] = useState(false);
 
   useEffect(() => {
     if (isActive && onRefresh) {
@@ -123,6 +118,50 @@ export function LogisticsMyRequestsList({
       r.kind === "srf" ? r.data.createdAt || r.data.date : r.data.date;
     return formatMRFDate(raw);
   };
+
+  const closeSrfDialog = () => {
+    setSrfOpen(false);
+    setSelectedSrf(null);
+    setDeleteSrfOpen(false);
+  };
+
+  const handleConfirmDeleteSrf = async () => {
+    if (!selectedSrf) return;
+    const apiId = getDisplayId(selectedSrf) || selectedSrf.id;
+    setDeletingSrf(true);
+    try {
+      const res = await srfApi.delete(apiId);
+      if (res.success) {
+        toast({ title: "SRF deleted", description: `${apiId} has been removed.` });
+        window.dispatchEvent(new CustomEvent("app:refresh"));
+        closeSrfDialog();
+        void onRefresh?.();
+      } else {
+        toast({
+          title: "Could not delete",
+          description: res.error || "The server rejected this delete request.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to connect to the server.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingSrf(false);
+      setDeleteSrfOpen(false);
+    }
+  };
+
+  const showSrfDelete =
+    !!selectedSrf &&
+    canDeletePendingSrf(selectedSrf) &&
+    (!!filterRequester
+      ? true
+      : (user?.name || "").trim().toLowerCase() ===
+        (selectedSrf.requester || "").trim().toLowerCase());
 
   return (
     <>
@@ -153,7 +192,7 @@ export function LogisticsMyRequestsList({
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Badge className={statusBadgeClass(request.status)}>{request.status}</Badge>
+                    <Badge className={getSrfStatusBadgeClass(request.status)}>{request.status}</Badge>
                     <Button
                       variant="outline"
                       size="sm"
@@ -210,54 +249,74 @@ export function LogisticsMyRequestsList({
       <Dialog
         open={srfOpen}
         onOpenChange={(open) => {
-          setSrfOpen(open);
-          if (!open) setSelectedSrf(null);
+          if (!open) closeSrfDialog();
+          else setSrfOpen(true);
         }}
       >
         {selectedSrf && (
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{selectedSrf.title}</DialogTitle>
+              <DialogTitle>Service Request Form Details</DialogTitle>
               <DialogDescription>
-                {getDisplayId(selectedSrf)} • {selectedSrf.requester}
+                {selectedSrf.title} — {getDisplayId(selectedSrf)}
               </DialogDescription>
             </DialogHeader>
-            <SRFProgressTracker srf={srfRequestToTrackerPayload(selectedSrf)} showTitle={false} />
-            <div className="grid gap-3 text-sm border-t pt-4">
-              <div>
-                <Label className="text-muted-foreground">Status</Label>
-                <div className="mt-1">
-                  <Badge className={statusBadgeClass(selectedSrf.status)}>{selectedSrf.status}</Badge>
-                </div>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Created</Label>
-                <p className="font-medium">{formatMRFDate(selectedSrf.createdAt || selectedSrf.date)}</p>
-              </div>
-              {selectedSrf.currentStage && (
-                <div>
-                  <Label className="text-muted-foreground">Workflow stage</Label>
-                  <p className="font-medium font-mono text-xs">{selectedSrf.currentStage}</p>
-                </div>
-              )}
-              <div>
-                <Label className="text-muted-foreground">Service type</Label>
-                <p className="font-medium">{selectedSrf.serviceType || "—"}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Estimated (₦)</Label>
-                <p className="font-medium">
-                  ₦{parseFloat(selectedSrf.estimatedCost || "0").toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Duration</Label>
-                <p className="font-medium">{selectedSrf.duration || "—"}</p>
-              </div>
-            </div>
+            <SRFDetailPanel detail={selectedSrf} trackerShowTitle />
+            {showSrfDelete ? (
+              <DialogFooter className="gap-2 sm:justify-between border-t pt-4">
+                <Button type="button" variant="outline" onClick={() => closeSrfDialog()}>
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={deletingSrf}
+                  onClick={() => setDeleteSrfOpen(true)}
+                >
+                  {deletingSrf ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  Delete SRF
+                </Button>
+              </DialogFooter>
+            ) : (
+              <DialogFooter className="border-t pt-4">
+                <Button type="button" variant="outline" onClick={() => closeSrfDialog()}>
+                  Close
+                </Button>
+              </DialogFooter>
+            )}
           </DialogContent>
         )}
       </Dialog>
+
+      <AlertDialog open={deleteSrfOpen} onOpenChange={setDeleteSrfOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this SRF?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove{" "}
+              {selectedSrf ? getDisplayId(selectedSrf) : "this SRF"} from the system. You can only
+              delete requests that are still <strong>Pending</strong>. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingSrf}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deletingSrf}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleConfirmDeleteSrf();
+              }}
+            >
+              {deletingSrf ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog
         open={mrfOpen}
