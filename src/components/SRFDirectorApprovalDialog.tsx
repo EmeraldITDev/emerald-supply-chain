@@ -57,11 +57,18 @@ export function SRFDirectorApprovalDialog({
   };
 
   const handleReject = () => {
-    if (!remarks.trim()) {
-      alert("Please provide a reason for rejection");
+    const reason = remarks.trim();
+    if (reason.length < 5) {
+      alert(
+        "Please provide a rejection reason of at least 5 characters (required by the server).",
+      );
       return;
     }
-    onReject(remarks.trim());
+    if (reason.length > 2000) {
+      alert("Rejection reason must be at most 2000 characters.");
+      return;
+    }
+    onReject(reason);
     setRemarks("");
     onOpenChange(false);
   };
@@ -128,7 +135,7 @@ export function SRFDirectorApprovalDialog({
             <Label htmlFor="srf-scd-remarks">
               Comments / remarks{" "}
               <span className="text-muted-foreground font-normal">
-                (optional for approval; required for rejection)
+                (optional for approval; rejection requires 5–2000 characters)
               </span>
             </Label>
             <Textarea

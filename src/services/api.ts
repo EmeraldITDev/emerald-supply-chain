@@ -308,8 +308,8 @@ export async function apiRequest<T>(
       };
     }
 
-    // Extract data property if backend response has it, otherwise use the response as-is
-    // Backend returns {success: true, data: {...}}, so we extract the inner data
+    // Extract `data` when the backend wraps payloads (e.g. many MRF endpoints). Bare JSON resources
+    // (e.g. SRF supply-chain-director-approve/reject returning presentSrf()) stay intact when no `data` key.
     const responseData = (data && typeof data === 'object' && 'data' in data) ? data.data : data;
 
     return {
@@ -1308,14 +1308,28 @@ export const srfApi = {
     });
   },
 
-  /** Supply Chain Director approves SRF at supply_chain_director_review (same shape as MRF approve). */
+  /**
+   * POST `/srfs/{id}/supply-chain-director-approve` (full URL: `{API_BASE}/srfs/...`, base usually ends with `/api`).
+   * Body: optional `remarks` only; Laravel ignores `action` if present.
+   * Success: HTTP 200 with bare `presentSrf()` JSON (no `{ success, data }` wrapper) — `apiRequest` treats that as `data` when the object has no `data` key.
+   */
   supplyChainDirectorApprove: async (id: string, remarks?: string): Promise<ApiResponse<SRF>> => {
-    return apiRequest<SRF>(`/srfs/${encodeURIComponent(id)}/supply-chain-director-approve`, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'approve', remarks }),
-    });
+    const trimmed = remarks?.trim();
+    const body: { remarks?: string } = {};
+    if (trimmed) body.remarks = trimmed;
+    return apiRequest<SRF>(
+      `/srfs/${encodeURIComponent(id)}/supply-chain-director-approve`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      },
+    );
   },
 
+  /**
+   * POST `/srfs/{id}/supply-chain-director-reject`. Body: `{ reason }` (required, min 5, max 2000 on server).
+   * Success response shape same as approve (bare SRF JSON).
+   */
   supplyChainDirectorReject: async (id: string, reason: string): Promise<ApiResponse<SRF>> => {
     return apiRequest<SRF>(`/srfs/${encodeURIComponent(id)}/supply-chain-director-reject`, {
       method: 'POST',
