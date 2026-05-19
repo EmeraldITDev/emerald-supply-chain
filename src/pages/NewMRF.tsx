@@ -360,30 +360,55 @@ const NewMRF = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="contractType">Contract Type *</Label>
-                <Input
-                  id="contractType"
-                  list="contract-type-options"
-                  placeholder="Select a standard type or type a custom one"
-                  value={formData.contractType}
-                  onChange={(e) => handleChange("contractType", e.target.value)}
-                  required
-                />
-                <datalist id="contract-type-options">
-                  <option value="emerald">Emerald Contract</option>
-                  <option value="oando">Oando Contract</option>
-                  <option value="dangote">Dangote Contract</option>
-                  <option value="heritage">Heritage Contract</option>
-                </datalist>
                 {(() => {
                   const standard = ["emerald", "oando", "dangote", "heritage"];
-                  const value = formData.contractType.trim().toLowerCase();
-                  const isCustom = value && !standard.includes(value);
+                  const isStandard = standard.includes(formData.contractType);
+                  const isOther = formData.contractType === "other" || (!isStandard && formData.contractType !== "");
+                  const selectValue = isStandard ? formData.contractType : (isOther ? "other" : "");
                   return (
-                    <p className="text-xs text-muted-foreground">
-                      {isCustom
-                        ? "Custom contract type detected — this MRF will be routed directly to the Supply Chain Director for approval."
-                        : "Choose a standard Emerald contract type or type a custom one. Non-standard types are routed straight to the Supply Chain Director."}
-                    </p>
+                    <>
+                      <Select
+                        value={selectValue}
+                        onValueChange={(value) => {
+                          if (value === "other") {
+                            handleChange("contractType", "other");
+                          } else {
+                            handleChange("contractType", value);
+                          }
+                        }}
+                        required
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select contract type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="emerald">Emerald Contract</SelectItem>
+                          <SelectItem value="oando">Oando Contract</SelectItem>
+                          <SelectItem value="dangote">Dangote Contract</SelectItem>
+                          <SelectItem value="heritage">Heritage Contract</SelectItem>
+                          <SelectItem value="other">Other (specify your own)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {isOther && (
+                        <div className="space-y-1 pt-2">
+                          <Input
+                            id="contractTypeOther"
+                            placeholder="Enter custom contract name (e.g., Shell, NLNG, ExxonMobil)"
+                            value={formData.contractType === "other" ? "" : formData.contractType}
+                            onChange={(e) => handleChange("contractType", e.target.value)}
+                            required
+                          />
+                          <p className="text-xs text-amber-600 dark:text-amber-400">
+                            Custom contract type — this MRF will be routed directly to the Supply Chain Director for approval.
+                          </p>
+                        </div>
+                      )}
+                      {!isOther && (
+                        <p className="text-xs text-muted-foreground">
+                          The contract type will be included in the MRF reference for easy identification.
+                        </p>
+                      )}
+                    </>
                   );
                 })()}
               </div>
