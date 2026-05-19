@@ -449,7 +449,8 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
         enhancedQuotationData?.mrf ??
         selectedMRF ??
         findMrfByAnyLinkId(
-          selectedRFQ.mrf_id ?? selectedRFQ.mrfId,
+          (selectedRFQ as { mrf_id?: string; mrfId?: string }).mrf_id ??
+            selectedRFQ.mrfId,
           mrfRequests,
         );
       const mrfPathId = getMrfApiId(mrfRow);

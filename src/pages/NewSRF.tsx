@@ -67,7 +67,7 @@ const NewSRF = () => {
       ?.fleetSrfDraft;
     if (!fleet?.vehicle) return;
     fleetDraftApplied.current = true;
-    const v = normalizeFleetVehicle(fleet.vehicle as Record<string, unknown>);
+    const v = normalizeFleetVehicle(fleet.vehicle as unknown as Record<string, unknown>);
     setSelectedVehicleId(v.id);
     setFormData((prev) => ({
       ...prev,
@@ -89,7 +89,7 @@ const NewSRF = () => {
     if (!isFleetLogistics) return;
     fleetApi.getAll().then((res) => {
       if (res.success && Array.isArray(res.data)) {
-        setVehicles((res.data as Record<string, unknown>[]).map(normalizeFleetVehicle));
+        setVehicles((res.data as unknown as Record<string, unknown>[]).map(normalizeFleetVehicle));
       }
     });
   }, [isFleetLogistics]);

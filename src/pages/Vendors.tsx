@@ -688,6 +688,7 @@ const Vendors = () => {
       score: v.rating,
       orders: v.orders,
       category: v.category,
+      categoryOther: (v as { categoryOther?: string | null }).categoryOther ?? null,
     }));
 
   const getStatusColor = (status: string) => {
@@ -954,7 +955,7 @@ const Vendors = () => {
                       <Badge className={getStatusColor(vendor.kyc)}>{vendor.kyc}</Badge>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-                      <span className="whitespace-nowrap">Category: {formatVendorCategoryDisplay(vendor.category, vendor.categoryOther)}</span>
+                      <span className="whitespace-nowrap">Category: {formatVendorCategoryDisplay(vendor.category, (vendor as { categoryOther?: string | null }).categoryOther)}</span>
                       <span className="whitespace-nowrap">Orders: {vendor.orders}</span>
                       <span className="flex items-center gap-1 whitespace-nowrap">
                         <Star className="h-3 w-3 fill-primary text-primary" />
@@ -1223,7 +1224,7 @@ const Vendors = () => {
                                     try {
                                       const response = await vendorApi.getById(selectedVendor.id);
                                       if (response.success && response.data) {
-                                        const apiData = response.data as Record<string, unknown>;
+                                       const apiData = response.data as unknown as Record<string, unknown>;
                                         setSelectedVendor((prev: any) =>
                                           prev
                                             ? {
