@@ -60,13 +60,11 @@ export function MRFApprovalDialog({
   };
 
   const getTimeElapsed = () => {
-    if (!mrf.procurementManagerApprovalTime) return null;
-    
-    const startTime = new Date(mrf.procurementManagerApprovalTime);
-    const now = new Date();
-    const hoursElapsed = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-    
-    return hoursElapsed;
+    const start = getStageStart();
+    if (!start.iso) return null;
+    const startTime = new Date(start.iso);
+    if (isNaN(startTime.getTime())) return null;
+    return (Date.now() - startTime.getTime()) / (1000 * 60 * 60);
   };
 
   const getTimerColor = () => {
@@ -92,6 +90,37 @@ export function MRFApprovalDialog({
   };
 
   const currentStage = ((mrf as MRFRequest).currentStage as string | undefined) || "";
+
+  // Pick the most relevant "stage start" timestamp based on the MRF's current
+  // pending stage. Falls back to the MRF creation/submission date so the timer
+  // never shows N/A when we have any chronological data.
+  function getStageStart(): { iso?: string; label: string } {
+    const m = mrf as MRFRequest & Record<string, string | undefined>;
+    const stage = (currentStage || "").toLowerCase();
+    const createdIso =
+      m.created_at || m.createdAt || m.date || m.procurementManagerApprovalTime;
+
+    if (stage.includes("executive")) {
+      return { iso: createdIso, label: "since MRF submission" };
+    }
+    if (stage.includes("supply_chain_director") || stage.includes("director")) {
+      return {
+        iso: m.executive_approved_at || createdIso,
+        label: m.executive_approved_at
+          ? "since executive approval"
+          : "since MRF submission",
+      };
+    }
+    if (stage.includes("procurement")) {
+      const iso =
+        m.director_approved_at ||
+        m.executive_approved_at ||
+        m.procurementManagerApprovalTime ||
+        createdIso;
+      return { iso, label: "since procurement handover" };
+    }
+    return { iso: createdIso, label: "since MRF submission" };
+  }
   const canApprove = currentStage.toLowerCase() === currentUserRole.toLowerCase();
 
   return (
@@ -117,7 +146,7 @@ export function MRFApprovalDialog({
             <Clock className="h-5 w-5" />
             <div>
               <p className="font-semibold">Time Elapsed</p>
-              <p className="text-sm">{formatTimeElapsed()} since procurement submission</p>
+              <p className="text-sm">{formatTimeElapsed()} {getStageStart().label}</p>
             </div>
           </div>
 
