@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
+import type { SRF } from "@/types";
 
 interface SRFDirectorApprovalDialogProps {
   srf: SRF | null;

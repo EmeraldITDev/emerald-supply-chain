@@ -575,7 +575,7 @@ const Procurement = () => {
       }
       const apiId =
         kind === "mrf"
-          ? getMrfApiId(request as MRF)
+          ? getMrfApiId(request as unknown as MRF)
           : getDisplayId(request as SRFRequest) ||
             String((request as SRFRequest).id);
       const sendResponse =
@@ -600,7 +600,7 @@ const Procurement = () => {
       let errorMessage =
         sendResponse.error || "Failed to send quotation for approval";
       if (kind === "mrf") {
-        const isEmerald = isEmeraldContract(request as MRF);
+        const isEmerald = isEmeraldContract(request as unknown as MRF);
         if (
           errorMessage.includes("workflow state") ||
           errorMessage.includes("not in")
@@ -2737,7 +2737,7 @@ const Procurement = () => {
                                                       e.stopPropagation();
                                                       setVendorSelectionTarget({
                                                         kind: "mrf",
-                                                        request,
+                                                        request: request as unknown as MRFRequest,
                                                         rfq,
                                                         quotation,
                                                       });
