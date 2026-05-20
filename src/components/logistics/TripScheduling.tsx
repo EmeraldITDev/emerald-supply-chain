@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -60,7 +59,10 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { tripsApi, logisticsDashboardApi, logisticsVendorsApi } from "@/services/logisticsApi";
-import { userApi } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { TripRequestDialog } from "./TripRequestDialog";
+import { TripWorkflowActions } from "./TripWorkflowActions";
+import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
 import type { Trip, TripStatus, TripType, TripPassenger, CreateTripData, BulkTripUploadResult } from "@/types/logistics";
 import { VendorJMPSubmission } from "./VendorJMPSubmission";
 import { PassengerNotification } from "./PassengerNotification";
@@ -92,14 +94,6 @@ const priorityColors: Record<string, string> = {
   urgent: "bg-destructive/10 text-destructive",
 };
 
-// Staff types for API data
-interface StaffMember {
-  id: string;
-  name: string;
-  email: string;
-  department: string;
-}
-
 interface VendorItem {
   id: string;
   name: string;
@@ -109,6 +103,7 @@ interface VendorItem {
 
 export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -135,15 +130,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     passengers: [],
   });
   const [selectedPassengers, setSelectedPassengers] = useState<string[]>([]);
+  const [driverUserId, setDriverUserId] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadResult, setUploadResult] = useState<BulkTripUploadResult | null>(null);
   const [csvImportOpen, setCsvImportOpen] = useState(false);
   
-  // Staff and vendor lists from API
-  const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [vendorList, setVendorList] = useState<VendorItem[]>([]);
-  const [loadingStaff, setLoadingStaff] = useState(false);
   const [loadingVendors, setLoadingVendors] = useState(false);
 
   // Safe date formatter — returns fallback string for null/invalid dates
@@ -202,6 +195,14 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     scheduledByName: raw.scheduledByName,
     createdAt: raw.created_at || raw.createdAt,
     updatedAt: raw.updated_at || raw.updatedAt,
+    workflow_stage: raw.workflow_stage || raw.workflowStage,
+    workflowStage: raw.workflow_stage || raw.workflowStage,
+    selected_vendor_id: raw.selected_vendor_id ?? raw.selectedVendorId,
+    selectedVendorId: raw.selected_vendor_id ?? raw.selectedVendorId,
+    unsigned_po_url: raw.unsigned_po_url || raw.unsignedPoUrl,
+    unsignedPoUrl: raw.unsigned_po_url || raw.unsignedPoUrl,
+    signed_po_url: raw.signed_po_url || raw.signedPoUrl,
+    signedPoUrl: raw.signed_po_url || raw.signedPoUrl,
   });
 
   // Fetch trips from API
@@ -224,28 +225,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       setTrips([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Fetch staff members from API
-  const fetchStaff = async () => {
-    setLoadingStaff(true);
-    try {
-      const response = await userApi.getAll();
-      if (response.success && response.data) {
-        // Map users to staff format
-        const staff: StaffMember[] = response.data.map((user: any) => ({
-          id: user.id?.toString() || user.staff_id || user.staffId,
-          name: user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
-          email: user.email,
-          department: user.department || 'General',
-        }));
-        setStaffList(staff);
-      }
-    } catch (error) {
-      console.error("Failed to fetch staff:", error);
-    } finally {
-      setLoadingStaff(false);
     }
   };
 
@@ -274,9 +253,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     fetchTrips();
   }, [statusFilter, typeFilter]);
 
-  // Fetch staff and vendors on mount
   useEffect(() => {
-    fetchStaff();
     fetchVendors();
   }, []);
 
@@ -293,15 +270,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     setIsSubmitting(true);
     try {
       // Build passengers list
-      const passengers: Omit<TripPassenger, "id" | "notifiedAt">[] = selectedPassengers.map(staffId => {
-        const staff = staffList.find(s => s.id === staffId);
-        return {
-          staffId,
-          name: staff?.name || "",
-          email: staff?.email || "",
-          department: staff?.department || "",
-        };
-      });
+      const passengers: Omit<TripPassenger, "id" | "notifiedAt">[] = selectedPassengers.map((staffId) => ({
+        staffId,
+        name: "",
+        email: "",
+        department: "",
+      }));
 
       // Build payload in snake_case as expected by Laravel backend
       const tripPayload = {
@@ -325,6 +299,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           email: p.email,
           department: p.department,
         })),
+        passenger_user_ids: selectedPassengers
+          .map((id) => parseInt(id, 10))
+          .filter((n) => !Number.isNaN(n)),
+        driver_user_id: driverUserId ? parseInt(driverUserId, 10) : undefined,
       };
 
       const response = await tripsApi.create(tripPayload as any);
@@ -466,15 +444,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     setIsSubmitting(true);
     try {
       // Build passengers list from selected
-      const passengers: Omit<TripPassenger, "id" | "notifiedAt">[] = selectedPassengers.map(staffId => {
-        const staff = staffList.find(s => s.id === staffId);
-        return {
-          staffId,
-          name: staff?.name || "",
-          email: staff?.email || "",
-          department: staff?.department || "",
-        };
-      });
+      const passengers: Omit<TripPassenger, "id" | "notifiedAt">[] = selectedPassengers.map((staffId) => ({
+        staffId,
+        name: "",
+        email: "",
+        department: "",
+      }));
 
       const editPayload = {
         trip_type: formData.type,
@@ -491,6 +466,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         priority: formData.priority,
         notes: formData.notes || null,
         cargo: formData.cargo || null,
+        passenger_user_ids: selectedPassengers
+          .map((id) => parseInt(id, 10))
+          .filter((n) => !Number.isNaN(n)),
+        driver_user_id: driverUserId ? parseInt(driverUserId, 10) : undefined,
       };
 
       const response = await tripsApi.update(selectedTrip.id, editPayload as any);
@@ -603,14 +582,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       passengers: [],
     });
     setSelectedPassengers([]);
-  };
-
-  const togglePassenger = (staffId: string) => {
-    setSelectedPassengers(prev =>
-      prev.includes(staffId)
-        ? prev.filter(id => id !== staffId)
-        : [...prev, staffId]
-    );
+    setDriverUserId(undefined);
   };
 
   const filteredTrips = trips.filter(trip => {
@@ -634,7 +606,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
             Create, manage, and track scheduled trips
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <TripRequestDialog userRole={user?.role} onCreated={fetchTrips} />
           <Button variant="outline" onClick={() => setCsvImportOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
             CSV Import
@@ -785,36 +758,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   </div>
                 )}
 
-                {/* Passengers (for personnel trips) */}
                 {(formData.type === "personnel" || formData.type === "mixed") && (
-                  <div className="space-y-2">
-                    <Label>Select Passengers</Label>
-                    <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
-                      {staffList.map(staff => (
-                        <div key={staff.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={staff.id}
-                            checked={selectedPassengers.includes(staff.id)}
-                            onCheckedChange={() => togglePassenger(staff.id)}
-                          />
-                          <label
-                            htmlFor={staff.id}
-                            className="text-sm cursor-pointer flex-1"
-                          >
-                            {staff.name}{" "}
-                            <span className="text-muted-foreground">
-                              ({staff.department})
-                            </span>
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                    {selectedPassengers.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        {selectedPassengers.length} passenger(s) selected
-                      </p>
-                    )}
-                  </div>
+                  <EligiblePassengerPicker
+                    selectedPassengerIds={selectedPassengers}
+                    onPassengersChange={setSelectedPassengers}
+                    driverUserId={driverUserId}
+                    onDriverChange={setDriverUserId}
+                  />
                 )}
 
                 {/* Notes */}
@@ -1223,6 +1173,11 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   <p className="text-sm mt-1">{selectedTrip.notes}</p>
                 </div>
               )}
+              <TripWorkflowActions
+                trip={selectedTrip}
+                userRole={user?.role}
+                onUpdated={fetchTrips}
+              />
             </div>
           )}
         </DialogContent>
@@ -1365,36 +1320,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               </div>
             )}
 
-            {/* Passengers (for personnel trips) */}
             {(formData.type === "personnel" || formData.type === "mixed") && (
-              <div className="space-y-2">
-                <Label>Select Passengers</Label>
-                <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
-                  {staffList.map(staff => (
-                    <div key={staff.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`edit-${staff.id}`}
-                        checked={selectedPassengers.includes(staff.id)}
-                        onCheckedChange={() => togglePassenger(staff.id)}
-                      />
-                      <label
-                        htmlFor={`edit-${staff.id}`}
-                        className="text-sm cursor-pointer flex-1"
-                      >
-                        {staff.name}{" "}
-                        <span className="text-muted-foreground">
-                          ({staff.department})
-                        </span>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-                {selectedPassengers.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {selectedPassengers.length} passenger(s) selected
-                  </p>
-                )}
-              </div>
+              <EligiblePassengerPicker
+                selectedPassengerIds={selectedPassengers}
+                onPassengersChange={setSelectedPassengers}
+                driverUserId={driverUserId}
+                onDriverChange={setDriverUserId}
+              />
             )}
 
             {/* Notes */}

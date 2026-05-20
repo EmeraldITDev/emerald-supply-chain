@@ -39,8 +39,12 @@ const NewMRF = () => {
     const fetchContractTypes = async () => {
       try {
         const response = await mrfApi.getContractTypes();
-        if (response.success && response.data?.standardTypes) {
-          setContractTypes(response.data.standardTypes);
+        if (response.success && response.data) {
+          if (response.data.standardTypes) {
+            setContractTypes(response.data.standardTypes);
+          }
+          setAllowFreeText(response.data.allowFreeText ?? true);
+          setRoutingNote(response.data.routingNote || "");
         }
       } catch (error) {
         console.error("Failed to fetch contract types", error);
@@ -68,6 +72,8 @@ const NewMRF = () => {
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [invoiceOneDriveUrl, setInvoiceOneDriveUrl] = useState<string>("");
   const [contractTypes, setContractTypes] = useState<Array<{ value: string; label: string }>>([]);
+  const [allowFreeText, setAllowFreeText] = useState(true);
+  const [routingNote, setRoutingNote] = useState("");
   const [showCustomContractType, setShowCustomContractType] = useState(false);
   const [customContractType, setCustomContractType] = useState("");
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
@@ -133,7 +139,18 @@ const NewMRF = () => {
       
       if (isResubmission && rejectedMRF) {
         // Resubmission: update existing MRF
-        const contractTypeValue = showCustomContractType ? customContractType : formData.contractType;
+        const standardValues = contractTypes.map((t) => t.value);
+        const contractTypeValue =
+          formData.contractType === "other" || !formData.contractType.trim()
+            ? ""
+            : !standardValues.includes(formData.contractType)
+              ? formData.contractType
+              : formData.contractType;
+        if (!contractTypeValue) {
+          toast({ title: "Validation Error", description: "Please enter a contract type", variant: "destructive" });
+          setIsSubmitting(false);
+          return;
+        }
         const updatePayload: any = {
           title: formData.title,
           description: formData.description,
@@ -168,7 +185,18 @@ const NewMRF = () => {
         }
     } else {
         // New submission
-        const contractTypeValue = showCustomContractType ? customContractType : formData.contractType;
+        const standardValues = contractTypes.map((t) => t.value);
+        const contractTypeValue =
+          formData.contractType === "other" || !formData.contractType.trim()
+            ? ""
+            : !standardValues.includes(formData.contractType)
+              ? formData.contractType
+              : formData.contractType;
+        if (!contractTypeValue) {
+          toast({ title: "Validation Error", description: "Please enter a contract type", variant: "destructive" });
+          setIsSubmitting(false);
+          return;
+        }
         const payload: any = {
           title: formData.title,
           description: formData.description,
@@ -216,9 +244,14 @@ const NewMRF = () => {
         : 0;
       const isHighValue = estimatedCost > 1000000;
       const fid = (response as any)?.data?.formatted_id || (response as any)?.data?.formattedId;
+      const routedReason =
+        (response as any)?.data?.routedReason || (response as any)?.data?.routed_reason;
+      const customRouted = routedReason === "custom_contract_type";
       toast({
         title: fid ? `MRF ${fid} Submitted` : "MRF Submitted Successfully",
-        description: isHighValue
+        description: customRouted
+          ? "Routed to Supply Chain Director (non-standard contract)."
+          : isHighValue
           ? "High-value request (>₦1M) - Will require both Executive and Chairman approval"
           : "Your request has been sent to Executive for approval",
       });
@@ -416,10 +449,17 @@ const NewMRF = () => {
               <div className="space-y-2">
                 <Label htmlFor="contractType">Contract Type *</Label>
                 {(() => {
-                  const standard = ["emerald", "oando", "dangote", "heritage"];
-                  const isStandard = standard.includes(formData.contractType);
-                  const isOther = formData.contractType === "other" || (!isStandard && formData.contractType !== "");
-                  const selectValue = isStandard ? formData.contractType : (isOther ? "other" : "");
+                  const standardValues = contractTypes.map((t) => t.value);
+                  const isStandard = standardValues.includes(formData.contractType);
+                  const isOther =
+                    allowFreeText &&
+                    (formData.contractType === "other" ||
+                      (!isStandard && formData.contractType !== ""));
+                  const selectValue = isStandard
+                    ? formData.contractType
+                    : isOther
+                      ? "other"
+                      : "";
                   return (
                     <>
                       <Select
@@ -437,24 +477,28 @@ const NewMRF = () => {
                           <SelectValue placeholder="Select contract type" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="emerald">Emerald Contract</SelectItem>
-                          <SelectItem value="oando">Oando Contract</SelectItem>
-                          <SelectItem value="dangote">Dangote Contract</SelectItem>
-                          <SelectItem value="heritage">Heritage Contract</SelectItem>
-                          <SelectItem value="other">Other (specify your own)</SelectItem>
+                          {contractTypes.map((t) => (
+                            <SelectItem key={t.value} value={t.value}>
+                              {t.label}
+                            </SelectItem>
+                          ))}
+                          {allowFreeText && (
+                            <SelectItem value="other">Other / custom</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                       {isOther && (
                         <div className="space-y-1 pt-2">
                           <Input
                             id="contractTypeOther"
-                            placeholder="Enter custom contract name (e.g., Shell, NLNG, ExxonMobil)"
+                            placeholder="Enter custom contract name (e.g., Shell, NLNG)"
                             value={formData.contractType === "other" ? "" : formData.contractType}
                             onChange={(e) => handleChange("contractType", e.target.value)}
                             required
                           />
                           <p className="text-xs text-amber-600 dark:text-amber-400">
-                            Custom contract type — this MRF will be routed directly to the Supply Chain Director for approval.
+                            {routingNote ||
+                              "Non-standard contract types are routed directly to the Supply Chain Director."}
                           </p>
                         </div>
                       )}

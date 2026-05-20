@@ -8,7 +8,8 @@ import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import DepartmentDashboard from "./DepartmentDashboard";
 import FinanceDashboard from "./FinanceDashboard";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { dashboardApi, mrfApi } from "@/services/api";
+import { dashboardApi, dashboardKpiApi, mrfApi } from "@/services/api";
+import type { DashboardKPIs } from "@/types";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +29,7 @@ const Dashboard = () => {
   const [pendingRegistrationsLoading, setPendingRegistrationsLoading] = useState(false);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
+  const [platformKpis, setPlatformKpis] = useState<DashboardKPIs | null>(null);
 
   // Route to role-specific dashboard
   if (isEmployeeRole(user?.role)) {
@@ -57,6 +59,20 @@ const Dashboard = () => {
   if (user?.role === "logistics" || user?.role === "logistics_manager") {
     return <Navigate to="/logistics" replace />;
   }
+
+  useEffect(() => {
+    const loadKpis = async () => {
+      try {
+        const res = await dashboardKpiApi.getKpis();
+        if (res.success && res.data?.kpis) {
+          setPlatformKpis(res.data.kpis);
+        }
+      } catch {
+        setPlatformKpis(null);
+      }
+    };
+    if (user) loadKpis();
+  }, [user]);
 
   // Fetch dashboard data for procurement_manager
   useEffect(() => {
@@ -167,8 +183,46 @@ const Dashboard = () => {
     }
   };
 
+  const kpiTiles = platformKpis
+    ? [
+        {
+          title: "POs Generated",
+          value: String(platformKpis.totalPosGenerated),
+          description: "Purchase orders created",
+          icon: FileText,
+          trend: "Platform KPI",
+          color: "text-primary",
+        },
+        {
+          title: "MRFs Approved",
+          value: String(platformKpis.totalMrfsApproved),
+          description: "Approved material requests",
+          icon: CheckCircle,
+          trend: "Platform KPI",
+          color: "text-success",
+        },
+        {
+          title: "SRFs Approved",
+          value: String(platformKpis.totalSrfsApproved),
+          description: "Approved service requests",
+          icon: ShoppingCart,
+          trend: "Platform KPI",
+          color: "text-info",
+        },
+        {
+          title: "Price Comparisons",
+          value: String(platformKpis.priceComparisonCount),
+          description: "MRFs with vendor comparisons",
+          icon: Activity,
+          trend: "Platform KPI",
+          color: "text-warning",
+        },
+      ]
+    : [];
+
   // Procurement dashboard (default) - All stats from live database
   const stats = [
+    ...kpiTiles,
     {
       title: "Total Vendors",
       value: dashboardData?.stats?.totalVendors?.toString() || "0",

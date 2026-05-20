@@ -20,9 +20,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Plus, Pencil, Phone } from "lucide-react";
-import { driversApi } from "@/services/logisticsApi";
+import { Loader2, Plus, Pencil, Phone, Trash2, Link2 } from "lucide-react";
+import { driversApi, fleetApi } from "@/services/logisticsApi";
+import { driverApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { Driver } from "@/types/logistics";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -40,6 +59,8 @@ const phoneDigits = (v: string) => (v || "").replace(/\D/g, "");
 
 export const DriverManagement = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const canManage = user?.role === "logistics_manager" || user?.role === "admin";
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +68,11 @@ export const DriverManagement = () => {
   const [editing, setEditing] = useState<Driver | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone_number: "", licence_number: "" });
+  const [deleteTarget, setDeleteTarget] = useState<Driver | null>(null);
+  const [assignTarget, setAssignTarget] = useState<Driver | null>(null);
+  const [assignVehicleId, setAssignVehicleId] = useState("");
+  const [vehicles, setVehicles] = useState<Array<{ id: string; label: string }>>([]);
+  const [assignOpen, setAssignOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -90,6 +116,48 @@ export const DriverManagement = () => {
 
   const phoneOk = phoneDigits(form.phone_number).length >= 10;
   const emailOk = !form.email || EMAIL_RE.test(form.email);
+
+  const openAssign = async (d: Driver) => {
+    setAssignTarget(d);
+    setAssignVehicleId("");
+    setAssignOpen(true);
+    const res = await fleetApi.getAll();
+    if (res.success && res.data) {
+      const arr = Array.isArray(res.data) ? res.data : [];
+      setVehicles(
+        arr.map((v: { id?: string | number; name?: string; plate?: string }) => ({
+          id: String(v.id),
+          label: v.name || v.plate || `Vehicle ${v.id}`,
+        })),
+      );
+    }
+  };
+
+  const handleAssign = async () => {
+    if (!assignTarget) return;
+    const res = await driverApi.assign(assignTarget.id, {
+      vehicle_id: assignVehicleId ? parseInt(assignVehicleId, 10) : undefined,
+    });
+    if (res.success) {
+      toast({ title: "Driver assigned", description: "Assignment notifications sent." });
+      setAssignOpen(false);
+      setAssignTarget(null);
+    } else {
+      toast({ title: "Assign failed", description: res.error, variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const res = await driverApi.delete(deleteTarget.id);
+    if (res.success) {
+      toast({ title: "Driver removed" });
+      setDeleteTarget(null);
+      fetchData();
+    } else {
+      toast({ title: "Delete failed", description: res.error, variant: "destructive" });
+    }
+  };
 
   const handleSubmit = async () => {
     if (!form.name.trim()) {
@@ -183,10 +251,20 @@ export const DriverManagement = () => {
                       {d.status || "active"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-1">
                     <Button size="sm" variant="ghost" onClick={() => openEdit(d)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
+                    {canManage && (
+                      <>
+                        <Button size="sm" variant="ghost" onClick={() => openAssign(d)} title="Assign to vehicle">
+                          <Link2 className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteTarget(d)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -245,6 +323,54 @@ export const DriverManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Assign driver to vehicle</DialogTitle>
+            <DialogDescription>
+              Notify {assignTarget?.name} and logistics managers of this assignment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Vehicle (optional)</Label>
+            <Select value={assignVehicleId || "none"} onValueChange={(v) => setAssignVehicleId(v === "none" ? "" : v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select vehicle" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No vehicle</SelectItem>
+                {vehicles.map((v) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignOpen(false)}>Cancel</Button>
+            <Button onClick={handleAssign}>Assign & notify</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete driver?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove {deleteTarget?.name} from the fleet? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={handleDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

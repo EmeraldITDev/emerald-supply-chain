@@ -76,6 +76,7 @@ export function AppSidebar() {
       label: "Analytics",
       items: [
         { title: "Reports", url: "/reports", icon: FileText },
+        { title: "Procurement Reports", url: "/reports/procurement", icon: BarChart3 },
       ]
     }
   ];
@@ -123,6 +124,7 @@ export function AppSidebar() {
           label: "Analytics",
           items: [
             { title: "Reports", url: "/reports", icon: FileText },
+            { title: "Procurement Reports", url: "/reports/procurement", icon: BarChart3 },
           ]
         }
       ];

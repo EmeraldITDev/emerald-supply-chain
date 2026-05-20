@@ -62,6 +62,7 @@ import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RFQManagement } from "@/components/RFQManagement";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { SRFDetailPanel } from "@/components/SRFDetailPanel";
+import { LineItemPnLSection } from "@/components/LineItemPnLSection";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
@@ -69,6 +70,7 @@ import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrat
 import type { MRFRequest, SRFRequest } from "@/contexts/AppContext";
 import {
   dashboardApi,
+  dashboardKpiApi,
   mrfApi,
   grnApi,
   rfqApi,
@@ -172,6 +174,7 @@ const Procurement = () => {
   const [selectedMRFForPODelete, setSelectedMRFForPODelete] =
     useState<MRF | null>(null);
   const [isDeletingPO, setIsDeletingPO] = useState(false);
+  const [platformKpis, setPlatformKpis] = useState<import("@/types").DashboardKPIs | null>(null);
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
   const [selectedMRFForDetails, setSelectedMRFForDetails] =
     useState<MRF | null>(null);
@@ -395,6 +398,12 @@ const Procurement = () => {
     fetchMRFs();
     fetchRFQs();
   }, [fetchMRFs, fetchRFQs]);
+
+  useEffect(() => {
+    dashboardKpiApi.getKpis().then((res) => {
+      if (res.success && res.data?.kpis) setPlatformKpis(res.data.kpis);
+    });
+  }, []);
 
   useEffect(() => {
     if (rfqs.length > 0) {
@@ -1751,6 +1760,39 @@ const Procurement = () => {
               iconColor="text-success"
             />
           </div>
+
+          {platformKpis && (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                title="POs Generated"
+                value={platformKpis.totalPosGenerated}
+                description="Platform total"
+                icon={CheckCircle2}
+                iconColor="text-primary"
+              />
+              <StatCard
+                title="MRFs Approved"
+                value={platformKpis.totalMrfsApproved}
+                description="Platform total"
+                icon={FileText}
+                iconColor="text-success"
+              />
+              <StatCard
+                title="SRFs Approved"
+                value={platformKpis.totalSrfsApproved}
+                description="Platform total"
+                icon={ShoppingCart}
+                iconColor="text-info"
+              />
+              <StatCard
+                title="Price Comparisons"
+                value={platformKpis.priceComparisonCount}
+                description="MRFs compared"
+                icon={Star}
+                iconColor="text-warning"
+              />
+            </div>
+          )}
 
           {/* Dashboard Alerts */}
           <DashboardAlerts
@@ -4176,6 +4218,17 @@ const Procurement = () => {
                   </div>
                 )}
 
+                <LineItemPnLSection
+                  type="mrf"
+                  id={getMrfApiId(selectedMRFForDetails)}
+                  initialPnL={
+                    (mrfFullDetails as { profitAndLoss?: import("@/types").ProfitAndLoss })
+                      ?.profitAndLoss ||
+                    (selectedMRFForDetails as { profitAndLoss?: import("@/types").ProfitAndLoss })
+                      ?.profitAndLoss
+                  }
+                />
+
                 {/* Supporting Document */}
                 {getMRFPFIUrl(selectedMRFForDetails) && (
                   <div>
@@ -4735,6 +4788,14 @@ const Procurement = () => {
               <SRFDetailPanel
                 detail={selectedSRFForDetails as SRFRequest}
                 trackerShowTitle
+              />
+              <LineItemPnLSection
+                type="srf"
+                id={String(selectedSRFForDetails.id)}
+                initialPnL={
+                  (selectedSRFForDetails as { profitAndLoss?: import("@/types").ProfitAndLoss })
+                    .profitAndLoss
+                }
               />
             </div>
           </DialogContent>

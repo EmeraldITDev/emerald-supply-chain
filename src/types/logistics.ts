@@ -119,6 +119,16 @@ export interface Trip {
   // Tracking
   createdAt: string;
   updatedAt?: string;
+
+  // Trip request workflow (Feature 5)
+  workflow_stage?: TripWorkflowStage;
+  workflowStage?: TripWorkflowStage;
+  selected_vendor_id?: string | number;
+  selectedVendorId?: string | number;
+  unsigned_po_url?: string;
+  unsignedPoUrl?: string;
+  signed_po_url?: string;
+  signedPoUrl?: string;
 }
 
 export interface CreateTripData {

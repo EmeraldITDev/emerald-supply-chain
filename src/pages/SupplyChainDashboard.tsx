@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { getDisplayId } from "@/utils/displayId";
+import { getDisplayId, getMrfApiId } from "@/utils/displayId";
+import { LineItemPnLSection } from "@/components/LineItemPnLSection";
 import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
 import { getWorkflowStageLabel } from "@/utils/workflowStageLabels";
 import { useAuth } from "@/contexts/AuthContext";
@@ -2082,6 +2083,14 @@ const SupplyChainDashboard = () => {
                     </p>
                   </div>
                 </div>
+                <LineItemPnLSection
+                  type="mrf"
+                  id={getMrfApiId(selectedMRFForDetails)}
+                  initialPnL={
+                    (selectedMRFForDetails as { profitAndLoss?: import("@/types").ProfitAndLoss })
+                      .profitAndLoss
+                  }
+                />
               </div>
             )
           )}

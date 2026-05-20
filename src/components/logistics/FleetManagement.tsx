@@ -49,6 +49,7 @@ import {
   Trash2,
   MoreHorizontal,
   Eye,
+  Pencil,
   Upload,
   Loader2,
   RefreshCw,
@@ -120,6 +121,8 @@ export const FleetManagement = () => {
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<FleetVehicle | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
@@ -155,6 +158,7 @@ export const FleetManagement = () => {
   const [isInitiatingSRF, setIsInitiatingSRF] = useState(false);
   const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
   const canReactivate = !!user && ["logistics_officer", "logistics_manager", "logistics", "admin"].includes(user.role as string);
+  const canEditFleet = !!user && ["logistics_manager", "admin"].includes(user.role as string);
 
   const handleInitiateSRF = async () => {
     if (!srfVehicle) return;
@@ -262,6 +266,71 @@ export const FleetManagement = () => {
       }
     }
   }, [vehicles, selectedVehicle?.id]);
+
+  const openEditVehicle = (vehicle: FleetVehicle) => {
+    setEditingVehicle(vehicle);
+    setFormData({
+      ownership: vehicle.ownership || "owned",
+      status: vehicle.status || "available",
+      approvalStatus: vehicle.approvalStatus || "approved",
+      name: vehicle.name || "",
+      plate: vehicle.plate || "",
+      type: vehicle.type || "",
+      make: vehicle.make || "",
+      model: vehicle.model || "",
+      year: vehicle.year,
+      color: vehicle.color || "",
+      fuelType: vehicle.fuelType || "",
+      passengerCapacity: vehicle.passengerCapacity,
+      cargoCapacity: vehicle.cargoCapacity,
+      vendorId: vehicle.vendorId,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateVehicle = async () => {
+    if (!editingVehicle || !formData.plate || !formData.name || !formData.type) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const response = await fleetApi.update(editingVehicle.id, {
+        plate: formData.plate!,
+        name: formData.name!,
+        type: formData.type!,
+        make: formData.make,
+        model: formData.model,
+        year: formData.year,
+        color: formData.color,
+        ownership: formData.ownership || "owned",
+        vendorId: formData.vendorId,
+        passengerCapacity: formData.passengerCapacity,
+        cargoCapacity: formData.cargoCapacity,
+        fuelType: formData.fuelType,
+        status: formData.status,
+      });
+      if (response.success) {
+        toast({ title: "Vehicle Updated", description: `${formData.name} has been updated.` });
+        setEditDialogOpen(false);
+        setEditingVehicle(null);
+        resetForm();
+        fetchData();
+      } else {
+        toast({
+          title: "Update Failed",
+          description: response.error || "Unable to update vehicle.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleCreateVehicle = async () => {
     if (!formData.plate || !formData.name || !formData.type) {
@@ -490,23 +559,28 @@ export const FleetManagement = () => {
             Manage vehicles, maintenance, and documentation
           </p>
         </div>
-        <Dialog open={createDialogOpen} onOpenChange={(open) => {
-          setCreateDialogOpen(open);
-          if (open) {
-            resetForm();
-          }
-        }}>
+        <Dialog
+          open={createDialogOpen || editDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCreateDialogOpen(false);
+              setEditDialogOpen(false);
+              setEditingVehicle(null);
+              resetForm();
+            }
+          }}
+        >
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => { setEditingVehicle(null); resetForm(); }}>
               <Plus className="mr-2 h-4 w-4" />
               Add Vehicle
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add New Vehicle</DialogTitle>
+              <DialogTitle>{editingVehicle ? "Edit Vehicle" : "Add New Vehicle"}</DialogTitle>
               <DialogDescription>
-                Register a new vehicle in the fleet
+                {editingVehicle ? "Update vehicle details in the fleet" : "Register a new vehicle in the fleet"}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -645,15 +719,28 @@ export const FleetManagement = () => {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setCreateDialogOpen(false);
+                  setEditDialogOpen(false);
+                  setEditingVehicle(null);
+                  resetForm();
+                }}
+              >
                 Cancel
               </Button>
-              <Button onClick={handleCreateVehicle} disabled={isSubmitting}>
+              <Button
+                onClick={editingVehicle ? handleUpdateVehicle : handleCreateVehicle}
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
+                    {editingVehicle ? "Saving..." : "Adding..."}
                   </>
+                ) : editingVehicle ? (
+                  "Save Changes"
                 ) : (
                   "Add Vehicle"
                 )}
@@ -938,6 +1025,12 @@ export const FleetManagement = () => {
                                   <Eye className="mr-2 h-4 w-4" />
                                   View Details
                                 </DropdownMenuItem>
+                                {canEditFleet && (
+                                  <DropdownMenuItem onClick={() => openEditVehicle(vehicle)}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    Edit Vehicle
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => {
                                   setSrfVehicle(vehicle);

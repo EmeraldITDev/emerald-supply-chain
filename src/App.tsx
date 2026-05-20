@@ -27,6 +27,7 @@ import Warehouse from "./pages/Warehouse";
 import Vendors from "./pages/Vendors";
 import VendorRegistrationReview from "./pages/VendorRegistrationReview";
 import Reports from "./pages/Reports";
+import ProcurementReports from "./pages/ProcurementReports";
 import Settings from "./pages/Settings";
 import UserManagement from "./pages/UserManagement";
 import AccountsPayable from "./pages/AccountsPayable";
@@ -105,6 +106,7 @@ const AppRoutes = () => {
         <Route path="/vendors" element={<ProtectedRoute><Vendors /></ProtectedRoute>} />
         <Route path="/vendors/registration/:id" element={<ProtectedRoute><VendorRegistrationReview /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+        <Route path="/reports/procurement" element={<ProtectedRoute><ProcurementReports /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/accounts-payable" element={<ProtectedRoute><AccountsPayable /></ProtectedRoute>} />
         <Route path="/accounts-receivable" element={<ProtectedRoute><AccountsReceivable /></ProtectedRoute>} />

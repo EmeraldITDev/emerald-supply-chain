@@ -36,3 +36,21 @@ export function getWorkflowStageLabel(stage?: string | null): string {
     .replace(/-/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/** Trip request workflow stage labels */
+export function getTripWorkflowStageLabel(stage?: string | null): string {
+  const raw = (stage ?? "").toString();
+  const s = raw.toLowerCase().trim();
+  if (!s) return "N/A";
+  if (s === "trip_request") return "Trip request";
+  if (s === "logistics_review") return "Logistics review";
+  if (s === "vendor_selection") return "Vendor selection";
+  if (s === "procurement_review") return "Procurement review";
+  if (s === "scd_approval") return "SCD approval";
+  if (s === "po_generation") return "PO generation";
+  if (s === "po_signed") return "PO signed";
+  return raw
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
