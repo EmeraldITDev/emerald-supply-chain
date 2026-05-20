@@ -430,10 +430,14 @@ export interface Driver {
   name: string;
   email?: string;
   phoneNumber: string;
+  phone_number?: string; // Backend snake_case variant (required)
   licenceNumber?: string;
+  license_number?: string; // Backend snake_case variant
   status?: 'active' | 'inactive';
   createdAt?: string;
+  created_at?: string;
   updatedAt?: string;
+  updated_at?: string;
 }
 
 export interface MaintenanceRecord {
@@ -836,4 +840,85 @@ export interface MaterialMovementSummary {
   in_transit: number;
   delivered: number;
   cancelled: number;
+}
+
+// ==========================================
+// 15. TRIP REQUEST TYPES (Feature 5)
+// ==========================================
+
+export type TripWorkflowStage = 
+  | 'trip_request'
+  | 'logistics_review'
+  | 'vendor_selection'
+  | 'procurement_review'
+  | 'scd_approval'
+  | 'po_generation'
+  | 'po_signed';
+
+export interface TripRequest {
+  id: string;
+  destination: string;
+  purpose: string;
+  origin: string;
+  scheduled_departure_at: string; // ISO datetime
+  scheduled_arrival_at: string; // ISO datetime
+  passenger_user_ids: number[];
+  driver_user_id?: number;
+  workflow_stage: TripWorkflowStage;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateTripRequestData {
+  destination: string;
+  purpose: string;
+  origin: string;
+  scheduled_departure_at: string;
+  scheduled_arrival_at: string;
+  passenger_user_ids: number[];
+  driver_user_id?: number;
+}
+
+export interface TripConversionData {
+  vendor_id: number;
+  vehicle_id: number;
+  passenger_user_ids: number[];
+  driver_user_id: number;
+}
+
+export interface EligiblePassenger {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string;
+  department?: string;
+  role: string;
+}
+
+export interface EligiblePassengersResponse {
+  success: boolean;
+  users: EligiblePassenger[];
+  pagination?: {
+    currentPage: number;
+    lastPage: number;
+    perPage: number;
+    total: number;
+  };
+}
+
+export interface TripPOData {
+  po_number: string;
+  unsigned_po_url: string;
+}
+
+export interface TripSignedPOData {
+  signed_po_url: string;
+}
+
+// ==========================================
+// 16. DRIVER ASSIGNMENT TYPES
+// ==========================================
+
+export interface DriverAssignmentData {
+  vehicle_id?: number;
 }

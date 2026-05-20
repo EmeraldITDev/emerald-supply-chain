@@ -1217,6 +1217,16 @@ export const mrfApi = {
       body: JSON.stringify({ reason }),
     });
   },
+
+  // Get contract types for MRF creation
+  getContractTypes: async (): Promise<ApiResponse<import('@/types').ContractTypeResponse>> => {
+    return apiRequest(`/mrfs/contract-types`);
+  },
+
+  // Get line item P&L for MRF
+  getLineItemPnL: async (id: string): Promise<ApiResponse<import('@/types').ProfitAndLoss>> => {
+    return apiRequest(`/mrfs/${id}/line-item-pnl`);
+  },
 };
 
 // SRF API
@@ -1354,6 +1364,11 @@ export const srfApi = {
         ...selectionJustificationBody(selectionReason),
       }),
     });
+  },
+
+  // Get line item P&L for SRF
+  getLineItemPnL: async (id: string): Promise<ApiResponse<import('@/types').ProfitAndLoss>> => {
+    return apiRequest(`/srfs/${id}/line-item-pnl`);
   },
 };
 
@@ -2810,6 +2825,159 @@ export const departmentApi = {
     return apiRequest(`/departments/${encodeURIComponent(departmentId)}/requisition-creator`, {
       method: 'PUT',
       body: JSON.stringify({ user_id: userId }),
+    });
+  },
+};
+
+// ==========================================
+// PROCUREMENT REPORTING API
+// ==========================================
+
+export const procurementReportsApi = {
+  // Get procurement report with date range
+  getReport: async (from?: string, to?: string): Promise<ApiResponse<import('@/types').ProcurementReportData>> => {
+    const params = new URLSearchParams();
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+    return apiRequest(`/reports/procurement?${params.toString()}`);
+  },
+
+  // Export procurement report as CSV
+  exportCSV: async (from?: string, to?: string): Promise<ApiResponse<Blob>> => {
+    const params = new URLSearchParams();
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+    const { token, expired } = getAuthToken();
+    
+    if (expired || !token) {
+      return {
+        success: false,
+        error: 'Authentication token has expired. Please log in again.',
+      };
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/reports/procurement/export?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: `Failed to export CSV (status: ${response.status})`,
+        };
+      }
+
+      const blob = await response.blob();
+      return {
+        success: true,
+        data: blob,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to export CSV',
+      };
+    }
+  },
+};
+
+// ==========================================
+// DASHBOARD KPI API
+// ==========================================
+
+export const dashboardKpiApi = {
+  // Get dashboard KPIs
+  getKpis: async (): Promise<ApiResponse<{ kpis: import('@/types').DashboardKPIs }>> => {
+    return apiRequest(`/dashboard/kpis`);
+  },
+};
+
+// ==========================================
+// TRIP REQUEST API (Feature 5)
+// ==========================================
+
+export const tripRequestApi = {
+  // Create trip request
+  create: async (data: import('@/types/logistics').CreateTripRequestData): Promise<ApiResponse<import('@/types/logistics').TripRequest>> => {
+    return apiRequest(`/trip-requests`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Convert trip request to logistics request
+  convertToLogisticsRequest: async (
+    tripId: string,
+    data: import('@/types/logistics').TripConversionData
+  ): Promise<ApiResponse<any>> => {
+    return apiRequest(`/trips/${tripId}/convert-to-logistics-request`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Procurement approve quote
+  procurementApproveQuote: async (tripId: string): Promise<ApiResponse<any>> => {
+    return apiRequest(`/trips/${tripId}/procurement-approve-quote`, {
+      method: 'POST',
+    });
+  },
+
+  // Supply Chain Director approve
+  scdApprove: async (tripId: string): Promise<ApiResponse<any>> => {
+    return apiRequest(`/trips/${tripId}/scd-approve`, {
+      method: 'POST',
+    });
+  },
+
+  // Generate trip PO
+  generatePO: async (tripId: string, data: import('@/types/logistics').TripPOData): Promise<ApiResponse<any>> => {
+    return apiRequest(`/trips/${tripId}/generate-trip-po`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Upload signed trip PO
+  uploadSignedPO: async (tripId: string, data: import('@/types/logistics').TripSignedPOData): Promise<ApiResponse<any>> => {
+    return apiRequest(`/trips/${tripId}/upload-signed-trip-po`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// ==========================================
+// PASSENGER & DRIVER APIs
+// ==========================================
+
+export const passengerApi = {
+  // Get eligible passengers for trip selection
+  getEligible: async (q?: string, page?: number): Promise<ApiResponse<import('@/types/logistics').EligiblePassengersResponse>> => {
+    const params = new URLSearchParams();
+    if (q) params.append('q', q);
+    if (page) params.append('page', String(page));
+    return apiRequest(`/users/eligible-passengers?${params.toString()}`);
+  },
+};
+
+export const driverApi = {
+  // Delete driver
+  delete: async (driverId: string): Promise<ApiResponse<void>> => {
+    return apiRequest(`/fleet/drivers/${driverId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Assign driver to vehicle
+  assign: async (driverId: string, data: import('@/types/logistics').DriverAssignmentData): Promise<ApiResponse<any>> => {
+    return apiRequest(`/fleet/drivers/${driverId}/assign`, {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 };

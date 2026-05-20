@@ -6,13 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { ArrowLeft, Loader2, Upload, FileText, X, Cloud } from "lucide-react";
+import { ArrowLeft, Loader2, Upload, FileText, X, Cloud, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { srfApi } from "@/services/api";
 import { fleetApi } from "@/services/logisticsApi";
 import type { FleetVehicle } from "@/types/logistics";
+import type { LineItem } from "@/types";
 import { normalizeFleetVehicle, displayFleetVehiclePlate } from "@/utils/normalizeFleetVehicle";
 
 const NewSRF = () => {
@@ -51,6 +53,13 @@ const NewSRF = () => {
   });
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [invoiceOneDriveUrl, setInvoiceOneDriveUrl] = useState<string>("");
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [newLineItem, setNewLineItem] = useState<LineItem>({
+    itemName: "",
+    quantity: 0,
+    unit: "",
+    budgetAmount: 0,
+  });
 
   const isFleetLogistics =
     user?.role === "logistics_manager" ||
@@ -170,6 +179,7 @@ const NewSRF = () => {
           justification: formData.justification,
           estimatedCost: formData.estimatedCost,
           duration: formData.duration,
+          items: lineItems,
           ...(selectedVehicle ? { vehicleId: selectedVehicle.id, vehiclePlate: selectedVehicle.plate } : {}),
         } as any);
       }
@@ -218,6 +228,30 @@ const NewSRF = () => {
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddLineItem = () => {
+    if (!newLineItem.itemName || newLineItem.quantity <= 0 || !newLineItem.unit || newLineItem.budgetAmount < 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all line item fields (Item Name, Quantity, Unit, Budget Amount)",
+        variant: "destructive",
+      });
+      return;
+    }
+    setLineItems([...lineItems, { ...newLineItem, id: `${Date.now()}` }]);
+    setNewLineItem({
+      itemName: "",
+      quantity: 0,
+      unit: "",
+      budgetAmount: 0,
+    });
+  };
+
+  const handleRemoveLineItem = (id: string | undefined) => {
+    if (id) {
+      setLineItems(lineItems.filter(item => item.id !== id));
+    }
   };
 
   return (
@@ -378,6 +412,106 @@ const NewSRF = () => {
                   rows={3}
                   required
                 />
+              </div>
+
+              {/* Line Items Section */}
+              <div className="space-y-3 pt-4 border-t">
+                <Label className="text-base font-semibold">Line Items (Budget Breakdown)</Label>
+                <p className="text-sm text-muted-foreground">
+                  Add individual service items with quantity, unit, and budget amount for budget tracking and P&L analysis
+                </p>
+                
+                {/* Line Items Table */}
+                {lineItems.length > 0 && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Item Name</TableHead>
+                          <TableHead className="text-right">Quantity</TableHead>
+                          <TableHead>Unit</TableHead>
+                          <TableHead className="text-right">Budget Amount (₦)</TableHead>
+                          <TableHead className="text-center">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {lineItems.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">{item.itemName}</TableCell>
+                            <TableCell className="text-right">{item.quantity}</TableCell>
+                            <TableCell>{item.unit}</TableCell>
+                            <TableCell className="text-right">₦{item.budgetAmount.toLocaleString()}</TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveLineItem(item.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                
+                {/* Add New Line Item */}
+                <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="itemName" className="text-xs">Item Name</Label>
+                      <Input
+                        id="itemName"
+                        placeholder="e.g., Labor Hours"
+                        value={newLineItem.itemName}
+                        onChange={(e) => setNewLineItem({ ...newLineItem, itemName: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="quantity" className="text-xs">Quantity</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        placeholder="e.g., 40"
+                        value={newLineItem.quantity || ""}
+                        onChange={(e) => setNewLineItem({ ...newLineItem, quantity: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="unit" className="text-xs">Unit</Label>
+                      <Input
+                        id="unit"
+                        placeholder="e.g., hours, days"
+                        value={newLineItem.unit}
+                        onChange={(e) => setNewLineItem({ ...newLineItem, unit: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="budgetAmount" className="text-xs">Budget Amount (₦)</Label>
+                      <Input
+                        id="budgetAmount"
+                        type="number"
+                        placeholder="e.g., 250000"
+                        value={newLineItem.budgetAmount || ""}
+                        onChange={(e) => setNewLineItem({ ...newLineItem, budgetAmount: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleAddLineItem}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Line Item
+                  </Button>
+                </div>
               </div>
 
               {/* Invoice Upload Section */}

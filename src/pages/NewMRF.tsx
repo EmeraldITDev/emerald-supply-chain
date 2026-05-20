@@ -6,13 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { ArrowLeft, AlertCircle, Loader2, Upload, FileText, X, Cloud } from "lucide-react";
+import { ArrowLeft, AlertCircle, Loader2, Upload, FileText, X, Cloud, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { type MRFRequest } from "@/contexts/AppContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { mrfApi } from "@/services/api";
+import type { LineItem } from "@/types";
 
 const NewMRF = () => {
   const navigate = useNavigate();
@@ -31,6 +33,21 @@ const NewMRF = () => {
       navigate("/dashboard", { replace: true });
     }
   }, [user, navigate, toast]);
+
+  // Fetch contract types on mount
+  useEffect(() => {
+    const fetchContractTypes = async () => {
+      try {
+        const response = await mrfApi.getContractTypes();
+        if (response.success && response.data?.standardTypes) {
+          setContractTypes(response.data.standardTypes);
+        }
+      } catch (error) {
+        console.error("Failed to fetch contract types", error);
+      }
+    };
+    fetchContractTypes();
+  }, []);
   
   const rejectedMRF = location.state?.rejectedMRF as MRFRequest | undefined;
   const isResubmission = !!rejectedMRF;
@@ -50,6 +67,16 @@ const NewMRF = () => {
   const [pfiFile, setPfiFile] = useState<File | null>(null);
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [invoiceOneDriveUrl, setInvoiceOneDriveUrl] = useState<string>("");
+  const [contractTypes, setContractTypes] = useState<Array<{ value: string; label: string }>>([]);
+  const [showCustomContractType, setShowCustomContractType] = useState(false);
+  const [customContractType, setCustomContractType] = useState("");
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [newLineItem, setNewLineItem] = useState<LineItem>({
+    itemName: "",
+    quantity: 0,
+    unit: "",
+    budgetAmount: 0,
+  });
 
   useEffect(() => {
     // Initialize department from user's department if available
@@ -106,6 +133,7 @@ const NewMRF = () => {
       
       if (isResubmission && rejectedMRF) {
         // Resubmission: update existing MRF
+        const contractTypeValue = showCustomContractType ? customContractType : formData.contractType;
         const updatePayload: any = {
           title: formData.title,
           description: formData.description,
@@ -113,9 +141,10 @@ const NewMRF = () => {
           quantity: formData.quantity,
           urgency: urgencyValue,
           justification: formData.justification,
-          contractType: formData.contractType,
-          contract_type: formData.contractType,
+          contractType: contractTypeValue,
+          contract_type: contractTypeValue,
           department: formData.department || user?.department || "",
+          items: lineItems,
         };
         // Include estimatedCost - use 0 if not provided (backend expects a number)
         updatePayload.estimatedCost = formData.estimatedCost && formData.estimatedCost.trim() !== '' 
@@ -139,6 +168,7 @@ const NewMRF = () => {
         }
     } else {
         // New submission
+        const contractTypeValue = showCustomContractType ? customContractType : formData.contractType;
         const payload: any = {
           title: formData.title,
           description: formData.description,
@@ -146,9 +176,10 @@ const NewMRF = () => {
           quantity: formData.quantity,
           urgency: urgencyValue,
           justification: formData.justification,
-          contractType: formData.contractType,
-          contract_type: formData.contractType,
+          contractType: contractTypeValue,
+          contract_type: contractTypeValue,
           department: formData.department || user?.department || "",
+          items: lineItems,
         };
         // Include estimatedCost - use 0 if not provided (backend expects a number)
         payload.estimatedCost = formData.estimatedCost && formData.estimatedCost.trim() !== '' 
@@ -253,6 +284,30 @@ const NewMRF = () => {
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddLineItem = () => {
+    if (!newLineItem.itemName || newLineItem.quantity <= 0 || !newLineItem.unit || newLineItem.budgetAmount < 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all line item fields (Item Name, Quantity, Unit, Budget Amount)",
+        variant: "destructive",
+      });
+      return;
+    }
+    setLineItems([...lineItems, { ...newLineItem, id: `${Date.now()}` }]);
+    setNewLineItem({
+      itemName: "",
+      quantity: 0,
+      unit: "",
+      budgetAmount: 0,
+    });
+  };
+
+  const handleRemoveLineItem = (id: string | undefined) => {
+    if (id) {
+      setLineItems(lineItems.filter(item => item.id !== id));
+    }
   };
 
   return (
@@ -460,6 +515,106 @@ const NewMRF = () => {
                   rows={3}
                   required
                 />
+              </div>
+
+              {/* Line Items Section */}
+              <div className="space-y-3 pt-4 border-t">
+                <Label className="text-base font-semibold">Line Items (Budget Breakdown)</Label>
+                <p className="text-sm text-muted-foreground">
+                  Add individual items with quantity, unit, and budget amount for budget tracking and P&L analysis
+                </p>
+                
+                {/* Line Items Table */}
+                {lineItems.length > 0 && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Item Name</TableHead>
+                          <TableHead className="text-right">Quantity</TableHead>
+                          <TableHead>Unit</TableHead>
+                          <TableHead className="text-right">Budget Amount (₦)</TableHead>
+                          <TableHead className="text-center">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {lineItems.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">{item.itemName}</TableCell>
+                            <TableCell className="text-right">{item.quantity}</TableCell>
+                            <TableCell>{item.unit}</TableCell>
+                            <TableCell className="text-right">₦{item.budgetAmount.toLocaleString()}</TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveLineItem(item.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                
+                {/* Add New Line Item */}
+                <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="itemName" className="text-xs">Item Name</Label>
+                      <Input
+                        id="itemName"
+                        placeholder="e.g., Office Chairs"
+                        value={newLineItem.itemName}
+                        onChange={(e) => setNewLineItem({ ...newLineItem, itemName: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="quantity" className="text-xs">Quantity</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        placeholder="e.g., 10"
+                        value={newLineItem.quantity || ""}
+                        onChange={(e) => setNewLineItem({ ...newLineItem, quantity: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="unit" className="text-xs">Unit</Label>
+                      <Input
+                        id="unit"
+                        placeholder="e.g., pcs, boxes"
+                        value={newLineItem.unit}
+                        onChange={(e) => setNewLineItem({ ...newLineItem, unit: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="budgetAmount" className="text-xs">Budget Amount (₦)</Label>
+                      <Input
+                        id="budgetAmount"
+                        type="number"
+                        placeholder="e.g., 500000"
+                        value={newLineItem.budgetAmount || ""}
+                        onChange={(e) => setNewLineItem({ ...newLineItem, budgetAmount: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleAddLineItem}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Line Item
+                  </Button>
+                </div>
               </div>
 
               {/* Supporting Document Upload Section */}

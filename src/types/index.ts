@@ -134,6 +134,50 @@ export interface MRF {
   attachment_name?: string;
   onedriveLink?: string;
   onedrive_link?: string;
+  // Line items with budget breakdown
+  items?: LineItem[];
+  profitAndLoss?: ProfitAndLoss;
+  // Routing reason after contract type evaluation
+  routedReason?: 'custom_contract_type' | 'standard_contract_type' | 'logistics_exception';
+}
+
+// Line Item Types (for MRF/SRF budget breakdown)
+export interface LineItem {
+  id?: string;
+  itemName: string;
+  quantity: number;
+  unit: string;
+  budgetAmount: number;
+  quotedTotal?: number;
+  quotedAmount?: number;
+}
+
+export interface LineItemPnL {
+  id: string;
+  itemName: string;
+  budgetAmount: number;
+  quotedAmount: number;
+  variance: number;
+  varianceType: 'saving' | 'loss' | 'neutral';
+}
+
+export interface ProfitAndLoss {
+  items: LineItemPnL[];
+  summary: {
+    totalBudget: number;
+    totalQuoted: number;
+    netVariance: number;
+    totalSavings: number;
+    totalLoss: number;
+    lineCount: number;
+  };
+}
+
+export interface ContractTypeResponse {
+  success: boolean;
+  standardTypes: Array<{ value: string; label: string }>;
+  allowFreeText: boolean;
+  routingNote: string;
 }
 
 export interface CreateMRFData {
@@ -148,6 +192,7 @@ export interface CreateMRFData {
   contract_type?: string;
   contractType?: string;
   department?: string;
+  items?: LineItem[];
 }
 
 // SRF (Service Requisition Form) Types
@@ -185,6 +230,10 @@ export interface SRF {
   workflow_state?: string;
   workflowState?: string;
   status: 'Pending' | 'Approved' | 'Rejected' | 'In Progress' | 'Completed' | string;
+  // Line items with budget breakdown
+  items?: LineItem[];
+  profitAndLoss?: ProfitAndLoss;
+  routedReason?: 'custom_contract_type' | 'standard_contract_type' | 'logistics_exception';
 }
 
 export interface CreateSRFData {
@@ -195,6 +244,7 @@ export interface CreateSRFData {
   duration: string;
   estimatedCost: string;
   justification: string;
+  items?: LineItem[];
 }
 
 // RFQ (Request for Quotation) Types
@@ -456,4 +506,44 @@ export interface FilterOptions {
 export interface SortOptions {
   field: string;
   direction: 'asc' | 'desc';
+}
+
+// ==========================================
+// PROCUREMENT REPORTING TYPES
+// ==========================================
+
+export interface PriceComparisonSummary {
+  mrfId: string;
+  comparisonCount: number;
+  lowestUnitPrice: number;
+  highestUnitPrice: number;
+}
+
+export interface ProcurementReportData {
+  period: {
+    from: string;
+    to: string;
+  };
+  totals: {
+    totalSavings: number;
+    totalLoss: number;
+    netVariance: number;
+    lineItemsWithBudget: number;
+    posGenerated: number;
+    mrfsApproved: number;
+    srfsApproved: number;
+    priceComparisonMrfs: number;
+  };
+  priceComparisonSummaries: PriceComparisonSummary[];
+}
+
+// ==========================================
+// DASHBOARD KPI TYPES
+// ==========================================
+
+export interface DashboardKPIs {
+  totalPosGenerated: number;
+  totalMrfsApproved: number;
+  totalSrfsApproved: number;
+  priceComparisonCount: number;
 }
