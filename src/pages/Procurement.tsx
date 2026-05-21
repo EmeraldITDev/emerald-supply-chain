@@ -2680,7 +2680,7 @@ const Procurement = () => {
 
                                                 return (
                                                   <>
-                                                    <p className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
+                                                     <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
                                                       <span>
                                                         Price:{" "}
                                                         <span
