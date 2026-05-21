@@ -2574,13 +2574,13 @@ const Procurement = () => {
                                       </div>
                                       <div className="space-y-2.5">
                                         {mrfQuotations.map((quotation: any) => (
-                                          <div
-                                            key={quotation.id}
-                                            className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 rounded border border-blue-200 dark:border-blue-700"
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            <div className="flex-1 min-w-0 pr-2">
-                                              <p className="text-sm font-medium">
+                                           <div
+                                             key={quotation.id}
+                                             className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-white dark:bg-gray-900 rounded-md border border-blue-200 dark:border-blue-700"
+                                             onClick={(e) => e.stopPropagation()}
+                                           >
+                                             <div className="flex-1 min-w-0 space-y-1.5">
+                                               <p className="text-sm font-medium leading-snug break-words">
                                                 {quotation.vendorName ||
                                                   quotation.vendor_name ||
                                                   "Vendor"}
@@ -2680,7 +2680,7 @@ const Procurement = () => {
 
                                                 return (
                                                   <>
-                                                    <p className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
+                                                     <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
                                                       <span>
                                                         Price:{" "}
                                                         <span
