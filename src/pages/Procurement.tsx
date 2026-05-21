@@ -2733,7 +2733,7 @@ const Procurement = () => {
                                                   <Button
                                                     size="sm"
                                                     variant="default"
-                                                    className="text-xs"
+                                                    className="text-xs w-full"
                                                     onClick={(e) => {
                                                       e.stopPropagation();
                                                       const row = request as MRF;
@@ -2765,7 +2765,7 @@ const Procurement = () => {
                                                   <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="text-xs text-green-600 border-green-600 cursor-not-allowed opacity-75"
+                                                    className="text-xs w-full text-green-600 border-green-600 cursor-not-allowed opacity-75"
                                                     disabled
                                                   >
                                                     ✓ Sent for Approval
@@ -2774,7 +2774,7 @@ const Procurement = () => {
                                                   <Button
                                                     size="sm"
                                                     variant="default"
-                                                    className="text-xs"
+                                                    className="text-xs w-full"
                                                     onClick={(e) => {
                                                       e.stopPropagation();
                                                       setVendorSelectionTarget({
