@@ -28,6 +28,7 @@ import Vendors from "./pages/Vendors";
 import VendorRegistrationReview from "./pages/VendorRegistrationReview";
 import Reports from "./pages/Reports";
 import ProcurementReports from "./pages/ProcurementReports";
+import TripRequest from "./pages/TripRequest";
 import Settings from "./pages/Settings";
 import UserManagement from "./pages/UserManagement";
 import AccountsPayable from "./pages/AccountsPayable";
@@ -98,6 +99,7 @@ const AppRoutes = () => {
         {/* Only employees can create MRF/SRF */}
         <Route path="/new-mrf" element={<ProtectedRoute><NewMRF /></ProtectedRoute>} />
         <Route path="/new-srf" element={<ProtectedRoute><NewSRF /></ProtectedRoute>} />
+        <Route path="/trip-request" element={<ProtectedRoute><TripRequest /></ProtectedRoute>} />
         <Route path="/procurement/mrf/new" element={<ProtectedRoute><NewMRF /></ProtectedRoute>} />
         <Route path="/procurement/srf/new" element={<ProtectedRoute><NewSRF /></ProtectedRoute>} />
         <Route path="/logistics" element={<ProtectedRoute><Logistics /></ProtectedRoute>} />

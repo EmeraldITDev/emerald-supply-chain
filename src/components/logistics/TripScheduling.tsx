@@ -60,6 +60,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { tripsApi, logisticsDashboardApi, logisticsVendorsApi } from "@/services/logisticsApi";
 import { useAuth } from "@/contexts/AuthContext";
+import { tripRequestApi } from "@/services/api";
 import { TripRequestDialog } from "./TripRequestDialog";
 import { TripWorkflowActions } from "./TripWorkflowActions";
 import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
@@ -943,6 +944,101 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
+                            {(() => {
+                              const stage =
+                                (trip as Trip & { workflow_stage?: string }).workflow_stage ||
+                                (trip as Trip & { workflowStage?: string }).workflowStage;
+                              const isLogistics =
+                                user?.role &&
+                                ["logistics_manager", "logistics_officer", "logistics", "admin"].includes(
+                                  user.role,
+                                );
+                              const isProcurement =
+                                user?.role &&
+                                ["procurement", "procurement_manager"].includes(user.role);
+                              const isScd =
+                                user?.role &&
+                                ["supply_chain_director", "supply_chain"].includes(user.role);
+                              if (
+                                isLogistics &&
+                                (stage === "trip_request" || stage === "logistics_review" || !stage)
+                              ) {
+                                return (
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setSelectedTrip(trip);
+                                      setViewDialogOpen(true);
+                                    }}
+                                  >
+                                    <Truck className="mr-2 h-4 w-4" />
+                                    Review trip request
+                                  </DropdownMenuItem>
+                                );
+                              }
+                              if (
+                                isProcurement &&
+                                (stage === "vendor_selection" || stage === "procurement_review")
+                              ) {
+                                return (
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setSelectedTrip(trip);
+                                        setComparisonOpen(true);
+                                      }}
+                                    >
+                                      <Users2 className="mr-2 h-4 w-4" />
+                                      Compare vendor quotes
+                                    </DropdownMenuItem>
+                                    {stage === "procurement_review" && trip.vendorId && (
+                                      <DropdownMenuItem
+                                        onClick={async () => {
+                                          const res = await tripRequestApi.procurementApproveQuote(
+                                            String(trip.id),
+                                          );
+                                          if (res.success) {
+                                            toast({ title: "Quote approved" });
+                                            fetchTrips();
+                                          } else {
+                                            toast({
+                                              title: "Failed",
+                                              description: res.error,
+                                              variant: "destructive",
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        <FileCheck className="mr-2 h-4 w-4" />
+                                        Approve vendor quote
+                                      </DropdownMenuItem>
+                                    )}
+                                  </>
+                                );
+                              }
+                              if (isScd && stage === "scd_approval") {
+                                return (
+                                  <DropdownMenuItem
+                                    onClick={async () => {
+                                      const res = await tripRequestApi.scdApprove(String(trip.id));
+                                      if (res.success) {
+                                        toast({ title: "SCD approval recorded" });
+                                        fetchTrips();
+                                      } else {
+                                        toast({
+                                          title: "Failed",
+                                          description: res.error,
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <FileCheck className="mr-2 h-4 w-4" />
+                                    SCD approve
+                                  </DropdownMenuItem>
+                                );
+                              }
+                              return null;
+                            })()}
                             {trip.status !== "completed" && trip.status !== "cancelled" && (
                               <>
                                 <DropdownMenuItem onClick={() => openEditDialog(trip)}>
@@ -1177,6 +1273,14 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 trip={selectedTrip}
                 userRole={user?.role}
                 onUpdated={fetchTrips}
+                onAssignVendor={() => {
+                  openAssignVendorDialog(selectedTrip);
+                  setViewDialogOpen(false);
+                }}
+                onCompareVendors={() => {
+                  setComparisonOpen(true);
+                  setViewDialogOpen(false);
+                }}
               />
             </div>
           )}

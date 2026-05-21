@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
+import { TripRequestDialog } from "@/components/logistics/TripRequestDialog";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -82,6 +83,20 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 >
                   <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 </Button>
+                <TripRequestDialog
+                  userRole={user?.role}
+                  variant="outline"
+                  size="sm"
+                  label="Trip Request"
+                  className="hidden sm:inline-flex"
+                />
+                <TripRequestDialog
+                  userRole={user?.role}
+                  variant="outline"
+                  size="icon"
+                  showIcon
+                  className="sm:hidden"
+                />
                 <GlobalSearch />
                 <NotificationCenter />
                 <ThemeToggle />

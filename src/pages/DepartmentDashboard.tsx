@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FileText, Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Eye, Loader2, Edit } from "lucide-react";
+import { TripRequestDialog } from "@/components/logistics/TripRequestDialog";
+import { canCreateTripRequest } from "@/utils/tripRequestAccess";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { mrfApi } from "@/services/api";
@@ -135,11 +137,16 @@ const DepartmentDashboard = () => {
   return (
     <DashboardLayout>
       <div className="space-y-4 sm:space-y-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">My Requests</h1>
-          <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">
-            Submit material requests and track your procurement activities
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">My Requests</h1>
+            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">
+              Submit material requests and track your procurement activities
+            </p>
+          </div>
+          {canCreateTripRequest(user?.role) && (
+            <TripRequestDialog userRole={user?.role} label="New Trip Request" />
+          )}
         </div>
 
         {/* Stats Cards */}

@@ -13,8 +13,10 @@ import {
   Receipt,
   DollarSign,
   BarChart3,
-  Calendar
+  Calendar,
+  MapPin,
 } from "lucide-react";
+import { canCreateTripRequest } from "@/utils/tripRequestAccess";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import {
@@ -46,6 +48,10 @@ export function AppSidebar() {
     navigate("/auth");
   };
 
+  const tripRequestNavItem = canCreateTripRequest(user?.role)
+    ? [{ title: "Trip Request", url: "/trip-request", icon: MapPin }]
+    : [];
+
   // Full procurement navigation (shared by Procurement, Executive, Chairman, Supply Chain Director)
   const fullProcurementNav = [
     {
@@ -54,6 +60,14 @@ export function AppSidebar() {
         { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       ]
     },
+    ...(tripRequestNavItem.length
+      ? [
+          {
+            label: "Travel",
+            items: tripRequestNavItem,
+          },
+        ]
+      : []),
     {
       label: "Operations",
       items: [
@@ -97,6 +111,7 @@ export function AppSidebar() {
             { title: "My Requests", url: "/dashboard", icon: FileText },
             { title: "New MRF", url: "/new-mrf", icon: FileText },
             { title: "New SRF", url: "/new-srf", icon: FileText },
+            { title: "Trip Request", url: "/trip-request", icon: MapPin },
             { title: "Annual Planning", url: "/department?tab=annual", icon: Calendar },
           ]
         }
@@ -120,6 +135,9 @@ export function AppSidebar() {
             { title: "Budget Control", url: "/budget", icon: BarChart3 },
           ]
         },
+        ...(tripRequestNavItem.length
+          ? [{ label: "Travel", items: tripRequestNavItem }]
+          : []),
         {
           label: "Analytics",
           items: [
@@ -178,6 +196,7 @@ export function AppSidebar() {
             { title: "My Requests", url: "/department", icon: FileText },
             { title: "New MRF", url: "/new-mrf", icon: FileText },
             { title: "New SRF", url: "/new-srf", icon: FileText },
+            { title: "Trip Request", url: "/trip-request", icon: MapPin },
             { title: "Annual Planning", url: "/department?tab=annual", icon: Calendar },
           ]
         },
@@ -201,6 +220,21 @@ export function AppSidebar() {
             { title: "Reports", url: "/reports", icon: FileText },
           ]
         }
+      ];
+    } else if (user?.role === "logistics" || user?.role === "logistics_officer") {
+      return [
+        {
+          label: "Main",
+          items: [{ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard }],
+        },
+        ...(tripRequestNavItem.length ? [{ label: "Travel", items: tripRequestNavItem }] : []),
+        {
+          label: "Operations",
+          items: [
+            { title: "Logistics", url: "/logistics", icon: Truck },
+            { title: "Vendors", url: "/vendors", icon: Users },
+          ],
+        },
       ];
     }
     return [];

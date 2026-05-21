@@ -893,7 +893,7 @@ export interface TripConversionData {
   vendor_id: number;
   vehicle_id: number;
   passenger_user_ids: number[];
-  driver_user_id: number;
+  driver_user_id?: number;
 }
 
 export interface EligiblePassenger {
