@@ -60,7 +60,8 @@ const phoneDigits = (v: string) => (v || "").replace(/\D/g, "");
 export const DriverManagement = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const canManage = user?.role === "logistics_manager" || user?.role === "admin";
+  const canManage =
+    (user?.role as string) === "logistics_manager" || (user?.role as string) === "admin";
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
