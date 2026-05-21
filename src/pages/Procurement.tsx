@@ -2574,12 +2574,12 @@ const Procurement = () => {
                                       </div>
                                       <div className="space-y-2.5">
                                         {mrfQuotations.map((quotation: any) => (
-                                           <div
-                                             key={quotation.id}
-                                             className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-white dark:bg-gray-900 rounded-md border border-blue-200 dark:border-blue-700"
-                                             onClick={(e) => e.stopPropagation()}
-                                           >
-                                             <div className="flex-1 min-w-0 space-y-1.5">
+                                            <div
+                                              key={quotation.id}
+                                              className="flex flex-col gap-3 p-4 bg-white dark:bg-gray-900 rounded-lg border border-blue-200 dark:border-blue-700 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <div className="min-w-0 space-y-2 pb-3 border-b border-blue-100 dark:border-blue-800/60">
                                                <p className="text-sm font-medium leading-snug break-words">
                                                 {quotation.vendorName ||
                                                   quotation.vendor_name ||
