@@ -221,7 +221,7 @@ export function AppSidebar() {
           ]
         }
       ];
-    } else if (user?.role === "logistics" || user?.role === "logistics_officer") {
+    } else if (user?.role === "logistics" || (user?.role as string) === "logistics_officer") {
       return [
         {
           label: "Main",
