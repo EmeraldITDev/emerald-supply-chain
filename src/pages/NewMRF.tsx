@@ -151,6 +151,14 @@ const NewMRF = () => {
           setIsSubmitting(false);
           return;
         }
+        const itemsForBackend = lineItems.map((it) => ({
+          item_name: it.itemName,
+          itemName: it.itemName,
+          quantity: Number(it.quantity) || 0,
+          unit: it.unit,
+          budget_amount: Number(it.budgetAmount) || 0,
+          budgetAmount: Number(it.budgetAmount) || 0,
+        }));
         const updatePayload: any = {
           title: formData.title,
           description: formData.description,
@@ -161,7 +169,8 @@ const NewMRF = () => {
           contractType: contractTypeValue,
           contract_type: contractTypeValue,
           department: formData.department || user?.department || "",
-          items: lineItems,
+          items: itemsForBackend,
+          line_items: itemsForBackend,
         };
         // Include estimatedCost - use 0 if not provided (backend expects a number)
         updatePayload.estimatedCost = formData.estimatedCost && formData.estimatedCost.trim() !== '' 
@@ -197,6 +206,14 @@ const NewMRF = () => {
           setIsSubmitting(false);
           return;
         }
+        const itemsForBackend = lineItems.map((it) => ({
+          item_name: it.itemName,
+          itemName: it.itemName,
+          quantity: Number(it.quantity) || 0,
+          unit: it.unit,
+          budget_amount: Number(it.budgetAmount) || 0,
+          budgetAmount: Number(it.budgetAmount) || 0,
+        }));
         const payload: any = {
           title: formData.title,
           description: formData.description,
@@ -207,7 +224,8 @@ const NewMRF = () => {
           contractType: contractTypeValue,
           contract_type: contractTypeValue,
           department: formData.department || user?.department || "",
-          items: lineItems,
+          items: itemsForBackend,
+          line_items: itemsForBackend,
         };
         // Include estimatedCost - use 0 if not provided (backend expects a number)
         payload.estimatedCost = formData.estimatedCost && formData.estimatedCost.trim() !== '' 
@@ -222,7 +240,13 @@ const NewMRF = () => {
         if (pfiFile || invoiceFile || invoiceOneDriveUrl) {
           const formDataObj = new FormData();
           Object.entries(payload).forEach(([key, value]) => {
-            formDataObj.append(key, String(value));
+            if (value === undefined || value === null) return;
+            // Arrays/objects must be JSON-encoded — String() turns them into "[object Object]"
+            if (Array.isArray(value) || typeof value === "object") {
+              formDataObj.append(key, JSON.stringify(value));
+            } else {
+              formDataObj.append(key, String(value));
+            }
           });
           if (pfiFile) {
             formDataObj.append('pfi', pfiFile);
