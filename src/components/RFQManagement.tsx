@@ -872,6 +872,49 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               </div>
             </div>
 
+            {/* Payment Schedule (Finance AP Phase 1) */}
+            <div className="space-y-2">
+              <Label>Payment Schedule (Milestones)</Label>
+              <Select
+                value={selectedScheduleTemplateKey || undefined}
+                onValueChange={(v) => setSelectedScheduleTemplateKey(v)}
+                disabled={scheduleLocked || paymentScheduleTemplates.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      paymentScheduleTemplates.length === 0
+                        ? 'Loading templates…'
+                        : 'Choose a milestone template (optional)'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  {paymentScheduleTemplates.map((t) => (
+                    <SelectItem key={t.key} value={t.key}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {scheduleLocked ? (
+                <p className="text-xs text-warning-foreground">
+                  Schedule is locked — the PO for this MRF has already been generated.
+                </p>
+              ) : selectedScheduleTemplateKey ? (
+                <p className="text-xs text-muted-foreground">
+                  {paymentScheduleTemplates
+                    .find((t) => t.key === selectedScheduleTemplateKey)
+                    ?.milestones.map((m) => `${m.percentage}% ${m.label}`)
+                    .join(' / ')}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Drives milestone-based payments on the generated PO. Leave blank to keep the free-text payment terms above.
+                </p>
+              )}
+            </div>
+
             {/* Vendor Selection Method */}
             <div className="space-y-4">
               <Label className="text-base font-semibold">Vendor Selection</Label>
