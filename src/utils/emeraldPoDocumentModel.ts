@@ -57,6 +57,12 @@ export interface EmeraldPoDisplayModel {
   invoiceSubmissionLine: string;
   standardTermsLines: string[];
   paymentTermsDisplay: string;
+  /**
+   * Structured payment schedule milestones (Finance AP Phase 1).
+   * When present, the preview renders a milestone table instead of the
+   * free-text `paymentTermsDisplay` line.
+   */
+  paymentMilestones?: EmeraldPoMilestone[];
   contractTypeDisplay: string;
   subtotal: number;
   taxAmount: number;
@@ -65,6 +71,14 @@ export interface EmeraldPoDisplayModel {
   approverName: string;
   approvalDateDisplay: string;
   signatureDataUrl?: string | null;
+}
+
+export interface EmeraldPoMilestone {
+  milestoneNumber: number;
+  label: string;
+  percentage: number;
+  amount: number;
+  triggerLabel: string;
 }
 
 function pickSelectedRow(
