@@ -1,10 +1,18 @@
 import { Check, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getPriceComparison } from "@/utils/poHelpers";
+import type { PaymentSchedule } from "@/types/payment-schedule";
+import { formatScheduleSummary } from "@/types/payment-schedule";
 
 interface PriceComparisonTableProps {
   po: any;
   className?: string;
+  /**
+   * Optional MRF-level payment schedule. When supplied, rendered as a banner
+   * above the table; also drives the default "Payment Terms" cell when the
+   * row itself does not carry per-vendor payment-term metadata.
+   */
+  paymentSchedule?: PaymentSchedule | null;
 }
 
 const fmt = (n: number) =>
@@ -18,8 +26,15 @@ const fmt = (n: number) =>
 export function PriceComparisonTable({
   po,
   className,
+  paymentSchedule = null,
 }: PriceComparisonTableProps) {
   const rows = getPriceComparison(po);
+
+  const scheduleSummary = paymentSchedule
+    ? paymentSchedule.summary ||
+      formatScheduleSummary(paymentSchedule.milestones) ||
+      ''
+    : '';
 
   return (
     <section
@@ -37,6 +52,17 @@ export function PriceComparisonTable({
           {rows.length} {rows.length === 1 ? "vendor" : "vendors"}
         </span>
       </header>
+
+      {paymentSchedule ? (
+        <div className="border-b bg-muted/30 px-4 py-2 text-xs">
+          <span className="font-medium text-foreground">
+            Payment schedule
+            {paymentSchedule.templateName ? ` · ${paymentSchedule.templateName}` : ''}
+            {paymentSchedule.isLocked ? ' (locked)' : ''}:
+          </span>{' '}
+          <span className="text-muted-foreground">{scheduleSummary || '—'}</span>
+        </div>
+      ) : null}
 
       {rows.length === 0 ? (
         <div className="flex items-start gap-3 m-4 rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
@@ -63,12 +89,21 @@ export function PriceComparisonTable({
                 <th className="px-4 py-2 text-right font-medium">Unit Price</th>
                 <th className="px-4 py-2 text-right font-medium">Qty</th>
                 <th className="px-4 py-2 text-right font-medium">Total</th>
+                <th className="px-4 py-2 text-left font-medium">Payment Terms</th>
                 <th className="px-4 py-2 text-center font-medium">Selected</th>
                 <th className="px-4 py-2 text-left font-medium">Reason</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => (
+              {rows.map((r: any, i) => {
+                const rowTerms =
+                  r.paymentScheduleSummary ||
+                  r.payment_schedule_summary ||
+                  r.paymentTerms ||
+                  r.payment_terms ||
+                  scheduleSummary ||
+                  '—';
+                return (
                 <tr
                   key={`${r.vendorName}-${i}`}
                   className={cn(
@@ -91,6 +126,7 @@ export function PriceComparisonTable({
                   <td className="px-4 py-2 text-right tabular-nums font-medium">
                     {fmt(r.totalPrice)}
                   </td>
+                  <td className="px-4 py-2 text-muted-foreground">{rowTerms}</td>
                   <td className="px-4 py-2 text-center">
                     {r.selected ? (
                       <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-success/15 text-success">
@@ -105,7 +141,8 @@ export function PriceComparisonTable({
                     {r.selected ? r.selectionReason || "—" : "—"}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

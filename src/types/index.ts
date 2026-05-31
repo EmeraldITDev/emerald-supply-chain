@@ -35,6 +35,9 @@ export interface MRF {
   formattedId?: string;
   legacy_id?: string;
   legacyId?: string;
+  /** SCM transaction UUID — Finance AP correlation key (Phase 0). */
+  scmTransactionId?: string;
+  scm_transaction_id?: string;
   title: string;
   category: string;
   urgency: 'Low' | 'Medium' | 'High' | 'low' | 'medium' | 'high';
@@ -139,6 +142,9 @@ export interface MRF {
   profitAndLoss?: ProfitAndLoss;
   // Routing reason after contract type evaluation
   routedReason?: 'custom_contract_type' | 'standard_contract_type' | 'logistics_exception';
+  // Payment schedule (Finance AP Phase 1) — present once configured on the MRF.
+  paymentSchedule?: import('./payment-schedule').PaymentSchedule | null;
+  payment_schedule?: import('./payment-schedule').PaymentSchedule | null;
 }
 
 // Line Item Types (for MRF/SRF budget breakdown)
@@ -270,6 +276,8 @@ export interface RFQ {
   vendor_ids: string[];
   createdAt: string;
   created_at: string;
+  paymentSchedule?: import('./payment-schedule').PaymentSchedule | null;
+  payment_schedule?: import('./payment-schedule').PaymentSchedule | null;
 }
 
 export interface CreateRFQData {
@@ -299,6 +307,9 @@ export interface Quotation {
   notes?: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   submittedDate: string;
+  /** Read-only mirror of the MRF's payment schedule, when provided by backend. */
+  paymentSchedule?: import('./payment-schedule').PaymentSchedule | null;
+  payment_schedule?: import('./payment-schedule').PaymentSchedule | null;
 }
 
 export interface CreateQuotationData {

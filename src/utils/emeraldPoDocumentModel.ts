@@ -57,6 +57,12 @@ export interface EmeraldPoDisplayModel {
   invoiceSubmissionLine: string;
   standardTermsLines: string[];
   paymentTermsDisplay: string;
+  /**
+   * Structured payment schedule milestones (Finance AP Phase 1).
+   * When present, the preview renders a milestone table instead of the
+   * free-text `paymentTermsDisplay` line.
+   */
+  paymentMilestones?: EmeraldPoMilestone[];
   contractTypeDisplay: string;
   subtotal: number;
   taxAmount: number;
@@ -65,6 +71,14 @@ export interface EmeraldPoDisplayModel {
   approverName: string;
   approvalDateDisplay: string;
   signatureDataUrl?: string | null;
+}
+
+export interface EmeraldPoMilestone {
+  milestoneNumber: number;
+  label: string;
+  percentage: number;
+  amount: number;
+  triggerLabel: string;
 }
 
 function pickSelectedRow(
@@ -220,6 +234,30 @@ export function buildEmeraldPoDisplayModel(input: {
   const paymentTermsDisplay =
     parsePaymentTermsFromCustomTerms(mrf.custom_terms) || 'Net 30';
 
+  // Hydrate milestones from the MRF's payment schedule, if any. Amounts are
+  // derived from the PO total so the preview stays consistent with subtotal/tax.
+  const schedule =
+    (mrf as MRFExtras & {
+      paymentSchedule?: import('@/types/payment-schedule').PaymentSchedule | null;
+      payment_schedule?: import('@/types/payment-schedule').PaymentSchedule | null;
+    }).paymentSchedule ??
+    (mrf as MRFExtras & {
+      payment_schedule?: import('@/types/payment-schedule').PaymentSchedule | null;
+    }).payment_schedule ??
+    null;
+  const paymentMilestones = schedule?.milestones?.length
+    ? schedule.milestones.map((m) => ({
+        milestoneNumber: m.milestoneNumber,
+        label: m.label,
+        percentage: Number(m.percentage) || 0,
+        amount:
+          m.amount != null && m.amount !== ''
+            ? Number(m.amount) || 0
+            : (total * (Number(m.percentage) || 0)) / 100,
+        triggerLabel: m.triggerLabel || String(m.triggerCondition || ''),
+      }))
+    : undefined;
+
   const contractTypeDisplay = formatContractTypeForPo(mrf);
 
   const categoryLine = (mrf.category || 'Procurement').replace(/-/g, ' ');
@@ -250,6 +288,7 @@ export function buildEmeraldPoDisplayModel(input: {
     invoiceSubmissionLine,
     standardTermsLines,
     paymentTermsDisplay,
+    paymentMilestones,
     contractTypeDisplay,
     subtotal,
     taxAmount,

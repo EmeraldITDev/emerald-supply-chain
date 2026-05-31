@@ -6,6 +6,10 @@ import type {
   PriceComparisonEntry,
   PriceComparisonRow,
 } from '@/types/procurement';
+import type {
+  GetProcurementDocumentsParams,
+  ProcurementDocumentsResponse,
+} from '@/types/procurement-documents';
 
 /** Successful POST /mrfs/{id}/generate-po body (after `apiRequest` unwraps `data`). */
 export type GeneratePOResponse = {
@@ -67,6 +71,26 @@ export const procurementApi = {
   ): Promise<ApiResponse<POTermsTemplate>> => {
     return apiRequest<POTermsTemplate>(
       `/po-terms-templates/${encodeURIComponent(type)}`
+    );
+  },
+
+  /**
+   * GET /api/mrfs/{id}/procurement-documents — Finance AP Phase 0.
+   *
+   * Lists procurement artefacts (POs, GRNs, invoices, etc.) associated with
+   * the MRF and (when present) its SCM transaction. Filter by `type` or pass
+   * `includeInactive: true` to surface superseded versions.
+   */
+  getProcurementDocuments: async (
+    mrfId: string,
+    params: GetProcurementDocumentsParams = {},
+  ): Promise<ApiResponse<ProcurementDocumentsResponse>> => {
+    const search = new URLSearchParams();
+    if (params.type) search.set('type', params.type);
+    if (params.includeInactive) search.set('include_inactive', 'true');
+    const qs = search.toString();
+    return apiRequest<ProcurementDocumentsResponse>(
+      `/mrfs/${encodeURIComponent(mrfId)}/procurement-documents${qs ? `?${qs}` : ''}`,
     );
   },
 

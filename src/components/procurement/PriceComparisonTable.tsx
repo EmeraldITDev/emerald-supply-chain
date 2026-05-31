@@ -22,6 +22,8 @@ import {
 import { cn } from '@/lib/utils';
 import type { Vendor } from '@/types';
 import type { PriceComparisonRow, ManualVendor } from '@/types/procurement';
+import type { PaymentSchedule } from '@/types/payment-schedule';
+import { formatScheduleSummary } from '@/types/payment-schedule';
 
 export interface PriceComparisonTableProps {
   value: PriceComparisonRow[];
@@ -31,6 +33,11 @@ export interface PriceComparisonTableProps {
   loadingVendors?: boolean;
   /** New rows from “Add Supplier” start in this mode (fast-track defaults to manual entry). */
   defaultSupplierModeForNewRows?: 'directory' | 'manual';
+  /**
+   * MRF-level payment schedule (Finance AP Phase 1). When provided, rendered
+   * as a banner above the table so reviewers see the milestone split.
+   */
+  paymentSchedule?: PaymentSchedule | null;
 }
 
 /**
@@ -131,6 +138,7 @@ export function PriceComparisonTable({
   disabled = false,
   loadingVendors = false,
   defaultSupplierModeForNewRows = 'directory',
+  paymentSchedule = null,
 }: PriceComparisonTableProps) {
   const update = (key: string, patch: Partial<PriceComparisonRow>) => {
     onChange(value.map((r) => (r._key === key ? { ...r, ...patch } : r)));
@@ -161,6 +169,18 @@ export function PriceComparisonTable({
 
   return (
     <div className="space-y-3">
+      {paymentSchedule ? (
+        <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+          <p className="font-medium text-foreground">
+            Payment schedule
+            {paymentSchedule.templateName ? ` · ${paymentSchedule.templateName}` : ''}
+            {paymentSchedule.isLocked ? ' (locked)' : ''}
+          </p>
+          <p className="text-muted-foreground mt-0.5">
+            {paymentSchedule.summary || formatScheduleSummary(paymentSchedule.milestones) || '—'}
+          </p>
+        </div>
+      ) : null}
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
           Add at least two supplier quotes. Use <span className="font-medium text-foreground">Directory</span> to pick

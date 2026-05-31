@@ -89,10 +89,40 @@ export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplay
               </li>
             ))}
           </ul>
-          <p className="pt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="font-bold shrink-0">Payment Terms:</span>
-            <span className="text-slate-800 pl-1">{model.paymentTermsDisplay}</span>
-          </p>
+          {model.paymentMilestones && model.paymentMilestones.length > 0 ? (
+            <div className="pt-2">
+              <p className="font-bold">Payment Schedule:</p>
+              <table className="mt-1 w-full border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-100 text-left">
+                    <th className="border border-slate-300 px-2 py-1 w-8">#</th>
+                    <th className="border border-slate-300 px-2 py-1">Milestone</th>
+                    <th className="border border-slate-300 px-2 py-1 text-right w-12">%</th>
+                    <th className="border border-slate-300 px-2 py-1 text-right">Amount</th>
+                    <th className="border border-slate-300 px-2 py-1">Trigger</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {model.paymentMilestones.map((m) => (
+                    <tr key={m.milestoneNumber}>
+                      <td className="border border-slate-300 px-2 py-1 tabular-nums">{m.milestoneNumber}</td>
+                      <td className="border border-slate-300 px-2 py-1">{m.label}</td>
+                      <td className="border border-slate-300 px-2 py-1 text-right tabular-nums">{m.percentage}</td>
+                      <td className="border border-slate-300 px-2 py-1 text-right tabular-nums">
+                        {m.amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-1">{m.triggerLabel}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="pt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="font-bold shrink-0">Payment Terms:</span>
+              <span className="text-slate-800 pl-1">{model.paymentTermsDisplay}</span>
+            </p>
+          )}
           <p className="pt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span className="font-bold shrink-0">Contract type:</span>
             <span className="text-slate-800 pl-1">{model.contractTypeDisplay}</span>
