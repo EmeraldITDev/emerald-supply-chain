@@ -276,6 +276,8 @@ export interface RFQ {
   vendor_ids: string[];
   createdAt: string;
   created_at: string;
+  paymentSchedule?: import('./payment-schedule').PaymentSchedule | null;
+  payment_schedule?: import('./payment-schedule').PaymentSchedule | null;
 }
 
 export interface CreateRFQData {
@@ -305,6 +307,9 @@ export interface Quotation {
   notes?: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   submittedDate: string;
+  /** Read-only mirror of the MRF's payment schedule, when provided by backend. */
+  paymentSchedule?: import('./payment-schedule').PaymentSchedule | null;
+  payment_schedule?: import('./payment-schedule').PaymentSchedule | null;
 }
 
 export interface CreateQuotationData {
