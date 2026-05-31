@@ -35,6 +35,9 @@ export interface MRF {
   formattedId?: string;
   legacy_id?: string;
   legacyId?: string;
+  /** SCM transaction UUID — Finance AP correlation key (Phase 0). */
+  scmTransactionId?: string;
+  scm_transaction_id?: string;
   title: string;
   category: string;
   urgency: 'Low' | 'Medium' | 'High' | 'low' | 'medium' | 'high';
