@@ -1,57 +1,52 @@
-## Goals
-Give Logistics Manager (LM) the same request-creation power as employees, fix two maintenance bugs, and route logistics SRFs through Supply Chain Director → Procurement with full vehicle/maintenance context and read-only visibility for the LM.
+## Frontend Changes — Finance AP (Phases 0 & 1)
 
-## 1. Sidebar — Logistics Manager creates MRF/SRF
-File: `src/components/layout/AppSidebar.tsx`
+Wire the new backend contracts into the frontend. No backend code, no business-logic refactors beyond what the new endpoints require.
 
-Replace the current `logistics_manager` branch (Dashboard + Logistics only) with a Logistics-focused nav that also includes Requests:
-```
-Main:      Dashboard
-Requests:  My Requests, New MRF, New SRF, Annual Planning
-Operations: Logistics, Vendors (read-only), Inventory
-Analytics: Reports
-```
-LM already has a backend role; `/new-mrf`, `/new-srf` and `/department` routes are role-agnostic, so just exposing them is enough.
+### Phase 0 — Type & service plumbing
 
-Also update `isEmployeeRole` consumers / route guards if they hard-block LM from `/new-mrf` or `/new-srf` (check `NewMRF.tsx`, `NewSRF.tsx`, `EmployeeDashboard.tsx`). Add `logistics_manager` to allowed creators.
+1. **Types (`src/types/index.ts`)**
+   - Add optional `scmTransactionId?: string` and `scm_transaction_id?: string` to `MRF`.
+   - No UI surface yet (reserved for Finance AP correlation).
 
-## 2. Maintenance records not showing in Vehicle Details
-File: `src/components/logistics/FleetManagement.tsx`
+2. **New types file `src/types/procurement-documents.ts`**
+   - `ProcurementDocumentType` union: `'vendor_invoice' | 'grn' | 'waybill' | 'jcc' | 'pfi' | 'po_pdf' | 'signed_po' | 'delivery_confirmation' | 'other'`.
+   - `ProcurementDocument` interface matching response shape (id, mrfId, vendorId, type, fileName, filePath, fileUrl, uploadedBy{id,name}, uploadedAt, version, isActive).
 
-Two maintenance dialogs exist:
-- `VehicleMaintenanceTab` (in details modal) — uses `fleetApi.listMaintenance/createMaintenance` (schedule-style records).
-- `Add Maintenance Record` dialog (`handleAddMaintenance`) — writes to `maintenanceHistory` via a different endpoint, so new records never appear in the tab.
+3. **Service `src/services/procurementApi.ts`**
+   - Add `getProcurementDocuments(mrfId, { type?, includeInactive? })` → `GET /mrfs/{id}/procurement-documents` with query params.
 
-Fix by routing the "Add Maintenance Record" dialog through the same `fleetApi.createMaintenance` endpoint the tab reads from (or render `maintenanceHistory` inside `VehicleMaintenanceTab` as a second list). Preferred: consolidate to one source — submit via `fleetApi.createMaintenance`, then `fetchData()` so the Maintenance tab refreshes automatically.
+### Phase 1 — Payment schedule
 
-## 3. Delete uploaded documents on a maintenance record
-The maintenance flow currently has no per-record document UI. Plan:
-- Extend `VehicleMaintenanceTab` row actions with a "Documents" popover listing attachments from `record.documents`.
-- Add `fleetApi.deleteMaintenanceDocument(vehicleId, recordId, documentId)` and wire a trash button with confirm dialog.
-- If backend doesn't expose delete, fall back to PATCH the record with a filtered `documents` array.
+4. **New types file `src/types/payment-schedule.ts`**
+   - `PaymentTriggerCondition`: `'on_advance' | 'upon_delivery' | 'on_grn' | 'on_invoice' | 'on_completion' | (string & {})`.
+   - `PaymentMilestoneTemplate`, `PaymentTermTemplate`.
+   - `PaymentMilestone` (with `status`, `amount`, `triggerLabel`, `requiredDocuments`).
+   - `PaymentSchedule` (`id`, `templateKey`, `templateName`, `version`, `isLocked`, `lockedAt`, `summary`, `milestones[]`).
+   - `CreatePaymentSchedulePayload` (template-key OR custom milestones).
 
-## 4. SRF workflow for logistics → SCD → Procurement → RFQ
-Files: `src/pages/NewSRF.tsx`, `src/services/procurementApi.ts`, SCD dashboard (`SupplyChainDashboard.tsx`), `RFQManagement.tsx`.
+5. **New service `src/services/paymentScheduleApi.ts`**
+   - `listTemplates()` → `GET /payment-term-templates`.
+   - `getSchedule(mrfId)` → `GET /mrfs/{id}/payment-schedule` (treat 404 as `null`).
+   - `createSchedule(mrfId, payload)` → `POST /mrfs/{id}/payment-schedule` (handle 422 percentages-must-total-100).
+   - `updateSchedule(mrfId, payload)` → `PUT /mrfs/{id}/payment-schedule` (handle 409 `SCHEDULE_LOCKED`).
+   - All mutations dispatch the global `app:refresh` event (match existing `procurementApi` pattern).
 
-- When `user.role === 'logistics_manager'`, NewSRF form adds a "Linked Vehicle" picker (calls `fleetApi.list`) and auto-attaches: vehicle plate, make/model/year, odometer, last/next maintenance dates, recent maintenance history (last 5), and active document list. Stored on the SRF as `vehicleContext`.
-- SRF submitted by LM is routed `currentStage = 'supply_chain'` (skip executive) — confirm with backend contract; otherwise leave existing routing and surface to SCD via the existing "All Requests" tab.
-- SCD approval action (existing `SupplyChainActionButtons`) already supports approve/reject; ensure approved logistics SRFs land in Procurement queue.
-- In `RFQManagement` "Create RFQ" dialog, when source SRF has `vehicleContext`, pre-fill the description/specifications block with a formatted vehicle summary so vendors see plate, model, mileage, fault description, etc. Show a non-editable "Vehicle Context" panel above specs.
+6. **Propagation type updates**
+   - Add optional `paymentSchedule?: PaymentSchedule | null` and `payment_schedule?` to: `MRF`, RFQ types, Quotation types.
+   - `src/types/procurement.ts` `PriceComparisonEntry`: add optional `paymentTerms?: string` and `paymentScheduleSummary?: string`. Add optional top-level `paymentSchedule` to the price-comparison response wrapper.
 
-## 5. End-to-end visibility for Logistics Manager
-- Reuse `ProcurementProgressTracker` on the LM dashboard (likely `Logistics.tsx` or a new "My Requests" tab) filtered to MRFs/SRFs `requesterId === user.id` OR `vehicleContext` present.
-- Add a "Procurement Activity" panel listing: RFQs sent (vendor count), quotations received (with price/delivery), approval stage badges, PO status. Use existing `procurementApi.getRFQsForRequest`, `getQuotations`, `getPOForRequest`.
-- Read-only — no approval actions for LM.
+7. **UI surfaces (minimal, additive)**
+   - **RFQ create/edit (`src/components/RFQManagement.tsx`)**: add a "Payment Schedule" section — template dropdown (from `listTemplates`) plus an editable milestone table (label, %, trigger). Save via create/update schedule API before the RFQ is sent. Show lock notice when `isLocked`.
+   - **Price comparison table (`src/components/PriceComparisonTable.tsx` and `src/components/procurement/PriceComparisonTable.tsx`)**: add a "Payment Terms" column rendering `paymentScheduleSummary || paymentTerms || '—'`. Render the MRF-level schedule summary above the table when present.
+   - **PO preview (`src/components/procurement/EmeraldPurchaseOrderPreview.tsx`)**: when `model.milestones` is provided, render a milestone table (Milestone #, Label, %, Amount, Trigger) in place of the free-text Payment Terms line. Keep fallback to existing `paymentTermsDisplay` when no schedule. Extend `emeraldPoDocumentModel` to carry optional `milestones[]` sourced from MRF `paymentSchedule`.
 
-## Out of scope / backend dependencies
-- Actual backend role permissions on `/new-mrf` and `/new-srf` endpoints for `logistics_manager` must allow create.
-- New endpoint may be needed for `DELETE /maintenance/:id/documents/:docId`.
-- SRF schema needs a `vehicle_context` JSON column (or attach as note metadata if not available).
+### Out of scope (this round)
+- Surfacing `scmTransactionId` in any view.
+- Document-upload UI from `procurement-documents` endpoint (types-only).
+- Backend changes.
 
-I'll surface any 4xx responses encountered and adjust.
-
-## Verification
-- LM login → sidebar shows New MRF/SRF; can submit an SRF with vehicle context.
-- Add maintenance from FleetManagement → record appears in Vehicle Details → Maintenance tab.
-- Upload doc to maintenance record → trash icon removes it.
-- SCD sees the SRF with vehicle context → approves → Procurement creates RFQ pre-filled with vehicle details → LM dashboard shows RFQ + quotations + approval progress.
+### Verification
+- `tsc` passes (run as part of build).
+- RFQ flow: template fetch populates dropdown; creating a custom schedule with percentages ≠ 100 surfaces backend validation error toast.
+- Price comparison renders the new column without breaking existing rows.
+- PO preview still renders for MRFs without a schedule (fallback path).
