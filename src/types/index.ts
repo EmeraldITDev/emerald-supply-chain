@@ -142,6 +142,9 @@ export interface MRF {
   profitAndLoss?: ProfitAndLoss;
   // Routing reason after contract type evaluation
   routedReason?: 'custom_contract_type' | 'standard_contract_type' | 'logistics_exception';
+  // Payment schedule (Finance AP Phase 1) — present once configured on the MRF.
+  paymentSchedule?: import('./payment-schedule').PaymentSchedule | null;
+  payment_schedule?: import('./payment-schedule').PaymentSchedule | null;
 }
 
 // Line Item Types (for MRF/SRF budget breakdown)
