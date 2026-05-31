@@ -16,6 +16,8 @@ import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, FileText, Award, X, Filter, Loader2 } from "lucide-react";
 import { vendorApi, rfqApi, quotationApi } from "@/services/api";
+import { paymentScheduleApi } from "@/services/paymentScheduleApi";
+import type { PaymentTermTemplate } from "@/types/payment-schedule";
 import { normalizeQuotation, displayNumeric, displayString, displayCurrency, formatDays, formatAmount } from "@/utils/normalizeQuotation";
 import type { NormalizedQuotation } from "@/utils/normalizeQuotation";
 import { normalizeAttachments } from "@/utils/attachments";
@@ -111,6 +113,49 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   const [paymentTerms, setPaymentTerms] = useState('');
   const [technicalReqs, setTechnicalReqs] = useState('');
   const [minRating, setMinRating] = useState(0);
+
+  // Payment schedule (Finance AP Phase 1) — chosen at RFQ create time and
+  // persisted via POST /mrfs/{id}/payment-schedule after the RFQ is created.
+  const [paymentScheduleTemplates, setPaymentScheduleTemplates] = useState<PaymentTermTemplate[]>([]);
+  const [selectedScheduleTemplateKey, setSelectedScheduleTemplateKey] = useState<string>('');
+  const [scheduleLocked, setScheduleLocked] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    paymentScheduleApi.listTemplates().then((res) => {
+      if (cancelled) return;
+      if (res.success && Array.isArray(res.data)) {
+        setPaymentScheduleTemplates(res.data);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // When the selected MRF changes, reload its existing schedule (if any) so we
+  // can pre-select the matching template and surface the lock state.
+  useEffect(() => {
+    if (!selectedMRF?.id) {
+      setSelectedScheduleTemplateKey('');
+      setScheduleLocked(false);
+      return;
+    }
+    let cancelled = false;
+    paymentScheduleApi.getSchedule(String(selectedMRF.id)).then((res) => {
+      if (cancelled) return;
+      if (res.success && res.data) {
+        setSelectedScheduleTemplateKey(res.data.templateKey || '');
+        setScheduleLocked(!!res.data.isLocked);
+      } else {
+        setSelectedScheduleTemplateKey('');
+        setScheduleLocked(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMRF?.id]);
 
   /**
    * Safely extracts delivery days from a quotation object
@@ -334,6 +379,22 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       } as any);
 
       if (response.success) {
+        // Persist the chosen payment schedule template on the MRF (Phase 1).
+        if (selectedScheduleTemplateKey && !scheduleLocked) {
+          const scheduleRes = await paymentScheduleApi.createSchedule(
+            String(selectedMRF.id),
+            { templateKey: selectedScheduleTemplateKey },
+          );
+          if (!scheduleRes.success) {
+            // Non-fatal — RFQ is already out. Surface a warning so the user
+            // can retry from the MRF detail view.
+            toast({
+              title: "Payment schedule not saved",
+              description: scheduleRes.error || "Couldn't attach the chosen payment schedule to this MRF.",
+              variant: "destructive",
+            });
+          }
+        }
     toast({
       title: "RFQ Created & Dispatched",
       description: `RFQ sent to ${vendorIds.length} vendor(s). They will see it in their portal.`,
