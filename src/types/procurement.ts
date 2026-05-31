@@ -58,6 +58,12 @@ export interface PriceComparisonEntry {
   selection_reason?: string | null;
   created_at?: string;
   updated_at?: string;
+  /** Free-text payment terms returned by the backend (when no structured schedule). */
+  paymentTerms?: string | null;
+  payment_terms?: string | null;
+  /** Compact human summary of the MRF payment schedule applied to this row. */
+  paymentScheduleSummary?: string | null;
+  payment_schedule_summary?: string | null;
 }
 
 /** Payload for POST /api/mrfs/{id}/generate-po (both draft and finalise). */
@@ -127,3 +133,16 @@ export type POStatusKey =
   | 'with_supply_chain'
   | 'with_finance'
   | 'unknown';
+
+/**
+ * Shape of `GET /api/mrfs/{id}/price-comparisons` once the backend ships the
+ * structured payment schedule alongside the rows.
+ *
+ * Existing callers that consume `apiRequest<PriceComparisonEntry[]>` continue
+ * to work — this type is for screens that need the MRF-level schedule header.
+ */
+export interface PriceComparisonResponse {
+  rows: PriceComparisonEntry[];
+  paymentSchedule?: import('./payment-schedule').PaymentSchedule | null;
+  payment_schedule?: import('./payment-schedule').PaymentSchedule | null;
+}
