@@ -56,11 +56,27 @@ export interface UploadProcurementDocumentPayload {
   file: File;
 }
 
+/** Phase 2: per-line override sent with preview/generate. */
+export interface GRNLineItemOverride {
+  index: number;
+  quantityReceived: number;
+}
+
 /** Phase 2: GRN preview / generate request payloads. */
 export interface GRNPreviewParams {
+  /** Legacy aliases retained for backwards compat. */
   remarks?: string;
   grnNumber?: string;
   receivedAt?: string;
+  // Delivery / supplier metadata
+  dateOfReceipt?: string;
+  deliveryNoteNumber?: string;
+  deliveryDate?: string;
+  carrierName?: string;
+  driverNumber?: string;
+  vehiclePlateNumber?: string;
+  comments?: string;
+  lineItems?: GRNLineItemOverride[];
 }
 
 export interface GRNGeneratePayload extends GRNPreviewParams {

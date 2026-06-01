@@ -20,6 +20,7 @@ import { grnApi, mrfApi } from "@/services/api";
 import { procurementApi } from "@/services/procurementApi";
 import { type AvailableActions, type MRF } from "@/types";
 import { getMrfApiId } from "@/utils/displayId";
+import type { GRNLineItemOverride } from "@/types/procurement-documents";
 
 interface GRNCompletionDialogProps {
   open: boolean;
@@ -44,12 +45,24 @@ export default function GRNCompletionDialog({
   const [actionsLoading, setActionsLoading] = useState(false);
   const [tab, setTab] = useState<"generate" | "upload">("generate");
   const [grnNumber, setGrnNumber] = useState("");
-  const [remarks, setRemarks] = useState("");
-  const [receivedAt, setReceivedAt] = useState<string>(() =>
+  const [comments, setComments] = useState("");
+  const [dateOfReceipt, setDateOfReceipt] = useState<string>(() =>
     new Date().toISOString().slice(0, 10),
   );
+  const [deliveryNoteNumber, setDeliveryNoteNumber] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [carrierName, setCarrierName] = useState("");
+  const [driverNumber, setDriverNumber] = useState("");
+  const [vehiclePlateNumber, setVehiclePlateNumber] = useState("");
+  const [qtyOverrides, setQtyOverrides] = useState<Record<number, string>>({});
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const mrfItems = (mrf.items ?? []) as Array<{
+    itemName: string;
+    quantity: number;
+    unit?: string;
+  }>;
 
   const mrfPathId = getMrfApiId(mrf) || String(mrf.id ?? "");
 
@@ -147,14 +160,31 @@ export default function GRNCompletionDialog({
     }
   };
 
+  const buildGrnParams = () => {
+    const lineItems: GRNLineItemOverride[] = Object.entries(qtyOverrides)
+      .map(([idx, raw]) => {
+        const n = Number(raw);
+        if (!Number.isFinite(n) || raw === "") return null;
+        return { index: Number(idx), quantityReceived: n };
+      })
+      .filter((v): v is GRNLineItemOverride => v !== null);
+    return {
+      grnNumber: grnNumber || undefined,
+      dateOfReceipt: dateOfReceipt || undefined,
+      deliveryNoteNumber: deliveryNoteNumber || undefined,
+      deliveryDate: deliveryDate || undefined,
+      carrierName: carrierName || undefined,
+      driverNumber: driverNumber || undefined,
+      vehiclePlateNumber: vehiclePlateNumber || undefined,
+      comments: comments || undefined,
+      lineItems: lineItems.length ? lineItems : undefined,
+    };
+  };
+
   const handlePreviewGRN = async () => {
     setIsPreviewing(true);
     try {
-      const res = await procurementApi.previewGRN(mrfPathId, {
-        grnNumber: grnNumber || undefined,
-        remarks: remarks || undefined,
-        receivedAt: receivedAt || undefined,
-      });
+      const res = await procurementApi.previewGRN(mrfPathId, buildGrnParams());
       if (res.success && res.data) {
         window.open(res.data.objectUrl, "_blank", "noopener,noreferrer");
       } else {
@@ -174,9 +204,7 @@ export default function GRNCompletionDialog({
     try {
       const res = await procurementApi.generateGRN(mrfPathId, {
         confirm: true,
-        grnNumber: grnNumber || undefined,
-        remarks: remarks || undefined,
-        receivedAt: receivedAt || undefined,
+        ...buildGrnParams(),
       });
       if (res.success) {
         toast({
@@ -184,7 +212,8 @@ export default function GRNCompletionDialog({
           description: `GRN saved to the document registry for MRF ${getDisplayId(mrf)}.`,
         });
         setGrnNumber("");
-        setRemarks("");
+        setComments("");
+        setQtyOverrides({});
         onSuccess?.();
         onOpenChange(false);
       } else {
@@ -249,28 +278,125 @@ export default function GRNCompletionDialog({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="received-at">Received On</Label>
+                  <Label htmlFor="date-of-receipt">Date of Receipt</Label>
                   <Input
-                    id="received-at"
+                    id="date-of-receipt"
                     type="date"
-                    value={receivedAt}
-                    onChange={(e) => setReceivedAt(e.target.value)}
+                    value={dateOfReceipt}
+                    onChange={(e) => setDateOfReceipt(e.target.value)}
+                    disabled={isGenerating || isPreviewing}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="delivery-note-number">Delivery Note #</Label>
+                  <Input
+                    id="delivery-note-number"
+                    value={deliveryNoteNumber}
+                    onChange={(e) => setDeliveryNoteNumber(e.target.value)}
+                    placeholder="N/A"
+                    disabled={isGenerating || isPreviewing}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="delivery-date">Delivery Date</Label>
+                  <Input
+                    id="delivery-date"
+                    type="date"
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveryDate(e.target.value)}
+                    disabled={isGenerating || isPreviewing}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="carrier-name">Carrier / Driver Name</Label>
+                  <Input
+                    id="carrier-name"
+                    value={carrierName}
+                    onChange={(e) => setCarrierName(e.target.value)}
+                    placeholder="N/A"
+                    disabled={isGenerating || isPreviewing}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="driver-number">Driver Phone</Label>
+                  <Input
+                    id="driver-number"
+                    value={driverNumber}
+                    onChange={(e) => setDriverNumber(e.target.value)}
+                    placeholder="N/A"
+                    disabled={isGenerating || isPreviewing}
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="vehicle-plate">Vehicle Plate #</Label>
+                  <Input
+                    id="vehicle-plate"
+                    value={vehiclePlateNumber}
+                    onChange={(e) => setVehiclePlateNumber(e.target.value)}
+                    placeholder="N/A"
                     disabled={isGenerating || isPreviewing}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="remarks">Remarks</Label>
+                <Label htmlFor="comments">Comments</Label>
                 <Textarea
-                  id="remarks"
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
+                  id="comments"
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
                   placeholder="e.g. Received in good condition"
                   rows={3}
                   disabled={isGenerating || isPreviewing}
                 />
               </div>
+
+              {mrfItems.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Quantities Received</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to use the original ordered quantity.
+                  </p>
+                  <div className="overflow-hidden rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                        <tr>
+                          <th className="px-3 py-2 text-left">Item</th>
+                          <th className="px-3 py-2 text-right">Ordered</th>
+                          <th className="px-3 py-2 text-right">Unit</th>
+                          <th className="px-3 py-2 text-right">Received</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {mrfItems.map((item, idx) => (
+                          <tr key={idx} className="border-t">
+                            <td className="px-3 py-2">{item.itemName}</td>
+                            <td className="px-3 py-2 text-right">{item.quantity}</td>
+                            <td className="px-3 py-2 text-right">{item.unit ?? "—"}</td>
+                            <td className="px-3 py-2 text-right">
+                              <Input
+                                type="number"
+                                min={0}
+                                inputMode="decimal"
+                                value={qtyOverrides[idx] ?? ""}
+                                placeholder={String(item.quantity)}
+                                onChange={(e) =>
+                                  setQtyOverrides((prev) => ({
+                                    ...prev,
+                                    [idx]: e.target.value,
+                                  }))
+                                }
+                                disabled={isGenerating || isPreviewing}
+                                className="ml-auto h-8 w-24 text-right"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               <DialogFooter className="gap-2">
                 <Button

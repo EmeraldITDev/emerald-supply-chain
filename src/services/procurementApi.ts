@@ -203,8 +203,10 @@ export const procurementApi = {
   },
 
   /**
-   * GET /api/mrfs/{id}/grn/preview — Phase 2.
-   * Returns the PDF as a blob plus an object URL the caller can open in a tab.
+   * GRN preview — Phase 2.
+   * Uses GET when no line-item overrides are present, POST when they are
+   * (the backend accepts the same body shape as `generate`).
+   * Returns the PDF as a blob + object URL the caller can open in a tab.
    */
   previewGRN: async (
     mrfId: string,
@@ -214,19 +216,28 @@ export const procurementApi = {
     if (expired || !token) {
       return { success: false, error: 'Authentication token has expired. Please log in again.' };
     }
-    const search = new URLSearchParams();
-    if (params.remarks) search.set('remarks', params.remarks);
-    if (params.grnNumber) search.set('grn_number', params.grnNumber);
-    if (params.receivedAt) search.set('received_at', params.receivedAt);
-    const qs = search.toString();
+    const needsPost =
+      Array.isArray(params.lineItems) && params.lineItems.length > 0;
+    const url = `${API_BASE_URL}/mrfs/${encodeURIComponent(mrfId)}/grn/preview`;
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/mrfs/${encodeURIComponent(mrfId)}/grn/preview${qs ? `?${qs}` : ''}`,
-        {
+      let response: Response;
+      if (needsPost) {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/pdf',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(buildGrnBody(params)),
+        });
+      } else {
+        const qs = buildGrnQuery(params);
+        response = await fetch(`${url}${qs ? `?${qs}` : ''}`, {
           method: 'GET',
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/pdf' },
-        },
-      );
+        });
+      }
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         return {
@@ -249,12 +260,7 @@ export const procurementApi = {
     mrfId: string,
     payload: GRNGeneratePayload,
   ): Promise<ApiResponse<GRNGenerateResponse>> => {
-    const body = {
-      confirm: payload.confirm ?? true,
-      remarks: payload.remarks,
-      grn_number: payload.grnNumber,
-      received_at: payload.receivedAt,
-    };
+    const body = { confirm: payload.confirm ?? true, ...buildGrnBody(payload) };
     const res = await apiRequest<GRNGenerateResponse>(
       `/mrfs/${encodeURIComponent(mrfId)}/grn/generate`,
       { method: 'POST', body: JSON.stringify(body) },
@@ -263,6 +269,44 @@ export const procurementApi = {
     return res;
   },
 };
+
+/** Shared body builder so preview (POST) and generate share field shape. */
+function buildGrnBody(p: GRNPreviewParams) {
+  const out: Record<string, unknown> = {};
+  // Prefer explicit dateOfReceipt; fall back to legacy receivedAt.
+  const dateOfReceipt = p.dateOfReceipt ?? p.receivedAt;
+  if (dateOfReceipt) out.dateOfReceipt = dateOfReceipt;
+  if (p.deliveryNoteNumber) out.deliveryNoteNumber = p.deliveryNoteNumber;
+  if (p.deliveryDate) out.deliveryDate = p.deliveryDate;
+  if (p.carrierName) out.carrierName = p.carrierName;
+  if (p.driverNumber) out.driverNumber = p.driverNumber;
+  if (p.vehiclePlateNumber) out.vehiclePlateNumber = p.vehiclePlateNumber;
+  if (p.comments) out.comments = p.comments;
+  // Legacy aliases retained for backwards compat with earlier wiring.
+  if (p.remarks && !p.comments) out.comments = p.remarks;
+  if (p.grnNumber) out.grnNumber = p.grnNumber;
+  if (Array.isArray(p.lineItems) && p.lineItems.length > 0) {
+    out.lineItems = p.lineItems.map((li) => ({
+      index: li.index,
+      quantityReceived: li.quantityReceived,
+    }));
+  }
+  return out;
+}
+
+function buildGrnQuery(p: GRNPreviewParams): string {
+  const search = new URLSearchParams();
+  const dateOfReceipt = p.dateOfReceipt ?? p.receivedAt;
+  if (dateOfReceipt) search.set('dateOfReceipt', dateOfReceipt);
+  if (p.deliveryNoteNumber) search.set('deliveryNoteNumber', p.deliveryNoteNumber);
+  if (p.deliveryDate) search.set('deliveryDate', p.deliveryDate);
+  if (p.carrierName) search.set('carrierName', p.carrierName);
+  if (p.driverNumber) search.set('driverNumber', p.driverNumber);
+  if (p.vehiclePlateNumber) search.set('vehiclePlateNumber', p.vehiclePlateNumber);
+  if (p.comments) search.set('comments', p.comments);
+  if (p.grnNumber) search.set('grnNumber', p.grnNumber);
+  return search.toString();
+}
 
 /** True when the MRF is in a state that allows entering the PO generator. */
 export function isMRFEligibleForPO(mrf: Partial<MRF> | null | undefined): boolean {
