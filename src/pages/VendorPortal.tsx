@@ -1356,6 +1356,7 @@ const VendorPortal = () => {
             <TabsTrigger value="profile">My Profile</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
             <TabsTrigger value="trips">Assigned Trips</TabsTrigger>
+            <TabsTrigger value="invoices">Invoices</TabsTrigger>
           </TabsList>
 
           <TabsContent value="rfqs" className="space-y-4">
