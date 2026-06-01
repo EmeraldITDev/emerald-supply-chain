@@ -1079,16 +1079,24 @@ export const mrfApi = {
 
   // Finance processes payment
   processPayment: async (id: string): Promise<ApiResponse<MRF>> => {
-    return apiRequest<MRF>(`/mrfs/${id}/process-payment`, {
+    const res = await apiRequest<MRF>(`/mrfs/${id}/process-payment`, {
       method: 'POST',
     });
+    if (!res.success && (res as any).code === 'FINANCE_AP_ROUTED') {
+      return { ...res, error: 'This MRF is routed to Finance AP — process the payment from the Finance AP system.' };
+    }
+    return res;
   },
 
   // Chairman approves final payment
   approvePayment: async (id: string): Promise<ApiResponse<MRF>> => {
-    return apiRequest<MRF>(`/mrfs/${id}/approve-payment`, {
+    const res = await apiRequest<MRF>(`/mrfs/${id}/approve-payment`, {
       method: 'POST',
     });
+    if (!res.success && (res as any).code === 'FINANCE_AP_ROUTED') {
+      return { ...res, error: 'This MRF is routed to Finance AP — chairman approval happens in the Finance AP system.' };
+    }
+    return res;
   },
 
   // Reject MRF at any workflow stage
