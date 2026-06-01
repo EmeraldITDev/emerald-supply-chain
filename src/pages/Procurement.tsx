@@ -4138,6 +4138,19 @@ const Procurement = () => {
                     (selectedMRFForDetails as any).contractType
                   }
                   stageTimestamps={selectedMRFForDetails as any}
+                  paymentSchedule={
+                    (selectedMRFForDetails as any).paymentSchedule ||
+                    (selectedMRFForDetails as any).payment_schedule ||
+                    null
+                  }
+                  documentsByType={
+                    (selectedMRFForDetails as any).documentsByType ||
+                    (selectedMRFForDetails as any).procurementDocuments?.documentsByType
+                  }
+                  activeByType={
+                    (selectedMRFForDetails as any).activeByType ||
+                    (selectedMRFForDetails as any).procurementDocuments?.activeByType
+                  }
                 />
 
                 {/* Basic Information */}
