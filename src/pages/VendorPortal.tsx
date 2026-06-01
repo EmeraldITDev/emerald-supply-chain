@@ -2392,6 +2392,10 @@ const VendorPortal = () => {
           <TabsContent value="trips" className="space-y-4">
             <VendorAssignedTrips />
           </TabsContent>
+
+          <TabsContent value="invoices" className="space-y-4">
+            <VendorInvoicesPanel />
+          </TabsContent>
         </Tabs>
       </main>
 
