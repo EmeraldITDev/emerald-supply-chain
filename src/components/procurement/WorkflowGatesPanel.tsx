@@ -69,6 +69,13 @@ export const WorkflowGatesPanel = ({ mrfId, refreshKey = 0, className }: Workflo
     fetchGates();
   }, [fetchGates, refreshKey]);
 
+  // Auto-refresh on global app:refresh (PO sign, GRN generate/upload, doc uploads).
+  useEffect(() => {
+    const handler = () => fetchGates();
+    window.addEventListener("app:refresh", handler);
+    return () => window.removeEventListener("app:refresh", handler);
+  }, [fetchGates]);
+
   if (loading && !gates) {
     return (
       <Card className={className}>
