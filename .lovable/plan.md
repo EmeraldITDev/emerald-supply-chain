@@ -1,61 +1,91 @@
-## Frontend Changes — Finance AP Phase 2 (Document registry)
+# Update MRF Progress Tracker (revised v2)
 
-Wire the new document-registry + GRN-from-line-items endpoints into types, services, and the GRN/Procurement UI. Backend work is out of scope.
+Extend `src/components/MRFProgressTracker.tsx` with the full Finance AP-aware stage list, grouped into compact phase sections. Incorporates: conditional delivery steps for 100% advance, explicit Vendor Final Invoice step, explicit Finance Review step, and split document-vs-timestamp logic for step 7.
 
-### 1. Types
+## Final step structure
 
-**`src/types/procurement-documents.ts`** — extend `ProcurementDocumentsResponse`:
-- `documentsByType?: Partial<Record<ProcurementDocumentType, ProcurementDocument[]>>`
-- `activeByType?: Partial<Record<ProcurementDocumentType, ProcurementDocument>>`
+```text
+APPROVAL
+  1. MRF Created
+  2. Initial Approval (SCD or Executive depending on contract type)
+  3. Procurement Review
 
-Add:
-- `UploadProcurementDocumentPayload = { type: ProcurementDocumentType; file: File }`
-- `GRNPreviewParams = { remarks?: string; grnNumber?: string; receivedAt?: string }`
-- `GRNGeneratePayload = { confirm?: boolean; remarks?: string; grnNumber?: string; receivedAt?: string }`
-- `GRNGenerateResponse = { document: ProcurementDocument; mrfGrnUrl?: string }`
+SOURCING
+  4. RFQ Issued to Vendors
+  5. Vendor Quotes Received
+  6. Vendor Selection Approved
 
-**`src/types/index.ts`** — `AvailableActions`:
-- add `canGenerateGRN?: boolean` (keep existing `canUploadGRN`).
+PROCUREMENT
+  7. Vendor Final Invoice Submitted
+  8. PO Generated (payment schedule locked)
+  9. PO Signed by SCD
 
-### 2. Service `src/services/procurementApi.ts`
+DELIVERY  (entire phase hidden when payment schedule is 100% advance)
+  10. GRN / Goods Received
+  11. Delivery Documents Uploaded (waybill / JCC / delivery confirmation)
 
-- `uploadProcurementDocument(mrfId, { type, file })` → multipart `POST /mrfs/{id}/procurement-documents`. Manually handles auth header + FormData (same pattern as `grnApi.completeGRN`). Dispatches `app:refresh` on success.
-- `previewGRN(mrfId, params?)` → `GET /mrfs/{id}/grn/preview?...`. Returns `{ blob, objectUrl }`; query params optional. Returned `objectUrl` is opened in a new tab by the caller.
-- `generateGRN(mrfId, payload)` → `POST /mrfs/{id}/grn/generate` JSON. Defaults `confirm: true`. Dispatches `app:refresh`.
+PAYMENT
+  12. Finance Review
+  13..N. Milestone Payments (dynamic, one row per schedule milestone)
+  Final. Fully Paid / Closed
+```
 
-### 3. GRN dialog — `src/components/GRNCompletionDialog.tsx`
+## Completion vs. duration — separation of concerns
 
-Refactor into two tabs (Shadcn `Tabs`):
-- **Generate from line items** — visible when `availableActions.canGenerateGRN`. Inputs: `grnNumber` (optional), `remarks` (textarea), `receivedAt` (date). Buttons: "Preview" (calls `previewGRN`, opens object URL in new tab), "Confirm & Generate" (calls `generateGRN`, success toast + close).
-- **Upload existing file** — current behaviour (`grnApi.completeGRN`), visible when `availableActions.canUploadGRN`.
+For every new step, **completion state** and **duration line** come from independent sources. Missing one never blocks the other.
 
-Fetch `availableActions` once on open (via `mrfApi.getAvailableActions`). Default to whichever tab is enabled; show both when both are allowed.
+| Step | Completion source | Duration timestamp |
+|------|-------------------|--------------------|
+| 7 Vendor Final Invoice | `activeByType.vendor_invoice` present → complete | `vendor_invoice_submitted_at` (if missing, omit duration line — step still marked complete) |
+| 9 PO Signed by SCD | Existing tracker payload / signed_po doc | `po_signed_at` |
+| 10 GRN | `activeByType.grn` present → complete | `grn_generated_at` |
+| 11 Delivery Documents | Any of `activeByType.waybill / jcc / delivery_confirmation` → complete | `delivery_docs_uploaded_at` |
+| 12 Finance Review | `finance_reviewed_at` present (until a richer flag exists) | `finance_reviewed_at` |
+| 13..N Milestone Payments | `milestone.status === 'paid'` → complete; `'eligible'` → pending | Per-milestone `paidAt` when available |
 
-### 4. `src/components/MRFActionButtons.tsx`
+Rule: a step that has a "completion artifact" (document or status) is marked complete even when the corresponding timestamp is absent. The duration line is simply omitted in that case (consistent with the existing tracker behavior for missing timestamps).
 
-- Add `onGenerateGRN?` prop and a "Generate GRN" button gated on `availableActions.canGenerateGRN` and procurement roles. Reuse existing dialog (the same `GRNCompletionDialog`) so callers can hook a single handler.
-- Keep `canUploadGRN` button as-is.
+## Conditionality
 
-### 5. Documents panel (new) — `src/components/procurement/ProcurementDocumentsPanel.tsx`
+- **100% advance**: `paymentSchedule.milestones` has exactly one milestone with `percentage === 100` AND `triggerCondition === 'on_advance'`. When true, hide steps 10 and 11 entirely (not rendered, not counted in progress totals). Internal helper `isFullAdvanceSchedule(schedule?: PaymentSchedule)`.
 
-- Props: `mrfId: string`, optional `defaultUploadType`.
-- On mount + `app:refresh`, fetch `procurementApi.getProcurementDocuments(mrfId)`.
-- Render two sections:
-  - **Active documents** — grid of cards keyed by `activeByType`, each showing type label, file name, version badge, "Open" link.
-  - **All versions** — grouped accordion per `documentsByType` key with version + uploadedBy + uploadedAt and active badge.
-- Inline upload form: `Select` (type: waybill, jcc, pfi, delivery_confirmation, other) + file input + Upload button. Validates ≤20MB and PDF/DOC/DOCX/JPG/PNG. On success, refetch.
-- Empty state when no documents yet.
-- Mount inside the existing PO Details dialog in `src/pages/Procurement.tsx` (below the existing PO content).
+## Data sources
 
-### Out of scope
+- `mrfApi.getProgressTracker(mrfId)` → steps 1–6 and 9 from existing backend payload.
+- `documentsByType` / `activeByType` from `getProcurementDocuments` → steps 7, 10, 11.
+- `paymentSchedule` (passed in, or derived from `mrf.paymentScheduleSummary`) → renders the dynamic milestone rows; statuses map to tracker state (`pending` | `eligible` | `paid` → `not_started` | `pending` | `completed`).
+- All durations still use real backend timestamps only.
+
+## Compact visual treatment
+
+- New `PhaseHeader` subcomponent: uppercase label, thin divider, mini status `3/3` + colored dot (success / warning / muted).
+- Each phase wrapped in Shadcn `Collapsible`; defaults open for the phase containing the current step, others collapsed.
+- Tighter spacing: `space-y-1.5` between steps, `h-8 w-8` step circles, connector `minHeight: 24px`.
+- Overall Progress bar counts completed steps across the full expanded list (excluding hidden DELIVERY steps for 100%-advance MRFs).
+- Milestone rows show inline `₦` amount + percentage; missing amounts render as `-`.
+
+## Props changes
+
+`MRFProgressTrackerProps` gains optional:
+- `paymentSchedule?: PaymentSchedule`
+- `documentsByType?: ProcurementDocumentsResponse['documentsByType']`
+- `activeByType?: ProcurementDocumentsResponse['activeByType']`
+
+`stageTimestamps` extended (all optional, duration-only):
+- `po_signed_at`
+- `vendor_invoice_submitted_at`
+- `grn_generated_at`
+- `delivery_docs_uploaded_at`
+- `finance_reviewed_at`
+- `payment_completed_at`
+
+## Call sites
+
+- `src/pages/Procurement.tsx` — pass `documentsByType`, `activeByType`, and `paymentSchedule` into the tracker (data already loaded).
+- Other tracker mounts (`Dashboard.tsx`, `SupplyChainDashboard.tsx`, `AccountsPayable.tsx`, `FinanceDashboard.tsx`, `ExecutiveDashboard.tsx`) — pass new props only when data is already in scope; otherwise leave unchanged. Tracker degrades gracefully (falls back to existing 8-step payload + single generic "Payment" row).
+
+## Out of scope
 
 - Backend changes.
-- Reworking `Warehouse.tsx` GRN flows.
-- Bulk download / version diff UI.
-
-### Verification
-
-- `tsc` passes.
-- Generate GRN tab: Preview opens the new PDF in a tab; Confirm & Generate posts and reloads documents.
-- Upload tab: existing legacy flow still works.
-- Documents panel renders grouped list + active badges; uploading a waybill appears in the registry after refresh.
+- Editing `SRFProgressTracker` / `ProcurementProgressTracker`.
+- Building new Finance AP screens.
