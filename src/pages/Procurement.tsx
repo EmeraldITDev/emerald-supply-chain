@@ -67,6 +67,7 @@ import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import ProcurementDocumentsPanel from "@/components/procurement/ProcurementDocumentsPanel";
 import WorkflowGatesPanel from "@/components/procurement/WorkflowGatesPanel";
+import DeliveryConfirmationPanel from "@/components/procurement/DeliveryConfirmationPanel";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 
 import type { MRFRequest, SRFRequest } from "@/contexts/AppContext";
