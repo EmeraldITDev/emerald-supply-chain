@@ -1,52 +1,61 @@
-## Frontend Changes — Finance AP (Phases 0 & 1)
+## Frontend Changes — Finance AP Phase 2 (Document registry)
 
-Wire the new backend contracts into the frontend. No backend code, no business-logic refactors beyond what the new endpoints require.
+Wire the new document-registry + GRN-from-line-items endpoints into types, services, and the GRN/Procurement UI. Backend work is out of scope.
 
-### Phase 0 — Type & service plumbing
+### 1. Types
 
-1. **Types (`src/types/index.ts`)**
-   - Add optional `scmTransactionId?: string` and `scm_transaction_id?: string` to `MRF`.
-   - No UI surface yet (reserved for Finance AP correlation).
+**`src/types/procurement-documents.ts`** — extend `ProcurementDocumentsResponse`:
+- `documentsByType?: Partial<Record<ProcurementDocumentType, ProcurementDocument[]>>`
+- `activeByType?: Partial<Record<ProcurementDocumentType, ProcurementDocument>>`
 
-2. **New types file `src/types/procurement-documents.ts`**
-   - `ProcurementDocumentType` union: `'vendor_invoice' | 'grn' | 'waybill' | 'jcc' | 'pfi' | 'po_pdf' | 'signed_po' | 'delivery_confirmation' | 'other'`.
-   - `ProcurementDocument` interface matching response shape (id, mrfId, vendorId, type, fileName, filePath, fileUrl, uploadedBy{id,name}, uploadedAt, version, isActive).
+Add:
+- `UploadProcurementDocumentPayload = { type: ProcurementDocumentType; file: File }`
+- `GRNPreviewParams = { remarks?: string; grnNumber?: string; receivedAt?: string }`
+- `GRNGeneratePayload = { confirm?: boolean; remarks?: string; grnNumber?: string; receivedAt?: string }`
+- `GRNGenerateResponse = { document: ProcurementDocument; mrfGrnUrl?: string }`
 
-3. **Service `src/services/procurementApi.ts`**
-   - Add `getProcurementDocuments(mrfId, { type?, includeInactive? })` → `GET /mrfs/{id}/procurement-documents` with query params.
+**`src/types/index.ts`** — `AvailableActions`:
+- add `canGenerateGRN?: boolean` (keep existing `canUploadGRN`).
 
-### Phase 1 — Payment schedule
+### 2. Service `src/services/procurementApi.ts`
 
-4. **New types file `src/types/payment-schedule.ts`**
-   - `PaymentTriggerCondition`: `'on_advance' | 'upon_delivery' | 'on_grn' | 'on_invoice' | 'on_completion' | (string & {})`.
-   - `PaymentMilestoneTemplate`, `PaymentTermTemplate`.
-   - `PaymentMilestone` (with `status`, `amount`, `triggerLabel`, `requiredDocuments`).
-   - `PaymentSchedule` (`id`, `templateKey`, `templateName`, `version`, `isLocked`, `lockedAt`, `summary`, `milestones[]`).
-   - `CreatePaymentSchedulePayload` (template-key OR custom milestones).
+- `uploadProcurementDocument(mrfId, { type, file })` → multipart `POST /mrfs/{id}/procurement-documents`. Manually handles auth header + FormData (same pattern as `grnApi.completeGRN`). Dispatches `app:refresh` on success.
+- `previewGRN(mrfId, params?)` → `GET /mrfs/{id}/grn/preview?...`. Returns `{ blob, objectUrl }`; query params optional. Returned `objectUrl` is opened in a new tab by the caller.
+- `generateGRN(mrfId, payload)` → `POST /mrfs/{id}/grn/generate` JSON. Defaults `confirm: true`. Dispatches `app:refresh`.
 
-5. **New service `src/services/paymentScheduleApi.ts`**
-   - `listTemplates()` → `GET /payment-term-templates`.
-   - `getSchedule(mrfId)` → `GET /mrfs/{id}/payment-schedule` (treat 404 as `null`).
-   - `createSchedule(mrfId, payload)` → `POST /mrfs/{id}/payment-schedule` (handle 422 percentages-must-total-100).
-   - `updateSchedule(mrfId, payload)` → `PUT /mrfs/{id}/payment-schedule` (handle 409 `SCHEDULE_LOCKED`).
-   - All mutations dispatch the global `app:refresh` event (match existing `procurementApi` pattern).
+### 3. GRN dialog — `src/components/GRNCompletionDialog.tsx`
 
-6. **Propagation type updates**
-   - Add optional `paymentSchedule?: PaymentSchedule | null` and `payment_schedule?` to: `MRF`, RFQ types, Quotation types.
-   - `src/types/procurement.ts` `PriceComparisonEntry`: add optional `paymentTerms?: string` and `paymentScheduleSummary?: string`. Add optional top-level `paymentSchedule` to the price-comparison response wrapper.
+Refactor into two tabs (Shadcn `Tabs`):
+- **Generate from line items** — visible when `availableActions.canGenerateGRN`. Inputs: `grnNumber` (optional), `remarks` (textarea), `receivedAt` (date). Buttons: "Preview" (calls `previewGRN`, opens object URL in new tab), "Confirm & Generate" (calls `generateGRN`, success toast + close).
+- **Upload existing file** — current behaviour (`grnApi.completeGRN`), visible when `availableActions.canUploadGRN`.
 
-7. **UI surfaces (minimal, additive)**
-   - **RFQ create/edit (`src/components/RFQManagement.tsx`)**: add a "Payment Schedule" section — template dropdown (from `listTemplates`) plus an editable milestone table (label, %, trigger). Save via create/update schedule API before the RFQ is sent. Show lock notice when `isLocked`.
-   - **Price comparison table (`src/components/PriceComparisonTable.tsx` and `src/components/procurement/PriceComparisonTable.tsx`)**: add a "Payment Terms" column rendering `paymentScheduleSummary || paymentTerms || '—'`. Render the MRF-level schedule summary above the table when present.
-   - **PO preview (`src/components/procurement/EmeraldPurchaseOrderPreview.tsx`)**: when `model.milestones` is provided, render a milestone table (Milestone #, Label, %, Amount, Trigger) in place of the free-text Payment Terms line. Keep fallback to existing `paymentTermsDisplay` when no schedule. Extend `emeraldPoDocumentModel` to carry optional `milestones[]` sourced from MRF `paymentSchedule`.
+Fetch `availableActions` once on open (via `mrfApi.getAvailableActions`). Default to whichever tab is enabled; show both when both are allowed.
 
-### Out of scope (this round)
-- Surfacing `scmTransactionId` in any view.
-- Document-upload UI from `procurement-documents` endpoint (types-only).
+### 4. `src/components/MRFActionButtons.tsx`
+
+- Add `onGenerateGRN?` prop and a "Generate GRN" button gated on `availableActions.canGenerateGRN` and procurement roles. Reuse existing dialog (the same `GRNCompletionDialog`) so callers can hook a single handler.
+- Keep `canUploadGRN` button as-is.
+
+### 5. Documents panel (new) — `src/components/procurement/ProcurementDocumentsPanel.tsx`
+
+- Props: `mrfId: string`, optional `defaultUploadType`.
+- On mount + `app:refresh`, fetch `procurementApi.getProcurementDocuments(mrfId)`.
+- Render two sections:
+  - **Active documents** — grid of cards keyed by `activeByType`, each showing type label, file name, version badge, "Open" link.
+  - **All versions** — grouped accordion per `documentsByType` key with version + uploadedBy + uploadedAt and active badge.
+- Inline upload form: `Select` (type: waybill, jcc, pfi, delivery_confirmation, other) + file input + Upload button. Validates ≤20MB and PDF/DOC/DOCX/JPG/PNG. On success, refetch.
+- Empty state when no documents yet.
+- Mount inside the existing PO Details dialog in `src/pages/Procurement.tsx` (below the existing PO content).
+
+### Out of scope
+
 - Backend changes.
+- Reworking `Warehouse.tsx` GRN flows.
+- Bulk download / version diff UI.
 
 ### Verification
-- `tsc` passes (run as part of build).
-- RFQ flow: template fetch populates dropdown; creating a custom schedule with percentages ≠ 100 surfaces backend validation error toast.
-- Price comparison renders the new column without breaking existing rows.
-- PO preview still renders for MRFs without a schedule (fallback path).
+
+- `tsc` passes.
+- Generate GRN tab: Preview opens the new PDF in a tab; Confirm & Generate posts and reloads documents.
+- Upload tab: existing legacy flow still works.
+- Documents panel renders grouped list + active badges; uploading a waybill appears in the registry after refresh.
