@@ -31,6 +31,7 @@ import { vendorTripApi } from "@/services/logisticsApi";
 import type { Trip } from "@/types/logistics";
 import { formatTripStatus, tripStatusBadgeClass } from "@/utils/tripStatus";
 import { Truck, FileText as FileTextIcon } from "lucide-react";
+import { VendorInvoicesPanel } from "@/components/vendor/VendorInvoicesPanel";
 
 interface VendorData extends Vendor {
   companyName?: string;
@@ -1355,6 +1356,7 @@ const VendorPortal = () => {
             <TabsTrigger value="profile">My Profile</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
             <TabsTrigger value="trips">Assigned Trips</TabsTrigger>
+            <TabsTrigger value="invoices">Invoices</TabsTrigger>
           </TabsList>
 
           <TabsContent value="rfqs" className="space-y-4">
@@ -2389,6 +2391,10 @@ const VendorPortal = () => {
 
           <TabsContent value="trips" className="space-y-4">
             <VendorAssignedTrips />
+          </TabsContent>
+
+          <TabsContent value="invoices" className="space-y-4">
+            <VendorInvoicesPanel />
           </TabsContent>
         </Tabs>
       </main>

@@ -1770,6 +1770,53 @@ export const vendorPortalApi = {
     });
   },
 
+  // ===== Phase 4: Finance AP vendor invoice portal =====
+  // List MRFs where the authenticated vendor is the selected vendor.
+  listFinanceApMrfs: async (): Promise<ApiResponse<{ mrfs: Array<{
+    mrfId: string;
+    title: string;
+    workflowState: string;
+    vendorInvoiceGate: { canSubmit: boolean; gateType?: string | null; reason?: string | null };
+    invoiceSubmitted: boolean;
+  }> }>> => {
+    return vendorApiRequest('/vendor-portal/mrfs');
+  },
+
+  // Per-MRF invoice submission status.
+  getInvoiceStatus: async (mrfId: string): Promise<ApiResponse<{
+    canSubmit: boolean;
+    submitted: boolean;
+    gateType?: string | null;
+    reason?: string | null;
+    document?: {
+      id: string | number;
+      fileName: string;
+      fileUrl: string;
+      uploadedAt: string;
+      version?: number;
+    } | null;
+  }>> => {
+    return vendorApiRequest(`/vendor-portal/mrfs/${mrfId}/invoice`);
+  },
+
+  // Upload the final vendor invoice for the given MRF (multipart, field name `invoice`).
+  uploadInvoice: async (mrfId: string, file: File): Promise<ApiResponse<{
+    document: {
+      id: string | number;
+      fileName: string;
+      fileUrl: string;
+      uploadedAt: string;
+      version?: number;
+    };
+  }>> => {
+    const formData = new FormData();
+    formData.append('invoice', file);
+    return vendorApiRequest(`/vendor-portal/mrfs/${mrfId}/invoice`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
   // Submit quotation as a vendor (with proper vendor authentication)
   // Backend endpoint: POST /api/rfqs/:id/submit-quotation
   // Backend expects: rfq_id, items (with rfq_item_id, item_name, quantity, unit_price), 
