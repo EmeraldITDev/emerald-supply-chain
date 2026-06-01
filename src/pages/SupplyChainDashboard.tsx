@@ -1097,6 +1097,11 @@ const SupplyChainDashboard = () => {
                                       toast.success(
                                         "Vendor selection approved - Procurement can now generate PO based on the approved RFQ",
                                       );
+                                      if ((approveResponse.data as any)?.vendorInvoiceGateOpen) {
+                                        toast.info(
+                                          "Vendor invoice upload is now unlocked for this MRF (advance payment).",
+                                        );
+                                      }
                                       await fetchMRFs();
                                     } else {
                                       toast.error(
