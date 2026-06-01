@@ -3957,6 +3957,13 @@ const Procurement = () => {
                   String((selectedMRFForPODetails as any).id ?? "")
                 }
               />
+              {/* Phase 5 — Delivery confirmation checklist (PM) */}
+              <DeliveryConfirmationPanel
+                mrfId={
+                  getMrfApiId(selectedMRFForPODetails as unknown as MRF) ||
+                  String((selectedMRFForPODetails as any).id ?? "")
+                }
+              />
             </div>
           </DialogContent>
         </Dialog>
