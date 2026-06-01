@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Download, Upload, Trash2, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { ShoppingCart, Download, Upload, Trash2, CheckCircle2, XCircle, Loader2, FileCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { mrfApi } from "@/services/api";
 import type { MRF, AvailableActions } from "@/types";
@@ -12,6 +12,7 @@ interface MRFActionButtonsProps {
   onGeneratePO?: () => void;
   onDownloadPO?: () => void;
   onUploadGRN?: () => void;
+  onGenerateGRN?: () => void;
   onDeletePO?: () => void;
   onDeleteMRF?: () => void;
   size?: "default" | "sm" | "lg" | "icon";
@@ -25,6 +26,7 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
   onGeneratePO,
   onDownloadPO,
   onUploadGRN,
+  onGenerateGRN,
   onDeletePO,
   onDeleteMRF,
   size = "sm",
@@ -105,6 +107,29 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
       >
         <Download className="h-3 w-3 mr-1" />
         {compact ? "PO" : "Download PO"}
+      </Button>
+    );
+  }
+
+  // Generate GRN - Phase 2 (from line items). Procurement only.
+  if (
+    availableActions.canGenerateGRN &&
+    onGenerateGRN &&
+    (user?.role === "procurement" || user?.role === "procurement_manager")
+  ) {
+    buttons.push(
+      <Button
+        key="generate-grn"
+        size={size}
+        variant={variant}
+        className={className}
+        onClick={(e) => {
+          e.stopPropagation();
+          onGenerateGRN();
+        }}
+      >
+        <FileCheck className="h-3 w-3 mr-1" />
+        {compact ? "GRN" : "Generate GRN"}
       </Button>
     );
   }

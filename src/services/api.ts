@@ -50,6 +50,7 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+export { API_BASE_URL };
 
 // Log the API URL being used (helpful for debugging in Lovable)
 if (typeof window !== 'undefined') {
@@ -97,7 +98,7 @@ const isTokenExpired = (tokenExpiry: string | null): boolean => {
 };
 
 // Helper function to get auth token (check localStorage first, then sessionStorage)
-const getAuthToken = (): { token: string | null; expired: boolean } => {
+export const getAuthToken = (): { token: string | null; expired: boolean } => {
   let token = localStorage.getItem('authToken');
   let tokenExpiry = localStorage.getItem('tokenExpiry');
   let storage: Storage = localStorage;

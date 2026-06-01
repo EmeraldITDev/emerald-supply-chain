@@ -415,6 +415,7 @@ export interface AvailableActions {
   canRequestGRN: boolean;
   canUploadGRN: boolean;
   canViewGRN: boolean;
+  canGenerateGRN?: boolean;
   availableActions: string[]; // List of action keys: 'view', 'edit', 'approve', 'reject', etc.
 }
 

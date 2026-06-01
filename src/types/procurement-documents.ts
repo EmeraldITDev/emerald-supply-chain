@@ -40,9 +40,34 @@ export interface ProcurementDocumentsResponse {
   mrfId: string;
   scmTransactionId?: string | null;
   documents: ProcurementDocument[];
+  /** Phase 2: grouped views (active + history) by document type. */
+  documentsByType?: Partial<Record<ProcurementDocumentType, ProcurementDocument[]>>;
+  activeByType?: Partial<Record<ProcurementDocumentType, ProcurementDocument>>;
 }
 
 export interface GetProcurementDocumentsParams {
   type?: ProcurementDocumentType;
   includeInactive?: boolean;
+}
+
+/** Phase 2: upload a supporting procurement document (waybill, JCC, PFI, …). */
+export interface UploadProcurementDocumentPayload {
+  type: ProcurementDocumentType;
+  file: File;
+}
+
+/** Phase 2: GRN preview / generate request payloads. */
+export interface GRNPreviewParams {
+  remarks?: string;
+  grnNumber?: string;
+  receivedAt?: string;
+}
+
+export interface GRNGeneratePayload extends GRNPreviewParams {
+  confirm?: boolean; // defaults to true server-side
+}
+
+export interface GRNGenerateResponse {
+  document: ProcurementDocument;
+  mrfGrnUrl?: string;
 }
