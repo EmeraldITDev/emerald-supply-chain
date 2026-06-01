@@ -995,8 +995,11 @@ export const mrfApi = {
   },
 
   // Supply Chain Director approves vendor selection
-  approveVendorSelection: async (id: string, remarks?: string): Promise<ApiResponse<MRF>> => {
-    return apiRequest<MRF>(`/mrfs/${id}/approve-vendor-selection`, {
+  approveVendorSelection: async (
+    id: string,
+    remarks?: string,
+  ): Promise<ApiResponse<MRF & { vendorInvoiceGateOpen?: boolean }>> => {
+    return apiRequest<MRF & { vendorInvoiceGateOpen?: boolean }>(`/mrfs/${id}/approve-vendor-selection`, {
       method: 'POST',
       body: JSON.stringify({ remarks }),
     });
