@@ -7,12 +7,8 @@ import {
   CheckCircle2, 
   Circle, 
   Clock, 
-  FileText, 
   Package, 
-  Truck,
-  DollarSign,
   AlertCircle,
-  XCircle,
   Loader2,
   ChevronDown
 } from "lucide-react";
@@ -64,28 +60,6 @@ interface ProgressStep {
   };
   remarks?: string;
 }
-
-const stepIcons: Record<number, React.ReactNode> = {
-  1: <FileText className="h-4 w-4" />,
-  2: <CheckCircle2 className="h-4 w-4" />,
-  3: <FileText className="h-4 w-4" />,
-  4: <CheckCircle2 className="h-4 w-4" />,
-  5: <Package className="h-4 w-4" />,
-  6: <DollarSign className="h-4 w-4" />,
-  7: <Truck className="h-4 w-4" />,
-  8: <CheckCircle2 className="h-4 w-4" />,
-};
-
-const stepNames: Record<number, string> = {
-  1: "MRF Created",
-  2: "Initial Approval",
-  3: "Procurement Review",
-  4: "RFQ Sent to Vendors",
-  5: "Vendor Quotes Received",
-  6: "Final Approval (Vendor Selection)",
-  7: "PO Generated",
-  8: "Completed (Signed PO Uploaded)",
-};
 
 const formatDurationMs = (ms: number): string => {
   if (!Number.isFinite(ms) || ms < 0) return "";
