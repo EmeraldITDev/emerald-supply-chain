@@ -66,6 +66,7 @@ import { LineItemPnLSection } from "@/components/LineItemPnLSection";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import ProcurementDocumentsPanel from "@/components/procurement/ProcurementDocumentsPanel";
+import WorkflowGatesPanel from "@/components/procurement/WorkflowGatesPanel";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 
 import type { MRFRequest, SRFRequest } from "@/contexts/AppContext";
@@ -3943,6 +3944,13 @@ const Procurement = () => {
               })()}
               {/* Phase 2 — procurement document registry */}
               <ProcurementDocumentsPanel
+                mrfId={
+                  getMrfApiId(selectedMRFForPODetails as unknown as MRF) ||
+                  String((selectedMRFForPODetails as any).id ?? "")
+                }
+              />
+              {/* Phase 3 — Finance AP workflow gates */}
+              <WorkflowGatesPanel
                 mrfId={
                   getMrfApiId(selectedMRFForPODetails as unknown as MRF) ||
                   String((selectedMRFForPODetails as any).id ?? "")
