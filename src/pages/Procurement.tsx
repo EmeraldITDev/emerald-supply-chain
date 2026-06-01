@@ -65,6 +65,7 @@ import { SRFDetailPanel } from "@/components/SRFDetailPanel";
 import { LineItemPnLSection } from "@/components/LineItemPnLSection";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
+import ProcurementDocumentsPanel from "@/components/procurement/ProcurementDocumentsPanel";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 
 import type { MRFRequest, SRFRequest } from "@/contexts/AppContext";
