@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   CheckCircle2, 
   Circle, 
@@ -12,11 +13,14 @@ import {
   DollarSign,
   AlertCircle,
   XCircle,
-  Loader2
+  Loader2,
+  ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mrfApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+import type { PaymentSchedule, PaymentMilestone } from "@/types/payment-schedule";
+import type { ProcurementDocumentsResponse } from "@/types/procurement-documents";
 
 interface MRFProgressTrackerProps {
   mrfId: string;
@@ -24,6 +28,11 @@ interface MRFProgressTrackerProps {
   // Used to adjust workflow labels (e.g., Emerald Contract starts with Executive approval).
   contractType?: string | null;
   onProgressUpdate?: (progress: number) => void;
+  // Phase 2: payment schedule drives milestone rows + 100% advance detection.
+  paymentSchedule?: PaymentSchedule | null;
+  // Phase 2: document registry drives completion for invoice / GRN / delivery docs.
+  documentsByType?: ProcurementDocumentsResponse["documentsByType"];
+  activeByType?: ProcurementDocumentsResponse["activeByType"];
   // Optional raw MRF timestamps used to compute per-stage durations. Only
   // fields present here are used; missing fields cause that stage's duration
   // line to be omitted (no fabricated data).
@@ -35,6 +44,12 @@ interface MRFProgressTrackerProps {
     grn_completed_at?: string;
     payment_approved_at?: string;
     updated_at?: string;
+    po_signed_at?: string;
+    vendor_invoice_submitted_at?: string;
+    grn_generated_at?: string;
+    delivery_docs_uploaded_at?: string;
+    finance_reviewed_at?: string;
+    payment_completed_at?: string;
   };
 }
 
