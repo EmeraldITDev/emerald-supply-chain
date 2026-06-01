@@ -1,4 +1,4 @@
-import { apiRequest } from '@/services/api';
+import { apiRequest, API_BASE_URL, getAuthToken } from '@/services/api';
 import type { ApiResponse, MRF } from '@/types';
 import type {
   POFormPayload,
@@ -8,7 +8,12 @@ import type {
 } from '@/types/procurement';
 import type {
   GetProcurementDocumentsParams,
+  GRNGeneratePayload,
+  GRNGenerateResponse,
+  GRNPreviewParams,
   ProcurementDocumentsResponse,
+  ProcurementDocument,
+  UploadProcurementDocumentPayload,
 } from '@/types/procurement-documents';
 
 /** Successful POST /mrfs/{id}/generate-po body (after `apiRequest` unwraps `data`). */
@@ -154,6 +159,105 @@ export const procurementApi = {
         method: 'POST',
         body: JSON.stringify(rest),
       }
+    );
+    if (res.success) dispatchRefresh();
+    return res;
+  },
+
+  /**
+   * POST /api/mrfs/{id}/procurement-documents — Phase 2.
+   * Multipart upload of a supporting document (waybill, JCC, PFI, etc.).
+   */
+  uploadProcurementDocument: async (
+    mrfId: string,
+    { type, file }: UploadProcurementDocumentPayload,
+  ): Promise<ApiResponse<ProcurementDocument>> => {
+    const { token, expired } = getAuthToken();
+    if (expired || !token) {
+      return { success: false, error: 'Authentication token has expired. Please log in again.' };
+    }
+    const formData = new FormData();
+    formData.append('type', type);
+    formData.append('file', file);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/mrfs/${encodeURIComponent(mrfId)}/procurement-documents`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) dispatchRefresh();
+      return {
+        success: response.ok,
+        data: (data?.data ?? data) as ProcurementDocument,
+        error: data?.error || data?.message,
+        status: response.status,
+      };
+    } catch (error) {
+      console.error('uploadProcurementDocument failed:', error);
+      return { success: false, error: 'Network error while uploading document.' };
+    }
+  },
+
+  /**
+   * GET /api/mrfs/{id}/grn/preview — Phase 2.
+   * Returns the PDF as a blob plus an object URL the caller can open in a tab.
+   */
+  previewGRN: async (
+    mrfId: string,
+    params: GRNPreviewParams = {},
+  ): Promise<ApiResponse<{ blob: Blob; objectUrl: string }>> => {
+    const { token, expired } = getAuthToken();
+    if (expired || !token) {
+      return { success: false, error: 'Authentication token has expired. Please log in again.' };
+    }
+    const search = new URLSearchParams();
+    if (params.remarks) search.set('remarks', params.remarks);
+    if (params.grnNumber) search.set('grn_number', params.grnNumber);
+    if (params.receivedAt) search.set('received_at', params.receivedAt);
+    const qs = search.toString();
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/mrfs/${encodeURIComponent(mrfId)}/grn/preview${qs ? `?${qs}` : ''}`,
+        {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/pdf' },
+        },
+      );
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          error: data?.error || data?.message || `Failed to preview GRN (${response.status})`,
+          status: response.status,
+        };
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      return { success: true, data: { blob, objectUrl } };
+    } catch (error) {
+      console.error('previewGRN failed:', error);
+      return { success: false, error: 'Network error while previewing GRN.' };
+    }
+  },
+
+  /** POST /api/mrfs/{id}/grn/generate — Phase 2. */
+  generateGRN: async (
+    mrfId: string,
+    payload: GRNGeneratePayload,
+  ): Promise<ApiResponse<GRNGenerateResponse>> => {
+    const body = {
+      confirm: payload.confirm ?? true,
+      remarks: payload.remarks,
+      grn_number: payload.grnNumber,
+      received_at: payload.receivedAt,
+    };
+    const res = await apiRequest<GRNGenerateResponse>(
+      `/mrfs/${encodeURIComponent(mrfId)}/grn/generate`,
+      { method: 'POST', body: JSON.stringify(body) },
     );
     if (res.success) dispatchRefresh();
     return res;
