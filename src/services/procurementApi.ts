@@ -15,6 +15,7 @@ import type {
   ProcurementDocument,
   UploadProcurementDocumentPayload,
 } from '@/types/procurement-documents';
+import type { WorkflowGatesResponse } from '@/types/workflow-gates';
 
 /** Successful POST /mrfs/{id}/generate-po body (after `apiRequest` unwraps `data`). */
 export type GeneratePOResponse = {
@@ -102,6 +103,20 @@ export const procurementApi = {
   /** GET /api/mrfs/{id} — used to hydrate the form. */
   getMRFForPO: async (mrfId: string): Promise<ApiResponse<MRF>> => {
     return apiRequest<MRF>(`/mrfs/${encodeURIComponent(mrfId)}`);
+  },
+
+  /**
+   * GET /api/mrfs/{id}/workflow-gates — Finance AP Phase 3.
+   *
+   * Returns vendor invoice gate, delivery confirmation requirements, and
+   * closure readiness. Legacy MRFs return `usesFinanceAp: false`.
+   */
+  getWorkflowGates: async (
+    mrfId: string,
+  ): Promise<ApiResponse<WorkflowGatesResponse>> => {
+    return apiRequest<WorkflowGatesResponse>(
+      `/mrfs/${encodeURIComponent(mrfId)}/workflow-gates`,
+    );
   },
 
   /** GET /api/mrfs/{id}/price-comparisons */
