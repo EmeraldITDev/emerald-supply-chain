@@ -3941,6 +3941,14 @@ const Procurement = () => {
                   </div>
                 );
               })()}
+              {/* Phase 2 — procurement document registry */}
+              <ProcurementDocumentsPanel
+                mrfId={String(
+                  (selectedMRFForPODetails as any).id ??
+                    (selectedMRFForPODetails as any).mrfId ??
+                    "",
+                )}
+              />
             </div>
           </DialogContent>
         </Dialog>
