@@ -31,6 +31,7 @@ import { vendorTripApi } from "@/services/logisticsApi";
 import type { Trip } from "@/types/logistics";
 import { formatTripStatus, tripStatusBadgeClass } from "@/utils/tripStatus";
 import { Truck, FileText as FileTextIcon } from "lucide-react";
+import { VendorInvoicesPanel } from "@/components/vendor/VendorInvoicesPanel";
 
 interface VendorData extends Vendor {
   companyName?: string;
