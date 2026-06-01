@@ -403,6 +403,7 @@ export interface ApprovalHistoryEntry {
 
 // Available Actions for MRF (based on role and state)
 export interface AvailableActions {
+  // Legacy action flags
   canEdit: boolean;
   canApprove: boolean;
   canReject: boolean;
@@ -417,6 +418,29 @@ export interface AvailableActions {
   canViewGRN: boolean;
   canGenerateGRN?: boolean;
   availableActions: string[]; // List of action keys: 'view', 'edit', 'approve', 'reject', etc.
+
+  // Phase 7: Finance AP routing fields
+  usesFinanceAp?: boolean; // true if created_at >= FINANCE_AP_CUTOVER_DATE
+  financeRoute?: 'legacy_internal' | 'finance_ap'; // Which finance system handles this MRF
+  cutoverDate?: string | null; // Configured cutover date (ISO date) or null if not configured
+  canViewFinanceSync?: boolean; // true for finance roles on Finance AP MRFs
+}
+
+export interface FinanceDashboardRouting {
+  cutoverDate: string | null; // Configured cutover (ISO date) or null
+  routingConfigured: boolean; // true if cutoverDate is set
+  description: string; // User-friendly description of current routing
+}
+
+export interface FinanceMRFRow {
+  mrf: MRF;
+  usesFinanceAp: boolean;
+  financeRoute: 'legacy_internal' | 'finance_ap';
+  workflowState?: string; // Workflow state for Finance AP MRFs
+  financeApCaseId?: string; // Finance AP case ID for linked MRFs
+  financeApStatus?: string; // Status in Finance AP system
+  canProcessPaymentInternal: boolean; // false for Finance AP MRFs
+  financeSyncPath?: string; // Link to finance sync view (Finance AP only)
 }
 
 // API Response Types

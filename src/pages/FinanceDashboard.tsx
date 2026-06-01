@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { getDisplayId } from "@/utils/displayId";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Clock, Calendar, DollarSign, TrendingUp, Loader2, FileText, CheckCircle } from "lucide-react";
+import { Download, Clock, Calendar, DollarSign, TrendingUp, Loader2, FileText, CheckCircle, AlertCircle, Link2 } from "lucide-react";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { dashboardApi } from "@/services/api";
@@ -12,6 +12,7 @@ import { OneDriveLink } from "@/components/OneDriveLink";
 import { displayString, formatAmount } from "@/utils/normalizeQuotation";
 import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { getFinanceAPCutoverDate, getFinanceRoutingDescription, mrfUsesFinanceAp } from "@/utils/financeAPRouting";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ const FinanceDashboard = () => {
   const { toast } = useToast();
   const [financeMRFs, setFinanceMRFs] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [routing, setRouting] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
   // Filter states
