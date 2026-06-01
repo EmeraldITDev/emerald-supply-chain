@@ -16,6 +16,7 @@ import type {
   UploadProcurementDocumentPayload,
 } from '@/types/procurement-documents';
 import type { WorkflowGatesResponse } from '@/types/workflow-gates';
+import type { DeliveryConfirmationResponse } from '@/types/delivery-confirmation';
 
 /** Successful POST /mrfs/{id}/generate-po body (after `apiRequest` unwraps `data`). */
 export type GeneratePOResponse = {
@@ -116,6 +117,19 @@ export const procurementApi = {
   ): Promise<ApiResponse<WorkflowGatesResponse>> => {
     return apiRequest<WorkflowGatesResponse>(
       `/mrfs/${encodeURIComponent(mrfId)}/workflow-gates`,
+    );
+  },
+
+  /**
+   * GET /api/mrfs/{id}/delivery-confirmation — Finance AP Phase 5.
+   * Combined gate status + checklist + permissions for the
+   * Delivery Confirmation panel.
+   */
+  getDeliveryConfirmation: async (
+    mrfId: string,
+  ): Promise<ApiResponse<DeliveryConfirmationResponse>> => {
+    return apiRequest<DeliveryConfirmationResponse>(
+      `/mrfs/${encodeURIComponent(mrfId)}/delivery-confirmation`,
     );
   },
 
