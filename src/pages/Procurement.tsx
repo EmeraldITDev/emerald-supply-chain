@@ -68,6 +68,7 @@ import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import ProcurementDocumentsPanel from "@/components/procurement/ProcurementDocumentsPanel";
 import WorkflowGatesPanel from "@/components/procurement/WorkflowGatesPanel";
 import DeliveryConfirmationPanel from "@/components/procurement/DeliveryConfirmationPanel";
+import FinanceSyncPanel from "@/components/procurement/FinanceSyncPanel";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 
 import type { MRFRequest, SRFRequest } from "@/contexts/AppContext";
@@ -3963,6 +3964,14 @@ const Procurement = () => {
                   getMrfApiId(selectedMRFForPODetails as unknown as MRF) ||
                   String((selectedMRFForPODetails as any).id ?? "")
                 }
+              />
+              {/* Phase 6 — Finance AP integration sync status */}
+              <FinanceSyncPanel
+                mrfId={
+                  getMrfApiId(selectedMRFForPODetails as unknown as MRF) ||
+                  String((selectedMRFForPODetails as any).id ?? "")
+                }
+                hideWhenLegacy
               />
             </div>
           </DialogContent>
