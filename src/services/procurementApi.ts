@@ -17,6 +17,7 @@ import type {
 } from '@/types/procurement-documents';
 import type { WorkflowGatesResponse } from '@/types/workflow-gates';
 import type { DeliveryConfirmationResponse } from '@/types/delivery-confirmation';
+import type { FinanceSyncResponse } from '@/types/finance-sync';
 
 /** Successful POST /mrfs/{id}/generate-po body (after `apiRequest` unwraps `data`). */
 export type GeneratePOResponse = {
@@ -130,6 +131,18 @@ export const procurementApi = {
   ): Promise<ApiResponse<DeliveryConfirmationResponse>> => {
     return apiRequest<DeliveryConfirmationResponse>(
       `/mrfs/${encodeURIComponent(mrfId)}/delivery-confirmation`,
+    );
+  },
+
+  /**
+   * GET /api/mrfs/{id}/finance-sync — Finance AP Phase 6.
+   * Returns Finance AP routing status, last sync events, and case linkage.
+   */
+  getFinanceSync: async (
+    mrfId: string,
+  ): Promise<ApiResponse<FinanceSyncResponse>> => {
+    return apiRequest<FinanceSyncResponse>(
+      `/mrfs/${encodeURIComponent(mrfId)}/finance-sync`,
     );
   },
 
