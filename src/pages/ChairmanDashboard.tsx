@@ -12,6 +12,7 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { mrfApi } from "@/services/api";
 import type { MRF } from "@/types";
+import { mrfUsesFinanceAp } from "@/utils/financeAPRouting";
 
 const ChairmanDashboard = () => {
   const { user } = useAuth();
@@ -63,9 +64,10 @@ const ChairmanDashboard = () => {
     });
   }, [mrfRequests]);
 
-  // Filter MRFs awaiting payment approval
+  // Filter MRFs awaiting payment approval (legacy internal only — not Finance AP)
   const pendingPayment = useMemo(() => {
     return mrfRequests.filter(mrf => {
+      if (mrfUsesFinanceAp(mrf)) return false;
       const status = (mrf.status || "").toLowerCase();
       const stage = (mrf.current_stage || mrf.currentStage || "").toLowerCase();
       

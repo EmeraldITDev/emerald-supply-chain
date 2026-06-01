@@ -1,18 +1,17 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getDisplayId } from "@/utils/displayId";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Clock, Calendar, DollarSign, TrendingUp, Loader2, FileText, CheckCircle, AlertCircle, Link2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Clock, Calendar, Loader2, FileText, CheckCircle, TrendingUp, Landmark, Info } from "lucide-react";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { dashboardApi } from "@/services/api";
-import type { MRF } from "@/types";
+import type { FinanceMRFRow } from "@/types";
+import type { FinanceDashboardData, FinanceDashboardListKey } from "@/types/finance-dashboard";
+import { getMrfFromFinanceRow } from "@/types/finance-dashboard";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { OneDriveLink } from "@/components/OneDriveLink";
-import { displayString, formatAmount } from "@/utils/normalizeQuotation";
 import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { getFinanceAPCutoverDate, getFinanceRoutingDescription, mrfUsesFinanceAp } from "@/utils/financeAPRouting";
+import { FinanceMRFCard } from "@/components/finance/FinanceMRFCard";
 import {
   Select,
   SelectContent,
@@ -21,29 +20,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const FinanceDashboard = () => {
   const { toast } = useToast();
-  const [financeMRFs, setFinanceMRFs] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
-  const [routing, setRouting] = useState<any>(null);
+  const [dashboard, setDashboard] = useState<FinanceDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  // Filter states
+  const [listFilter, setListFilter] = useState<FinanceDashboardListKey>("all");
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
 
-  // Fetch Finance Dashboard data from backend API
   const fetchFinanceData = useCallback(async () => {
     setLoading(true);
     try {
       const response = await dashboardApi.getFinanceDashboard();
       if (response.success && response.data) {
-        setFinanceMRFs(response.data.financeMRFs || []);
-        setStats(response.data.stats || null);
+        setDashboard(response.data);
       } else {
         toast({
           title: "Error",
@@ -51,7 +47,7 @@ const FinanceDashboard = () => {
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to connect to server",
@@ -66,358 +62,283 @@ const FinanceDashboard = () => {
     fetchFinanceData();
   }, [fetchFinanceData]);
 
-  // Helper functions
-  const getEstimatedCost = (mrf: MRF) => {
-    return parseFloat(String(mrf.estimated_cost || mrf.estimatedCost || "0"));
-  };
+  const activeList = useMemo((): FinanceMRFRow[] => {
+    if (!dashboard) return [];
+    if (listFilter === "legacy") return dashboard.legacyFinanceMRFs;
+    if (listFilter === "finance_ap") return dashboard.financeApMRFs;
+    return dashboard.financeMRFs;
+  }, [dashboard, listFilter]);
 
-  const getRequesterName = (mrf: MRF) => {
-    return mrf.requester_name || mrf.requester || "Unknown";
-  };
+  const filterRows = useCallback(
+    (rows: FinanceMRFRow[]) => {
+      let filtered = [...rows];
 
-  const getDate = (mrf: MRF) => {
-    return mrf.created_at || mrf.date || "";
-  };
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter((row) => {
+          const mrf = getMrfFromFinanceRow(row);
+          const vendor = (row as FinanceMRFRow & { vendor?: { name?: string } }).vendor;
+          return (
+            mrf.title?.toLowerCase().includes(q) ||
+            String(mrf.id).toLowerCase().includes(q) ||
+            (mrf.requester_name || mrf.requester || "").toLowerCase().includes(q) ||
+            vendor?.name?.toLowerCase().includes(q)
+          );
+        });
+      }
 
-  // Filtered data
-  const filteredRequests = useMemo(() => {
-    let filtered = [...financeMRFs];
+      if (dateFilter !== "all") {
+        const now = new Date();
+        filtered = filtered.filter((row) => {
+          const mrf = getMrfFromFinanceRow(row);
+          const dateStr = mrf.created_at || mrf.date;
+          if (!dateStr) return false;
+          const mrfDate = new Date(dateStr);
+          const daysDiff = (now.getTime() - mrfDate.getTime()) / (1000 * 60 * 60 * 24);
+          if (dateFilter === "today") return daysDiff < 1;
+          if (dateFilter === "week") return daysDiff < 7;
+          if (dateFilter === "month") return daysDiff < 30;
+          return true;
+        });
+      }
 
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter((item: any) => {
-        const mrf = item.mrf || item;
-        const vendor = item.vendor || {};
-        return (
-          mrf.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          mrf.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          getRequesterName(mrf).toLowerCase().includes(searchQuery.toLowerCase()) ||
-          vendor.name?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-      });
-    }
+      if (minAmount || maxAmount) {
+        filtered = filtered.filter((row) => {
+          const q = (row as FinanceMRFRow & { quotation?: Record<string, unknown> }).quotation ?? {};
+          const rawAmount =
+            q.totalAmount ?? q.total_amount ?? q.total_order_value ?? q.totalOrderValue ?? q.price;
+          const numAmount = rawAmount != null && rawAmount !== "" ? Number(rawAmount) : 0;
+          const min = minAmount ? parseFloat(minAmount) : 0;
+          const max = maxAmount ? parseFloat(maxAmount) : Infinity;
+          return numAmount >= min && numAmount <= max;
+        });
+      }
 
-    // Date filter
-    if (dateFilter !== "all") {
-      const now = new Date();
-      filtered = filtered.filter((item: any) => {
-        const mrf = item.mrf || item;
-        const mrfDate = new Date(getDate(mrf));
-        const daysDiff = (now.getTime() - mrfDate.getTime()) / (1000 * 60 * 60 * 24);
-        
-        if (dateFilter === "today") return daysDiff < 1;
-        if (dateFilter === "week") return daysDiff < 7;
-        if (dateFilter === "month") return daysDiff < 30;
-        return true;
-      });
-    }
+      return filtered;
+    },
+    [searchQuery, dateFilter, minAmount, maxAmount],
+  );
 
-    // Amount filter
-    if (minAmount || maxAmount) {
-      filtered = filtered.filter((item: any) => {
-        const q = item.quotation ?? item;
-        const rawAmount = q.totalAmount ?? q.total_amount ?? q.total_order_value ?? q.totalOrderValue ?? q.price;
-        const numAmount = rawAmount != null && rawAmount !== '' ? Number(rawAmount) : 0;
-        const min = minAmount ? parseFloat(minAmount) : 0;
-        const max = maxAmount ? parseFloat(maxAmount) : Infinity;
-        return numAmount >= min && numAmount <= max;
-      });
-    }
+  const filteredRequests = useMemo(
+    () => filterRows(activeList),
+    [activeList, filterRows],
+  );
 
-    return filtered;
-  }, [financeMRFs, searchQuery, dateFilter, minAmount, maxAmount]);
+  const stats = dashboard?.stats;
+  const routing = dashboard?.routing;
+  const legacyStats = stats?.legacy;
+  const financeApStats = stats?.financeAp;
 
-  const statusOptions = [
-    { label: "All", value: "all" },
-  ];
+  const statusOptions = [{ label: "All", value: "all" }];
 
-  const activeFiltersCount = 
-    (dateFilter !== "all" ? 1 : 0) + 
-    (minAmount ? 1 : 0) + 
-    (maxAmount ? 1 : 0);
+  const activeFiltersCount =
+    (dateFilter !== "all" ? 1 : 0) + (minAmount ? 1 : 0) + (maxAmount ? 1 : 0);
 
   return (
     <DashboardLayout>
-    <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Finance Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Financial overview — MRF approvals are handled in the Accounts Payable platform</p>
+          <p className="text-muted-foreground mt-1">
+            Legacy internal payments and Finance AP–routed MRFs in one view
+          </p>
         </div>
-      </div>
 
-      {/* Summary Cards */}
-      {stats && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Total Finance MRFs"
-            value={stats.totalFinanceMRFs || financeMRFs.length || 0}
-            description="All MRFs in finance stage"
-            icon={FileText}
-            iconColor="text-primary"
-          />
-          <StatCard
-            title="Pending Payments"
-            value={stats.pendingPayments || 0}
-            description={stats.totalPendingAmount ? `₦${stats.totalPendingAmount.toLocaleString()} total` : "No pending payments"}
-            icon={Clock}
-            iconColor="text-warning"
-          />
-          <StatCard
-            title="Processed Payments"
-            value={stats.processedPayments || 0}
-            description={stats.totalProcessedAmount ? `₦${stats.totalProcessedAmount.toLocaleString()} total` : "No processed payments"}
-            icon={CheckCircle}
-            iconColor="text-success"
-          />
-          <StatCard
-            title="Approved Payments"
-            value={stats.approvedPayments || 0}
-            description={stats.totalApprovedAmount ? `₦${stats.totalApprovedAmount.toLocaleString()} total` : "No approved payments"}
-            icon={TrendingUp}
-            iconColor="text-primary"
-          />
-        </div>
-      )}
-
-      {/* Read-only MRF list */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <CardTitle>Finance MRF Overview</CardTitle>
-              <CardDescription>Read-only view of MRFs at the finance stage. Payment processing is handled in Accounts Payable.</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <FilterBar
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-              statusOptions={statusOptions}
-              placeholder="Search by title, ID, or requester..."
-              activeFiltersCount={activeFiltersCount}
-              onClearFilters={() => {
-                setDateFilter("all");
-                setMinAmount("");
-                setMaxAmount("");
-              }}
-              additionalFilters={
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Date Range</label>
-                    <Select value={dateFilter} onValueChange={setDateFilter}>
-                      <SelectTrigger>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          <SelectValue />
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Time</SelectItem>
-                        <SelectItem value="today">Today</SelectItem>
-                        <SelectItem value="week">This Week</SelectItem>
-                        <SelectItem value="month">This Month</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Amount Range</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        type="number"
-                        placeholder="Min ₦"
-                        value={minAmount}
-                        onChange={(e) => setMinAmount(e.target.value)}
-                      />
-                      <Input
-                        type="number"
-                        placeholder="Max ₦"
-                        value={maxAmount}
-                        onChange={(e) => setMaxAmount(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              }
-            />
-
-            {/* Results */}
-            <div className="space-y-3 mt-6">
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : filteredRequests.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Clock className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium">No requests found</p>
-                  <p className="text-sm mt-1">No finance MRFs to display</p>
-                </div>
-              ) : (
-                filteredRequests.map((item: any) => {
-                  const mrf = item.mrf || item;
-                  const vendor = item.vendor || {};
-                  const q = item.quotation ?? item;
-                  const quotation = item.quotation ?? {};
-                  const po = item.po || {};
-                  const rawAmount = q.totalAmount ?? q.total_amount ?? q.total_order_value ?? q.totalOrderValue ?? q.price;
-                  const quotationAmount = rawAmount != null && rawAmount !== '' ? Number(rawAmount) : null;
-                  const hasQuotationAmount = quotationAmount !== null && !Number.isNaN(quotationAmount);
-                  const executiveApproved = mrf.executive_approved || mrf.executiveApproved;
-                  
-                  return (
-                    <div
-                      key={mrf.id}
-                      className="flex flex-col gap-4 p-5 border rounded-xl bg-card hover:shadow-md transition-shadow mb-4"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-3 flex-wrap">
-                          <h3 className="font-semibold text-lg">{mrf.title}</h3>
-                          <Badge variant="outline">{getDisplayId(mrf)}</Badge>
-                          {executiveApproved && (
-                            <Badge className="bg-success/10 text-success border-success/20">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Executive Approved
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        {/* MRF Details */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm mb-4">
-                          <div>
-                            <p className="text-muted-foreground text-xs mb-1">Category</p>
-                            <p className="font-medium capitalize">{mrf.category?.replace("-", " ") || "N/A"}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs mb-1">Contract Type</p>
-                            <p className="font-medium">{mrf.contract_type || mrf.contractType || "N/A"}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs mb-1">Estimated Cost</p>
-                            <p className="font-medium">₦{getEstimatedCost(mrf).toLocaleString()}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs mb-1">Date</p>
-                            <p className="font-medium">{(() => {
-                              const dateStr = getDate(mrf);
-                              if (!dateStr) return 'N/A';
-                              try {
-                                const date = new Date(dateStr.includes('Z') || dateStr.match(/[+-]\d{2}:\d{2}$/) ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr));
-                                return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric', 
-                                  year: 'numeric',
-                                  hour: '2-digit', 
-                                  minute: '2-digit',
-                                  hour12: true
-                                });
-                              } catch {
-                                return 'Invalid Date';
-                              }
-                            })()}</p>
-                          </div>
-                        </div>
-
-                        {/* Vendor Information */}
-                        {vendor && Object.keys(vendor).length > 0 && vendor.name && (
-                          <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 mb-4">
-                            <p className="text-sm font-semibold mb-2">Vendor Information</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                              {vendor.name && (
-                                <div>
-                                  <span className="text-muted-foreground">Name: </span>
-                                  <span className="font-medium">{vendor.name}</span>
-                                </div>
-                              )}
-                              {vendor.email && (
-                                <div>
-                                  <span className="text-muted-foreground">Email: </span>
-                                  <span className="font-medium">{vendor.email}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Quotation Details */}
-                        {hasQuotationAmount && (
-                          <div className="bg-success/5 border border-success/20 rounded-lg p-3 mb-4">
-                            <p className="text-sm font-semibold mb-2">Quotation Details</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm">
-                              <div>
-                                <span className="text-muted-foreground">Total Amount: </span>
-                                <span className="font-bold text-lg">{formatAmount(quotationAmount, q.currency ?? q.currency_code ?? 'NGN')}</span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Payment Terms: </span>
-                                <span className="font-medium">{displayString(quotation.payment_terms)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* PO Information */}
-                        {po && Object.keys(po).length > 0 && (po.po_number || po.signed_po_url) && (
-                          <div className="bg-accent/50 border border-border rounded-lg p-3 mb-4">
-                            <p className="text-sm font-semibold mb-2">Purchase Order</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                              {po.po_number && (
-                                <div>
-                                  <span className="text-muted-foreground">PO Number: </span>
-                                  <span className="font-mono font-medium">{po.po_number}</span>
-                                </div>
-                              )}
-                              {(po.signed_po_url || po.signed_po_share_url) && (
-                                <div>
-                                  <span className="text-muted-foreground">Signed PO: </span>
-                                  <OneDriveLink 
-                                    webUrl={po.signed_po_url || po.signed_po_share_url} 
-                                    fileName={`Signed PO-${po.po_number || 'N/A'}.pdf`}
-                                    variant="badge"
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        <p className="text-sm text-muted-foreground mt-2">{mrf.description}</p>
-                      </div>
-                      
-                      {/* Read-only actions — document links only */}
-                      <div className="flex gap-2 items-center flex-wrap border-t pt-4">
-                        {(mrf.signed_po_share_url || mrf.signedPOShareUrl || mrf.signed_po_url || mrf.signedPOUrl || po?.signed_po_url) && (
-                          <OneDriveLink 
-                            webUrl={mrf.signed_po_share_url || mrf.signedPOShareUrl || mrf.signed_po_url || mrf.signedPOUrl || po?.signed_po_url} 
-                            fileName={`Signed PO-${mrf.po_number || mrf.poNumber || po?.po_number || 'N/A'}.pdf`}
-                            variant="badge"
-                          />
-                        )}
-                        {(mrf.grn_share_url || mrf.grnShareUrl) && (
-                          <OneDriveLink 
-                            webUrl={mrf.grn_share_url || mrf.grnShareUrl || mrf.grn_url || mrf.grnUrl} 
-                            fileName={`GRN-${mrf.po_number || mrf.poNumber || 'N/A'}.pdf`}
-                            variant="badge"
-                          />
-                        )}
-                        <Button size="sm" variant="outline">
-                          <Download className="h-4 w-4 mr-1" />
-                          Documents
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })
+        {routing && (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle className="text-sm">Finance routing</AlertTitle>
+            <AlertDescription className="text-sm flex flex-wrap items-center gap-2">
+              {routing.description}
+              {routing.cutoverDate && (
+                <Badge variant="outline" className="text-xs">
+                  Cutover: {routing.cutoverDate}
+                </Badge>
               )}
+              {!routing.routingConfigured && (
+                <Badge variant="secondary" className="text-xs">
+                  Cutover not configured — all MRFs use legacy internal finance
+                </Badge>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {stats && (
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                title="Total Finance MRFs"
+                value={stats.totalFinanceMRFs ?? dashboard?.financeMRFs.length ?? 0}
+                description="Unified finance-stage list"
+                icon={FileText}
+                iconColor="text-primary"
+              />
+              <StatCard
+                title="Legacy — Pending internal"
+                value={
+                  legacyStats?.pendingInternal ??
+                  stats.pendingPayments ??
+                  dashboard?.legacyFinanceMRFs.length ??
+                  0
+                }
+                description={
+                  legacyStats?.totalPendingAmount != null
+                    ? `₦${legacyStats.totalPendingAmount.toLocaleString()}`
+                    : "Internal payment queue"
+                }
+                icon={Clock}
+                iconColor="text-warning"
+              />
+              <StatCard
+                title="Legacy — Chairman payment"
+                value={legacyStats?.chairmanPayment ?? stats.approvedPayments ?? 0}
+                description="Awaiting chairman sign-off"
+                icon={CheckCircle}
+                iconColor="text-success"
+              />
+              <StatCard
+                title="Finance AP — In pipeline"
+                value={
+                  financeApStats
+                    ? (financeApStats.handoff ?? 0) +
+                      (financeApStats.inReview ?? 0) +
+                      (financeApStats.packagePushed ?? 0)
+                    : (dashboard?.financeApMRFs.length ?? 0)
+                }
+                description={`Handoff ${financeApStats?.handoff ?? 0} · Review ${financeApStats?.inReview ?? 0} · Pushed ${financeApStats?.packagePushed ?? 0}`}
+                icon={Landmark}
+                iconColor="text-primary"
+              />
             </div>
+
+            {(stats.processedPayments != null || stats.totalProcessedAmount != null) && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <StatCard
+                  title="Processed (legacy)"
+                  value={stats.processedPayments ?? 0}
+                  description={
+                    stats.totalProcessedAmount
+                      ? `₦${stats.totalProcessedAmount.toLocaleString()}`
+                      : undefined
+                  }
+                  icon={TrendingUp}
+                  iconColor="text-primary"
+                />
+              </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Finance MRF Overview</CardTitle>
+            <CardDescription>
+              Legacy rows support internal Process Payment and chairman approval. Finance AP rows
+              link to the sync view — payment runs in Accounts Payable.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs
+              value={listFilter}
+              onValueChange={(v) => setListFilter(v as FinanceDashboardListKey)}
+              className="mb-4"
+            >
+              <TabsList>
+                <TabsTrigger value="all">
+                  All ({dashboard?.financeMRFs.length ?? 0})
+                </TabsTrigger>
+                <TabsTrigger value="legacy">
+                  Legacy ({dashboard?.legacyFinanceMRFs.length ?? 0})
+                </TabsTrigger>
+                <TabsTrigger value="finance_ap">
+                  Finance AP ({dashboard?.financeApMRFs.length ?? 0})
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            <div className="space-y-4">
+              <FilterBar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                statusFilter={statusFilter}
+                onStatusFilterChange={setStatusFilter}
+                statusOptions={statusOptions}
+                placeholder="Search by title, ID, or requester..."
+                activeFiltersCount={activeFiltersCount}
+                onClearFilters={() => {
+                  setDateFilter("all");
+                  setMinAmount("");
+                  setMaxAmount("");
+                }}
+                additionalFilters={
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Date Range</label>
+                      <Select value={dateFilter} onValueChange={setDateFilter}>
+                        <SelectTrigger>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            <SelectValue />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Time</SelectItem>
+                          <SelectItem value="today">Today</SelectItem>
+                          <SelectItem value="week">This Week</SelectItem>
+                          <SelectItem value="month">This Month</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Amount Range</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Min ₦"
+                          value={minAmount}
+                          onChange={(e) => setMinAmount(e.target.value)}
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Max ₦"
+                          value={maxAmount}
+                          onChange={(e) => setMaxAmount(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                }
+              />
+
+              <div className="space-y-3 mt-6">
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : filteredRequests.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Clock className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                    <p className="text-lg font-medium">No requests found</p>
+                    <p className="text-sm mt-1">No finance MRFs match this filter</p>
+                  </div>
+                ) : (
+                  filteredRequests.map((row) => {
+                    const mrf = getMrfFromFinanceRow(row);
+                    return (
+                      <FinanceMRFCard
+                        key={String(mrf.id)}
+                        row={row}
+                        onRefresh={fetchFinanceData}
+                      />
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </DashboardLayout>
   );
 };

@@ -281,13 +281,14 @@ export async function apiRequest<T>(
             raw: data,
           };
         }
-        return {
-          success: false,
-          error: errorMsg,
-          status: response.status,
-          raw: data,
-        };
-      }
+      return {
+        success: false,
+        error: errorMsg,
+        code: data.code,
+        status: response.status,
+        raw: data,
+      };
+    }
       
       // Handle validation errors
       if (data.errors && typeof data.errors === 'object') {
@@ -296,6 +297,7 @@ export async function apiRequest<T>(
         return {
           success: false,
           error: errorMessage || data.message || 'An error occurred',
+          code: data.code,
           status: response.status,
           raw: data,
         };
@@ -304,6 +306,7 @@ export async function apiRequest<T>(
       return {
         success: false,
         error: data.message || data.error || 'An error occurred',
+        code: data.code,
         status: response.status,
         raw: data,
       };
@@ -560,8 +563,18 @@ export const mrfApi = {
   },
 
   // Get available actions for current user on this MRF
-  getAvailableActions: async (id: string): Promise<ApiResponse<import('@/types').AvailableActions>> => {
-    return apiRequest<import('@/types').AvailableActions>(`/mrfs/${id}/available-actions`);
+  getAvailableActions: async (
+    id: string,
+    options?: { mrf?: import('@/types').MRF; userRole?: string | null },
+  ): Promise<ApiResponse<import('@/types').AvailableActions>> => {
+    const res = await apiRequest<import('@/types').AvailableActions>(
+      `/mrfs/${id}/available-actions`,
+    );
+    if (res.success && res.data && options?.mrf) {
+      const { enrichAvailableActions } = await import('@/utils/enrichFinanceRouting');
+      res.data = enrichAvailableActions(res.data, options.mrf, options.userRole);
+    }
+    return res;
   },
 
   create: async (data: CreateMRFData): Promise<ApiResponse<MRF>> => {
@@ -1082,7 +1095,7 @@ export const mrfApi = {
     const res = await apiRequest<MRF>(`/mrfs/${id}/process-payment`, {
       method: 'POST',
     });
-    if (!res.success && (res as any).code === 'FINANCE_AP_ROUTED') {
+    if (!res.success && res.code === 'FINANCE_AP_ROUTED') {
       return { ...res, error: 'This MRF is routed to Finance AP — process the payment from the Finance AP system.' };
     }
     return res;
@@ -1093,7 +1106,7 @@ export const mrfApi = {
     const res = await apiRequest<MRF>(`/mrfs/${id}/approve-payment`, {
       method: 'POST',
     });
-    if (!res.success && (res as any).code === 'FINANCE_AP_ROUTED') {
+    if (!res.success && res.code === 'FINANCE_AP_ROUTED') {
       return { ...res, error: 'This MRF is routed to Finance AP — chairman approval happens in the Finance AP system.' };
     }
     return res;
@@ -2575,8 +2588,19 @@ export const dashboardApi = {
     return apiRequest<any>('/dashboard/vendor');
   },
 
-  getFinanceDashboard: async (): Promise<ApiResponse<any>> => {
-    return apiRequest<any>('/dashboard/finance');
+  getFinanceDashboard: async (): Promise<
+    ApiResponse<import('@/types/finance-dashboard').FinanceDashboardData>
+  > => {
+    const res = await apiRequest<Record<string, unknown>>('/dashboard/finance');
+    if (res.success && res.data) {
+      const { normalizeFinanceDashboard } = await import('@/utils/enrichFinanceRouting');
+      return { ...res, data: normalizeFinanceDashboard(res.data) };
+    }
+    if (res.success) {
+      const { normalizeFinanceDashboard } = await import('@/utils/enrichFinanceRouting');
+      return { ...res, data: normalizeFinanceDashboard(null) };
+    }
+    return res as ApiResponse<import('@/types/finance-dashboard').FinanceDashboardData>;
   },
 
   getRecentActivities: async (limit: number = 20): Promise<ApiResponse<Array<{

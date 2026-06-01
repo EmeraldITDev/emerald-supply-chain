@@ -449,6 +449,8 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   message?: string;
+  /** Machine-readable error code from API (e.g. FINANCE_AP_ROUTED) */
+  code?: string;
   status?: number;
   raw?: any;
 }
