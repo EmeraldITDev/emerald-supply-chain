@@ -217,9 +217,10 @@ export interface SRF {
   urgency: 'Low' | 'Medium' | 'High' | string;
   description: string;
   duration: string;
-  estimatedCost: string;
-  estimated_cost?: string;
+  estimatedCost?: string | null;
+  estimated_cost?: string | null;
   justification: string;
+  lineItems?: import('./srf-line-item').SrfLineItemListRow[];
   /** API may send a string, nested `{ name }`, or use `requesterName` / `requester_name`. */
   requester?: string | { name?: string };
   requesterName?: string;
@@ -248,7 +249,7 @@ export interface CreateSRFData {
   urgency: 'Low' | 'Medium' | 'High';
   description: string;
   duration: string;
-  estimatedCost: string;
+  estimatedCost?: string | null;
   justification: string;
   items?: LineItem[];
 }

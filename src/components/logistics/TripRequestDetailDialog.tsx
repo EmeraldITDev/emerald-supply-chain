@@ -1,0 +1,122 @@
+import { useEffect, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
+import { tripRequestApi } from "@/services/api";
+import type { StaffTripRequest, TripProgressStep } from "@/types/trip-request";
+import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepper";
+
+interface TripRequestDetailDialogProps {
+  tripId: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+const STAFF_TRIP_STEPS_FALLBACK: TripProgressStep[] = [
+  { key: "submitted", label: "Submitted", status: "in_progress", step: 1 },
+  { key: "logistics_review", label: "Logistics Review", status: "pending", step: 2 },
+  { key: "confirmed", label: "Confirmed", status: "pending", step: 3 },
+  { key: "completed", label: "Completed", status: "pending", step: 4 },
+];
+
+export function TripRequestDetailDialog({
+  tripId,
+  open,
+  onOpenChange,
+}: TripRequestDetailDialogProps) {
+  const [trip, setTrip] = useState<StaffTripRequest | null>(null);
+  const [steps, setSteps] = useState<TripProgressStep[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !tripId) {
+      setTrip(null);
+      setSteps([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const [detailRes, progressRes] = await Promise.all([
+        tripRequestApi.getById(tripId),
+        tripRequestApi.getProgressTracker(tripId),
+      ]);
+      if (cancelled) return;
+
+      if (detailRes.success && detailRes.data?.trip) {
+        setTrip(detailRes.data.trip);
+      }
+
+      const progressSteps =
+        progressRes.data?.steps ??
+        detailRes.data?.trip?.progress?.steps ??
+        STAFF_TRIP_STEPS_FALLBACK;
+      setSteps(progressSteps.length ? progressSteps : STAFF_TRIP_STEPS_FALLBACK);
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, tripId]);
+
+  const scopeLabel =
+    trip?.bookingScopeLabel ??
+    trip?.booking_scope_label ??
+    (trip?.bookingScope === "outside_state" ? "Outside State" : "Within State");
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{trip?.destination ?? "Trip request"}</DialogTitle>
+          <DialogDescription>
+            {trip?.tripCode ?? (tripId ? `Trip #${tripId}` : "")}
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {trip && (
+              <div className="flex flex-wrap gap-2 text-sm">
+                <Badge variant="outline">{scopeLabel}</Badge>
+                <Badge variant="secondary" className="capitalize">
+                  {trip.status}
+                </Badge>
+              </div>
+            )}
+            {trip?.purpose && (
+              <p className="text-sm text-muted-foreground">{trip.purpose}</p>
+            )}
+            <div>
+              <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                Progress
+              </p>
+              <SimpleProgressStepper
+                steps={steps.map((s) => ({
+                  key: s.key,
+                  label: s.label,
+                  status: s.status,
+                  completedAt: s.completedAt,
+                }))}
+              />
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default TripRequestDetailDialog;

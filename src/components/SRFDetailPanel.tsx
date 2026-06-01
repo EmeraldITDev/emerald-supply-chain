@@ -110,7 +110,9 @@ export function SRFDetailPanel({
         <div>
           <Label className="text-muted-foreground">Estimated Cost</Label>
           <p className="font-medium">
-            ₦{parseFloat(detail.estimatedCost || "0").toLocaleString()}
+            {detail.estimatedCost != null && String(detail.estimatedCost).trim() !== ""
+              ? `₦${parseFloat(String(detail.estimatedCost)).toLocaleString()}`
+              : "—"}
           </p>
         </div>
         <div className="col-span-2">

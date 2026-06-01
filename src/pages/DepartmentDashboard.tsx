@@ -16,7 +16,9 @@ import { TripRequestDialog } from "@/components/logistics/TripRequestDialog";
 import { canCreateTripRequest } from "@/utils/tripRequestAccess";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { mrfApi } from "@/services/api";
+import { mrfApi, srfApi } from "@/services/api";
+import { MyTripRequestsList } from "@/components/logistics/MyTripRequestsList";
+import { SRFLineItemDetailDialog } from "@/components/srf/SRFLineItemDetailDialog";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import {
   Dialog,
@@ -28,7 +30,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { MRF } from "@/types";
+import type { MRF, SRF } from "@/types";
+import type { SrfLineItemListRow } from "@/types/srf-line-item";
 
 const DepartmentDashboard = () => {
   const { user } = useAuth();
@@ -41,7 +44,10 @@ const DepartmentDashboard = () => {
   
   // Read tab from URL query param, default to "mrns"
   const tabFromUrl = searchParams.get("tab");
-  const defaultTab = tabFromUrl && ["mrns", "mrf", "srf", "annual"].includes(tabFromUrl) ? tabFromUrl : "mrns";
+  const defaultTab =
+    tabFromUrl && ["mrns", "mrf", "srf", "annual", "trips"].includes(tabFromUrl)
+      ? tabFromUrl
+      : "mrns";
   const [activeTab, setActiveTab] = useState(defaultTab);
   
   
@@ -68,6 +74,12 @@ const DepartmentDashboard = () => {
   });
   const [isResubmitting, setIsResubmitting] = useState(false);
 
+  const [mySrfs, setMySrfs] = useState<SRF[]>([]);
+  const [srfLoading, setSrfLoading] = useState(false);
+  const [lineItemDialogOpen, setLineItemDialogOpen] = useState(false);
+  const [selectedSrfId, setSelectedSrfId] = useState<string | null>(null);
+  const [selectedLineItemId, setSelectedLineItemId] = useState<string | null>(null);
+
   // Fetch MRFs from backend
   const fetchMRFs = useCallback(async () => {
     setMrfLoading(true);
@@ -93,6 +105,28 @@ const DepartmentDashboard = () => {
   useEffect(() => {
     fetchMRFs();
   }, [fetchMRFs]);
+
+  const fetchMySrfs = useCallback(async () => {
+    setSrfLoading(true);
+    try {
+      const res = await srfApi.getAll({ include_line_items: true, limit: 50 });
+      if (res.success && res.data) {
+        const own = res.data.filter((srf) => {
+          const rn = getSrfRequesterDisplayName(srf as Parameters<typeof getSrfRequesterDisplayName>[0]);
+          return rn === user?.name || rn === user?.email;
+        });
+        setMySrfs(own);
+      }
+    } catch {
+      setMySrfs([]);
+    } finally {
+      setSrfLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (activeTab === "srf") fetchMySrfs();
+  }, [activeTab, fetchMySrfs]);
 
   // Filter MRNs for current user only (employees see only their own requests)
   const departmentMRNs = useMemo(() => {
@@ -197,11 +231,14 @@ const DepartmentDashboard = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="mrns">Material Request Notes</TabsTrigger>
-            <TabsTrigger value="mrf">Material Request Forms (MRF)</TabsTrigger>
-            <TabsTrigger value="srf">Service Request Forms (SRF)</TabsTrigger>
-            <TabsTrigger value="annual">Annual Planning</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 h-auto gap-1">
+            <TabsTrigger value="mrns" className="text-xs sm:text-sm">MRNs</TabsTrigger>
+            <TabsTrigger value="mrf" className="text-xs sm:text-sm">MRFs</TabsTrigger>
+            <TabsTrigger value="srf" className="text-xs sm:text-sm">SRFs</TabsTrigger>
+            {canCreateTripRequest(user?.role) && (
+              <TabsTrigger value="trips" className="text-xs sm:text-sm">My Trips</TabsTrigger>
+            )}
+            <TabsTrigger value="annual" className="text-xs sm:text-sm">Annual</TabsTrigger>
           </TabsList>
 
           <TabsContent value="mrns" className="space-y-3 sm:space-y-4">
@@ -445,43 +482,105 @@ const DepartmentDashboard = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
-                <div className="space-y-3">
-                  {srfRequests.filter(srf => {
-                    const rn = getSrfRequesterDisplayName(srf);
-                    return rn === user?.name || rn === user?.email;
-                  }).length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No SRFs found.</p>
-                      {isEmployeeRole(user?.role) && (
-                        <p className="text-sm mt-1">Create your first Service Request Form.</p>
-                      )}
-                    </div>
-                  ) : (
-                    srfRequests
-                      .filter(srf => {
-                        const rn = getSrfRequesterDisplayName(srf);
-                        return rn === user?.name || rn === user?.email;
-                      })
-                      .map((srf) => (
+                {srfLoading ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : mySrfs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No SRFs found.</p>
+                    {isEmployeeRole(user?.role) && (
+                      <p className="text-sm mt-1">Create your first Service Request Form.</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {mySrfs.map((srf) => {
+                      const lineItems: SrfLineItemListRow[] =
+                        srf.lineItems ??
+                        (srf.items as SrfLineItemListRow[] | undefined) ??
+                        [];
+                      return (
                         <Card key={srf.id}>
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex items-center justify-between gap-2">
                               <div>
                                 <h3 className="font-semibold">{srf.title}</h3>
-                                <p className="text-sm text-muted-foreground">SRF ID: {getDisplayId(srf)}</p>
-                                <p className="text-sm text-muted-foreground">Status: {srf.status}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {getDisplayId(srf)}
+                                </p>
                               </div>
                               <Badge className={getStatusColor(srf.status)}>{srf.status}</Badge>
                             </div>
+                            {lineItems.length > 0 ? (
+                              <div className="space-y-2 border-t pt-3">
+                                <p className="text-xs font-medium text-muted-foreground uppercase">
+                                  Line items
+                                </p>
+                                {lineItems.map((item) => {
+                                  const name =
+                                    item.itemName ??
+                                    (item as { item_name?: string }).item_name ??
+                                    "Item";
+                                  const ps = item.progressSummary;
+                                  return (
+                                    <div
+                                      key={String(item.id)}
+                                      className="flex items-center justify-between gap-2 text-sm border rounded-lg p-2"
+                                    >
+                                      <div className="min-w-0">
+                                        <p className="font-medium truncate">{name}</p>
+                                        {ps?.currentStepLabel && (
+                                          <p className="text-xs text-muted-foreground truncate">
+                                            {ps.currentStepLabel}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setSelectedSrfId(String(srf.id));
+                                          setSelectedLineItemId(String(item.id));
+                                          setLineItemDialogOpen(true);
+                                        }}
+                                      >
+                                        <Eye className="h-3 w-3 mr-1" />
+                                        View Details
+                                      </Button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">No line items on file.</p>
+                            )}
                           </CardContent>
                         </Card>
-                      ))
-                  )}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
+
+          {canCreateTripRequest(user?.role) && (
+            <TabsContent value="trips" className="space-y-3 sm:space-y-4">
+              <Card>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">My Trip Requests</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
+                    Trips you have submitted for logistics review
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0">
+                  <MyTripRequestsList />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
           <TabsContent value="annual" className="space-y-3 sm:space-y-4">
             <Card>
@@ -538,6 +637,13 @@ const DepartmentDashboard = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <SRFLineItemDetailDialog
+          srfId={selectedSrfId}
+          lineItemId={selectedLineItemId}
+          open={lineItemDialogOpen}
+          onOpenChange={setLineItemDialogOpen}
+        />
 
         {/* MRF Details Dialog with Progress Tracker */}
         <Dialog open={mrfDetailsDialogOpen} onOpenChange={setMrfDetailsDialogOpen}>

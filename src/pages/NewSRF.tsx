@@ -131,6 +131,16 @@ const NewSRF = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.duration.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Expected duration is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
@@ -157,8 +167,10 @@ const NewSRF = () => {
         formDataObj.append('serviceType', formData.serviceType);
         formDataObj.append('urgency', capitalizeUrgency(formData.urgency));
         formDataObj.append('justification', formData.justification);
-        formDataObj.append('estimatedCost', formData.estimatedCost);
-        formDataObj.append('duration', formData.duration);
+        if (formData.estimatedCost.trim()) {
+          formDataObj.append('estimatedCost', formData.estimatedCost.trim());
+        }
+        formDataObj.append('duration', formData.duration.trim());
         if (selectedVehicle) {
           formDataObj.append('vehicle_id', selectedVehicle.id);
           formDataObj.append('vehicle_plate', selectedVehicle.plate || '');
@@ -177,8 +189,10 @@ const NewSRF = () => {
           serviceType: formData.serviceType,
           urgency: capitalizeUrgency(formData.urgency),
           justification: formData.justification,
-          estimatedCost: formData.estimatedCost,
-          duration: formData.duration,
+          duration: formData.duration.trim(),
+          ...(formData.estimatedCost.trim()
+            ? { estimatedCost: formData.estimatedCost.trim() }
+            : {}),
           items: lineItems,
           ...(selectedVehicle ? { vehicleId: selectedVehicle.id, vehiclePlate: selectedVehicle.plate } : {}),
         } as any);
@@ -381,17 +395,21 @@ const NewSRF = () => {
 
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="duration">Expected Duration</Label>
+                  <Label htmlFor="duration">Expected Duration *</Label>
                   <Input
                     id="duration"
                     placeholder="e.g., 2 weeks"
                     value={formData.duration}
                     onChange={(e) => handleChange("duration", e.target.value)}
+                    required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="estimatedCost">Estimated Cost (₦)</Label>
+                  <Label htmlFor="estimatedCost">
+                    Estimated Cost (₦){" "}
+                    <span className="text-muted-foreground text-xs font-normal">(Optional)</span>
+                  </Label>
                   <Input
                     id="estimatedCost"
                     type="number"

@@ -96,10 +96,10 @@ export const MaintenanceSRFDialog = ({
   };
 
   const handleSubmit = async () => {
-    if (!formData.title || !formData.serviceType || !formData.urgency) {
+    if (!formData.title || !formData.serviceType || !formData.urgency || !formData.duration.trim()) {
       toast({
         title: "Missing Required Fields",
-        description: "Please fill in all required fields.",
+        description: "Title, service type, urgency, and duration are required.",
         variant: "destructive",
       });
       return;
@@ -126,8 +126,10 @@ export const MaintenanceSRFDialog = ({
         formDataObj.append("serviceType", formData.serviceType);
         formDataObj.append("urgency", capitalizeUrgency(formData.urgency));
         formDataObj.append("justification", formData.justification);
-        formDataObj.append("estimatedCost", formData.estimatedCost);
-        formDataObj.append("duration", formData.duration);
+        if (formData.estimatedCost.trim()) {
+          formDataObj.append("estimatedCost", formData.estimatedCost.trim());
+        }
+        formDataObj.append("duration", formData.duration.trim());
         formDataObj.append("vehicle_id", vehicle.id);
         formDataObj.append("vehicle_plate", vehicle.plate || "");
         if (invoiceFile) {
@@ -144,8 +146,8 @@ export const MaintenanceSRFDialog = ({
           serviceType: formData.serviceType,
           urgency: capitalizeUrgency(formData.urgency),
           justification: formData.justification,
-          estimatedCost: formData.estimatedCost,
-          duration: formData.duration,
+          duration: formData.duration.trim(),
+          ...(formData.estimatedCost.trim() ? { estimatedCost: formData.estimatedCost.trim() } : {}),
           vehicleId: vehicle.id,
           vehiclePlate: vehicle.plate,
         } as any);
@@ -318,7 +320,10 @@ export const MaintenanceSRFDialog = ({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="estimatedCost">Estimated Cost</Label>
+              <Label htmlFor="estimatedCost">
+                Estimated Cost{" "}
+                <span className="text-muted-foreground text-xs font-normal">(Optional)</span>
+              </Label>
               <Input
                 id="estimatedCost"
                 type="number"
@@ -330,11 +335,12 @@ export const MaintenanceSRFDialog = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="duration">Duration (days)</Label>
+              <Label htmlFor="duration">
+                Duration <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="duration"
-                type="number"
-                placeholder="0"
+                placeholder="e.g. 2 weeks"
                 value={formData.duration}
                 onChange={(e) => setFormData((prev) => ({ ...prev, duration: e.target.value }))}
                 disabled={loading}

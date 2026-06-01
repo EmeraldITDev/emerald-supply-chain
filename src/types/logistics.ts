@@ -867,14 +867,21 @@ export type TripWorkflowStage =
 
 export interface TripRequest {
   id: string;
+  tripCode?: string;
   destination: string;
   purpose: string;
   origin: string;
   scheduled_departure_at: string; // ISO datetime
   scheduled_arrival_at: string; // ISO datetime
   passenger_user_ids: number[];
+  /** @deprecated Logistics assigns driver on convert — do not send on staff create */
   driver_user_id?: number;
+  bookingScope?: import('./trip-request').TripBookingScope;
+  booking_scope?: import('./trip-request').TripBookingScope;
+  bookingScopeLabel?: string;
   workflow_stage: TripWorkflowStage;
+  status?: string;
+  progressSummary?: import('./trip-request').TripProgressSummary;
   created_at?: string;
   updated_at?: string;
 }
@@ -886,7 +893,7 @@ export interface CreateTripRequestData {
   scheduled_departure_at: string;
   scheduled_arrival_at: string;
   passenger_user_ids: number[];
-  driver_user_id?: number;
+  bookingScope: import('./trip-request').TripBookingScope;
 }
 
 export interface TripConversionData {

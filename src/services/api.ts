@@ -1266,12 +1266,59 @@ export const mrfApi = {
 
 // SRF API
 export const srfApi = {
-  getAll: async (filters?: FilterOptions): Promise<ApiResponse<SRF[]>> => {
+  getAll: async (
+    filters?: FilterOptions & import('@/types/srf-line-item').SrfListQuery,
+  ): Promise<ApiResponse<SRF[]>> => {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
     if (filters?.search) params.append('search', filters.search);
-    
-    return apiRequest<SRF[]>(`/srfs?${params.toString()}`);
+    if (filters?.limit != null) params.append('limit', String(filters.limit));
+    if (filters?.per_page != null) params.append('per_page', String(filters.per_page));
+    if (filters?.page != null) params.append('page', String(filters.page));
+    const includeItems = filters?.include_line_items ?? filters?.includeLineItems;
+    if (includeItems === false) params.append('include_line_items', 'false');
+    else params.append('include_line_items', 'true');
+
+    const res = await apiRequest<SRF[] | { data?: SRF[] }>(`/srfs?${params.toString()}`);
+    if (res.success && res.data && !Array.isArray(res.data)) {
+      const wrapped = res.data as { data?: SRF[] };
+      if (Array.isArray(wrapped.data)) {
+        return { ...res, data: wrapped.data };
+      }
+    }
+    return res as ApiResponse<SRF[]>;
+  },
+
+  getLineItem: async (
+    srfId: string,
+    itemId: string,
+  ): Promise<ApiResponse<import('@/types/srf-line-item').SrfLineItemDetailResponse>> => {
+    return apiRequest<import('@/types/srf-line-item').SrfLineItemDetailResponse>(
+      `/srfs/${encodeURIComponent(srfId)}/line-items/${encodeURIComponent(itemId)}`,
+    );
+  },
+
+  getProgressTracker: async (
+    srfId: string,
+  ): Promise<ApiResponse<{ progress?: import('@/types/srf-line-item').SrfProgressStep[]; steps?: import('@/types/srf-line-item').SrfProgressStep[] }>> => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/srfs/${encodeURIComponent(srfId)}/progress-tracker`,
+    );
+    if (res.success && res.data) {
+      const progress = (res.data.progress as unknown[]) ?? res.data.steps;
+      const steps = (res.data.steps as unknown[]) ?? progress;
+      return {
+        ...res,
+        data: {
+          progress: progress as import('@/types/srf-line-item').SrfProgressStep[],
+          steps: steps as import('@/types/srf-line-item').SrfProgressStep[],
+        },
+      };
+    }
+    return res as ApiResponse<{
+      progress?: import('@/types/srf-line-item').SrfProgressStep[];
+      steps?: import('@/types/srf-line-item').SrfProgressStep[];
+    }>;
   },
 
   getById: async (id: string): Promise<ApiResponse<SRF>> => {
@@ -2994,12 +3041,104 @@ export const dashboardKpiApi = {
 // ==========================================
 
 export const tripRequestApi = {
-  // Create trip request
-  create: async (data: import('@/types/logistics').CreateTripRequestData): Promise<ApiResponse<import('@/types/logistics').TripRequest>> => {
-    return apiRequest(`/trip-requests`, {
+  getBookingRules: async (): Promise<
+    ApiResponse<import('@/types/trip-request').TripBookingRulesPayload>
+  > => {
+    const res = await apiRequest<Record<string, unknown>>('/trip-requests/booking-rules');
+    if (res.success && res.data) {
+      const raw = res.data as Record<string, unknown>;
+      const rules =
+        (raw.bookingRules as Record<string, unknown>) ??
+        (raw.booking_rules as Record<string, unknown>) ??
+        raw;
+      const scopes = (rules.scopes as import('@/types/trip-request').TripBookingScopeRule[]) ?? [];
+      const referenceDate = String(
+        rules.referenceDate ?? rules.reference_date ?? new Date().toISOString().slice(0, 10),
+      );
+      return { ...res, data: { scopes, referenceDate } };
+    }
+    return res as ApiResponse<import('@/types/trip-request').TripBookingRulesPayload>;
+  },
+
+  list: async (params?: {
+    status?: string;
+    limit?: number;
+    per_page?: number;
+  }): Promise<ApiResponse<import('@/types/trip-request').TripRequestsListResponse>> => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    const limit = params?.limit ?? params?.per_page ?? 50;
+    qs.set('limit', String(Math.min(100, Math.max(1, limit))));
+    const res = await apiRequest<Record<string, unknown>>(`/trip-requests?${qs.toString()}`);
+    if (res.success) {
+      const data = res.data ?? {};
+      const trips =
+        (data.trips as import('@/types/trip-request').StaffTripRequest[]) ??
+        (Array.isArray(data) ? data : []);
+      return {
+        ...res,
+        data: {
+          trips,
+          pagination: data.pagination as import('@/types/trip-request').TripRequestsListResponse['pagination'],
+        },
+      };
+    }
+    return res as ApiResponse<import('@/types/trip-request').TripRequestsListResponse>;
+  },
+
+  getById: async (
+    id: string,
+  ): Promise<ApiResponse<{ trip: import('@/types/trip-request').StaffTripRequest }>> => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/trip-requests/${encodeURIComponent(id)}`,
+    );
+    if (res.success && res.data) {
+      const trip =
+        (res.data.trip as import('@/types/trip-request').StaffTripRequest) ??
+        (res.data as import('@/types/trip-request').StaffTripRequest);
+      return { ...res, data: { trip } };
+    }
+    return res as ApiResponse<{ trip: import('@/types/trip-request').StaffTripRequest }>;
+  },
+
+  getProgressTracker: async (
+    id: string,
+  ): Promise<ApiResponse<import('@/types/trip-request').TripProgressPayload>> => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/trip-requests/${encodeURIComponent(id)}/progress-tracker`,
+    );
+    if (res.success && res.data) {
+      const progress =
+        (res.data.progress as import('@/types/trip-request').TripProgressPayload) ?? res.data;
+      return { ...res, data: progress as import('@/types/trip-request').TripProgressPayload };
+    }
+    return res as ApiResponse<import('@/types/trip-request').TripProgressPayload>;
+  },
+
+  create: async (
+    data: import('@/types/logistics').CreateTripRequestData,
+  ): Promise<ApiResponse<{ trip: import('@/types/logistics').TripRequest }>> => {
+    const res = await apiRequest<Record<string, unknown>>(`/trip-requests`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    if (res.success && res.data) {
+      const trip =
+        (res.data.trip as import('@/types/logistics').TripRequest) ??
+        (res.data as import('@/types/logistics').TripRequest);
+      return { ...res, data: { trip } };
+    }
+    if (!res.success && res.code === 'BOOKING_LEAD_TIME_VIOLATION') {
+      const raw = res.raw ?? {};
+      const errors = raw.errors ?? {};
+      const minDates = errors.minimum_trip_date ?? errors.minimumTripDate;
+      const msg =
+        (Array.isArray(errors.bookingScope) ? errors.bookingScope[0] : null) ??
+        (Array.isArray(errors.scheduled_departure_at) ? errors.scheduled_departure_at[0] : null) ??
+        res.error;
+      return { ...res, error: msg || 'Trip date does not meet the minimum advance booking period.' };
+    }
+    return res as ApiResponse<{ trip: import('@/types/logistics').TripRequest }>;
   },
 
   // Convert trip request to logistics request
