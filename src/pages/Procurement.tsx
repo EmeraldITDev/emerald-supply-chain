@@ -3965,6 +3965,14 @@ const Procurement = () => {
                   String((selectedMRFForPODetails as any).id ?? "")
                 }
               />
+              {/* Phase 6 — Finance AP integration sync status */}
+              <FinanceSyncPanel
+                mrfId={
+                  getMrfApiId(selectedMRFForPODetails as unknown as MRF) ||
+                  String((selectedMRFForPODetails as any).id ?? "")
+                }
+                hideWhenLegacy
+              />
             </div>
           </DialogContent>
         </Dialog>
