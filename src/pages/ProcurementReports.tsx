@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { procurementReportsApi } from "@/services/api";
 import type { ProcurementReportData } from "@/types";
+import { FinanceApReportsSection } from "@/components/finance/FinanceApReportsSection";
 
 const REPORT_ROLES = [
   "procurement_manager",
@@ -248,6 +249,8 @@ const ProcurementReports = () => {
         ) : (
           <p className="text-center text-muted-foreground py-8">No report data available.</p>
         )}
+
+        <FinanceApReportsSection userRole={user?.role} />
       </div>
     </DashboardLayout>
   );

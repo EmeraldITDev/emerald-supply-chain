@@ -542,24 +542,34 @@ export const mrfApi = {
     return apiRequest(`/mrfs/${id}/full-details`);
   },
 
-  // Get MRF progress tracker
-  getProgressTracker: async (id: string): Promise<ApiResponse<{
-    mrfId: string;
-    title: string;
-    currentStep: number;
-    steps: Array<{
-      step: number;
-      name: string;
-      status: 'completed' | 'pending' | 'not_started';
-      completedAt?: string;
-      completedBy?: {
-        id: number;
-        name: string;
+  // Get MRF progress tracker (Phase 8 — phases, documents, schedule, routing)
+  getProgressTracker: async (
+    id: string,
+    options?: {
+      contractType?: string | null;
+      mrf?: import('@/types').MRF;
+      propPaymentSchedule?: import('@/types/payment-schedule').PaymentSchedule | null;
+      propActiveByType?: import('@/types/procurement-documents').ProcurementDocumentsResponse['activeByType'];
+      propStageTimestamps?: import('@/types/progress-tracker').ProgressTrackerStageTimestamps;
+    },
+  ): Promise<ApiResponse<import('@/types/progress-tracker').ProgressTrackerViewModel>> => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/mrfs/${encodeURIComponent(id)}/progress-tracker`,
+    );
+    if (res.success) {
+      const { normalizeProgressTracker } = await import('@/utils/normalizeProgressTracker');
+      return {
+        ...res,
+        data: normalizeProgressTracker(res.data ?? {}, {
+          contractType: options?.contractType,
+          mrf: options?.mrf,
+          propPaymentSchedule: options?.propPaymentSchedule,
+          propActiveByType: options?.propActiveByType,
+          propStageTimestamps: options?.propStageTimestamps,
+        }),
       };
-      remarks?: string;
-    }>;
-  }>> => {
-    return apiRequest(`/mrfs/${id}/progress-tracker`);
+    }
+    return res as ApiResponse<import('@/types/progress-tracker').ProgressTrackerViewModel>;
   },
 
   // Get available actions for current user on this MRF

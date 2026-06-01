@@ -4162,19 +4162,26 @@ const Procurement = () => {
                     (selectedMRFForDetails as any).contract_type ||
                     (selectedMRFForDetails as any).contractType
                   }
-                  stageTimestamps={selectedMRFForDetails as any}
+                  stageTimestamps={
+                    (mrfFullDetails as any)?.stageTimestamps ??
+                    (selectedMRFForDetails as any)
+                  }
                   paymentSchedule={
-                    (selectedMRFForDetails as any).paymentSchedule ||
-                    (selectedMRFForDetails as any).payment_schedule ||
+                    (mrfFullDetails as any)?.paymentSchedule ??
+                    (mrfFullDetails as any)?.payment_schedule ??
+                    (selectedMRFForDetails as any).paymentSchedule ??
+                    (selectedMRFForDetails as any).payment_schedule ??
                     null
                   }
                   documentsByType={
-                    (selectedMRFForDetails as any).documentsByType ||
-                    (selectedMRFForDetails as any).procurementDocuments?.documentsByType
+                    (mrfFullDetails as any)?.documentsByType ??
+                    (mrfFullDetails as any)?.procurementDocuments?.documentsByType ??
+                    (selectedMRFForDetails as any).documentsByType
                   }
                   activeByType={
-                    (selectedMRFForDetails as any).activeByType ||
-                    (selectedMRFForDetails as any).procurementDocuments?.activeByType
+                    (mrfFullDetails as any)?.activeByType ??
+                    (mrfFullDetails as any)?.procurementDocuments?.activeByType ??
+                    (selectedMRFForDetails as any).activeByType
                   }
                 />
 

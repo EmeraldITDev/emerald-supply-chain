@@ -12,6 +12,8 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { FinanceMRFCard } from "@/components/finance/FinanceMRFCard";
+import { FinanceApReportsSection } from "@/components/finance/FinanceApReportsSection";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Select,
   SelectContent,
@@ -24,6 +26,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const FinanceDashboard = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [dashboard, setDashboard] = useState<FinanceDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [listFilter, setListFilter] = useState<FinanceDashboardListKey>("all");
@@ -229,6 +232,8 @@ const FinanceDashboard = () => {
             )}
           </div>
         )}
+
+        <FinanceApReportsSection userRole={user?.role} />
 
         <Card>
           <CardHeader>
