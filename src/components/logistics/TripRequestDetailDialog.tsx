@@ -11,11 +11,13 @@ import { Loader2 } from "lucide-react";
 import { tripRequestApi } from "@/services/api";
 import type { StaffTripRequest, TripProgressStep } from "@/types/trip-request";
 import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepper";
+import { DeleteTripDraftButton } from "./DeleteTripDraftButton";
 
 interface TripRequestDetailDialogProps {
   tripId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDeleted?: () => void;
 }
 
 const STAFF_TRIP_STEPS_FALLBACK: TripProgressStep[] = [
@@ -29,6 +31,7 @@ export function TripRequestDetailDialog({
   tripId,
   open,
   onOpenChange,
+  onDeleted,
 }: TripRequestDetailDialogProps) {
   const [trip, setTrip] = useState<StaffTripRequest | null>(null);
   const [steps, setSteps] = useState<TripProgressStep[]>([]);
@@ -72,6 +75,11 @@ export function TripRequestDetailDialog({
     trip?.booking_scope_label ??
     (trip?.bookingScope === "outside_state" ? "Outside State" : "Within State");
 
+  const handleDeleted = () => {
+    onOpenChange(false);
+    onDeleted?.();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -89,11 +97,15 @@ export function TripRequestDetailDialog({
         ) : (
           <div className="space-y-4">
             {trip && (
-              <div className="flex flex-wrap gap-2 text-sm">
-                <Badge variant="outline">{scopeLabel}</Badge>
-                <Badge variant="secondary" className="capitalize">
-                  {trip.status}
-                </Badge>
+              <div className="flex flex-wrap gap-2 text-sm items-center justify-between">
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">{scopeLabel}</Badge>
+                  <Badge variant="secondary" className="capitalize">
+                    {trip.status}
+                    {trip.isDraft ? " · draft" : ""}
+                  </Badge>
+                </div>
+                <DeleteTripDraftButton trip={trip} onDeleted={handleDeleted} variant="destructive" />
               </div>
             )}
             {trip?.purpose && (

@@ -16,39 +16,44 @@ import { getDisplayId } from "@/utils/displayId";
 interface SRFLineItemDetailDialogProps {
   srfId: string | null;
   lineItemId: string | null;
+  /** When set, GET this path from `lineItems[].ui.viewDetails.path` */
+  fetchPath?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Pre-loaded progress from list — skips duplicate fetch when parent already has detail */
-  initialProgress?: SrfProgressStep[];
 }
 
 export function SRFLineItemDetailDialog({
   srfId,
   lineItemId,
+  fetchPath,
   open,
   onOpenChange,
-  initialProgress,
 }: SRFLineItemDetailDialogProps) {
   const [detail, setDetail] = useState<SrfLineItemDetailResponse | null>(null);
-  const [steps, setSteps] = useState<SrfProgressStep[]>(initialProgress ?? []);
+  const [steps, setSteps] = useState<SrfProgressStep[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!open || !srfId || !lineItemId) {
+    if (!open || (!fetchPath && (!srfId || !lineItemId))) {
       setDetail(null);
-      setSteps(initialProgress ?? []);
+      setSteps([]);
       return;
     }
 
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const res = await srfApi.getLineItem(srfId, lineItemId);
+      const res = await srfApi.getLineItem(srfId ?? "", lineItemId ?? "", {
+        path: fetchPath ?? undefined,
+      });
       if (cancelled) return;
       if (res.success && res.data) {
         setDetail(res.data);
-        const progress = res.data.progress ?? res.data.steps ?? initialProgress ?? [];
+        const progress = res.data.progress ?? res.data.steps ?? [];
         setSteps(progress);
+      } else {
+        setDetail(null);
+        setSteps([]);
       }
       setLoading(false);
     })();
@@ -56,7 +61,7 @@ export function SRFLineItemDetailDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, srfId, lineItemId, initialProgress]);
+  }, [open, srfId, lineItemId, fetchPath]);
 
   const line = detail?.lineItem;
   const srf = detail?.srf;
@@ -100,7 +105,8 @@ export function SRFLineItemDetailDialog({
                   <p className="text-muted-foreground text-xs">Unit</p>
                   <p className="font-medium">{line.unit ?? "—"}</p>
                 </div>
-                {(line.budgetAmount ?? (line as { budget_amount?: number }).budget_amount) != null && (
+                {(line.budgetAmount ?? (line as { budget_amount?: number }).budget_amount) !=
+                  null && (
                   <div className="col-span-2">
                     <p className="text-muted-foreground text-xs">Budget</p>
                     <p className="font-medium">

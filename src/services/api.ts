@@ -1279,23 +1279,35 @@ export const srfApi = {
     if (includeItems === false) params.append('include_line_items', 'false');
     else params.append('include_line_items', 'true');
 
-    const res = await apiRequest<SRF[] | { data?: SRF[] }>(`/srfs?${params.toString()}`);
-    if (res.success && res.data && !Array.isArray(res.data)) {
-      const wrapped = res.data as { data?: SRF[] };
-      if (Array.isArray(wrapped.data)) {
-        return { ...res, data: wrapped.data };
-      }
+    const res = await apiRequest<unknown>(`/srfs?${params.toString()}`);
+    if (res.success) {
+      const { normalizeSrfListPayload } = await import('@/utils/normalizeSrfApi');
+      const list = normalizeSrfListPayload(res.data ?? res.raw);
+      return { ...res, data: list as SRF[] };
     }
     return res as ApiResponse<SRF[]>;
+  },
+
+  fetchUi: async <T>(path: string, method: 'GET' | 'DELETE' = 'GET'): Promise<ApiResponse<T>> => {
+    const { apiFetchUiPath } = await import('@/utils/apiUiPath');
+    return apiFetchUiPath<T>(path, method);
   },
 
   getLineItem: async (
     srfId: string,
     itemId: string,
+    options?: { path?: string },
   ): Promise<ApiResponse<import('@/types/srf-line-item').SrfLineItemDetailResponse>> => {
-    return apiRequest<import('@/types/srf-line-item').SrfLineItemDetailResponse>(
-      `/srfs/${encodeURIComponent(srfId)}/line-items/${encodeURIComponent(itemId)}`,
-    );
+    const { normalizeLineItemDetail } = await import('@/utils/normalizeSrfApi');
+    const res = options?.path
+      ? await srfApi.fetchUi<unknown>(options.path, 'GET')
+      : await apiRequest<unknown>(
+          `/srfs/${encodeURIComponent(srfId)}/line-items/${encodeURIComponent(itemId)}`,
+        );
+    if (res.success) {
+      return { ...res, data: normalizeLineItemDetail(res.data ?? res.raw) };
+    }
+    return res as ApiResponse<import('@/types/srf-line-item').SrfLineItemDetailResponse>;
   },
 
   getProgressTracker: async (
@@ -1321,8 +1333,18 @@ export const srfApi = {
     }>;
   },
 
-  getById: async (id: string): Promise<ApiResponse<SRF>> => {
-    return apiRequest<SRF>(`/srfs/${encodeURIComponent(id)}`);
+  getById: async (
+    id: string,
+    options?: { path?: string },
+  ): Promise<ApiResponse<import('@/types/srf-ui').SrfDetailPayload>> => {
+    const { normalizeSrfDetail } = await import('@/utils/normalizeSrfApi');
+    const res = options?.path
+      ? await srfApi.fetchUi<unknown>(options.path, 'GET')
+      : await apiRequest<unknown>(`/srfs/${encodeURIComponent(id)}`);
+    if (res.success) {
+      return { ...res, data: normalizeSrfDetail(res.data ?? res.raw) };
+    }
+    return res as ApiResponse<import('@/types/srf-ui').SrfDetailPayload>;
   },
 
   create: async (data: CreateSRFData): Promise<ApiResponse<SRF>> => {
@@ -3071,10 +3093,12 @@ export const tripRequestApi = {
     qs.set('limit', String(Math.min(100, Math.max(1, limit))));
     const res = await apiRequest<Record<string, unknown>>(`/trip-requests?${qs.toString()}`);
     if (res.success) {
-      const data = res.data ?? {};
-      const trips =
+      const data = (res.data ?? {}) as Record<string, unknown>;
+      const trips = (
         (data.trips as import('@/types/trip-request').StaffTripRequest[]) ??
-        (Array.isArray(data) ? data : []);
+        (Array.isArray(res.data) ? res.data : []) ??
+        []
+      ) as import('@/types/trip-request').StaffTripRequest[];
       return {
         ...res,
         data: {
@@ -3084,6 +3108,25 @@ export const tripRequestApi = {
       };
     }
     return res as ApiResponse<import('@/types/trip-request').TripRequestsListResponse>;
+  },
+
+  delete: async (
+    idOrPath: string,
+  ): Promise<ApiResponse<{ message?: string; deletedId?: number | string }>> => {
+    const { uiPathToEndpoint } = await import('@/utils/apiUiPath');
+    const endpoint = idOrPath.includes('/trip-requests')
+      ? uiPathToEndpoint(idOrPath)
+      : `/trip-requests/${encodeURIComponent(idOrPath)}`;
+    const res = await apiRequest<{ message?: string; deletedId?: number | string }>(endpoint, {
+      method: 'DELETE',
+    });
+    if (!res.success && res.code === 'INVALID_STATE') {
+      return {
+        ...res,
+        error: res.error || 'This trip request can no longer be deleted.',
+      };
+    }
+    return res;
   },
 
   getById: async (

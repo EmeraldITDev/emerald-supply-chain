@@ -36,6 +36,18 @@ export interface TripProgressPayload {
   steps: TripProgressStep[];
 }
 
+export interface TripUiDeleteDraft {
+  showButton?: boolean;
+  label?: string;
+  method?: string;
+  path: string;
+  confirmMessage?: string;
+}
+
+export interface TripRequestUi {
+  deleteDraft?: TripUiDeleteDraft | null;
+}
+
 export interface StaffTripRequest {
   id: number | string;
   tripCode?: string;
@@ -57,6 +69,9 @@ export interface StaffTripRequest {
   progress?: { steps?: TripProgressStep[]; currentStepKey?: string };
   created_at?: string;
   createdAt?: string;
+  canDelete?: boolean;
+  isDraft?: boolean;
+  ui?: TripRequestUi;
 }
 
 export interface TripRequestsListResponse {

@@ -19,6 +19,10 @@ import { useToast } from "@/hooks/use-toast";
 import { mrfApi, srfApi } from "@/services/api";
 import { MyTripRequestsList } from "@/components/logistics/MyTripRequestsList";
 import { SRFLineItemDetailDialog } from "@/components/srf/SRFLineItemDetailDialog";
+import { SRFDetailDialog } from "@/components/srf/SRFDetailDialog";
+import { SRFCardList } from "@/components/srf/SRFCardList";
+import type { SrfWithUi } from "@/types/srf-ui";
+import { srfUiActionVisible } from "@/types/srf-ui";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import {
   Dialog,
@@ -31,7 +35,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { MRF, SRF } from "@/types";
-import type { SrfLineItemListRow } from "@/types/srf-line-item";
 
 const DepartmentDashboard = () => {
   const { user } = useAuth();
@@ -74,11 +77,14 @@ const DepartmentDashboard = () => {
   });
   const [isResubmitting, setIsResubmitting] = useState(false);
 
-  const [mySrfs, setMySrfs] = useState<SRF[]>([]);
+  const [mySrfs, setMySrfs] = useState<SrfWithUi[]>([]);
   const [srfLoading, setSrfLoading] = useState(false);
-  const [lineItemDialogOpen, setLineItemDialogOpen] = useState(false);
+  const [srfDetailOpen, setSrfDetailOpen] = useState(false);
   const [selectedSrfId, setSelectedSrfId] = useState<string | null>(null);
+  const [selectedSrfFetchPath, setSelectedSrfFetchPath] = useState<string | null>(null);
+  const [lineItemDialogOpen, setLineItemDialogOpen] = useState(false);
   const [selectedLineItemId, setSelectedLineItemId] = useState<string | null>(null);
+  const [selectedLineItemFetchPath, setSelectedLineItemFetchPath] = useState<string | null>(null);
 
   // Fetch MRFs from backend
   const fetchMRFs = useCallback(async () => {
@@ -115,7 +121,7 @@ const DepartmentDashboard = () => {
           const rn = getSrfRequesterDisplayName(srf as Parameters<typeof getSrfRequesterDisplayName>[0]);
           return rn === user?.name || rn === user?.email;
         });
-        setMySrfs(own);
+        setMySrfs(own as SrfWithUi[]);
       }
     } catch {
       setMySrfs([]);
@@ -495,72 +501,25 @@ const DepartmentDashboard = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {mySrfs.map((srf) => {
-                      const lineItems: SrfLineItemListRow[] =
-                        srf.lineItems ??
-                        (srf.items as SrfLineItemListRow[] | undefined) ??
-                        [];
-                      return (
-                        <Card key={srf.id}>
-                          <CardContent className="p-4 space-y-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <div>
-                                <h3 className="font-semibold">{srf.title}</h3>
-                                <p className="text-sm text-muted-foreground">
-                                  {getDisplayId(srf)}
-                                </p>
-                              </div>
-                              <Badge className={getStatusColor(srf.status)}>{srf.status}</Badge>
-                            </div>
-                            {lineItems.length > 0 ? (
-                              <div className="space-y-2 border-t pt-3">
-                                <p className="text-xs font-medium text-muted-foreground uppercase">
-                                  Line items
-                                </p>
-                                {lineItems.map((item) => {
-                                  const name =
-                                    item.itemName ??
-                                    (item as { item_name?: string }).item_name ??
-                                    "Item";
-                                  const ps = item.progressSummary;
-                                  return (
-                                    <div
-                                      key={String(item.id)}
-                                      className="flex items-center justify-between gap-2 text-sm border rounded-lg p-2"
-                                    >
-                                      <div className="min-w-0">
-                                        <p className="font-medium truncate">{name}</p>
-                                        {ps?.currentStepLabel && (
-                                          <p className="text-xs text-muted-foreground truncate">
-                                            {ps.currentStepLabel}
-                                          </p>
-                                        )}
-                                      </div>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => {
-                                          setSelectedSrfId(String(srf.id));
-                                          setSelectedLineItemId(String(item.id));
-                                          setLineItemDialogOpen(true);
-                                        }}
-                                      >
-                                        <Eye className="h-3 w-3 mr-1" />
-                                        View Details
-                                      </Button>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <p className="text-xs text-muted-foreground">No line items on file.</p>
-                            )}
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
+                  <SRFCardList
+                    srfs={mySrfs}
+                    getStatusColor={getStatusColor}
+                    onOpenSrf={(srf) => {
+                      const path = srf.ui?.viewDetails?.path;
+                      if (!srfUiActionVisible(srf.ui?.viewDetails) && srf.ui?.cardClickable === false) {
+                        return;
+                      }
+                      setSelectedSrfId(String(srf.id));
+                      setSelectedSrfFetchPath(path ?? null);
+                      setSrfDetailOpen(true);
+                    }}
+                    onOpenLineItem={(srf, lineItemId, fetchPath) => {
+                      setSelectedSrfId(String(srf.id));
+                      setSelectedLineItemId(lineItemId);
+                      setSelectedLineItemFetchPath(fetchPath ?? null);
+                      setLineItemDialogOpen(true);
+                    }}
+                  />
                 )}
               </CardContent>
             </Card>
@@ -638,9 +597,23 @@ const DepartmentDashboard = () => {
           </TabsContent>
         </Tabs>
 
+        <SRFDetailDialog
+          srfId={selectedSrfId}
+          fetchPath={selectedSrfFetchPath}
+          open={srfDetailOpen}
+          onOpenChange={setSrfDetailOpen}
+          onViewLineItem={(srfId, lineItemId, path) => {
+            setSelectedSrfId(srfId);
+            setSelectedLineItemId(lineItemId);
+            setSelectedLineItemFetchPath(path ?? null);
+            setLineItemDialogOpen(true);
+          }}
+        />
+
         <SRFLineItemDetailDialog
           srfId={selectedSrfId}
           lineItemId={selectedLineItemId}
+          fetchPath={selectedLineItemFetchPath}
           open={lineItemDialogOpen}
           onOpenChange={setLineItemDialogOpen}
         />

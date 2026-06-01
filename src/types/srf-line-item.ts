@@ -17,6 +17,7 @@ export interface SrfLineItemListRow {
   budgetAmount?: number;
   budget_amount?: number;
   progressSummary?: SrfLineItemProgressSummary;
+  ui?: import('@/types/srf-ui').SrfLineItemUi;
 }
 
 export interface SrfProgressStep {
@@ -28,8 +29,8 @@ export interface SrfProgressStep {
 }
 
 export interface SrfLineItemDetailResponse {
-  srf: SRF;
-  lineItem: SrfLineItemListRow & Record<string, unknown>;
+  srf?: SRF;
+  lineItem?: SrfLineItemListRow & Record<string, unknown>;
   progress?: SrfProgressStep[];
   steps?: SrfProgressStep[];
 }

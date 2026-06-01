@@ -7,6 +7,8 @@ import { Loader2, MapPin, RefreshCw } from "lucide-react";
 import { tripRequestApi } from "@/services/api";
 import type { StaffTripRequest } from "@/types/trip-request";
 import { TripRequestDetailDialog } from "./TripRequestDetailDialog";
+import { DeleteTripDraftButton } from "./DeleteTripDraftButton";
+import { tripCanDeleteDraft } from "@/utils/tripDraftUi";
 
 interface MyTripRequestsListProps {
   refreshKey?: number;
@@ -53,6 +55,14 @@ export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) 
     setDetailOpen(true);
   };
 
+  const handleDeleted = (deletedId: string | number) => {
+    setTrips((prev) => prev.filter((t) => String(t.id) !== String(deletedId)));
+    if (selectedId === String(deletedId)) {
+      setDetailOpen(false);
+      setSelectedId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -85,56 +95,75 @@ export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) 
               trip.scheduled_departure_at ??
               trip.createdAt ??
               trip.created_at;
+            const isDraft = trip.isDraft ?? trip.status === "draft";
+
             return (
               <Card
                 key={String(trip.id)}
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => openDetail(trip.id)}
+                className="hover:shadow-md transition-shadow"
               >
                 <CardContent className="p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{trip.destination}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{tripLabel(trip)}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge variant="outline">{scopeLabel(trip)}</Badge>
-                      <Badge variant="secondary" className="text-[10px] capitalize">
-                        {trip.status}
-                      </Badge>
-                    </div>
-                  </div>
-                  {dep && (
-                    <p className="text-xs text-muted-foreground">
-                      Departure:{" "}
-                      {new Date(dep).toLocaleString(undefined, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
-                    </p>
-                  )}
-                  {summary && (
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">
-                          {summary.currentStepLabel ?? summary.currentStepKey ?? "In progress"}
-                        </span>
-                        <span>{pct}%</span>
-                      </div>
-                      <Progress value={pct} className="h-1.5" />
-                    </div>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openDetail(trip.id);
-                    }}
+                  <div
+                    className="cursor-pointer"
+                    onClick={() => openDetail(trip.id)}
                   >
-                    View progress
-                  </Button>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">{trip.destination}</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {tripLabel(trip)}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant="outline">{scopeLabel(trip)}</Badge>
+                        <Badge variant="secondary" className="text-[10px] capitalize">
+                          {trip.status}
+                          {isDraft ? " · draft" : ""}
+                        </Badge>
+                      </div>
+                    </div>
+                    {dep && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Departure:{" "}
+                        {new Date(dep).toLocaleString(undefined, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
+                      </p>
+                    )}
+                    {summary && (
+                      <div className="space-y-1 mt-2">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">
+                            {summary.currentStepLabel ??
+                              summary.currentStepKey ??
+                              "In progress"}
+                          </span>
+                          <span>{pct}%</span>
+                        </div>
+                        <Progress value={pct} className="h-1.5" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 min-w-[120px]"
+                      onClick={() => openDetail(trip.id)}
+                    >
+                      View progress
+                    </Button>
+                    {tripCanDeleteDraft(trip) && (
+                      <DeleteTripDraftButton
+                        trip={trip}
+                        onDeleted={() => handleDeleted(trip.id)}
+                        variant="destructive"
+                        stopPropagation
+                      />
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -146,6 +175,7 @@ export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) 
         tripId={selectedId}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        onDeleted={load}
       />
     </>
   );
