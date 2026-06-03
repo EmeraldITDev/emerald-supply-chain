@@ -29,6 +29,11 @@ import type { MRFRequest } from "@/contexts/AppContext";
 import { vendorApi, poTermsApi } from "@/services/api";
 import type { Vendor } from "@/types";
 import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
+import {
+  PaymentMilestoneBuilder,
+  serializePaymentMilestones,
+  type PaymentMilestoneInput,
+} from "@/components/payments/PaymentMilestoneBuilder";
 
 interface POGenerationDialogProps {
   open: boolean;
@@ -43,6 +48,7 @@ interface POGenerationDialogProps {
     notes: string;
     poFile: File | null;
     supportingDocuments?: File[];
+    paymentMilestones?: Array<{ label: string; percentage: number; trigger_condition: string }>;
   }) => Promise<void>;
   onSave?: (poData: {
     vendors: string[];
@@ -53,6 +59,7 @@ interface POGenerationDialogProps {
     notes: string;
     poFile: File | null;
     supportingDocuments?: File[];
+    paymentMilestones?: Array<{ label: string; percentage: number; trigger_condition: string }>;
   }) => Promise<void>;
   isGenerating?: boolean;
 }
@@ -72,6 +79,8 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
   const [customTerms, setCustomTerms] = useState<string>("");
   const [termsLoading, setTermsLoading] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
+  const [paymentMilestones, setPaymentMilestones] = useState<PaymentMilestoneInput[]>([]);
+  const [paymentMilestonesValid, setPaymentMilestonesValid] = useState(true);
 
   // Fetch vendors when dialog opens
   useEffect(() => {
@@ -145,7 +154,11 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
       paymentTerms,
       notes,
       poFile: null, // PO documents are uploaded later, after RFQ approval
-      supportingDocuments: supportingDocuments.length > 0 ? supportingDocuments : undefined
+      supportingDocuments: supportingDocuments.length > 0 ? supportingDocuments : undefined,
+      paymentMilestones:
+        paymentMilestones.length > 0 && paymentMilestonesValid
+          ? serializePaymentMilestones(paymentMilestones)
+          : undefined,
     };
 
     if (sendToVendors) {
@@ -374,6 +387,12 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
               </Select>
             </div>
 
+            <PaymentMilestoneBuilder
+              value={paymentMilestones}
+              onChange={setPaymentMilestones}
+              onValidityChange={setPaymentMilestonesValid}
+            />
+
             <div className="space-y-2">
               <Label htmlFor="notes">Additional Notes</Label>
               <Textarea
@@ -528,7 +547,8 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
                 (!standardTerms && !termsError) ||
                 isSubmitting ||
                 isGenerating ||
-                isSaving
+                isSaving ||
+                !paymentMilestonesValid
               }
             >
               {isSubmitting || isGenerating ? (

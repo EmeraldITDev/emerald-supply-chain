@@ -60,6 +60,11 @@ import { EmeraldPurchaseOrderPreview } from './EmeraldPurchaseOrderPreview';
 import { buildEmeraldPoDisplayModel, coercePOTermsMode } from '@/utils/emeraldPoDocumentModel';
 import { buildEmeraldPurchaseOrderPdf } from '@/utils/emeraldPOPdf';
 import { openEmeraldPurchaseOrderPdfInNewTab } from '@/utils/emeraldPoPdfActions';
+import {
+  PaymentMilestoneBuilder,
+  serializePaymentMilestones,
+  type PaymentMilestoneInput,
+} from '@/components/payments/PaymentMilestoneBuilder';
 
 export interface CreatePOFormProps {
   mrfId: string;
@@ -155,6 +160,9 @@ export function CreatePOForm({
     makeEmptyRow({ supplierMode: fastTrack || allowMissingRfq ? 'manual' : 'directory' }),
     makeEmptyRow({ supplierMode: fastTrack || allowMissingRfq ? 'manual' : 'directory' }),
   ]);
+
+  const [paymentMilestones, setPaymentMilestones] = useState<PaymentMilestoneInput[]>([]);
+  const [paymentMilestonesValid, setPaymentMilestonesValid] = useState(true);
 
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
@@ -349,6 +357,7 @@ export function CreatePOForm({
     !!form.delivery_date &&
     !!form.ship_to_address.trim() &&
     !!form.payment_terms.trim() &&
+    paymentMilestonesValid &&
     !ccBlocked &&
     !ccInvalid &&
     !toInvalid &&
@@ -413,8 +422,12 @@ export function CreatePOForm({
       }
     }
 
+    if (paymentMilestones.length > 0 && paymentMilestonesValid) {
+      base.payment_milestones = serializePaymentMilestones(paymentMilestones);
+    }
+
     return base;
-  }, [form, fastTrack, allowMissingRfq]);
+  }, [form, fastTrack, allowMissingRfq, paymentMilestones, paymentMilestonesValid]);
 
   const emeraldPreviewModel = useMemo(() => {
     if (!mrf) return null;
@@ -815,6 +828,17 @@ export function CreatePOForm({
             {ccBlocked && <p className="text-xs text-destructive">This email address is not allowed in the CC field.</p>}
             {ccInvalid && !ccBlocked && <p className="text-xs text-destructive">Enter a valid email address.</p>}
           </div>
+        </div>
+
+        <div className="mt-4">
+          <PaymentMilestoneBuilder
+            value={paymentMilestones}
+            onChange={setPaymentMilestones}
+            onValidityChange={setPaymentMilestonesValid}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Optional structured payment schedule. When set, it overrides the free-text Payment Terms above on the generated PO.
+          </p>
         </div>
 
         {/* T&C */}

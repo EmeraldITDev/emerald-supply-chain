@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, Plus, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi } from "@/services/api";
 import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
@@ -37,6 +38,9 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
   const [arrivalAt, setArrivalAt] = useState("");
   const [passengerIds, setPassengerIds] = useState<string[]>([]);
   const [bookingScope, setBookingScope] = useState<TripBookingScope>("within_state");
+  const [externalPassengers, setExternalPassengers] = useState<
+    Array<{ name: string; email: string; phone: string }>
+  >([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +75,7 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
     purpose.trim() &&
     origin.trim() &&
     departureAt &&
-    passengerIds.length > 0 &&
+    (passengerIds.length > 0 || externalPassengers.some((p) => p.name.trim() && p.email.trim())) &&
     leadTimeCheck.valid &&
     !submitting;
 
@@ -84,10 +88,28 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
       });
       return;
     }
-    if (passengerIds.length === 0) {
+    const validExternal = externalPassengers
+      .filter((p) => p.name.trim() && p.email.trim())
+      .map((p) => ({
+        name: p.name.trim(),
+        email: p.email.trim(),
+        phone: p.phone.trim() || undefined,
+      }));
+    const invalidExternalEmail = externalPassengers.some(
+      (p) => (p.name.trim() || p.email.trim()) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim()),
+    );
+    if (invalidExternalEmail) {
       toast({
         title: "Validation error",
-        description: "Select at least one passenger.",
+        description: "Each external passenger needs a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (passengerIds.length === 0 && validExternal.length === 0) {
+      toast({
+        title: "Validation error",
+        description: "Select at least one staff passenger or add an external passenger.",
         variant: "destructive",
       });
       return;
@@ -115,6 +137,7 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
           .map((id) => parseInt(id, 10))
           .filter((n) => !Number.isNaN(n)),
         bookingScope,
+        external_passengers: validExternal.length > 0 ? validExternal : undefined,
       });
 
       if (res.success) {
@@ -129,6 +152,7 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
         setArrivalAt("");
         setPassengerIds([]);
         setBookingScope("within_state");
+        setExternalPassengers([]);
         onSuccess?.();
       } else {
         toast({
@@ -240,6 +264,86 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
         onPassengersChange={setPassengerIds}
         showDriver={false}
       />
+
+      <div className="space-y-2 border rounded-lg p-3">
+        <div className="flex items-center justify-between">
+          <Label>External passengers (non-staff)</Label>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setExternalPassengers((prev) => [...prev, { name: "", email: "", phone: "" }])
+            }
+          >
+            <Plus className="h-4 w-4 mr-1" /> Add
+          </Button>
+        </div>
+        {externalPassengers.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Add guests, clients, or contractors who will travel on this trip. They'll receive a
+            confirmation email once the Logistics Manager approves the trip.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {externalPassengers.map((p, idx) => (
+              <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                <div className="col-span-4 space-y-1">
+                  <Label className="text-xs">Name *</Label>
+                  <Input
+                    value={p.name}
+                    onChange={(e) =>
+                      setExternalPassengers((prev) =>
+                        prev.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)),
+                      )
+                    }
+                  />
+                </div>
+                <div className="col-span-4 space-y-1">
+                  <Label className="text-xs">Email *</Label>
+                  <Input
+                    type="email"
+                    value={p.email}
+                    onChange={(e) =>
+                      setExternalPassengers((prev) =>
+                        prev.map((x, i) => (i === idx ? { ...x, email: e.target.value } : x)),
+                      )
+                    }
+                  />
+                </div>
+                <div className="col-span-3 space-y-1">
+                  <Label className="text-xs">Phone</Label>
+                  <Input
+                    value={p.phone}
+                    onChange={(e) =>
+                      setExternalPassengers((prev) =>
+                        prev.map((x, i) => (i === idx ? { ...x, phone: e.target.value } : x)),
+                      )
+                    }
+                  />
+                </div>
+                <div className="col-span-1 flex justify-end">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={() =>
+                      setExternalPassengers((prev) => prev.filter((_, i) => i !== idx))
+                    }
+                    aria-label="Remove external passenger"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Badge variant="secondary" className="text-xs">
+              {externalPassengers.length} external passenger
+              {externalPassengers.length === 1 ? "" : "s"} pending confirmation
+            </Badge>
+          </div>
+        )}
+      </div>
 
       <div className="flex flex-wrap gap-2 justify-end pt-2">
         {showCancel && onCancel && (

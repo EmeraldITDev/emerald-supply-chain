@@ -894,6 +894,12 @@ export interface CreateTripRequestData {
   scheduled_arrival_at: string;
   passenger_user_ids: number[];
   bookingScope: import('./trip-request').TripBookingScope;
+  /**
+   * Optional external (non-staff) passengers — name/email/phone tuples.
+   * Backend must persist these and send a notification email when the
+   * Logistics Manager confirms the trip.
+   */
+  external_passengers?: Array<{ name: string; email: string; phone?: string }>;
 }
 
 export interface TripConversionData {
