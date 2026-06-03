@@ -22,8 +22,9 @@ export interface SrfLineItemWithUi extends SrfLineItemListRow {
   ui?: SrfLineItemUi;
 }
 
-export interface SrfWithUi extends SRF {
+export interface SrfWithUi extends Omit<SRF, 'items'> {
   ui?: SrfCardUi;
+  items?: SrfLineItemWithUi[];
   lineItems?: SrfLineItemWithUi[];
   progress?: SrfProgressStep[];
   steps?: SrfProgressStep[];
