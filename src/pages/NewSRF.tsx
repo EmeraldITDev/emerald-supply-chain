@@ -193,7 +193,12 @@ const NewSRF = () => {
           ...(formData.estimatedCost.trim()
             ? { estimatedCost: formData.estimatedCost.trim() }
             : {}),
-          items: lineItems,
+          line_items: lineItems.map((it) => ({
+            item_name: it.itemName,
+            quantity: Number(it.quantity) || 0,
+            unit: it.unit,
+            budget_amount: Number(it.budgetAmount) || 0,
+          })),
           ...(selectedVehicle ? { vehicleId: selectedVehicle.id, vehiclePlate: selectedVehicle.plate } : {}),
         } as any);
       }
