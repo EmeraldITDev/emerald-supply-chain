@@ -547,7 +547,8 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
                 (!standardTerms && !termsError) ||
                 isSubmitting ||
                 isGenerating ||
-                isSaving
+                isSaving ||
+                !paymentMilestonesValid
               }
             >
               {isSubmitting || isGenerating ? (
