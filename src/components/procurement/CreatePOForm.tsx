@@ -60,6 +60,11 @@ import { EmeraldPurchaseOrderPreview } from './EmeraldPurchaseOrderPreview';
 import { buildEmeraldPoDisplayModel, coercePOTermsMode } from '@/utils/emeraldPoDocumentModel';
 import { buildEmeraldPurchaseOrderPdf } from '@/utils/emeraldPOPdf';
 import { openEmeraldPurchaseOrderPdfInNewTab } from '@/utils/emeraldPoPdfActions';
+import {
+  PaymentMilestoneBuilder,
+  serializePaymentMilestones,
+  type PaymentMilestoneInput,
+} from '@/components/payments/PaymentMilestoneBuilder';
 
 export interface CreatePOFormProps {
   mrfId: string;
