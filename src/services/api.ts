@@ -51,6 +51,7 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 export { API_BASE_URL };
+export type { ApiResponse } from '@/types';
 
 // Log the API URL being used (helpful for debugging in Lovable)
 if (typeof window !== 'undefined') {
