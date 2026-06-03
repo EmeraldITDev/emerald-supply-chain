@@ -422,8 +422,12 @@ export function CreatePOForm({
       }
     }
 
+    if (paymentMilestones.length > 0 && paymentMilestonesValid) {
+      base.payment_milestones = serializePaymentMilestones(paymentMilestones);
+    }
+
     return base;
-  }, [form, fastTrack, allowMissingRfq]);
+  }, [form, fastTrack, allowMissingRfq, paymentMilestones, paymentMilestonesValid]);
 
   const emeraldPreviewModel = useMemo(() => {
     if (!mrf) return null;
