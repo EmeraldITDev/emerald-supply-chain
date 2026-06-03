@@ -154,7 +154,11 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
       paymentTerms,
       notes,
       poFile: null, // PO documents are uploaded later, after RFQ approval
-      supportingDocuments: supportingDocuments.length > 0 ? supportingDocuments : undefined
+      supportingDocuments: supportingDocuments.length > 0 ? supportingDocuments : undefined,
+      paymentMilestones:
+        paymentMilestones.length > 0 && paymentMilestonesValid
+          ? serializePaymentMilestones(paymentMilestones)
+          : undefined,
     };
 
     if (sendToVendors) {
