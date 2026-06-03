@@ -32,7 +32,7 @@ export const FinanceMRFCard = ({ row, onRefresh }: FinanceMRFCardProps) => {
 
   const estimatedCost = parseFloat(String(mrf.estimated_cost || mrf.estimatedCost || "0"));
   const dateStr = mrf.created_at || mrf.date || "";
-  const executiveApproved = mrf.executive_approved || mrf.executiveApproved;
+  const executiveApproved = mrf.executive_approved || (mrf as { executiveApproved?: boolean }).executiveApproved;
 
   const formatDate = () => {
     if (!dateStr) return "N/A";
