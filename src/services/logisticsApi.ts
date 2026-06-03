@@ -439,6 +439,8 @@ export const fleetApi = {
     // Convert camelCase to snake_case for Laravel backend
     const snakeData: Record<string, any> = {
       plate: data.plate,
+      plate_number: data.plate,
+      registration_number: data.plate,
       name: data.name,
       type: data.type,
       make: data.make,
