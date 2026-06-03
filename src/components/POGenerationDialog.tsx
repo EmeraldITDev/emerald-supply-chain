@@ -29,6 +29,11 @@ import type { MRFRequest } from "@/contexts/AppContext";
 import { vendorApi, poTermsApi } from "@/services/api";
 import type { Vendor } from "@/types";
 import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
+import {
+  PaymentMilestoneBuilder,
+  serializePaymentMilestones,
+  type PaymentMilestoneInput,
+} from "@/components/payments/PaymentMilestoneBuilder";
 
 interface POGenerationDialogProps {
   open: boolean;
@@ -43,6 +48,7 @@ interface POGenerationDialogProps {
     notes: string;
     poFile: File | null;
     supportingDocuments?: File[];
+    paymentMilestones?: Array<{ label: string; percentage: number; trigger_condition: string }>;
   }) => Promise<void>;
   onSave?: (poData: {
     vendors: string[];
@@ -53,6 +59,7 @@ interface POGenerationDialogProps {
     notes: string;
     poFile: File | null;
     supportingDocuments?: File[];
+    paymentMilestones?: Array<{ label: string; percentage: number; trigger_condition: string }>;
   }) => Promise<void>;
   isGenerating?: boolean;
 }
@@ -72,6 +79,8 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
   const [customTerms, setCustomTerms] = useState<string>("");
   const [termsLoading, setTermsLoading] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
+  const [paymentMilestones, setPaymentMilestones] = useState<PaymentMilestoneInput[]>([]);
+  const [paymentMilestonesValid, setPaymentMilestonesValid] = useState(true);
 
   // Fetch vendors when dialog opens
   useEffect(() => {
