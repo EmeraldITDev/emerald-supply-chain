@@ -265,6 +265,86 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
         showDriver={false}
       />
 
+      <div className="space-y-2 border rounded-lg p-3">
+        <div className="flex items-center justify-between">
+          <Label>External passengers (non-staff)</Label>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setExternalPassengers((prev) => [...prev, { name: "", email: "", phone: "" }])
+            }
+          >
+            <Plus className="h-4 w-4 mr-1" /> Add
+          </Button>
+        </div>
+        {externalPassengers.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Add guests, clients, or contractors who will travel on this trip. They'll receive a
+            confirmation email once the Logistics Manager approves the trip.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {externalPassengers.map((p, idx) => (
+              <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                <div className="col-span-4 space-y-1">
+                  <Label className="text-xs">Name *</Label>
+                  <Input
+                    value={p.name}
+                    onChange={(e) =>
+                      setExternalPassengers((prev) =>
+                        prev.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)),
+                      )
+                    }
+                  />
+                </div>
+                <div className="col-span-4 space-y-1">
+                  <Label className="text-xs">Email *</Label>
+                  <Input
+                    type="email"
+                    value={p.email}
+                    onChange={(e) =>
+                      setExternalPassengers((prev) =>
+                        prev.map((x, i) => (i === idx ? { ...x, email: e.target.value } : x)),
+                      )
+                    }
+                  />
+                </div>
+                <div className="col-span-3 space-y-1">
+                  <Label className="text-xs">Phone</Label>
+                  <Input
+                    value={p.phone}
+                    onChange={(e) =>
+                      setExternalPassengers((prev) =>
+                        prev.map((x, i) => (i === idx ? { ...x, phone: e.target.value } : x)),
+                      )
+                    }
+                  />
+                </div>
+                <div className="col-span-1 flex justify-end">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={() =>
+                      setExternalPassengers((prev) => prev.filter((_, i) => i !== idx))
+                    }
+                    aria-label="Remove external passenger"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Badge variant="secondary" className="text-xs">
+              {externalPassengers.length} external passenger
+              {externalPassengers.length === 1 ? "" : "s"} pending confirmation
+            </Badge>
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-wrap gap-2 justify-end pt-2">
         {showCancel && onCancel && (
           <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
