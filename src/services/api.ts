@@ -1550,7 +1550,26 @@ export const rfqApi = {
       average_bid: number;
     };
   }>> => {
-    return apiRequest(`/rfqs/${rfqId}/quotations`);
+    const res = await apiRequest<any>(`/rfqs/${rfqId}/quotations`);
+    // Item 2 — diagnostic: capture raw payload + caller role for PM vs SCD comparison.
+    try {
+      const stored = localStorage.getItem('user');
+      const role = stored ? (JSON.parse(stored)?.role ?? 'unknown') : 'unknown';
+      const sample = res?.data?.quotations?.[0];
+      // eslint-disable-next-line no-console
+      console.debug('[Item2/getQuotations]', {
+        rfqId,
+        role,
+        success: res?.success,
+        quotationCount: res?.data?.quotations?.length ?? 0,
+        sampleKeys: sample ? Object.keys(sample) : [],
+        sampleQuotationKeys: sample?.quotation ? Object.keys(sample.quotation) : [],
+        sampleItemsLength: Array.isArray(sample?.items) ? sample.items.length : null,
+      });
+    } catch {
+      /* diagnostic only */
+    }
+    return res;
   },
 
   // Select winning vendor (Procurement Manager)
