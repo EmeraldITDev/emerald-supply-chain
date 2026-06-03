@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SRF } from "@/types";
+import { getSrfStatusLabel } from "@/utils/srfStatusBadge";
 
 function effectiveSrfWorkflowStatus(srf: SRF): string {
   const status = String(srf.status || "Pending").trim();
