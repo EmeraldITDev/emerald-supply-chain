@@ -18,3 +18,45 @@ export function getSrfStatusBadgeClass(status: string): string {
       return "bg-secondary text-secondary-foreground";
   }
 }
+
+/**
+ * Centralised human-readable labels for raw SRF status / workflow strings.
+ * Use everywhere we render an SRF status — never display the raw key.
+ */
+export const SRF_STATUS_LABELS: Record<string, string> = {
+  pending: "Awaiting Initial Review",
+  submitted: "Awaiting Initial Review",
+  draft: "Draft — Not Submitted",
+  sc_director: "Awaiting Supply Chain Director Approval",
+  awaiting_scd: "Awaiting Supply Chain Director Approval",
+  supply_chain_director_review: "Awaiting Supply Chain Director Approval",
+  supply_chain_director_approved: "Approved and Being Processed",
+  scd_approved: "Approved and Being Processed",
+  procurement: "With Procurement Team",
+  procurement_review: "With Procurement Team",
+  rfq_sent: "With Procurement Team",
+  quotes_received: "Vendor Quotes Received",
+  vendor_selected: "Vendor Selected",
+  approved: "Approved and Being Processed",
+  rejected: "Returned for Revision",
+  po_generated: "Purchase Order Created",
+  pending_po_upload: "Purchase Order Pending Upload",
+  finance: "Submitted to Finance for Payment",
+  processing_payment: "Submitted to Finance for Payment",
+  payment_completed: "Payment Completed",
+  complete: "Completed",
+  completed: "Completed",
+  "in progress": "In Progress",
+  in_progress: "In Progress",
+};
+
+/** Return a friendly label for any raw SRF status string. Falls back to title-cased input. */
+export function getSrfStatusLabel(status: string | undefined | null): string {
+  if (!status) return "Awaiting Initial Review";
+  const key = String(status).trim().toLowerCase().replace(/\s+/g, "_");
+  const direct = SRF_STATUS_LABELS[key] ?? SRF_STATUS_LABELS[String(status).trim().toLowerCase()];
+  if (direct) return direct;
+  return String(status)
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
