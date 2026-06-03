@@ -161,6 +161,9 @@ export function CreatePOForm({
     makeEmptyRow({ supplierMode: fastTrack || allowMissingRfq ? 'manual' : 'directory' }),
   ]);
 
+  const [paymentMilestones, setPaymentMilestones] = useState<PaymentMilestoneInput[]>([]);
+  const [paymentMilestonesValid, setPaymentMilestonesValid] = useState(true);
+
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
 
