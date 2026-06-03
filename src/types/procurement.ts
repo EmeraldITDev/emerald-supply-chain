@@ -100,6 +100,15 @@ export interface POFormPayload {
   payment_terms?: string;
   /** ISO date `yyyy-MM-dd`. */
   delivery_date?: string;
+  /**
+   * Structured payment milestones (preferred over free-text `payment_terms`).
+   * Backend must accept and validate that sum of `percentage` === 100.
+   */
+  payment_milestones?: Array<{
+    label: string;
+    percentage: number;
+    trigger_condition: string;
+  }>;
 }
 
 /**
