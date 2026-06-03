@@ -258,7 +258,13 @@ const Logistics = () => {
 
           {/* Overview Stats - Always visible */}
           <div className="grid gap-4 md:grid-cols-5">
-            <Card>
+            <Card
+              role="button"
+              tabIndex={0}
+              onClick={() => setActiveTab("trips")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setActiveTab("trips"); }}
+              className="cursor-pointer hover:shadow-md hover:border-primary/40 transition focus:outline-none focus:ring-2 focus:ring-ring"
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Active Trips</CardTitle>
                 <Truck className="h-4 w-4 text-primary" />
@@ -275,7 +281,13 @@ const Logistics = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card
+              role="button"
+              tabIndex={0}
+              onClick={() => setActiveTab("fleet")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setActiveTab("fleet"); }}
+              className="cursor-pointer hover:shadow-md hover:border-primary/40 transition focus:outline-none focus:ring-2 focus:ring-ring"
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Fleet Vehicles</CardTitle>
                 <Truck className="h-4 w-4 text-muted-foreground" />
@@ -294,7 +306,13 @@ const Logistics = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card
+              role="button"
+              tabIndex={0}
+              onClick={() => setActiveTab("overview")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setActiveTab("overview"); }}
+              className="cursor-pointer hover:shadow-md hover:border-primary/40 transition focus:outline-none focus:ring-2 focus:ring-ring"
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Staff Drivers</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
