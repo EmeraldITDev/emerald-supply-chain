@@ -354,6 +354,7 @@ export function CreatePOForm({
     !!form.delivery_date &&
     !!form.ship_to_address.trim() &&
     !!form.payment_terms.trim() &&
+    paymentMilestonesValid &&
     !ccBlocked &&
     !ccInvalid &&
     !toInvalid &&
