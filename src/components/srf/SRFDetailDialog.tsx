@@ -16,7 +16,7 @@ import {
   srfUiActionVisible,
 } from "@/types/srf-ui";
 import { getDisplayId } from "@/utils/displayId";
-import { getSrfStatusBadgeClass } from "@/utils/srfStatusBadge";
+import { getSrfStatusBadgeClass, getSrfStatusLabel } from "@/utils/srfStatusBadge";
 import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepper";
 import type { SrfProgressStep } from "@/types/srf-line-item";
 
