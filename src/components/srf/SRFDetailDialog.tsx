@@ -16,7 +16,7 @@ import {
   srfUiActionVisible,
 } from "@/types/srf-ui";
 import { getDisplayId } from "@/utils/displayId";
-import { getSrfStatusBadgeClass } from "@/utils/srfStatusBadge";
+import { getSrfStatusBadgeClass, getSrfStatusLabel } from "@/utils/srfStatusBadge";
 import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepper";
 import type { SrfProgressStep } from "@/types/srf-line-item";
 
@@ -85,7 +85,7 @@ export function SRFDetailDialog({
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              <Badge className={getSrfStatusBadgeClass(detail.status)}>{detail.status}</Badge>
+              <Badge className={getSrfStatusBadgeClass(detail.status)}>{getSrfStatusLabel(detail.status)}</Badge>
               {detail.duration && (
                 <Badge variant="outline">Duration: {detail.duration}</Badge>
               )}

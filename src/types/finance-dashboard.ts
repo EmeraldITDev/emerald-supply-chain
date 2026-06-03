@@ -1,5 +1,6 @@
 import type { MRF } from '@/types';
 import type { FinanceDashboardRouting, FinanceMRFRow } from '@/types/index';
+export type { FinanceMRFRow, FinanceDashboardRouting } from '@/types/index';
 
 export interface FinanceDashboardLegacyStats {
   pendingInternal?: number;

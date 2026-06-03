@@ -51,6 +51,7 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 export { API_BASE_URL };
+export type { ApiResponse } from '@/types';
 
 // Log the API URL being used (helpful for debugging in Lovable)
 if (typeof window !== 'undefined') {
@@ -569,7 +570,7 @@ export const mrfApi = {
         }),
       };
     }
-    return res as ApiResponse<import('@/types/progress-tracker').ProgressTrackerViewModel>;
+    return res as unknown as ApiResponse<import('@/types/progress-tracker').ProgressTrackerViewModel>;
   },
 
   // Get available actions for current user on this MRF
@@ -2679,7 +2680,7 @@ export const dashboardApi = {
       const { normalizeFinanceDashboard } = await import('@/utils/enrichFinanceRouting');
       return { ...res, data: normalizeFinanceDashboard(null) };
     }
-    return res as ApiResponse<import('@/types/finance-dashboard').FinanceDashboardData>;
+    return res as unknown as ApiResponse<import('@/types/finance-dashboard').FinanceDashboardData>;
   },
 
   getRecentActivities: async (limit: number = 20): Promise<ApiResponse<Array<{
@@ -3079,7 +3080,7 @@ export const tripRequestApi = {
       );
       return { ...res, data: { scopes, referenceDate } };
     }
-    return res as ApiResponse<import('@/types/trip-request').TripBookingRulesPayload>;
+    return res as unknown as ApiResponse<import('@/types/trip-request').TripBookingRulesPayload>;
   },
 
   list: async (params?: {
@@ -3107,7 +3108,7 @@ export const tripRequestApi = {
         },
       };
     }
-    return res as ApiResponse<import('@/types/trip-request').TripRequestsListResponse>;
+    return res as unknown as ApiResponse<import('@/types/trip-request').TripRequestsListResponse>;
   },
 
   delete: async (
@@ -3138,10 +3139,10 @@ export const tripRequestApi = {
     if (res.success && res.data) {
       const trip =
         (res.data.trip as import('@/types/trip-request').StaffTripRequest) ??
-        (res.data as import('@/types/trip-request').StaffTripRequest);
+        (res.data as unknown as import('@/types/trip-request').StaffTripRequest);
       return { ...res, data: { trip } };
     }
-    return res as ApiResponse<{ trip: import('@/types/trip-request').StaffTripRequest }>;
+    return res as unknown as ApiResponse<{ trip: import('@/types/trip-request').StaffTripRequest }>;
   },
 
   getProgressTracker: async (
@@ -3155,7 +3156,7 @@ export const tripRequestApi = {
         (res.data.progress as import('@/types/trip-request').TripProgressPayload) ?? res.data;
       return { ...res, data: progress as import('@/types/trip-request').TripProgressPayload };
     }
-    return res as ApiResponse<import('@/types/trip-request').TripProgressPayload>;
+    return res as unknown as ApiResponse<import('@/types/trip-request').TripProgressPayload>;
   },
 
   create: async (
@@ -3168,7 +3169,7 @@ export const tripRequestApi = {
     if (res.success && res.data) {
       const trip =
         (res.data.trip as import('@/types/logistics').TripRequest) ??
-        (res.data as import('@/types/logistics').TripRequest);
+        (res.data as unknown as import('@/types/logistics').TripRequest);
       return { ...res, data: { trip } };
     }
     if (!res.success && res.code === 'BOOKING_LEAD_TIME_VIOLATION') {
@@ -3179,9 +3180,9 @@ export const tripRequestApi = {
         (Array.isArray(errors.bookingScope) ? errors.bookingScope[0] : null) ??
         (Array.isArray(errors.scheduled_departure_at) ? errors.scheduled_departure_at[0] : null) ??
         res.error;
-      return { ...res, error: msg || 'Trip date does not meet the minimum advance booking period.' };
+      return { ...res, error: msg || 'Trip date does not meet the minimum advance booking period.' } as unknown as ApiResponse<{ trip: import('@/types/logistics').TripRequest }>;
     }
-    return res as ApiResponse<{ trip: import('@/types/logistics').TripRequest }>;
+    return res as unknown as ApiResponse<{ trip: import('@/types/logistics').TripRequest }>;
   },
 
   // Convert trip request to logistics request

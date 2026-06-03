@@ -1,91 +1,151 @@
-# Update MRF Progress Tracker (revised v2)
+# SCM Platform — Multi-Feature Fix & Enhancement Plan (v3)
 
-Extend `src/components/MRFProgressTracker.tsx` with the full Finance AP-aware stage list, grouped into compact phase sections. Incorporates: conditional delivery steps for 100% advance, explicit Vendor Final Invoice step, explicit Finance Review step, and split document-vs-timestamp logic for step 7.
+Eight issues grouped by area. Reuse existing components/types wherever possible. Every backend-touching change gets a section in `frontend_changes.md` (method, path, request/response, plain-English description).
 
-## Final step structure
+---
 
-```text
-APPROVAL
-  1. MRF Created
-  2. Initial Approval (SCD or Executive depending on contract type)
-  3. Procurement Review
+## 1. Payment Terms — Flexible Milestone Builder (MRF, SRF, RFQ, PO)
 
-SOURCING
-  4. RFQ Issued to Vendors
-  5. Vendor Quotes Received
-  6. Vendor Selection Approved
+Reuse existing `src/types/payment-schedule.ts` (`PaymentMilestone`, templates, `sumMilestonePercentages`) and `src/services/paymentScheduleApi.ts`. Build one shared component:
 
-PROCUREMENT
-  7. Vendor Final Invoice Submitted
-  8. PO Generated (payment schedule locked)
-  9. PO Signed by SCD
+- **New** `src/components/payments/PaymentMilestoneBuilder.tsx`
+  - Template dropdown: 100% Advance, 70/30, 50/50, 30/40/30, Custom
+  - Editable rows with `percentage`, `label`, optional trigger
+  - Running total chip; red inline error when ≠ 100
+  - Emits `PaymentMilestone[]` and `isValid` to parent
 
-DELIVERY  (entire phase hidden when payment schedule is 100% advance)
-  10. GRN / Goods Received
-  11. Delivery Documents Uploaded (waybill / JCC / delivery confirmation)
+Integrate into:
+- `src/pages/NewMRF.tsx` — replace freeform payment terms input
+- `src/pages/NewSRF.tsx` — add the section (currently absent)
+- `src/components/RFQManagement.tsx` — replace RFQ terms input
+- `src/components/POGenerationDialog.tsx` — replace its free-text payment terms field
+- `src/components/procurement/CreatePOForm.tsx` — **only** replace the free-text payment terms input. **Do NOT remove or alter** the existing `custom_terms` textarea, the `remarks` field, or the `invoice_submission_cc` field — those serve different purposes. The milestone builder slots in alongside them.
 
-PAYMENT
-  12. Finance Review
-  13..N. Milestone Payments (dynamic, one row per schedule milestone)
-  Final. Fully Paid / Closed
-```
+Disable submit while sum ≠ 100.
 
-## Completion vs. duration — separation of concerns
+**Backend (document in `frontend_changes.md`):**
+- MRF/SRF/RFQ/PO create+update accept `payment_milestones: [{label, percentage, trigger_condition?}]`
+- 422 with clear error when sum ≠ 100
+- Detail responses return the array; legacy `payment_terms` string kept read-only
 
-For every new step, **completion state** and **duration line** come from independent sources. Missing one never blocks the other.
+---
 
-| Step | Completion source | Duration timestamp |
-|------|-------------------|--------------------|
-| 7 Vendor Final Invoice | `activeByType.vendor_invoice` present → complete | `vendor_invoice_submitted_at` (if missing, omit duration line — step still marked complete) |
-| 9 PO Signed by SCD | Existing tracker payload / signed_po doc | `po_signed_at` |
-| 10 GRN | `activeByType.grn` present → complete | `grn_generated_at` |
-| 11 Delivery Documents | Any of `activeByType.waybill / jcc / delivery_confirmation` → complete | `delivery_docs_uploaded_at` |
-| 12 Finance Review | `finance_reviewed_at` present (until a richer flag exists) | `finance_reviewed_at` |
-| 13..N Milestone Payments | `milestone.status === 'paid'` → complete; `'eligible'` → pending | Per-milestone `paidAt` when available |
+## 2. SCD Quotation Detail — Show Full Payload (investigation-first)
 
-Rule: a step that has a "completion artifact" (document or status) is marked complete even when the corresponding timestamp is absent. The duration line is simply omitted in that case (consistent with the existing tracker behavior for missing timestamps).
+**Required investigation before any code change:**
+1. From `SupplyChainDashboard.tsx`, capture the raw API response for the quotation endpoint hit by SCD (network tab + temporary `console.log`).
+2. Capture the same endpoint's response logged in as a Procurement Manager.
+3. Diff the two payloads field-by-field (line items, vendor details, pricing, `documents[]`, payment terms).
 
-## Conditionality
+**Fix rule:**
+- If a field is **present in PM payload but missing in SCD payload** → it's a backend role-scope bug. **Do not patch the frontend renderer.** Document the required backend fix in `frontend_changes.md` and stop there.
+- If both payloads contain the field but only SCD UI fails to render it → fix `normalizeQuotation.ts` and/or `PriceComparisonTable.tsx`.
 
-- **100% advance**: `paymentSchedule.milestones` has exactly one milestone with `percentage === 100` AND `triggerCondition === 'on_advance'`. When true, hide steps 10 and 11 entirely (not rendered, not counted in progress totals). Internal helper `isFullAdvanceSchedule(schedule?: PaymentSchedule)`.
+Verify after fix: SCD sees line item table, unit/total prices, delivery period, payment terms, and downloadable S3 attachments — identical to PM.
 
-## Data sources
+---
 
-- `mrfApi.getProgressTracker(mrfId)` → steps 1–6 and 9 from existing backend payload.
-- `documentsByType` / `activeByType` from `getProcurementDocuments` → steps 7, 10, 11.
-- `paymentSchedule` (passed in, or derived from `mrf.paymentScheduleSummary`) → renders the dynamic milestone rows; statuses map to tracker state (`pending` | `eligible` | `paid` → `not_started` | `pending` | `completed`).
-- All durations still use real backend timestamps only.
+## 3. SRF Progress Tracker — Human-Readable Labels
 
-## Compact visual treatment
+Update `src/components/SRFProgressTracker.tsx`, `src/utils/srfStatusBadge.ts`, `srfWorkflow.ts`:
 
-- New `PhaseHeader` subcomponent: uppercase label, thin divider, mini status `3/3` + colored dot (success / warning / muted).
-- Each phase wrapped in Shadcn `Collapsible`; defaults open for the phase containing the current step, others collapsed.
-- Tighter spacing: `space-y-1.5` between steps, `h-8 w-8` step circles, connector `minHeight: 24px`.
-- Overall Progress bar counts completed steps across the full expanded list (excluding hidden DELIVERY steps for 100%-advance MRFs).
-- Milestone rows show inline `₦` amount + percentage; missing amounts render as `-`.
+| Raw status | Label |
+|---|---|
+| pending | Awaiting Initial Review |
+| sc_director / awaiting_scd | Awaiting Supply Chain Director Approval |
+| procurement | With Procurement Team |
+| approved | Approved and Being Processed |
+| rejected | Returned for Revision |
+| po_generated | Purchase Order Created |
+| finance | Submitted to Finance for Payment |
+| complete / completed | Completed |
 
-## Props changes
+Centralise in one `SRF_STATUS_LABELS` map. Replace raw-string renders in `SRFCardList`, `SRFDetailDialog`, `SRFLineItemDetailDialog`, and any badge.
 
-`MRFProgressTrackerProps` gains optional:
-- `paymentSchedule?: PaymentSchedule`
-- `documentsByType?: ProcurementDocumentsResponse['documentsByType']`
-- `activeByType?: ProcurementDocumentsResponse['activeByType']`
+---
 
-`stageTimestamps` extended (all optional, duration-only):
-- `po_signed_at`
-- `vendor_invoice_submitted_at`
-- `grn_generated_at`
-- `delivery_docs_uploaded_at`
-- `finance_reviewed_at`
-- `payment_completed_at`
+## 4. Logistics Dashboard — Clickable Metric Cards
 
-## Call sites
+In `src/pages/Logistics.tsx`, wrap the three summary cards with navigation:
 
-- `src/pages/Procurement.tsx` — pass `documentsByType`, `activeByType`, and `paymentSchedule` into the tracker (data already loaded).
-- Other tracker mounts (`Dashboard.tsx`, `SupplyChainDashboard.tsx`, `AccountsPayable.tsx`, `FinanceDashboard.tsx`, `ExecutiveDashboard.tsx`) — pass new props only when data is already in scope; otherwise leave unchanged. Tracker degrades gracefully (falls back to existing 8-step payload + single generic "Payment" row).
+- Active Trips → `trips` tab with default filter = active (via `?filter=active`)
+- Fleet Vehicles → `fleet` tab
+- Staff Drivers → `drivers` tab
 
-## Out of scope
+`TripScheduling` reads `?filter` to preselect "active". Add `cursor-pointer`, hover lift, focus ring, and keyboard handler. No new pages needed.
 
-- Backend changes.
-- Editing `SRFProgressTracker` / `ProcurementProgressTracker`.
-- Building new Finance AP screens.
+---
+
+## 5. Plate Number Bug (`TEMP-…`)
+
+Root cause traced to `src/services/logisticsApi.ts` vehicle create (frontend sends `plate`; backend expects `plate_number`, treats it as empty, and auto-generates `TEMP-…`). **Verify this is the actual source before applying the fix** — re-read the file and the live request payload in the network tab. If the mismatch is elsewhere (e.g., a wrapping serializer, the FleetManagement form, or a different API method), fix it at the actual source instead of blindly patching `logisticsApi.ts`.
+
+Frontend fix once confirmed: send `plate_number` (and mirror `registration_number` per `normalizeFleetVehicle.ts` aliases) on both `create` and `update`. Verify the response echoes the user-entered value.
+
+**Backend note:** confirm endpoint persists `plate_number` when provided; only generate a placeholder when truly empty.
+
+---
+
+## 6. Trip Scheduling — External Passengers
+
+Extend `src/components/logistics/TripRequestForm.tsx` and `EligiblePassengerPicker.tsx`:
+
+- Tabs/segment: Internal (existing picker) vs External (form: full name*, email*, phone*)
+- Track `internalPassengerIds: number[]` and `externalPassengers: {name,email,phone}[]`
+- Combined list with `External` badge; remove from either group
+- Update `CreateStaffTripRequestData` in `src/types/trip-request.ts`; forward via `tripRequestApi.create`
+
+**Backend note (with notification scope):**
+- POST/PUT `/trip-requests` accepts and persists `external_passengers[]`; detail returns both arrays.
+- **External passenger notification email fires only when the trip is *confirmed by the Logistics Manager*** — not on draft save and not on initial request submission.
+- Email body must include: trip date/time, destination, purpose, and the requester's name as the in-company contact. Plain transactional copy, no marketing content.
+
+---
+
+## 7. MRF/SRF Line Items Persistence
+
+Findings:
+- `NewMRF.tsx` already sends `line_items` with snake_case ✓
+- `NewSRF.tsx:196` sends `items: lineItems` with camelCase ✗
+
+Frontend fixes:
+- `NewSRF.tsx`: map to `line_items: [{item_name, quantity, unit, budget_amount}]`.
+- SRF detail views (`SRFDetailDialog`, `SRFLineItemDetailDialog`) read `line_items` from response.
+- `normalizeSrfDetail` accepts both `lineItems` and `line_items`.
+- **List endpoint check:** inspect the SRF list response (`/srfs`). The "No line items on file" message on cards suggests `line_items` is also missing from the list payload. Either:
+  - request `line_items_count` on the list endpoint and render that on the card, **or**
+  - lazy-fetch line items via the detail endpoint when a card is expanded.
+  - Do not show "No line items on file" based on an absent field; only show it when the count is explicitly zero.
+
+**Backend note:** `/srfs` and `/mrfs` create+update accept the snake_case `line_items` array and return them in detail. Add `line_items_count` (or full array) to the list response so cards aren't misleading. If SRF line-items table missing, create it.
+
+---
+
+## 8. Vendor Final Invoice Submission UI — Audit & Gaps
+
+Phase 4 already shipped `src/components/vendor/VendorInvoicesPanel.tsx` (gate-aware upload, read-only after submit). Remaining work:
+
+- Confirm panel mounts on the **per-MRF detail view** in the vendor portal. Add a "Submit Final Invoice" section to the per-MRF dialog if missing.
+- Internal visibility: confirm `ProcurementDocumentsPanel` surfaces `vendor_invoice` rows for Procurement, SCD, Executive, Finance on MRF detail.
+- Status copy after submit: "Invoice submitted — awaiting procurement review".
+- **Gate-closed UX (explicit):** when `canSubmit === false` because SCD has not yet approved, the panel must **render an informational message**, not a hidden button or empty state. Copy: *"Your quote has been received. You will be notified when you can submit your final invoice."* Once `canSubmit === true`, swap to the upload control.
+- Upload restricted to the awarded vendor only (server-enforced).
+
+No new backend expected. Document any gaps found in `frontend_changes.md`.
+
+---
+
+## Technical Details
+
+- Shared component path: `src/components/payments/PaymentMilestoneBuilder.tsx`.
+- SRF labels in `src/utils/srfStatusBadge.ts` as `SRF_STATUS_LABELS`.
+- Trip form passenger model extended in `src/types/trip-request.ts`; consumed by `TripRequestForm` and `tripRequestApi.create`.
+- Fleet create payload patched at its true source (likely `src/services/logisticsApi.ts`, verify first).
+- All client validation uses zod-style guards before submit.
+- `frontend_changes.md` gets one section per backend-touching item (1, 2, 5, 6, 7 + any gaps in 8).
+
+## Out of Scope
+
+- Migrating historical `payment_terms` strings to milestone arrays (backend one-off).
+- Building a dedicated Active Trips page (tab + filter is enough).
+- Two-way invoice dispute flow (handled offline).

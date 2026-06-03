@@ -8,6 +8,7 @@ import {
   srfUiActionVisible,
 } from "@/types/srf-ui";
 import { getDisplayId } from "@/utils/displayId";
+import { getSrfStatusLabel } from "@/utils/srfStatusBadge";
 
 interface SRFCardListProps {
   srfs: SrfWithUi[];
@@ -52,7 +53,7 @@ export function SRFCardList({
                   <p className="text-sm text-muted-foreground">{getDisplayId(srf)}</p>
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
-                  <Badge className={getStatusColor(srf.status)}>{srf.status}</Badge>
+                  <Badge className={getStatusColor(srf.status)}>{getSrfStatusLabel(srf.status)}</Badge>
                   {showCardDetails && (
                     <Button
                       size="sm"

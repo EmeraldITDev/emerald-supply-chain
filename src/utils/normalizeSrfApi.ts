@@ -25,7 +25,7 @@ export function normalizeSrfDetail(payload: unknown): SrfDetailPayload {
     return { id: '', title: '', description: '', duration: '', justification: '', urgency: 'Medium', requester: '', date: '', status: 'Pending' };
   }
   const raw = stripSuccessWrapper(payload as Record<string, unknown>);
-  return raw as SrfDetailPayload;
+  return raw as unknown as SrfDetailPayload;
 }
 
 export function normalizeLineItemDetail(payload: unknown): SrfLineItemDetailResponse {

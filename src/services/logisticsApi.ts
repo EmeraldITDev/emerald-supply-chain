@@ -439,6 +439,8 @@ export const fleetApi = {
     // Convert camelCase to snake_case for Laravel backend
     const snakeData: Record<string, any> = {
       plate: data.plate,
+      plate_number: data.plate,
+      registration_number: data.plate,
       name: data.name,
       type: data.type,
       make: data.make,
@@ -461,9 +463,15 @@ export const fleetApi = {
 
   // Update vehicle
   update: async (id: string, data: Partial<FleetVehicle>): Promise<ApiResponse<FleetVehicle>> => {
+    // Mirror plate -> plate_number/registration_number so backend persists the user input.
+    const payload: Record<string, any> = { ...data };
+    if (data.plate) {
+      payload.plate_number = data.plate;
+      payload.registration_number = data.plate;
+    }
     return apiRequest<FleetVehicle>(`/fleet/vehicles/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
   },
 
