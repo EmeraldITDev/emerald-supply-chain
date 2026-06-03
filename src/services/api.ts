@@ -3142,7 +3142,7 @@ export const tripRequestApi = {
         (res.data as unknown as import('@/types/trip-request').StaffTripRequest);
       return { ...res, data: { trip } };
     }
-    return res as ApiResponse<{ trip: import('@/types/trip-request').StaffTripRequest }>;
+    return res as unknown as ApiResponse<{ trip: import('@/types/trip-request').StaffTripRequest }>;
   },
 
   getProgressTracker: async (
@@ -3182,7 +3182,7 @@ export const tripRequestApi = {
         res.error;
       return { ...res, error: msg || 'Trip date does not meet the minimum advance booking period.' };
     }
-    return res as ApiResponse<{ trip: import('@/types/logistics').TripRequest }>;
+    return res as unknown as ApiResponse<{ trip: import('@/types/logistics').TripRequest }>;
   },
 
   // Convert trip request to logistics request
