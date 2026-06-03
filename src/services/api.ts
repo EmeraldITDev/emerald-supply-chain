@@ -570,7 +570,7 @@ export const mrfApi = {
         }),
       };
     }
-    return res as ApiResponse<import('@/types/progress-tracker').ProgressTrackerViewModel>;
+    return res as unknown as ApiResponse<import('@/types/progress-tracker').ProgressTrackerViewModel>;
   },
 
   // Get available actions for current user on this MRF
@@ -2680,7 +2680,7 @@ export const dashboardApi = {
       const { normalizeFinanceDashboard } = await import('@/utils/enrichFinanceRouting');
       return { ...res, data: normalizeFinanceDashboard(null) };
     }
-    return res as ApiResponse<import('@/types/finance-dashboard').FinanceDashboardData>;
+    return res as unknown as ApiResponse<import('@/types/finance-dashboard').FinanceDashboardData>;
   },
 
   getRecentActivities: async (limit: number = 20): Promise<ApiResponse<Array<{
@@ -3080,7 +3080,7 @@ export const tripRequestApi = {
       );
       return { ...res, data: { scopes, referenceDate } };
     }
-    return res as ApiResponse<import('@/types/trip-request').TripBookingRulesPayload>;
+    return res as unknown as ApiResponse<import('@/types/trip-request').TripBookingRulesPayload>;
   },
 
   list: async (params?: {
@@ -3108,7 +3108,7 @@ export const tripRequestApi = {
         },
       };
     }
-    return res as ApiResponse<import('@/types/trip-request').TripRequestsListResponse>;
+    return res as unknown as ApiResponse<import('@/types/trip-request').TripRequestsListResponse>;
   },
 
   delete: async (
@@ -3139,7 +3139,7 @@ export const tripRequestApi = {
     if (res.success && res.data) {
       const trip =
         (res.data.trip as import('@/types/trip-request').StaffTripRequest) ??
-        (res.data as import('@/types/trip-request').StaffTripRequest);
+        (res.data as unknown as import('@/types/trip-request').StaffTripRequest);
       return { ...res, data: { trip } };
     }
     return res as ApiResponse<{ trip: import('@/types/trip-request').StaffTripRequest }>;
@@ -3156,7 +3156,7 @@ export const tripRequestApi = {
         (res.data.progress as import('@/types/trip-request').TripProgressPayload) ?? res.data;
       return { ...res, data: progress as import('@/types/trip-request').TripProgressPayload };
     }
-    return res as ApiResponse<import('@/types/trip-request').TripProgressPayload>;
+    return res as unknown as ApiResponse<import('@/types/trip-request').TripProgressPayload>;
   },
 
   create: async (
@@ -3169,7 +3169,7 @@ export const tripRequestApi = {
     if (res.success && res.data) {
       const trip =
         (res.data.trip as import('@/types/logistics').TripRequest) ??
-        (res.data as import('@/types/logistics').TripRequest);
+        (res.data as unknown as import('@/types/logistics').TripRequest);
       return { ...res, data: { trip } };
     }
     if (!res.success && res.code === 'BOOKING_LEAD_TIME_VIOLATION') {
