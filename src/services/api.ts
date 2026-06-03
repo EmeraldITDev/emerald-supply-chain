@@ -3180,7 +3180,7 @@ export const tripRequestApi = {
         (Array.isArray(errors.bookingScope) ? errors.bookingScope[0] : null) ??
         (Array.isArray(errors.scheduled_departure_at) ? errors.scheduled_departure_at[0] : null) ??
         res.error;
-      return { ...res, error: msg || 'Trip date does not meet the minimum advance booking period.' };
+      return { ...res, error: msg || 'Trip date does not meet the minimum advance booking period.' } as unknown as ApiResponse<{ trip: import('@/types/logistics').TripRequest }>;
     }
     return res as unknown as ApiResponse<{ trip: import('@/types/logistics').TripRequest }>;
   },
