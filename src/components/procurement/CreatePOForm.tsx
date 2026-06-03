@@ -830,6 +830,17 @@ export function CreatePOForm({
           </div>
         </div>
 
+        <div className="mt-4">
+          <PaymentMilestoneBuilder
+            value={paymentMilestones}
+            onChange={setPaymentMilestones}
+            onValidityChange={setPaymentMilestonesValid}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Optional structured payment schedule. When set, it overrides the free-text Payment Terms above on the generated PO.
+          </p>
+        </div>
+
         {/* T&C */}
         <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
           <div className="flex items-center justify-between">
