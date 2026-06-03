@@ -30,13 +30,13 @@
 - Wired into `src/components/POGenerationDialog.tsx` adjacent to the Payment Terms select. The dialog's `onGenerate`/`onSave` callbacks now receive an optional `paymentMilestones` array, and the "Save and Send to Vendors" button is disabled while the builder is invalid.
 - **Backend ask:**
   - `POST /api/mrfs/{id}/generate-po` (PO finalisation) accepts `payment_milestones: [{label: string, percentage: number, trigger_condition: string}]`. Request: include `payment_milestones` array. Response: echo the persisted array on the PO detail. Return HTTP **422** with `errors.payment_milestones: "must sum to 100"` when the percentages do not equal 100.
-  - `POST /api/rfqs` and `PATCH /api/rfqs/{id}` accept the same `payment_milestones` array and persist it on the RFQ so vendor quotations and downstream POs can inherit it. Return it on RFQ detail.
+  - `POST /api/rfqs` and `PATCH /api/rfqs/{id}` accept `payment_milestones` — backend persists them on the **linked MRF's payment schedule** (not a separate RFQ column). RFQ create/update/detail responses expose `payment_milestones` read from that MRF schedule in the same shape the UI sends.
   - `POST /api/mrfs` and `POST /api/srfs` accept the same shape (so MRFs/SRFs can carry the requested payment schedule from creation). Detail responses must echo it. The legacy `payment_terms` string column should remain read-only for backward compatibility.
 
 ### Item 2 — SCD quotation detail (investigation hook)
 - Added a diagnostic `console.debug('[Item2/getQuotations]', …)` in `src/services/api.ts` `rfqApi.getQuotations` that logs the caller's role (from `localStorage.user`), success flag, quotation count, and the top-level keys of the first quotation + its nested `quotation` object + items length.
-- **How to use:** open the price-comparison view as Procurement Manager, copy the log; reopen as Supply Chain Director and copy again. If `sampleQuotationKeys` differs (e.g. PM sees `payment_terms` / `delivery_days` / line items but SCD does not), it's a backend role-scope bug. The exact missing fields will then be listed here for the backend team.
-- **Backend ask (pending diff):** ensure `GET /api/rfqs/{rfqId}/quotations` returns the **same** field set regardless of authenticated role for any user with read access (PM, SCD, Executive). No fields should be stripped by role-scoping.
+- **How to use:** open the price-comparison view as Procurement Manager, copy the log; reopen as Supply Chain Director and copy again. After the backend deploy, both should show the **same** top-level keys including `payment_milestones`, `paymentSchedule`, and `items`. If anything still differs, paste both `console.debug` payloads here for the backend team.
+- **Backend ask (confirmed):** `GET /api/rfqs/{rfqId}/quotations` returns identical field sets across PM, SCD, and Executive roles — no role-scoped stripping.
 
 ### Item 6 — External passengers on trips
 - Extended `CreateTripRequestData` in `src/types/logistics.ts` with optional `external_passengers: Array<{name, email, phone?}>`.
@@ -44,4 +44,4 @@
 - `tripRequestApi.create` forwards `external_passengers` only when at least one valid row is present.
 - **Backend ask:**
   - `POST /api/trip-requests` and `PUT /api/trip-requests/{id}` accept `external_passengers: [{name: string, email: string, phone?: string}]`. Persist alongside `passenger_user_ids` so the detail response returns both arrays.
-  - When the Logistics Manager **confirms** the trip (transition to `confirmed`/`scheduled`), send a transactional email to each external passenger's address. **Do NOT** send on draft save or initial submission. Email body should include: trip date/time, origin → destination, purpose, and the requester's name as the in-company contact. Plain transactional copy (no marketing content).
+  - External passenger emails fire on `POST /api/trip-requests/{id}/confirm` (Logistics Manager confirm action) — **not** on initial `POST /api/trip-requests`. Email body should include: trip date/time, origin → destination, purpose, and the requester's name as the in-company contact. Plain transactional copy (no marketing content).
