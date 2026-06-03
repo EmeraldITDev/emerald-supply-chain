@@ -133,7 +133,16 @@ export const VendorInvoicesPanel = () => {
                     )}
                   </div>
 
-                  {!m.invoiceSubmitted && gate.reason && (
+                  {!m.invoiceSubmitted && !canUpload && (
+                    <Alert>
+                      <AlertTitle>Awaiting approval</AlertTitle>
+                      <AlertDescription>
+                        {gate.reason ||
+                          "Your quote has been received. You will be notified when you can submit your final invoice."}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {!m.invoiceSubmitted && canUpload && gate.reason && (
                     <p className="text-xs text-muted-foreground">{gate.reason}</p>
                   )}
 
