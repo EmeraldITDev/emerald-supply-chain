@@ -387,6 +387,12 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
               </Select>
             </div>
 
+            <PaymentMilestoneBuilder
+              value={paymentMilestones}
+              onChange={setPaymentMilestones}
+              onValidityChange={setPaymentMilestonesValid}
+            />
+
             <div className="space-y-2">
               <Label htmlFor="notes">Additional Notes</Label>
               <Textarea
