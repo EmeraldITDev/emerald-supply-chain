@@ -1,305 +1,280 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getDisplayId } from "@/utils/displayId";
-import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { FileText, Plus, CheckCircle, XCircle, Clock, Calendar, TrendingUp } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useState, useMemo } from "react";
-import { FilterBar } from "@/components/dashboard/FilterBar";
+import { getDisplayId } from "@/utils/displayId";
+import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  FileText,
+  Plus,
+  CheckCircle,
+  XCircle,
+  Clock,
+  TrendingUp,
+  Eye,
+  MapPin,
+  Calendar,
+  ShoppingCart,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useMemo } from "react";
+import { canCreateTripRequest } from "@/utils/tripRequestAccess";
 
+/**
+ * Employee Dashboard — a true overview page (separate from "My Requests").
+ *
+ * Stats aggregate the user's own MRFs and SRFs:
+ *   - Total Requests
+ *   - Pending Requests
+ *   - In Review Requests
+ *   - Converted to RFQs (MRFs that have a linked RFQ)
+ *   - Rejected Requests
+ */
 const EmployeeDashboard = () => {
-  const { mrfRequests, srfRequests } = useApp();
+  const { mrfRequests, srfRequests, rfqs } = useApp();
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("date-desc");
-
-  // Filter to show only current user's requests
-  const myMRFs = mrfRequests.filter(mrf => mrf.requester === user?.name || mrf.requester === "Current User");
-  const mySRFs = srfRequests.filter((srf) => {
-    const rn = getSrfRequesterDisplayName(srf);
-    return rn === user?.name || rn === user?.email || rn === "Current User";
-  });
-
-  const pendingMRFs = myMRFs.filter(mrf => mrf.status === "Submitted" || mrf.status.includes("Pending") || (mrf.status.includes("Approved") && mrf.currentStage !== "approved"));
-  const approvedMRFs = myMRFs.filter(mrf => mrf.status === "Approved" && mrf.currentStage === "approved");
-  const rejectedMRFs = myMRFs.filter(mrf => mrf.status === "Rejected");
-
-  // Filtering and sorting logic
-  const filteredAndSortedRequests = useMemo(() => {
-    let filtered = [...myMRFs, ...mySRFs];
-
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter(req =>
-        req.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        req.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        getDisplayId(req).toLowerCase().includes(searchQuery.toLowerCase()) ||
-        req.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(req => {
-        if (statusFilter === "pending") return req.status === "Submitted" || req.status.includes("Pending") || req.status.includes("Approved");
-        if (statusFilter === "approved") return req.status === "Approved" && (req as any).currentStage === "approved";
-        if (statusFilter === "rejected") return req.status === "Rejected";
-        if (statusFilter === "completed") return req.status === "Completed";
-        return true;
-      });
-    }
-
-    // Date filter
-    if (dateFilter !== "all") {
-      const now = new Date();
-      filtered = filtered.filter(req => {
-        const reqDate = new Date(req.date);
-        const daysDiff = (now.getTime() - reqDate.getTime()) / (1000 * 60 * 60 * 24);
-        
-        if (dateFilter === "today") return daysDiff < 1;
-        if (dateFilter === "week") return daysDiff < 7;
-        if (dateFilter === "month") return daysDiff < 30;
-        return true;
-      });
-    }
-
-    // Sorting
-    filtered.sort((a, b) => {
-      if (sortBy === "date-desc") return new Date(b.date).getTime() - new Date(a.date).getTime();
-      if (sortBy === "date-asc") return new Date(a.date).getTime() - new Date(b.date).getTime();
-      if (sortBy === "title") return a.title.localeCompare(b.title);
-      return 0;
-    });
-
-    return filtered;
-  }, [myMRFs, mySRFs, searchQuery, statusFilter, dateFilter, sortBy]);
-
-  const statusOptions = [
-    { label: "All Requests", value: "all" },
-    { label: "Pending", value: "pending" },
-    { label: "Approved", value: "approved" },
-    { label: "Rejected", value: "rejected" },
-    { label: "Completed", value: "completed" },
-  ];
-
-  const getStatusBadge = (status: string, currentStage?: string) => {
-    if (status === "Approved" && currentStage === "approved") {
-      return <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">Approved</Badge>;
-    }
-    if (status === "Rejected") {
-      return <Badge variant="destructive">Rejected</Badge>;
-    }
-    if (status === "Completed") {
-      return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Completed</Badge>;
-    }
-    return <Badge variant="secondary">{status}</Badge>;
+  const ownsRequester = (requester?: string | null) => {
+    if (!requester) return false;
+    const r = requester.trim().toLowerCase();
+    return (
+      r === (user?.name || "").trim().toLowerCase() ||
+      r === (user?.email || "").trim().toLowerCase()
+    );
   };
 
-  const activeFiltersCount = (statusFilter !== "all" ? 1 : 0) + (dateFilter !== "all" ? 1 : 0);
+  const myMRFs = useMemo(
+    () => mrfRequests.filter((m) => ownsRequester(m.requester)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mrfRequests, user],
+  );
+
+  const mySRFs = useMemo(
+    () => srfRequests.filter((s) => ownsRequester(getSrfRequesterDisplayName(s))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [srfRequests, user],
+  );
+
+  const stats = useMemo(() => {
+    const all = [
+      ...myMRFs.map((m) => ({ id: m.id, status: m.status || "", kind: "mrf" as const })),
+      ...mySRFs.map((s) => ({ id: s.id, status: s.status || "", kind: "srf" as const })),
+    ];
+
+    const isPending = (s: string) => {
+      const v = s.toLowerCase();
+      return v.includes("pending") || v === "submitted" || v === "draft";
+    };
+    const isInReview = (s: string) => {
+      const v = s.toLowerCase();
+      return (
+        v.includes("review") ||
+        v.includes("approval") ||
+        (v.includes("approved") && !v.includes("rfq") && !v.includes("po"))
+      );
+    };
+    const isRejected = (s: string) => s.toLowerCase().includes("reject");
+
+    const myMrfIds = new Set(myMRFs.map((m) => m.id));
+    const convertedCount = rfqs.filter((r) => myMrfIds.has(r.mrfId)).length;
+    // Plus MRFs whose status itself indicates RFQ stage
+    const statusRfqCount = myMRFs.filter((m) =>
+      (m.status || "").toLowerCase().includes("rfq"),
+    ).length;
+    const convertedToRfq = Math.max(convertedCount, statusRfqCount);
+
+    return {
+      total: all.length,
+      pending: all.filter((x) => isPending(x.status)).length,
+      inReview: all.filter((x) => isInReview(x.status)).length,
+      convertedToRfq,
+      rejected: all.filter((x) => isRejected(x.status)).length,
+    };
+  }, [myMRFs, mySRFs, rfqs]);
+
+  const recent = useMemo(() => {
+    type Row = {
+      id: string;
+      title: string;
+      displayId: string;
+      status: string;
+      kind: "MRF" | "SRF";
+      date: string;
+    };
+    const rows: Row[] = [
+      ...myMRFs.map((m) => ({
+        id: m.id,
+        title: m.title,
+        displayId: getDisplayId(m as never),
+        status: m.status || "—",
+        kind: "MRF" as const,
+        date: m.date || "",
+      })),
+      ...mySRFs.map((s) => ({
+        id: s.id,
+        title: s.title,
+        displayId: getDisplayId(s as never),
+        status: s.status || "—",
+        kind: "SRF" as const,
+        date: (s as { createdAt?: string }).createdAt || s.date || "",
+      })),
+    ];
+    rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return rows.slice(0, 5);
+  }, [myMRFs, mySRFs]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Employee Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Welcome back, {user?.name}</p>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Welcome back{user?.name ? `, ${user.name}` : ""}. Here's a snapshot of your activity.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => navigate("/new-mrf")} size="sm">
+              <Plus className="mr-2 h-4 w-4" /> New MRF
+            </Button>
+            <Button onClick={() => navigate("/new-srf")} variant="outline" size="sm">
+              <Plus className="mr-2 h-4 w-4" /> New SRF
+            </Button>
+            {canCreateTripRequest(user?.role) && (
+              <Button onClick={() => navigate("/trip-request")} variant="outline" size="sm">
+                <MapPin className="mr-2 h-4 w-4" /> Trip Request
+              </Button>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => navigate("/new-mrf")} size="lg" className="gradient-primary hover:opacity-90 transition-smooth">
-            <Plus className="mr-2 h-5 w-5" />
-            New MRF
-          </Button>
-          <Button onClick={() => navigate("/new-srf")} variant="outline" size="lg">
-            <Plus className="mr-2 h-5 w-5" />
-            New SRF
-          </Button>
+
+        {/* Stats */}
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+          <StatCard
+            title="Total Requests"
+            value={stats.total}
+            description="MRFs + SRFs you raised"
+            icon={TrendingUp}
+            iconColor="text-info"
+            onClick={() => navigate("/department")}
+          />
+          <StatCard
+            title="Pending Requests"
+            value={stats.pending}
+            description="Awaiting first review"
+            icon={Clock}
+            iconColor="text-warning"
+            onClick={() => navigate("/department")}
+          />
+          <StatCard
+            title="In Review"
+            value={stats.inReview}
+            description="Under approval"
+            icon={Eye}
+            iconColor="text-primary"
+            onClick={() => navigate("/department")}
+          />
+          <StatCard
+            title="Converted to RFQs"
+            value={stats.convertedToRfq}
+            description="Reached RFQ stage"
+            icon={ShoppingCart}
+            iconColor="text-success"
+            onClick={() => navigate("/department")}
+          />
+          <StatCard
+            title="Rejected"
+            value={stats.rejected}
+            description="Needs revision"
+            icon={XCircle}
+            iconColor="text-destructive"
+            onClick={() => navigate("/department")}
+          />
         </div>
-      </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <StatCard
-          title="Pending Requests"
-          value={pendingMRFs.length}
-          description="Awaiting approval"
-          icon={Clock}
-          iconColor="text-warning"
-          onClick={() => setStatusFilter("pending")}
-        />
-        <StatCard
-          title="Approved"
-          value={approvedMRFs.length}
-          description="Successfully approved"
-          icon={CheckCircle}
-          iconColor="text-success"
-          onClick={() => setStatusFilter("approved")}
-        />
-        <StatCard
-          title="Rejected"
-          value={rejectedMRFs.length}
-          description="Needs revision"
-          icon={XCircle}
-          iconColor="text-destructive"
-          onClick={() => setStatusFilter("rejected")}
-        />
-        <StatCard
-          title="Total Requests"
-          value={myMRFs.length + mySRFs.length}
-          description="All time"
-          icon={TrendingUp}
-          iconColor="text-info"
-        />
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>My Requests</CardTitle>
-          <CardDescription>View and track your submitted requests</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <FilterBar
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-              statusOptions={statusOptions}
-              placeholder="Search by title, ID, or description..."
-              activeFiltersCount={activeFiltersCount}
-              onClearFilters={() => {
-                setStatusFilter("all");
-                setDateFilter("all");
-              }}
-              additionalFilters={
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Date Range</label>
-                    <Select value={dateFilter} onValueChange={setDateFilter}>
-                      <SelectTrigger>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          <SelectValue />
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Time</SelectItem>
-                        <SelectItem value="today">Today</SelectItem>
-                        <SelectItem value="week">This Week</SelectItem>
-                        <SelectItem value="month">This Month</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Sort By</label>
-                    <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="date-desc">Newest First</SelectItem>
-                        <SelectItem value="date-asc">Oldest First</SelectItem>
-                        <SelectItem value="title">Title (A-Z)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              }
-            />
-
-            {/* Results */}
-            <div className="space-y-3 mt-6">
-              {filteredAndSortedRequests.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <FileText className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium">No requests found</p>
-                  <p className="text-sm mt-1">
-                    {searchQuery || statusFilter !== "all" || dateFilter !== "all"
-                      ? "Try adjusting your filters"
-                      : "Create your first MRF or SRF to get started"}
-                  </p>
+        {/* Recent + quick actions */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base">Recent activity</CardTitle>
+              <CardDescription>Your five most recent requests</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recent.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                  <p className="text-sm">No requests yet. Create your first MRF or SRF.</p>
                 </div>
               ) : (
-                filteredAndSortedRequests.map((request) => {
-                  const isMRF = "category" in request;
-                  const mrf = isMRF ? request as any : null;
-                  
-                  return (
-                    <div
-                      key={request.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 border rounded-xl hover:shadow-md transition-smooth bg-card"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg">{request.title}</h3>
-                          {getStatusBadge(request.status, mrf?.currentStage)}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mb-2">
-                          <span className="font-medium">{getDisplayId(request)}</span>
-                          <span>•</span>
-                          <span>{(() => {
-                            const dateStr = request.date || '';
-                            if (!dateStr) return 'N/A';
-                            try {
-                              const date = new Date(dateStr.includes('Z') || dateStr.match(/[+-]\d{2}:\d{2}$/) ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr));
-                              return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric', 
-                                year: 'numeric',
-                                hour: '2-digit', 
-                                minute: '2-digit',
-                                hour12: true
-                              });
-                            } catch {
-                              return 'Invalid Date';
-                            }
-                          })()}</span>
-                          {isMRF && mrf.estimatedCost && (
-                            <>
-                              <span>•</span>
-                              <span className="font-medium">₦{parseInt(mrf.estimatedCost).toLocaleString()}</span>
-                            </>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2">{request.description}</p>
-                        {mrf?.rejectionReason && (
-                          <p className="text-sm text-destructive mt-2 p-2 bg-destructive/10 rounded">
-                            <strong>Rejection reason:</strong> {mrf.rejectionReason}
-                          </p>
-                        )}
-                      </div>
-                      {request.status === "Rejected" && (
-                        <Button
-                          onClick={() => navigate("/new-mrf", { state: { rejectedMRF: request } })}
-                          className="self-start sm:self-center"
-                        >
-                          Edit & Resubmit
-                        </Button>
-                      )}
+                recent.map((r) => (
+                  <button
+                    key={`${r.kind}-${r.id}`}
+                    type="button"
+                    onClick={() => navigate("/department")}
+                    className="w-full text-left flex items-center justify-between gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{r.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.kind} • {r.displayId}
+                      </p>
                     </div>
-                  );
-                })
+                    <Badge variant="secondary" className="shrink-0 text-xs">
+                      {r.status}
+                    </Badge>
+                  </button>
+                ))
               )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => navigate("/department")}
+              >
+                Open My Requests
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Quick actions</CardTitle>
+              <CardDescription>Jump into a workflow</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-2">
+              <Button variant="outline" className="justify-start" onClick={() => navigate("/new-mrf")}>
+                <Plus className="mr-2 h-4 w-4" /> Create Material Request (MRF)
+              </Button>
+              <Button variant="outline" className="justify-start" onClick={() => navigate("/new-srf")}>
+                <Plus className="mr-2 h-4 w-4" /> Create Service Request (SRF)
+              </Button>
+              {canCreateTripRequest(user?.role) && (
+                <Button variant="outline" className="justify-start" onClick={() => navigate("/trip-request")}>
+                  <MapPin className="mr-2 h-4 w-4" /> Submit Trip Request
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                className="justify-start"
+                onClick={() => navigate("/department?tab=annual")}
+              >
+                <Calendar className="mr-2 h-4 w-4" /> Annual Planning
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => navigate("/department")}
+              >
+                <CheckCircle className="mr-2 h-4 w-4" /> View all my requests
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </DashboardLayout>
   );
 };
 

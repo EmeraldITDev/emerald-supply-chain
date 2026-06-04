@@ -38,7 +38,7 @@ import type { MRF, SRF } from "@/types";
 
 const DepartmentDashboard = () => {
   const { user } = useAuth();
-  const { mrns, annualPlans, srfRequests, refreshMRFs } = useApp();
+  const { mrns, annualPlans, srfRequests, refreshMRFs, rfqs } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -165,12 +165,38 @@ const DepartmentDashboard = () => {
     }
   };
 
-  const stats = {
-    pending: departmentMRNs.filter(m => m.status === "Pending").length,
-    underReview: departmentMRNs.filter(m => m.status === "Under Review").length,
-    converted: departmentMRNs.filter(m => m.status === "Converted to MRF").length,
-    rejected: departmentMRNs.filter(m => m.status === "Rejected").length,
-  };
+  // Aggregate stats across MRFs + SRFs raised by the current user.
+  const stats = useMemo(() => {
+    const all = [
+      ...mrfRequests.map((m) => ({ id: m.id, status: m.status || "" })),
+      ...mySrfs.map((s) => ({ id: s.id, status: s.status || "" })),
+    ];
+    const isPending = (s: string) => {
+      const v = s.toLowerCase();
+      return v.includes("pending") || v === "submitted" || v === "draft";
+    };
+    const isInReview = (s: string) => {
+      const v = s.toLowerCase();
+      return (
+        v.includes("review") ||
+        v.includes("approval") ||
+        (v.includes("approved") && !v.includes("rfq") && !v.includes("po"))
+      );
+    };
+    const isRejected = (s: string) => s.toLowerCase().includes("reject");
+    const myMrfIds = new Set(mrfRequests.map((m) => m.id));
+    const convertedToRfq = Math.max(
+      rfqs.filter((r) => myMrfIds.has(r.mrfId)).length,
+      mrfRequests.filter((m) => (m.status || "").toLowerCase().includes("rfq")).length,
+    );
+    return {
+      total: all.length,
+      pending: all.filter((x) => isPending(x.status)).length,
+      underReview: all.filter((x) => isInReview(x.status)).length,
+      convertedToRfq,
+      rejected: all.filter((x) => isRejected(x.status)).length,
+    };
+  }, [mrfRequests, mySrfs, rfqs]);
 
   
 
@@ -215,12 +241,12 @@ const DepartmentDashboard = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-xs sm:text-sm font-medium">Converted</CardTitle>
+              <CardTitle className="text-xs sm:text-sm font-medium">Converted to RFQs</CardTitle>
               <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.converted}</div>
-              <p className="text-xs text-muted-foreground">To MRFs</p>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.convertedToRfq}</div>
+              <p className="text-xs text-muted-foreground">Reached RFQ stage</p>
             </CardContent>
           </Card>
 
