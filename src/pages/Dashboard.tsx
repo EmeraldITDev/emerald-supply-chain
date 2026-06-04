@@ -5,7 +5,7 @@ import { Package, ShoppingCart, Truck, Warehouse, TrendingUp, AlertCircle, Check
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
-import DepartmentDashboard from "./DepartmentDashboard";
+import EmployeeDashboard from "./EmployeeDashboard";
 import FinanceDashboard from "./FinanceDashboard";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { dashboardApi, dashboardKpiApi, mrfApi } from "@/services/api";
@@ -33,7 +33,7 @@ const Dashboard = () => {
 
   // Route to role-specific dashboard
   if (isEmployeeRole(user?.role)) {
-    return <DepartmentDashboard />;
+    return <EmployeeDashboard />;
   }
 
   if (user?.role === "finance") {
