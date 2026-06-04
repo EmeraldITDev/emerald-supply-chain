@@ -241,12 +241,12 @@ const DepartmentDashboard = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-xs sm:text-sm font-medium">Converted</CardTitle>
+              <CardTitle className="text-xs sm:text-sm font-medium">Converted to RFQs</CardTitle>
               <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.converted}</div>
-              <p className="text-xs text-muted-foreground">To MRFs</p>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.convertedToRfq}</div>
+              <p className="text-xs text-muted-foreground">Reached RFQ stage</p>
             </CardContent>
           </Card>
 
