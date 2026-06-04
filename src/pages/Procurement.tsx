@@ -2895,10 +2895,15 @@ const Procurement = () => {
                                   const workflowState = getWorkflowState(
                                     request as MRF,
                                   );
-                                  const isProcurement =
-                                    user?.role === "procurement" ||
-                                    user?.role === "procurement_manager";
-                                  const canViewDetails = isProcurement;
+                                   const isProcurement =
+                                     user?.role === "procurement" ||
+                                     user?.role === "procurement_manager";
+                                   const isOversight =
+                                     user?.role === "supply_chain_director" ||
+                                     user?.role === "supply_chain" ||
+                                     user?.role === "executive" ||
+                                     user?.role === "chairman";
+                                   const canViewDetails = isProcurement || isOversight;
 
                                   if (canViewDetails) {
                                     return (
