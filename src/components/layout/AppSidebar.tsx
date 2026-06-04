@@ -108,7 +108,7 @@ export function AppSidebar() {
         {
           label: "Requests",
           items: [
-            { title: "My Requests", url: "/dashboard", icon: FileText },
+            { title: "My Requests", url: "/department", icon: FileText },
             { title: "New MRF", url: "/new-mrf", icon: FileText },
             { title: "New SRF", url: "/new-srf", icon: FileText },
             { title: "Trip Request", url: "/trip-request", icon: MapPin },
