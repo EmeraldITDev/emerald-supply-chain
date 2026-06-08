@@ -231,10 +231,41 @@ export const tripsApi = {
   // Backend expects vendor_id (often integer); duplicate vendorId for camelCase consumers.
   assignVendor: async (tripId: string, vendorId: string): Promise<ApiResponse<Trip>> => {
     const tid = String(tripId ?? '').trim();
-    return apiRequest<Trip>(`/trips/${encodeURIComponent(tid)}/assign-vendor`, {
-      method: 'POST',
-      body: JSON.stringify(vendorAssignmentPayload(vendorId)),
+    const payload = vendorAssignmentPayload(vendorId);
+
+    // Item 6 — diagnostic for the 500 + "Failed to send vendor invitation" bug.
+    // Capture the exact payload + endpoint so PM/Logistics can paste both PM and SCD
+    // logs alongside the backend exception. Safe in prod — no PII beyond IDs.
+    // TODO(@logistics-team, remove by 2026-06-22): once backend ships graceful
+    // email-failure handling (returns 200 with { assigned: true, email_sent, email_error })
+    // delete this debug AND the defensive branch below. Tracked in frontend_changes.md §Item 6.
+    // eslint-disable-next-line no-console
+    console.debug('[Item6/assignVendor]', {
+      endpoint: `/trips/${tid}/assign-vendor`,
+      payload,
     });
+
+    const res = await apiRequest<Trip>(`/trips/${encodeURIComponent(tid)}/assign-vendor`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    // Item 6 — defensive handling. If the backend has been patched to return
+    // { assigned: true, email_sent: false, email_error: '...' } on email failure,
+    // surface it as a success with a warning attached to the response (caller can read
+    // `email_sent` / `email_error` off `res.data`). This block is the swap target for
+    // the cleanup TODO above.
+    if (res.success && res.data) {
+      const d = res.data as unknown as Record<string, unknown>;
+      if (d.assigned === true && d.email_sent === false) {
+        // eslint-disable-next-line no-console
+        console.warn('[Item6/assignVendor] vendor assigned but invitation email failed', {
+          email_error: d.email_error,
+        });
+      }
+    }
+
+    return res;
   },
 
   // Bulk upload trips from Excel
