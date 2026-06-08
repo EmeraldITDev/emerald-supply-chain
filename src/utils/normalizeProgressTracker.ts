@@ -62,6 +62,52 @@ function phasesFromApi(phases: ProgressTrackerPhase[]): ProgressTrackerViewModel
     .filter((p) => p.totalSteps > 0);
 }
 
+/**
+ * Item 4 — "Delivery Documents Uploaded" must only show as completed when at least one
+ * of GRN / waybill / JCC / delivery_confirmation actually exists in the documents
+ * registry for this MRF. Backend has historically sent `status: 'completed'` based on
+ * stage timestamps alone, which produced false positives.
+ *
+ * This post-processor re-evaluates the delivery-docs step against `activeByType` and
+ * downgrades it to `pending`/`not_started` when no delivery document is present.
+ */
+function enforceDeliveryDocsTruth(
+  phases: ProgressTrackerViewModel['phases'],
+  activeByType: any,
+): ProgressTrackerViewModel['phases'] {
+  const hasDeliveryDoc = Boolean(
+    activeByType?.grn ||
+      activeByType?.waybill ||
+      activeByType?.jcc ||
+      activeByType?.delivery_confirmation,
+  );
+  if (hasDeliveryDoc) return phases; // backend can mark complete — there's a real doc.
+
+  return phases.map((phase) => {
+    if (phase.id !== 'delivery') return phase;
+    const steps = phase.steps.map((s) => {
+      const looksLikeDeliveryDocs =
+        /delivery[-_ ]?doc/i.test(s.key) ||
+        /delivery documents uploaded/i.test(s.name);
+      if (!looksLikeDeliveryDocs) return s;
+      if (s.status !== 'completed') return s;
+      return {
+        ...s,
+        status: 'pending' as ProgressStepStatus,
+        completedAt: undefined,
+        completedBy: undefined,
+        isCurrent: true,
+        remarks: 'Awaiting GRN / waybill / JCC / delivery confirmation upload.',
+      };
+    });
+    return {
+      ...phase,
+      steps,
+      completedSteps: steps.filter((s) => s.status === 'completed').length,
+    };
+  });
+}
+
 function phasesFromFlatSteps(
   steps: ProgressTrackerStep[],
   hideDelivery: boolean,
@@ -153,6 +199,7 @@ export function normalizeProgressTracker(
     if (hideDeliveryPhase) {
       phases = phases.filter((p) => p.id !== 'delivery');
     }
+    phases = enforceDeliveryDocsTruth(phases, activeByType);
     const progressPercent =
       data.meta?.progressPercent ?? calcProgress(phases);
     return {
@@ -171,7 +218,8 @@ export function normalizeProgressTracker(
   }
 
   if (data.steps?.length && data.steps.some((s) => s.key)) {
-    const phases = phasesFromFlatSteps(data.steps, hideDeliveryPhase);
+    let phases = phasesFromFlatSteps(data.steps, hideDeliveryPhase);
+    phases = enforceDeliveryDocsTruth(phases, activeByType);
     return {
       mrfId,
       title,

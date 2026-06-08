@@ -102,6 +102,13 @@ export function ManualPOQuickStartDialog({
           'Manual PO created without RFQ — vendor and pricing captured directly on the purchase order.',
         contract_type: contractType,
         contractType,
+        // Item 1d / Item 2 — flag this MRF as PO-generated so the backend:
+        //   (a) suppresses the "new MRF created" notification email, and
+        //   (b) excludes it from the standard MRF list views.
+        // Backend ask: persist as `source: 'po_generated'` + `is_po_linked: true`.
+        source: 'po_generated',
+        is_po_linked: true,
+        suppress_notifications: true,
         ...(dept ? { department: dept } : {}),
       });
       if (!res.success || !res.data) {
