@@ -1,151 +1,121 @@
-# SCM Platform — Multi-Feature Fix & Enhancement Plan (v3)
+## Sequencing (v3 — verification gates explicit)
 
-Eight issues grouped by area. Reuse existing components/types wherever possible. Every backend-touching change gets a section in `frontend_changes.md` (method, path, request/response, plain-English description).
-
----
-
-## 1. Payment Terms — Flexible Milestone Builder (MRF, SRF, RFQ, PO)
-
-Reuse existing `src/types/payment-schedule.ts` (`PaymentMilestone`, templates, `sumMilestonePercentages`) and `src/services/paymentScheduleApi.ts`. Build one shared component:
-
-- **New** `src/components/payments/PaymentMilestoneBuilder.tsx`
-  - Template dropdown: 100% Advance, 70/30, 50/50, 30/40/30, Custom
-  - Editable rows with `percentage`, `label`, optional trigger
-  - Running total chip; red inline error when ≠ 100
-  - Emits `PaymentMilestone[]` and `isValid` to parent
-
-Integrate into:
-- `src/pages/NewMRF.tsx` — replace freeform payment terms input
-- `src/pages/NewSRF.tsx` — add the section (currently absent)
-- `src/components/RFQManagement.tsx` — replace RFQ terms input
-- `src/components/POGenerationDialog.tsx` — replace its free-text payment terms field
-- `src/components/procurement/CreatePOForm.tsx` — **only** replace the free-text payment terms input. **Do NOT remove or alter** the existing `custom_terms` textarea, the `remarks` field, or the `invoice_submission_cc` field — those serve different purposes. The milestone builder slots in alongside them.
-
-Disable submit while sum ≠ 100.
-
-**Backend (document in `frontend_changes.md`):**
-- MRF/SRF/RFQ/PO create+update accept `payment_milestones: [{label, percentage, trigger_condition?}]`
-- 422 with clear error when sum ≠ 100
-- Detail responses return the array; legacy `payment_terms` string kept read-only
+Four batches. Each gated by a verification checklist before the next can start.
 
 ---
 
-## 2. SCD Quotation Detail — Show Full Payload (investigation-first)
+## Batch 0 — Pre-flight verification
 
-**Required investigation before any code change:**
-1. From `SupplyChainDashboard.tsx`, capture the raw API response for the quotation endpoint hit by SCD (network tab + temporary `console.log`).
-2. Capture the same endpoint's response logged in as a Procurement Manager.
-3. Diff the two payloads field-by-field (line items, vendor details, pricing, `documents[]`, payment terms).
+### 0a. Procurement Manager role recognition
+- Test environment: **staging** (preview URL against live Render backend). Production not used; local does not exercise the real `/auth/me` shape.
+- **Prerequisite:** vendor registration must be confirmed working in staging first. If registration is broken, fix it (or unblock CORS) before 0b runs — otherwise 0b's vendor user can't be created and the audit gives false negatives.
+- Steps: log in as PM, capture `localStorage.userData.role` + `/auth/me`. Walk vendor registration review, RFQ send, MRF delete-button visibility (once added).
+- If role string mismatches `role-permissions-and-aliasing-v4`, patch the alias map.
+- Document confirmed role string in `frontend_changes.md`.
 
-**Fix rule:**
-- If a field is **present in PM payload but missing in SCD payload** → it's a backend role-scope bug. **Do not patch the frontend renderer.** Document the required backend fix in `frontend_changes.md` and stop there.
-- If both payloads contain the field but only SCD UI fails to render it → fix `normalizeQuotation.ts` and/or `PriceComparisonTable.tsx`.
+### 0b. Vendor portal capability audit (de-assumed)
+- Environment: same staging vendor user from 0a prerequisite.
+- Click through end-to-end: Submit Final Invoice, Submit RFQ Response, Quotation tracking.
+- Result table per capability: works | broken | missing. Anything "broken" reclassifies to Batch 1.
 
-Verify after fix: SCD sees line item table, unit/total prices, delivery period, payment terms, and downloadable S3 attachments — identical to PM.
-
----
-
-## 3. SRF Progress Tracker — Human-Readable Labels
-
-Update `src/components/SRFProgressTracker.tsx`, `src/utils/srfStatusBadge.ts`, `srfWorkflow.ts`:
-
-| Raw status | Label |
-|---|---|
-| pending | Awaiting Initial Review |
-| sc_director / awaiting_scd | Awaiting Supply Chain Director Approval |
-| procurement | With Procurement Team |
-| approved | Approved and Being Processed |
-| rejected | Returned for Revision |
-| po_generated | Purchase Order Created |
-| finance | Submitted to Finance for Payment |
-| complete / completed | Completed |
-
-Centralise in one `SRF_STATUS_LABELS` map. Replace raw-string renders in `SRFCardList`, `SRFDetailDialog`, `SRFLineItemDetailDialog`, and any badge.
+### Gate to Batch 1
+Both 0a and 0b complete with documented results. Reclassified bugs added to Batch 1 scope.
 
 ---
 
-## 4. Logistics Dashboard — Clickable Metric Cards
+## Batch 1 — Bugs
 
-In `src/pages/Logistics.tsx`, wrap the three summary cards with navigation:
+### 1d. Manual PO must not trigger MRF email
+Trace `CreatePOForm.tsx` + `ManualPOQuickStartDialog.tsx` + `POGenerationDialog.tsx`; remove side-effect MRF notify call. Backend ask: suppress `mrf.created` email when `source === 'manual_po'`.
 
-- Active Trips → `trips` tab with default filter = active (via `?filter=active`)
-- Fleet Vehicles → `fleet` tab
-- Staff Drivers → `drivers` tab
+### 2. Hide PO-generated MRFs (heuristic)
+`isPoGeneratedMrf()` in `src/utils/poHelpers.ts`. Apply across all MRF list surfaces; keep visible in Procurement History + PO detail. Backend ask: `source` + `is_po_linked` flags.
 
-`TripScheduling` reads `?filter` to preselect "active". Add `cursor-pointer`, hover lift, focus ring, and keyboard handler. No new pages needed.
+### 4. Progress tracker — Delivery Documents
+Step completes only when docs registry contains GRN | waybill | JCC | delivery_confirmation.
 
----
+### 5. PO closure
+Compute `missingDocs` for advance-payment POs with payment complete. **Close button explicit loading state** ("Checking documents…", disabled) while docs fetch is in-flight — never enabled before fetch resolves. Warning Alert + tooltip listing missing. Backend ask: server-side 422 + `missing_documents[]`.
 
-## 5. Plate Number Bug (`TEMP-…`)
+### 6. Vendor trip assignment 500
+- Diagnostic `console.debug` in `logisticsApi.ts`.
+- Defensive frontend handling for `{assigned:true, email_failed:true}` shape.
+- **Concrete removal owner & date:** tag the TODO with `// TODO(@procurement-team, remove by 2026-06-22): backend BLOCKING fix tracked in frontend_changes.md §Item 6.` Removal is added as a follow-up entry in `frontend_changes.md` "Pending cleanup" section so it has a named owner and deadline, not just a comment.
+- Backend ask logged with `BLOCKING` tag.
 
-Root cause traced to `src/services/logisticsApi.ts` vehicle create (frontend sends `plate`; backend expects `plate_number`, treats it as empty, and auto-generates `TEMP-…`). **Verify this is the actual source before applying the fix** — re-read the file and the live request payload in the network tab. If the mismatch is elsewhere (e.g., a wrapping serializer, the FleetManagement form, or a different API method), fix it at the actual source instead of blindly patching `logisticsApi.ts`.
+### Batch 1 verification checklist (gate to Batch 2)
+Manual smoke test, ~15 min:
+1. Progress tracker on an MRF with no delivery docs → "Delivery Documents Uploaded" is NOT complete.
+2. Create a manual PO → no MRF-created email is dispatched (check email log / network).
+3. After manual PO creation → associated MRF does NOT appear in Active / Official / All MRF tabs. DOES appear in Procurement History and inside the PO record.
+4. On an advance-payment PO with payment complete, missing docs → Close button shows "Checking documents…" while fetching, then disabled with tooltip listing missing docs.
+5. Vendor trip assignment → either backend fix landed (preferred), or defensive path returns a warning toast instead of a blocking error.
 
-Frontend fix once confirmed: send `plate_number` (and mirror `registration_number` per `normalizeFleetVehicle.ts` aliases) on both `create` and `update`. Verify the response echoes the user-entered value.
-
-**Backend note:** confirm endpoint persists `plate_number` when provided; only generate a placeholder when truly empty.
-
----
-
-## 6. Trip Scheduling — External Passengers
-
-Extend `src/components/logistics/TripRequestForm.tsx` and `EligiblePassengerPicker.tsx`:
-
-- Tabs/segment: Internal (existing picker) vs External (form: full name*, email*, phone*)
-- Track `internalPassengerIds: number[]` and `externalPassengers: {name,email,phone}[]`
-- Combined list with `External` badge; remove from either group
-- Update `CreateStaffTripRequestData` in `src/types/trip-request.ts`; forward via `tripRequestApi.create`
-
-**Backend note (with notification scope):**
-- POST/PUT `/trip-requests` accepts and persists `external_passengers[]`; detail returns both arrays.
-- **External passenger notification email fires only when the trip is *confirmed by the Logistics Manager*** — not on draft save and not on initial request submission.
-- Email body must include: trip date/time, destination, purpose, and the requester's name as the in-company contact. Plain transactional copy, no marketing content.
+All five must pass before Batch 2 is approved to start.
 
 ---
 
-## 7. MRF/SRF Line Items Persistence
+## Batch 2 — Features (scope finalised after Batch 0 + 1)
 
-Findings:
-- `NewMRF.tsx` already sends `line_items` with snake_case ✓
-- `NewSRF.tsx:196` sends `items: lineItems` with camelCase ✗
+**Scope caveat:** Item 7's exact size is unknown until 0b results land. Do not estimate Batch 2 effort until Batch 0 completes.
 
-Frontend fixes:
-- `NewSRF.tsx`: map to `line_items: [{item_name, quantity, unit, budget_amount}]`.
-- SRF detail views (`SRFDetailDialog`, `SRFLineItemDetailDialog`) read `line_items` from response.
-- `normalizeSrfDetail` accepts both `lineItems` and `line_items`.
-- **List endpoint check:** inspect the SRF list response (`/srfs`). The "No line items on file" message on cards suggests `line_items` is also missing from the list payload. Either:
-  - request `line_items_count` on the list endpoint and render that on the card, **or**
-  - lazy-fetch line items via the detail endpoint when a card is expanded.
-  - Do not show "No line items on file" based on an absent field; only show it when the count is explicitly zero.
+### 1a/1b/1c. PO form refactor
+Suppliers carry `line_items[]`. Remove min-2-supplier guard. Required-field audit with inline + top-summary errors.
 
-**Backend note:** `/srfs` and `/mrfs` create+update accept the snake_case `line_items` array and return them in detail. Add `line_items_count` (or full array) to the list response so cards aren't misleading. If SRF line-items table missing, create it.
+### 3. PM MRF delete at any stage
+AlertDialog with required copy. Gated by PM role. **Depends on 0a passing.**
 
----
+### 7. Vendor portal
+Build whatever 0b flagged. Plus procurement visibility on MRF/RFQ (per-submission terms, deadlines, comparison, evaluation).
 
-## 8. Vendor Final Invoice Submission UI — Audit & Gaps
+### 8a/8b/8d/8e. Trip scheduling
+External drivers, accommodation, edit passenger list. 8b notifications backend-only.
 
-Phase 4 already shipped `src/components/vendor/VendorInvoicesPanel.tsx` (gate-aware upload, read-only after submit). Remaining work:
-
-- Confirm panel mounts on the **per-MRF detail view** in the vendor portal. Add a "Submit Final Invoice" section to the per-MRF dialog if missing.
-- Internal visibility: confirm `ProcurementDocumentsPanel` surfaces `vendor_invoice` rows for Procurement, SCD, Executive, Finance on MRF detail.
-- Status copy after submit: "Invoice submitted — awaiting procurement review".
-- **Gate-closed UX (explicit):** when `canSubmit === false` because SCD has not yet approved, the panel must **render an informational message**, not a hidden button or empty state. Copy: *"Your quote has been received. You will be notified when you can submit your final invoice."* Once `canSubmit === true`, swap to the upload control.
-- Upload restricted to the awarded vendor only (server-enforced).
-
-No new backend expected. Document any gaps found in `frontend_changes.md`.
+### 9. Fleet / Driver / Maintenance
+Driver phone+license+docs; maintenance module; vehicle edit.
 
 ---
 
-## Technical Details
+## Batch 3 — SMS / Termii documentation only
+`frontend_changes.md` entries for endpoint, env vars, queue, log table, triggers, future UI surfaces. No frontend code.
 
-- Shared component path: `src/components/payments/PaymentMilestoneBuilder.tsx`.
-- SRF labels in `src/utils/srfStatusBadge.ts` as `SRF_STATUS_LABELS`.
-- Trip form passenger model extended in `src/types/trip-request.ts`; consumed by `TripRequestForm` and `tripRequestApi.create`.
-- Fleet create payload patched at its true source (likely `src/services/logisticsApi.ts`, verify first).
-- All client validation uses zod-style guards before submit.
-- `frontend_changes.md` gets one section per backend-touching item (1, 2, 5, 6, 7 + any gaps in 8).
+---
 
-## Out of Scope
+## Batch 4 — Nav (modals → routed pages)
 
-- Migrating historical `payment_terms` strings to milestone arrays (backend one-off).
-- Building a dedicated Active Trips page (tab + filter is enough).
-- Two-way invoice dispute flow (handled offline).
+**Scope is fixed at eight new routes** (`/mrfs/:id`, `/pos/:id`, `/rfqs/:id`, `/trips/:id`, `/fleet/:id`, `/drivers/:id`, `/vendors/:id`, `/maintenance/:id`) + breadcrumbs + sidebar dead-end fixes.
+
+**Sidebar audit scope is restricted to fixing dead ends only.** If the audit surfaces opportunities for new index pages, restructured sections, or other navigation rework, those findings are logged for a future batch — they do not expand Batch 4. This keeps Batch 4 shippable.
+
+---
+
+## Technical notes
+
+- Item 2 heuristic isolated to one helper.
+- Item 4 reuses existing docs fetch.
+- Item 5 Close button has explicit loading state during doc fetch.
+- Item 6 frontend defensive code has owner + deadline + follow-up entry in `frontend_changes.md` Pending cleanup section.
+- Batch 0 runs in staging only; vendor registration confirmed working before 0b.
+- Batch 1 verification checklist is the gate to Batch 2.
+- Memory updates: MRF Deletion Permissions (PM any stage), new "PO-generated MRF visibility" entry, role aliasing entry if 0a finds mismatch.
+
+---
+
+## Out of scope / deferred
+
+- Termii frontend surfaces (until backend ships).
+- Sidebar restructuring beyond dead-end fixes.
+- New index pages beyond the eight detail routes.
+- Soft vs hard delete decision on Item 3 (backend's call).
+
+---
+
+## Order of work
+
+1. **Batch 0** (staging, vendor reg first). Gate: 0a + 0b documented.
+2. **Batch 1** bugs. Gate: 5-point verification checklist passes.
+3. **Batch 2** features (scope final after 0b).
+4. **Batch 3** SMS docs.
+5. **Batch 4** nav (scope-locked to 8 routes + dead-end fixes).
+
+Approve to start Batch 0.
