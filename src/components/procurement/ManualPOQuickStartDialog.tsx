@@ -91,7 +91,10 @@ export function ManualPOQuickStartDialog({
     setSubmitting(true);
     try {
       const dept = user?.department?.trim();
-      const res = await mrfApi.create({
+      // Item 1d / Item 2 — extra fields tell the backend to suppress the "new MRF"
+      // notification email and mark this MRF as PO-generated so it is hidden from
+      // standard MRF list views. Cast keeps TS happy until CreateMRFData adds them.
+      const payload: any = {
         title: title.trim(),
         category,
         urgency,
@@ -103,16 +106,11 @@ export function ManualPOQuickStartDialog({
         contract_type: contractType,
         contractType,
         ...(dept ? { department: dept } : {}),
-        // Item 1d / Item 2 — flag this MRF as PO-generated so the backend:
-        //   (a) suppresses the "new MRF created" notification email, and
-        //   (b) excludes it from the standard MRF list views.
-        // Backend ask: persist as `source: 'po_generated'` + `is_po_linked: true`.
-        // Cast keeps TS happy while the CreateMRFData type catches up to the new fields.
-      } as unknown as Parameters<typeof mrfApi.create>[0] & {
-        source?: string;
-        is_po_linked?: boolean;
-        suppress_notifications?: boolean;
-      } as any);
+        source: 'po_generated',
+        is_po_linked: true,
+        suppress_notifications: true,
+      };
+      const res = await mrfApi.create(payload);
       if (!res.success || !res.data) {
         toast.error(res.error || 'Could not create the backing request.');
         return;
