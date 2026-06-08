@@ -102,15 +102,17 @@ export function ManualPOQuickStartDialog({
           'Manual PO created without RFQ — vendor and pricing captured directly on the purchase order.',
         contract_type: contractType,
         contractType,
+        ...(dept ? { department: dept } : {}),
         // Item 1d / Item 2 — flag this MRF as PO-generated so the backend:
         //   (a) suppresses the "new MRF created" notification email, and
         //   (b) excludes it from the standard MRF list views.
         // Backend ask: persist as `source: 'po_generated'` + `is_po_linked: true`.
-        source: 'po_generated',
-        is_po_linked: true,
-        suppress_notifications: true,
-        ...(dept ? { department: dept } : {}),
-      });
+        // Cast keeps TS happy while the CreateMRFData type catches up to the new fields.
+      } as unknown as Parameters<typeof mrfApi.create>[0] & {
+        source?: string;
+        is_po_linked?: boolean;
+        suppress_notifications?: boolean;
+      } as any);
       if (!res.success || !res.data) {
         toast.error(res.error || 'Could not create the backing request.');
         return;

@@ -256,7 +256,7 @@ export const tripsApi = {
     // `email_sent` / `email_error` off `res.data`). This block is the swap target for
     // the cleanup TODO above.
     if (res.success && res.data) {
-      const d = res.data as Record<string, unknown>;
+      const d = res.data as unknown as Record<string, unknown>;
       if (d.assigned === true && d.email_sent === false) {
         // eslint-disable-next-line no-console
         console.warn('[Item6/assignVendor] vendor assigned but invitation email failed', {
