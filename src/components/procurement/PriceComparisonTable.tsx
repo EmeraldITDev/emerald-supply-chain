@@ -92,7 +92,7 @@ export function validatePriceComparison(rows: PriceComparisonRow[], vendors: Ven
   const errors: string[] = [];
   if (rows.length < 1) errors.push('Add at least one supplier row.');
   const selected = rows.filter((r) => r.is_selected);
-  if (selected.length === 0) errors.push('Mark exactly one row as the selected supplier.');
+  if (selected.length === 0) errors.push('Mark one row as the selected supplier (the chosen vendor for the PO).');
   if (selected.length > 1) errors.push('Only one row can be marked as selected.');
   rows.forEach((r, i) => {
     // Check that either vendor_id or manual_vendor is set (but not both)
@@ -190,6 +190,30 @@ export function PriceComparisonTable({
   const addRow = () =>
     onChange([...value, makeEmptyRow({ supplierMode: defaultSupplierModeForNewRows })]);
 
+  /**
+   * Add another line item for the SAME supplier as the currently selected row.
+   * Clones supplier identity (directory vendor_id OR manual vendor name/contact)
+   * so the PM doesn't have to re-enter it. The new row is NOT marked as selected
+   * — the "selected" radio stays on the supplier-level primary row, and ALL rows
+   * matching that supplier become line items on the generated PO.
+   */
+  const addLineItemForSelected = () => {
+    const selected = value.find((r) => r.is_selected);
+    if (!selected) return;
+    const cloned: PriceComparisonRow = {
+      ...makeEmptyRow({ supplierMode: selected.manual_vendor ? 'manual' : 'directory' }),
+      vendor_id: selected.vendor_id,
+      manual_vendor: selected.manual_vendor
+        ? { ...selected.manual_vendor }
+        : undefined,
+      is_selected: false,
+    };
+    onChange([...value, cloned]);
+  };
+
+  const selectedRow = value.find((r) => r.is_selected);
+  const selectedSupplierName = selectedRow ? getRowVendorName(selectedRow, vendors) : '';
+
   const removeRow = (key: string) => {
     if (value.length <= 1) return; // keep at least one row
     onChange(value.filter((r) => r._key !== key));
@@ -220,21 +244,39 @@ export function PriceComparisonTable({
       ) : null}
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Add one row per supplier quote. Use <span className="font-medium text-foreground">Directory</span> to pick
-          an existing vendor, or <span className="font-medium text-foreground">Manual</span> to type name, contact, and
-          pricing without a directory record. Mark exactly one row as selected — that row becomes the line item on the
-          generated PO. This sheet is saved on the MRF and attached when the PO is generated for approval.
+          Add one row per supplier quote (Directory or Manual). Mark one row as the
+          <span className="font-medium text-foreground"> selected supplier</span> — that vendor is awarded the PO.
+          To put multiple items on the same PO for that supplier, use{' '}
+          <span className="font-medium text-foreground">+ Add line item</span> below; each extra row for the selected
+          supplier becomes its own line on the generated PO.
         </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={addRow}
-          disabled={disabled}
-        >
-          <Plus className="h-3.5 w-3.5 mr-1" />
-          Add Supplier
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addLineItemForSelected}
+            disabled={disabled || !selectedRow}
+            title={
+              selectedRow
+                ? `Add another line item for ${selectedSupplierName}`
+                : 'Mark a supplier as selected first'
+            }
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add line item{selectedRow ? ` for ${selectedSupplierName}` : ''}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addRow}
+            disabled={disabled}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add Supplier
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-md border overflow-x-auto">

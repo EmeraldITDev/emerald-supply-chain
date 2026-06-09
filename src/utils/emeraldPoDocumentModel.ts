@@ -88,6 +88,26 @@ function pickSelectedRow(
   return sel || rows[0];
 }
 
+/**
+ * Stable supplier identity key. Two rows refer to the same supplier when
+ * they share a directory vendor_id, or share a (trimmed, case-insensitive)
+ * manual vendor name. This is what lets the PM add multiple line items
+ * for the selected supplier without re-entering vendor details.
+ */
+function supplierKey(
+  row: PriceComparisonRow | PriceComparisonEntry | undefined,
+): string {
+  if (!row) return '';
+  if (row.vendor_id) return `v:${String(row.vendor_id)}`;
+  const pr = row as PriceComparisonRow;
+  const pe = row as PriceComparisonEntry;
+  const name =
+    pr.manual_vendor?.name?.trim() ||
+    pe.vendor_name?.trim() ||
+    '';
+  return name ? `m:${name.toLowerCase()}` : '';
+}
+
 function vendorNameForId(vendors: Vendor[], vendorId: string): string {
   const v = vendors.find((x) => String(x.id) === String(vendorId));
   return v?.name?.trim() || vendorId || '—';
@@ -191,9 +211,20 @@ export function buildEmeraldPoDisplayModel(input: {
   } = input;
 
   const row = pickSelectedRow(rows);
-  const qty = Number(row?.quantity) || 0;
-  const rate = Number(row?.unit_price) || 0;
-  const subtotal = qty * rate;
+
+  // All rows belonging to the selected supplier become line items on the PO.
+  // Falls back to just the selected row if no supplier identity is resolvable.
+  const selectedKey = supplierKey(row);
+  const supplierRows: Array<PriceComparisonRow | PriceComparisonEntry> = selectedKey
+    ? rows.filter((r) => supplierKey(r) === selectedKey)
+    : row
+      ? [row]
+      : [];
+
+  const subtotal = supplierRows.reduce(
+    (acc, r) => acc + (Number(r.quantity) || 0) * (Number(r.unit_price) || 0),
+    0,
+  );
 
   const traw =
     mrf.tax_rate === undefined || mrf.tax_rate === null || mrf.tax_rate === ''
@@ -261,10 +292,24 @@ export function buildEmeraldPoDisplayModel(input: {
   const contractTypeDisplay = formatContractTypeForPo(mrf);
 
   const categoryLine = (mrf.category || 'Procurement').replace(/-/g, ' ');
-  const description =
-    row?.item_description?.trim() || mrf.description?.trim() || mrf.title || '—';
-
   const taxLabel = `${taxRate}%`;
+
+  const lineItems: EmeraldPoLineItem[] = (supplierRows.length > 0
+    ? supplierRows
+    : [row].filter(Boolean) as Array<PriceComparisonRow | PriceComparisonEntry>
+  ).map((r) => {
+    const qty = Number(r?.quantity) || 0;
+    const rate = Number(r?.unit_price) || 0;
+    return {
+      categoryLine,
+      description:
+        r?.item_description?.trim() || mrf.description?.trim() || mrf.title || '—',
+      qty,
+      rate,
+      taxLabel,
+      amount: qty * rate,
+    };
+  });
 
   return {
     companyName: EMERALD_COMPANY.name,
@@ -275,16 +320,7 @@ export function buildEmeraldPoDisplayModel(input: {
     shipTo,
     poNumber: poNum,
     poDateDisplay,
-    lineItems: [
-      {
-        categoryLine,
-        description,
-        qty,
-        rate,
-        taxLabel,
-        amount: subtotal,
-      },
-    ],
+    lineItems,
     invoiceSubmissionLine,
     standardTermsLines,
     paymentTermsDisplay,
