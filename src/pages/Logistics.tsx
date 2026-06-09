@@ -66,6 +66,18 @@ const Logistics = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
 
+  // Allow nested components (e.g. TripScheduling -> "Book Accommodation") to
+  // request a tab switch via window event.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (typeof detail === "string" && detail) setActiveTab(detail);
+    };
+    window.addEventListener("logistics:set-tab", handler as EventListener);
+    return () =>
+      window.removeEventListener("logistics:set-tab", handler as EventListener);
+  }, []);
+
   // Designate driver form
   const [driverStaffId, setDriverStaffId] = useState("");
   const [driverName, setDriverName] = useState("");
