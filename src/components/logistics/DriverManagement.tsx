@@ -20,9 +20,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Plus, Pencil, Phone, Trash2, Link2 } from "lucide-react";
+import { Loader2, Plus, Pencil, Phone, Trash2, Link2, FileText } from "lucide-react";
 import { driversApi, fleetApi } from "@/services/logisticsApi";
 import { driverApi } from "@/services/api";
+import { DriverDocumentsDialog } from "./DriverDocumentsDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -74,6 +75,7 @@ export const DriverManagement = () => {
   const [assignVehicleId, setAssignVehicleId] = useState("");
   const [vehicles, setVehicles] = useState<Array<{ id: string; label: string }>>([]);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [docsDriver, setDocsDriver] = useState<Driver | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -261,6 +263,9 @@ export const DriverManagement = () => {
                         <Button size="sm" variant="ghost" onClick={() => openAssign(d)} title="Assign to vehicle">
                           <Link2 className="h-4 w-4" />
                         </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setDocsDriver(d)} title="Manage documents">
+                          <FileText className="h-4 w-4" />
+                        </Button>
                         <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteTarget(d)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -372,6 +377,12 @@ export const DriverManagement = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DriverDocumentsDialog
+        driver={docsDriver}
+        open={!!docsDriver}
+        onOpenChange={(o) => !o && setDocsDriver(null)}
+      />
     </div>
   );
 };
