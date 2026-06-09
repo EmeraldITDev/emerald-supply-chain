@@ -1504,6 +1504,13 @@ export const rfqApi = {
       paymentTerms: data.paymentTerms,
       payment_terms: data.paymentTerms,
       notes: data.notes,
+      additional_notes: data.notes,
+      terms_and_conditions: (data as any).termsAndConditions,
+      termsAndConditions: (data as any).termsAndConditions,
+      delivery_terms: (data as any).deliveryTerms,
+      deliveryTerms: (data as any).deliveryTerms,
+      technical_requirements: (data as any).technicalRequirements,
+      technicalRequirements: (data as any).technicalRequirements,
     };
     if (data.mrfId) {
       payload.mrfId = data.mrfId;

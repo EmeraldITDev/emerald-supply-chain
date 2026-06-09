@@ -113,6 +113,10 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   const [paymentTerms, setPaymentTerms] = useState('');
   const [technicalReqs, setTechnicalReqs] = useState('');
   const [minRating, setMinRating] = useState(0);
+  // Bug C — additional RFQ fields that must reach the vendor portal.
+  const [additionalNotes, setAdditionalNotes] = useState('');
+  const [termsAndConditions, setTermsAndConditions] = useState('');
+  const [supportingDocuments, setSupportingDocuments] = useState<File[]>([]);
 
   // Payment schedule (Finance AP Phase 1) — chosen at RFQ create time and
   // persisted via POST /mrfs/{id}/payment-schedule after the RFQ is created.
@@ -376,6 +380,15 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
         quantity: selectedMRF.quantity || '1',
         estimatedCost: selectedMRF.estimatedCost || '0',
         vendorIds: vendorIds,
+        paymentTerms: paymentTerms || undefined,
+        notes: additionalNotes || undefined,
+        termsAndConditions: termsAndConditions || undefined,
+        deliveryTerms: deliveryTerms || undefined,
+        technicalRequirements: technicalReqs || undefined,
+        // Note: supportingDocuments handled separately once backend exposes
+        // a multipart endpoint for RFQ attachments (tracked in
+        // frontend_changes.md → Bug C). They are kept in local state so the
+        // user does not lose them on re-render.
       } as any);
 
       if (response.success) {
