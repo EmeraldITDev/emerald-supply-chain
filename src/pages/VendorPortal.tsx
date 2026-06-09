@@ -1649,7 +1649,18 @@ const VendorPortal = () => {
                       unit_price: item.unitPrice,
                       specifications: item.description.trim() // Use description as specifications if needed
                     }))
-                  };
+                  } as any;
+                  // Bug D — when the vendor proposed a custom milestone schedule,
+                  // attach the structured array alongside the legacy payment_terms label.
+                  if ((quote as any).paymentMilestones?.length) {
+                    quotationData.payment_milestones = (quote as any).paymentMilestones.map(
+                      (m: any) => ({
+                        label: m.label,
+                        percentage: m.percentage,
+                        trigger_condition: m.triggerCondition,
+                      }),
+                    );
+                  }
                   
                   // Use vendorPortalApi.submitQuotation which handles authentication properly
                   const response = await vendorPortalApi.submitQuotation(
