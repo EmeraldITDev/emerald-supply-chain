@@ -359,3 +359,37 @@ Earlier 1a added a per-row "+ Line item" button, but the PO PDF model only ever 
 - `src/components/logistics/DriverManagement.tsx`
 - `src/components/logistics/DriverDocumentsDialog.tsx` (new)
 - `.lovable/plan.md`
+
+---
+
+## Batch 2 — Item 7: Vendor portal + PM RFQ visibility
+
+### Scope reconciliation
+- **Vendor portal** — Bug C (RFQ completeness: payment milestones, additional notes, T&Cs, attachments) was already shipped in Batch 1 (see `VendorPortal` / `VendorQuoteSubmission` "Buyer's requested terms" block). 0b audit surfaced no further broken capabilities, so the portal needs no additional frontend work in this item.
+- **PM RFQ visibility** — this is where Item 7 lands. Procurement Managers needed per-submission commercial terms, the RFQ deadline, a compact comparison view, and a place to capture their internal evaluation reasoning. All four are now on the **Compare Quotations** dialog in `RFQManagement.tsx`.
+
+### What shipped (frontend)
+- `src/services/api.ts` — added `quotationEvaluationApi.save(quotationId, { evaluation_notes?, evaluation_score? })` → `PUT /api/quotations/{id}/evaluation`.
+- `src/components/RFQManagement.tsx`
+  - **Deadline display**: dialog description now shows `Submission deadline: <date>` (Clock icon) for the selected RFQ.
+  - **View toggle**: `Cards` (existing layout enriched) vs `Side-by-side` table.
+  - **Per-submission terms inline (Cards view)**: new muted panel below the 4-metric grid showing **Payment Terms**, **Validity**, **Warranty** — sourced from `quote.paymentTerms`, `quote.validityDays`, `quote.warrantyPeriod` via `displayString` / `formatDays`. No more round-trip to the detail dialog to read commercial terms.
+  - **Evaluation block (Cards view)**: per-card `Textarea` for internal notes + `Input[type=number, 0-10, step 0.5]` for a manual score + `Save evaluation` button. Drafts kept in `evalDrafts` state, seeded from `evaluation_notes` / `evaluation_score` on the fetched quotation payload so reloads preserve prior decisions. Validation: score must be `0 ≤ x ≤ 10` or empty.
+  - **Side-by-side table view**: columns Vendor, Price, Delivery, Valid Until, Payment Terms, Validity, Warranty, Score, Evaluation snippet, Action (View / Award). Recommended row gets a soft success background. All Award actions reuse the existing `awardReasonOpen` confirmation flow.
+
+### Backend asks (BLOCKING)
+1. `PUT /api/quotations/{id}/evaluation` — accept `{ evaluation_notes?: string, evaluation_score?: number|null }` from procurement role. Persist on the quotations row. Return the updated quotation.
+   - `evaluation_score` is a decimal 0–10 (allow 0.5 step). Treat `null` as "clear".
+   - Reject from non-procurement roles with 403.
+2. **Include evaluation fields on every quotation read**:
+   - `GET /api/rfqs/{id}/quotations` (wrapped + flat fallback)
+   - `GET /api/quotations/rfq/{rfqId}`
+   - `GET /api/quotations/{id}`
+   - Each quotation row must carry `evaluation_notes`, `evaluation_score`, and `evaluation_updated_at` (ISO8601). Snake_case is canonical; camelCase aliases are accepted by the frontend normalizer.
+3. **Audit trail**: log an `quotation.evaluation_saved` event per save with `actor_id`, `quotation_id`, `score`, and a truncated `notes` preview (first 120 chars). Surface in the existing MRF activity feed.
+4. No new tables required — add the three columns to the existing `quotations` table; default `evaluation_score` to NULL and `evaluation_notes` to NULL.
+
+### Files Edited
+- `src/services/api.ts`
+- `src/components/RFQManagement.tsx`
+- `.lovable/plan.md`

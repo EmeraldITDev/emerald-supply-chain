@@ -15,7 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, FileText, Award, X, Filter, Loader2 } from "lucide-react";
-import { vendorApi, rfqApi, quotationApi } from "@/services/api";
+import { vendorApi, rfqApi, quotationApi, quotationEvaluationApi } from "@/services/api";
 import { paymentScheduleApi } from "@/services/paymentScheduleApi";
 import type { PaymentTermTemplate } from "@/types/payment-schedule";
 import { normalizeQuotation, displayNumeric, displayString, displayCurrency, formatDays, formatAmount } from "@/utils/normalizeQuotation";
@@ -103,6 +103,11 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     quotationId: string;
     vendorId: string;
   } | null>(null);
+
+  // Item 7 — comparison view mode + per-submission evaluation state.
+  const [compareView, setCompareView] = useState<'cards' | 'table'>('cards');
+  const [evalDrafts, setEvalDrafts] = useState<Record<string, { notes: string; score: string }>>({});
+  const [savingEvalId, setSavingEvalId] = useState<string | null>(null);
 
   // RFQ Creation form state
   const [selectionMethod, setSelectionMethod] = useState<'all_category' | 'manual' | 'preferred'>('manual');
@@ -347,6 +352,49 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       recommendedId: scoredQuotations[0]?.id,
     };
   }, [rfqQuotations]);
+
+  // Item 7 — seed evaluation drafts from the latest fetched quotations so the
+  // textarea + score input start populated with whatever the backend has.
+  useEffect(() => {
+    if (!rfqQuotations.length) return;
+    setEvalDrafts((prev) => {
+      const next = { ...prev };
+      rfqQuotations.forEach((q: any) => {
+        const id = String(q.id ?? '');
+        if (!id || next[id]) return;
+        const src = q.fullData?.quotation || q.fullData || q;
+        const notes = src.evaluation_notes ?? src.evaluationNotes ?? '';
+        const score =
+          src.evaluation_score ?? src.evaluationScore ?? '';
+        next[id] = { notes: String(notes ?? ''), score: score === null || score === undefined ? '' : String(score) };
+      });
+      return next;
+    });
+  }, [rfqQuotations]);
+
+  const handleSaveEvaluation = async (quotationId: string) => {
+    const draft = evalDrafts[quotationId];
+    if (!draft) return;
+    const parsedScore = draft.score === '' ? null : Number(draft.score);
+    if (parsedScore !== null && (Number.isNaN(parsedScore) || parsedScore < 0 || parsedScore > 10)) {
+      toast({ title: 'Score must be 0–10', variant: 'destructive' });
+      return;
+    }
+    setSavingEvalId(quotationId);
+    try {
+      const res = await quotationEvaluationApi.save(quotationId, {
+        evaluation_notes: draft.notes || undefined,
+        evaluation_score: parsedScore,
+      });
+      if (res.success) {
+        toast({ title: 'Evaluation saved' });
+      } else {
+        toast({ title: 'Save failed', description: res.error || 'Try again.', variant: 'destructive' });
+      }
+    } finally {
+      setSavingEvalId(null);
+    }
+  };
 
   const handleCreateRFQ = async () => {
     if (!selectedMRF || !deadline) {
@@ -1208,8 +1256,37 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
           <DialogHeader>
             <DialogTitle>Compare Quotations</DialogTitle>
             <DialogDescription>
-              {selectedRFQ?.mrfTitle} - {rfqQuotations.length} quote(s) received
+              {selectedRFQ?.mrfTitle} — {rfqQuotations.length} quote(s) received
+              {selectedRFQ?.deadline && (
+                <span className="ml-2 inline-flex items-center gap-1 text-xs">
+                  <Clock className="h-3 w-3" />
+                  Submission deadline:{' '}
+                  <span className="font-medium">
+                    {new Date(selectedRFQ.deadline).toLocaleDateString()}
+                  </span>
+                </span>
+              )}
             </DialogDescription>
+            {rfqQuotations.length > 0 && (
+              <div className="flex justify-end pt-2">
+                <div className="inline-flex rounded-md border p-0.5 text-xs">
+                  <button
+                    type="button"
+                    className={`px-2 py-1 rounded ${compareView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+                    onClick={() => setCompareView('cards')}
+                  >
+                    Cards
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-2 py-1 rounded ${compareView === 'table' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+                    onClick={() => setCompareView('table')}
+                  >
+                    Side-by-side
+                  </button>
+                </div>
+              </div>
+            )}
           </DialogHeader>
 
           {comparisonMetrics && (
@@ -1243,6 +1320,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               </div>
 
               {/* Quotation Comparison */}
+              {compareView === 'cards' ? (
               <ScrollArea className="h-[400px]">
                 <div className="space-y-4">
                   {comparisonMetrics.scoredQuotations.map((quote, idx) => (
@@ -1293,6 +1371,26 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                               </div>
                             </div>
 
+                            {/* Item 7 — per-submission terms inline */}
+                            <div className="grid grid-cols-3 gap-4 mb-4 rounded-md border bg-muted/40 p-3 text-sm">
+                              <div>
+                                <p className="text-xs text-muted-foreground">Payment Terms</p>
+                                <p className="font-medium truncate" title={displayString(quote.paymentTerms)}>
+                                  {displayString(quote.paymentTerms)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Validity</p>
+                                <p className="font-medium">{formatDays(quote.validityDays)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Warranty</p>
+                                <p className="font-medium truncate" title={displayString(quote.warrantyPeriod)}>
+                                  {displayString(quote.warrantyPeriod)}
+                                </p>
+                              </div>
+                            </div>
+
                             {/* Score Breakdown */}
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
@@ -1315,6 +1413,65 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                             {quote.notes && (
                               <p className="text-sm text-muted-foreground mt-3 italic">"{quote.notes}"</p>
                             )}
+
+                            {/* Item 7 — evaluator notes + manual score */}
+                            <div className="mt-4 rounded-md border p-3 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                                  Evaluation
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                  <Label htmlFor={`eval-score-${quote.id}`} className="text-xs text-muted-foreground">
+                                    Score (0–10)
+                                  </Label>
+                                  <Input
+                                    id={`eval-score-${quote.id}`}
+                                    type="number"
+                                    min={0}
+                                    max={10}
+                                    step={0.5}
+                                    className="h-8 w-20"
+                                    value={evalDrafts[quote.id]?.score ?? ''}
+                                    onChange={(e) =>
+                                      setEvalDrafts((prev) => ({
+                                        ...prev,
+                                        [quote.id]: {
+                                          notes: prev[quote.id]?.notes ?? '',
+                                          score: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              </div>
+                              <Textarea
+                                rows={2}
+                                placeholder="Internal evaluation notes (technical fit, compliance, risk, follow-ups)…"
+                                value={evalDrafts[quote.id]?.notes ?? ''}
+                                onChange={(e) =>
+                                  setEvalDrafts((prev) => ({
+                                    ...prev,
+                                    [quote.id]: {
+                                      score: prev[quote.id]?.score ?? '',
+                                      notes: e.target.value,
+                                    },
+                                  }))
+                                }
+                              />
+                              <div className="flex justify-end">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleSaveEvaluation(String(quote.id))}
+                                  disabled={savingEvalId === String(quote.id)}
+                                >
+                                  {savingEvalId === String(quote.id) ? (
+                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                  ) : null}
+                                  Save evaluation
+                                </Button>
+                              </div>
+                            </div>
                           </div>
 
                           <div className="ml-4 flex flex-col gap-2">
@@ -1357,6 +1514,93 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                   ))}
                 </div>
               </ScrollArea>
+              ) : (
+                /* Item 7 — Side-by-side table view */
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Vendor</th>
+                        <th className="px-3 py-2 text-right">Price</th>
+                        <th className="px-3 py-2 text-right">Delivery</th>
+                        <th className="px-3 py-2 text-left">Valid Until</th>
+                        <th className="px-3 py-2 text-left">Payment Terms</th>
+                        <th className="px-3 py-2 text-left">Validity</th>
+                        <th className="px-3 py-2 text-left">Warranty</th>
+                        <th className="px-3 py-2 text-right">Score</th>
+                        <th className="px-3 py-2 text-left">Evaluation</th>
+                        <th className="px-3 py-2 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {comparisonMetrics.scoredQuotations.map((quote, idx) => (
+                        <tr key={quote.id} className={idx === 0 ? 'bg-success/5' : ''}>
+                          <td className="px-3 py-2 font-medium">
+                            <div className="flex items-center gap-2">
+                              {idx === 0 && <CheckCircle className="h-3 w-3 text-success" />}
+                              {quote.vendorName}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold">
+                            {formatAmount(quote.total ?? quote.price, quote.currency)}
+                          </td>
+                          <td className="px-3 py-2 text-right">{formatDays(quote.deliveryDays)}</td>
+                          <td className="px-3 py-2">
+                            {quote.deliveryDate ? new Date(quote.deliveryDate).toLocaleDateString() : '—'}
+                          </td>
+                          <td className="px-3 py-2 max-w-[160px] truncate" title={displayString(quote.paymentTerms)}>
+                            {displayString(quote.paymentTerms)}
+                          </td>
+                          <td className="px-3 py-2">{formatDays(quote.validityDays)}</td>
+                          <td className="px-3 py-2 max-w-[140px] truncate" title={displayString(quote.warrantyPeriod)}>
+                            {displayString(quote.warrantyPeriod)}
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-primary">
+                            {quote.overallScore}/100
+                          </td>
+                          <td className="px-3 py-2 max-w-[180px]">
+                            {evalDrafts[quote.id]?.notes ? (
+                              <span className="text-xs text-muted-foreground line-clamp-2" title={evalDrafts[quote.id]?.notes}>
+                                {evalDrafts[quote.id]?.notes}
+                                {evalDrafts[quote.id]?.score ? ` · ${evalDrafts[quote.id]?.score}/10` : ''}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">No notes</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleViewQuotationDetails(quote)}
+                                title="View details"
+                              >
+                                <FileText className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setPendingAward({
+                                    quotationId: quote.id,
+                                    vendorId: quote.vendorId,
+                                  });
+                                  setAwardReasonText('');
+                                  setAwardReasonOpen(true);
+                                }}
+                                disabled={isAwardingVendor}
+                              >
+                                <Award className="h-4 w-4 mr-1" />
+                                Award
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
