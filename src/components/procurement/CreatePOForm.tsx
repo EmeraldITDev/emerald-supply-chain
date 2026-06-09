@@ -1132,7 +1132,13 @@ export function CreatePOForm({
           <Button
             onClick={() => void finalisePO()}
             disabled={!canFinalise}
-            title={!canFinalise && !isSaving ? 'Complete all PO details and add at least 2 supplier quotes with one selected before generating.' : undefined}
+            title={
+              !canFinalise && !isSaving
+                ? blockingErrors.length > 0
+                  ? `Fix ${blockingErrors.length} issue${blockingErrors.length === 1 ? '' : 's'} listed above before generating.`
+                  : 'Complete all required fields before generating.'
+                : undefined
+            }
           >
             <Send className="h-3.5 w-3.5 mr-1" />
             {fastTrack ? 'Generate & route to SCD (fast-track)' : 'Generate & Route for Approval'}
