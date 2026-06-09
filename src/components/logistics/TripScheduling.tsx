@@ -316,7 +316,15 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         passenger_user_ids: selectedPassengers
           .map((id) => parseInt(id, 10))
           .filter((n) => !Number.isNaN(n)),
-        driver_user_id: driverUserId ? parseInt(driverUserId, 10) : undefined,
+        driver_user_id:
+          useExternalDriver || !driverUserId ? undefined : parseInt(driverUserId, 10),
+        external_driver: useExternalDriver
+          ? {
+              name: externalDriver.name.trim(),
+              phone: externalDriver.phone.trim(),
+              license_number: externalDriver.license_number.trim() || undefined,
+            }
+          : undefined,
       };
 
       const response = await tripsApi.create(tripPayload as any);
@@ -483,7 +491,15 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         passenger_user_ids: selectedPassengers
           .map((id) => parseInt(id, 10))
           .filter((n) => !Number.isNaN(n)),
-        driver_user_id: driverUserId ? parseInt(driverUserId, 10) : undefined,
+        driver_user_id:
+          useExternalDriver || !driverUserId ? undefined : parseInt(driverUserId, 10),
+        external_driver: useExternalDriver
+          ? {
+              name: externalDriver.name.trim(),
+              phone: externalDriver.phone.trim(),
+              license_number: externalDriver.license_number.trim() || undefined,
+            }
+          : undefined,
       };
 
       const response = await tripsApi.update(selectedTrip.id, editPayload as any);
