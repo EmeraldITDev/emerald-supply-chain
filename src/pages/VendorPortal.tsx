@@ -138,6 +138,16 @@ const VendorPortal = () => {
     payment_terms?: string;
     paymentTerms?: string;
     category?: string;
+    // Bug C — buyer-supplied context the PM filled in when creating the RFQ.
+    payment_milestones?: any;
+    paymentMilestones?: any;
+    additional_notes?: string;
+    additionalNotes?: string;
+    notes?: string;
+    terms_conditions?: string;
+    termsConditions?: string;
+    attachments?: any;
+    supportingDocuments?: any;
     items: Array<{
       id: string;
       item_name: string;
