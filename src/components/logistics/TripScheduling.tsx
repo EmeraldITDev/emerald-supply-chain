@@ -830,12 +830,69 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 )}
 
                 {(formData.type === "personnel" || formData.type === "mixed") && (
-                  <EligiblePassengerPicker
-                    selectedPassengerIds={selectedPassengers}
-                    onPassengersChange={setSelectedPassengers}
-                    driverUserId={driverUserId}
-                    onDriverChange={setDriverUserId}
-                  />
+                  <>
+                    <EligiblePassengerPicker
+                      selectedPassengerIds={selectedPassengers}
+                      onPassengersChange={setSelectedPassengers}
+                      driverUserId={useExternalDriver ? undefined : driverUserId}
+                      onDriverChange={useExternalDriver ? undefined : setDriverUserId}
+                      showDriver={!useExternalDriver}
+                    />
+                    <div className="space-y-3 rounded-md border p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-sm">Use external driver</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Driver is not on staff (e.g. vendor / contracted).
+                          </p>
+                        </div>
+                        <Switch
+                          checked={useExternalDriver}
+                          onCheckedChange={(v) => {
+                            setUseExternalDriver(v);
+                            if (v) setDriverUserId(undefined);
+                          }}
+                        />
+                      </div>
+                      {useExternalDriver && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Name *</Label>
+                            <Input
+                              value={externalDriver.name}
+                              onChange={(e) =>
+                                setExternalDriver((d) => ({ ...d, name: e.target.value }))
+                              }
+                              placeholder="Full name"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Phone *</Label>
+                            <Input
+                              value={externalDriver.phone}
+                              onChange={(e) =>
+                                setExternalDriver((d) => ({ ...d, phone: e.target.value }))
+                              }
+                              placeholder="e.g. 0803…"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">License #</Label>
+                            <Input
+                              value={externalDriver.license_number}
+                              onChange={(e) =>
+                                setExternalDriver((d) => ({
+                                  ...d,
+                                  license_number: e.target.value,
+                                }))
+                              }
+                              placeholder="Optional"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
 
                 {/* Notes */}
@@ -1495,12 +1552,69 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
             )}
 
             {(formData.type === "personnel" || formData.type === "mixed") && (
-              <EligiblePassengerPicker
-                selectedPassengerIds={selectedPassengers}
-                onPassengersChange={setSelectedPassengers}
-                driverUserId={driverUserId}
-                onDriverChange={setDriverUserId}
-              />
+              <>
+                <EligiblePassengerPicker
+                  selectedPassengerIds={selectedPassengers}
+                  onPassengersChange={setSelectedPassengers}
+                  driverUserId={useExternalDriver ? undefined : driverUserId}
+                  onDriverChange={useExternalDriver ? undefined : setDriverUserId}
+                  showDriver={!useExternalDriver}
+                />
+                <div className="space-y-3 rounded-md border p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm">Use external driver</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Driver is not on staff (e.g. vendor / contracted).
+                      </p>
+                    </div>
+                    <Switch
+                      checked={useExternalDriver}
+                      onCheckedChange={(v) => {
+                        setUseExternalDriver(v);
+                        if (v) setDriverUserId(undefined);
+                      }}
+                    />
+                  </div>
+                  {useExternalDriver && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Name *</Label>
+                        <Input
+                          value={externalDriver.name}
+                          onChange={(e) =>
+                            setExternalDriver((d) => ({ ...d, name: e.target.value }))
+                          }
+                          placeholder="Full name"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Phone *</Label>
+                        <Input
+                          value={externalDriver.phone}
+                          onChange={(e) =>
+                            setExternalDriver((d) => ({ ...d, phone: e.target.value }))
+                          }
+                          placeholder="e.g. 0803…"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">License #</Label>
+                        <Input
+                          value={externalDriver.license_number}
+                          onChange={(e) =>
+                            setExternalDriver((d) => ({
+                              ...d,
+                              license_number: e.target.value,
+                            }))
+                          }
+                          placeholder="Optional"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
             {/* Notes */}
