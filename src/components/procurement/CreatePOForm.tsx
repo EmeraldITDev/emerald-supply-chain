@@ -83,6 +83,12 @@ export interface CreatePOFormProps {
   onFinalised?: (mrf: MRF) => void;
   /** Called whenever the user wants to close (Cancel / X). */
   onRequestClose: () => void;
+  /**
+   * When true and the MRF is already finalised, the form opens directly in edit
+   * mode (unlocked for changes) instead of showing the read-only finalised view.
+   * Used by the "Edit PO" entry point in the Purchase Orders list.
+   */
+  initialEditMode?: boolean;
 }
 
 const BLOCKED_EMAIL = 'douglas.anuforo@emeraldcfze.com';
