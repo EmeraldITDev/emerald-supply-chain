@@ -3247,6 +3247,21 @@ const Procurement = () => {
                                   <Badge className={getStatusColor(mrf.status)}>
                                     {getMRFStatusBadgeText(mrf)}
                                   </Badge>
+                                  {(user?.role === "procurement_manager" ||
+                                    user?.role === "procurement") && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-xs text-destructive hover:text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteMRF(getMrfApiId(mrf));
+                                      }}
+                                    >
+                                      <Trash2 className="h-3 w-3 mr-1" />
+                                      Delete
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             </CardContent>
