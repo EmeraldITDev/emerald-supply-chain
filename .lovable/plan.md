@@ -29,14 +29,34 @@ Both 0a and 0b complete with documented results. Reclassified bugs added to Batc
 - **Bug E (BLOCKING) — RFQ vendor response not visible on PM, 500 error.** Regression. Investigate `submitQuotation` payload (vendor side) + `getQuotations` (PM side). Highest priority; everything else in RFQ flow is blocked behind PM visibility.
 - **Bug C — RFQ to vendors is incomplete.** Payment Milestones, Additional Notes, T&Cs, Supporting Documents are dropped before vendor sees them. Trace `rfqApi.create`/distribute payload and the vendor-side render in `VendorPortal` → `VendorQuoteSubmission`.
 - **Bug A — Final Invoice UI missing on MRF detail.** Backend accepts upload; no surface to display/download on MRF record. Extend existing `VendorInvoicesPanel` pattern into MRF detail view rather than building a new component.
-- **Bug B — Budget vs Actuals not saving.** `LineItemPnLSection` is currently read-only (fetch-only). Either values are not editable yet (build save) or save call is missing/broken — investigate before deciding fix.
+- **Bug B — Budget vs Actuals shows "No line items available" even when MRF has line items.** Confirmed: this is a fetch/display mapping regression, not a save-side issue. Scope: trace `mrfApi.getLineItemPnL` response shape against what `ProfitAndLossTable` / `LineItemPnLSection` expect, fix the mapping. If the backend response genuinely lacks the line items, log a backend ask to join MRF line items into the P&L payload.
 - **Bug D — Custom payment-terms split in vendor portal.** Reuse `PaymentMilestoneBuilder` (already supports Custom with sum-to-100 validation) inside `VendorQuoteSubmission` instead of adding a parallel control.
+
+### Promoted from Batch 2 — PO form refactor (1a/1b/1c)
+Promoted into Batch 1 because the current `CreatePOForm.tsx` is unusable for manual testing and blocks the Batch 1 verification pass.
+- **1a — Multiple line items per supplier.** Suppliers carry `line_items[]`; UI lets PM add/remove rows freely.
+- **1b — Remove the min-2-supplier guard.** Allow generate/route with a single supplier (manual PO case).
+- **1c — Required-field audit with inline + top-summary errors.** Warn on empty rows / missing required fields before the Generate & Route button enables; surface a list at the top of the form pointing to each offending row.
+
+### NEW — Draft PO persistence and resume (Option A)
+Currently if a user starts a manual PO and bails halfway, only the backing MRF exists and there is no way to resume the PO. Causes confusion / feels broken.
+- On first "Save Draft" (or first field commit after `ManualPOQuickStartDialog`), persist a PO row with `status: 'draft'` to the backend.
+- Surface draft POs in the main PO list with a clear **Draft** badge and a **Continue** action that re-opens `CreatePOForm.tsx` pre-filled with the draft.
+- Drafts must be editable, deletable, and excluded from approval / SCD signature queues until explicitly submitted.
+- Backend ask (logged in `frontend_changes.md`): `POST /api/pos` must accept `status: 'draft'`, `GET /api/pos?status=draft` must return them, and `PATCH /api/pos/{id}` must allow updating draft rows without triggering approval routing.
 
 ### 1d. Manual PO must not trigger MRF email
 Trace `CreatePOForm.tsx` + `ManualPOQuickStartDialog.tsx` + `POGenerationDialog.tsx`; remove side-effect MRF notify call. Backend ask: suppress `mrf.created` email when `source === 'manual_po'`.
 
 ### 2. Hide PO-generated MRFs (heuristic)
-`isPoGeneratedMrf()` in `src/utils/poHelpers.ts`. Apply across all MRF list surfaces; keep visible in Procurement History + PO detail. Backend ask: `source` + `is_po_linked` flags.
+`isPoGeneratedMrf()` in `src/utils/poHelpers.ts`. Apply across all MRF list surfaces; keep visible in Procurement History + PO detail.
+
+**Confirmed root cause from manual test:** the backend is not persisting `source: 'po_generated'` / `is_po_linked: true` on the MRF record, so the heuristic's authoritative branches never fire and the half-finished MRF leaks into list views.
+
+Fix:
+- **Backend ask (BLOCKING for full fix):** `POST /api/mrfs` must persist `source` and `is_po_linked` when the client sends them (currently dropped). Until this lands, the heuristic must not rely on them.
+- **Frontend hardening:** ensure ALL fallback branches in `isPoGeneratedMrf()` fire — authoritative flags AND `created_via` AND the justification-text pattern written by `ManualPOQuickStartDialog` ("Manual PO created without RFQ"). Today only the linked-PO branch reliably fires, which fails for half-finished POs that have no linked PO row yet.
+- Add a unit test covering: (a) MRF with only justification text, (b) MRF with `source` flag, (c) MRF with linked PO id, (d) plain MRF must NOT be hidden.
 
 ### 4. Progress tracker — Delivery Documents
 Step completes only when docs registry contains GRN | waybill | JCC | delivery_confirmation.
@@ -57,17 +77,18 @@ Manual smoke test, ~15 min:
 3. After manual PO creation → associated MRF does NOT appear in Active / Official / All MRF tabs. DOES appear in Procurement History and inside the PO record.
 4. On an advance-payment PO with payment complete, missing docs → Close button shows "Checking documents…" while fetching, then disabled with tooltip listing missing docs.
 5. Vendor trip assignment → either backend fix landed (preferred), or defensive path returns a warning toast instead of a blocking error.
+6. PO form: can add multiple line items per supplier, single-supplier PO can be generated/routed, empty/invalid rows block Generate & Route with inline + top-summary errors.
+7. Stop halfway through a manual PO → draft PO appears in the PO list with a Draft badge and a Continue action that re-opens the form pre-filled.
+8. Budget vs Actuals on an MRF that has line items → P&L panel shows those line items (no "No line items available" message).
+9. Manual PO MRF stays hidden from Active / Official / All MRF lists even when the PO was abandoned mid-creation (justification-text fallback fires).
 
-All five must pass before Batch 2 is approved to start.
+All nine must pass before Batch 2 is approved to start.
 
 ---
 
 ## Batch 2 — Features (scope finalised after Batch 0 + 1)
 
 **Scope caveat:** Item 7's exact size is unknown until 0b results land. Do not estimate Batch 2 effort until Batch 0 completes.
-
-### 1a/1b/1c. PO form refactor
-Suppliers carry `line_items[]`. Remove min-2-supplier guard. Required-field audit with inline + top-summary errors.
 
 ### 3. PM MRF delete at any stage
 AlertDialog with required copy. Gated by PM role. **Depends on 0a passing.**
