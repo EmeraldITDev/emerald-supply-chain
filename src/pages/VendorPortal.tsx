@@ -138,6 +138,16 @@ const VendorPortal = () => {
     payment_terms?: string;
     paymentTerms?: string;
     category?: string;
+    // Bug C — buyer-supplied context the PM filled in when creating the RFQ.
+    payment_milestones?: any;
+    paymentMilestones?: any;
+    additional_notes?: string;
+    additionalNotes?: string;
+    notes?: string;
+    terms_conditions?: string;
+    termsConditions?: string;
+    attachments?: any;
+    supportingDocuments?: any;
     items: Array<{
       id: string;
       item_name: string;
@@ -1464,6 +1474,16 @@ const VendorPortal = () => {
                     paymentTerms: vendorRfq.payment_terms || vendorRfq.paymentTerms || '',
                     createdDate: vendorRfq.sent_at || new Date().toISOString(),
                     vendorIds: [], // Not needed for vendor quote submission
+                    // Bug C — forward buyer-supplied terms/notes/docs/milestones to the form.
+                    payment_milestones: (vendorRfq as any).payment_milestones,
+                    paymentMilestones: (vendorRfq as any).paymentMilestones,
+                    additional_notes: (vendorRfq as any).additional_notes,
+                    additionalNotes: (vendorRfq as any).additionalNotes,
+                    notes: (vendorRfq as any).notes,
+                    terms_conditions: (vendorRfq as any).terms_conditions,
+                    termsConditions: (vendorRfq as any).termsConditions,
+                    attachments: (vendorRfq as any).attachments,
+                    supportingDocuments: (vendorRfq as any).supportingDocuments,
                   } as any)); // Type assertion to avoid strict type checking
               })()}
               vendorId={currentVendorId}
@@ -1629,7 +1649,18 @@ const VendorPortal = () => {
                       unit_price: item.unitPrice,
                       specifications: item.description.trim() // Use description as specifications if needed
                     }))
-                  };
+                  } as any;
+                  // Bug D — when the vendor proposed a custom milestone schedule,
+                  // attach the structured array alongside the legacy payment_terms label.
+                  if ((quote as any).paymentMilestones?.length) {
+                    quotationData.payment_milestones = (quote as any).paymentMilestones.map(
+                      (m: any) => ({
+                        label: m.label,
+                        percentage: m.percentage,
+                        trigger_condition: m.triggerCondition,
+                      }),
+                    );
+                  }
                   
                   // Use vendorPortalApi.submitQuotation which handles authentication properly
                   const response = await vendorPortalApi.submitQuotation(

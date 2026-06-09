@@ -193,3 +193,19 @@ Manual smoke test in staging, run by the user after Batch 1 deploys. All five mu
   - Response shape is normalized so downstream code can always read `data.quotations`, even if the backend serializes the list under `data.data.quotations`, `results`, `items`, or returns a bare array.
 - `src/components/RFQManagement.tsx` `fetchEnhancedQuotations` now surfaces a destructive toast with the real backend error message when `getQuotations` fails, instead of silently returning `null` (which left the PM staring at an empty comparison view).
 - **Backend ask (BLOCKING):** `GET /api/rfqs/{rfqId}/quotations` 500 needs root-cause + fix on the backend. The new diagnostic + raw-body log on the frontend gives the trace; once a failing call is captured, attach the `[BugE/getQuotations]` console payload to the backend ticket.
+
+## Batch 1 — Sub-batch 1.3 (Bugs C + D)
+
+### Bug C — RFQ buyer-context dropped before vendor sees it
+- `src/pages/VendorPortal.tsx`: extended `vendorRfqs` state shape with optional `payment_milestones` / `paymentMilestones`, `additional_notes` / `additionalNotes` / `notes`, `terms_conditions` / `termsConditions`, and `attachments` / `supportingDocuments`. Mapping that builds the `rfqs` prop for `VendorQuoteSubmission` now forwards every one of those.
+- `src/components/VendorQuoteSubmission.tsx`: extended props to accept the optional fields and added a "Buyer's requested terms" block in the Selected RFQ panel rendering proposed payment terms, a milestones list (label + trigger + %), additional notes, terms & conditions, and a list of supporting-document links (uses `normalizeAttachments`).
+- **Backend ask:** `GET /vendors/rfqs` and `GET /vendors/rfqs/{id}` must return `payment_milestones`, `additional_notes`, `terms_conditions`, and `attachments` for each RFQ row. If any of those are stored on the linked MRF instead of the RFQ, surface them on the vendor-facing response anyway.
+
+### Bug D — Custom payment-terms split in vendor portal
+- `src/components/VendorQuoteSubmission.tsx`: removed the bespoke advance/balance numeric inputs and dropped in `PaymentMilestoneBuilder` (templates + custom rows, sum-to-100 validation). State trackers: `customMilestones`, `customMilestonesValid`. Form reset clears both.
+- On submit, when `paymentTerms === 'custom-split'`:
+  - `payment_terms` is serialized to a human label like `"Custom: 30% / 40% / 30%"`.
+  - A structured `paymentMilestones: PaymentMilestoneInput[]` is forwarded through the `onSubmit` prop.
+- `src/pages/VendorPortal.tsx`: vendor-side submit handler maps `paymentMilestones` → `payment_milestones: [{label, percentage, trigger_condition}]` on the `quotationData` sent to `vendorPortalApi.submitQuotation`.
+- `src/services/api.ts` `vendorPortalApi.submitQuotation`: type now includes optional `payment_milestones`; field is forwarded in both the JSON payload and the FormData payload (JSON-stringified under `payment_milestones`).
+- **Backend ask:** `POST /api/rfqs/{id}/submit-quotation` must accept and persist `payment_milestones: [{label, percentage, trigger_condition}]`. Echo the persisted array on the quotation detail response so PM-side comparison and downstream PO generation can read it directly.

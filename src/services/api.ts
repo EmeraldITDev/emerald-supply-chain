@@ -2037,6 +2037,12 @@ export const vendorPortalApi = {
         specifications?: string;
         rfq_item_id?: string; // Add rfq_item_id if available
       }>;
+      // Bug D — vendor-proposed custom payment schedule (sum-to-100 enforced client-side).
+      payment_milestones?: Array<{
+        label: string;
+        percentage: number;
+        trigger_condition: string;
+      }>;
     },
     attachments?: File[]
   ): Promise<ApiResponse<Quotation>> => {
@@ -2119,6 +2125,9 @@ export const vendorPortalApi = {
       validity_days: validityDays, // Required by database - always include with default of 30
       ...(quotationData.warranty_period && { warranty_period: quotationData.warranty_period }),
       ...(quotationData.notes && { notes: quotationData.notes }),
+      ...(quotationData.payment_milestones && quotationData.payment_milestones.length > 0
+        ? { payment_milestones: quotationData.payment_milestones }
+        : {}),
     };
 
     // Log full payload before sending so the shape can be verified during testing
@@ -2139,6 +2148,9 @@ export const vendorPortalApi = {
       }
       if (payload.notes) {
         formData.append('notes', payload.notes);
+      }
+      if (payload.payment_milestones) {
+        formData.append('payment_milestones', JSON.stringify(payload.payment_milestones));
       }
       // Items must be sent as a single JSON-stringified array (not items[] loop)
       const itemsArray = Array.isArray(payload.items) ? payload.items : [payload.items];

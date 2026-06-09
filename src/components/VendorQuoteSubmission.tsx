@@ -22,9 +22,26 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { RFQ } from "@/contexts/AppContext";
+import { PaymentMilestoneBuilder, type PaymentMilestoneInput } from "@/components/payments/PaymentMilestoneBuilder";
+import { normalizeAttachments } from "@/utils/attachments";
 
 interface VendorQuoteSubmissionProps {
-  rfqs: RFQ[];
+  // RFQ from AppContext plus optional fields the PM may attach when sending
+  // (Bug C: surface paymentMilestones / additional notes / T&Cs / supporting docs
+  // to the vendor instead of dropping them on the wire).
+  rfqs: Array<RFQ & {
+    payment_milestones?: any;
+    paymentMilestones?: any;
+    additional_notes?: string;
+    additionalNotes?: string;
+    notes?: string;
+    terms_conditions?: string;
+    termsConditions?: string;
+    attachments?: any;
+    supportingDocuments?: any;
+    paymentTerms?: string;
+    payment_terms?: string;
+  }>;
   vendorId: string;
   vendorName: string;
   onSubmit: (quote: {
@@ -39,6 +56,7 @@ interface VendorQuoteSubmissionProps {
     validityPeriod: string;
     paymentTerms: string;
     warrantyPeriod: string;
+    paymentMilestones?: PaymentMilestoneInput[];
   }) => void;
   onSave?: (quote: {
     rfqId: string;
@@ -87,13 +105,13 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
   const [warrantyPeriod, setWarrantyPeriod] = useState(draftToLoad?.warrantyPeriod || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  // Bug D — custom payment split (e.g. 70/30, 60/40). When `paymentTerms === 'custom-split'`,
-  // the encoded value sent on submit becomes `custom-{advance}-{balance}`.
-  const [customAdvancePct, setCustomAdvancePct] = useState<number>(70);
-  const customBalancePct = 100 - customAdvancePct;
+  // Bug D — vendor proposes a structured custom payment schedule (any number of
+  // milestones, any split that sums to 100). Reuses PaymentMilestoneBuilder so
+  // the vendor side matches the PM side instead of carrying a parallel control.
+  const [customMilestones, setCustomMilestones] = useState<PaymentMilestoneInput[]>([]);
+  const [customMilestonesValid, setCustomMilestonesValid] = useState(false);
   const customSplitInvalid =
-    paymentTerms === 'custom-split' &&
-    (!Number.isFinite(customAdvancePct) || customAdvancePct < 1 || customAdvancePct > 99);
+    paymentTerms === 'custom-split' && !customMilestonesValid;
 
   // Load draft when draftToLoad changes
   useEffect(() => {
@@ -198,9 +216,13 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
       validityPeriod,
       paymentTerms:
         paymentTerms === 'custom-split'
-          ? `custom-${customAdvancePct}-${customBalancePct}`
+          ? `Custom: ${customMilestones.map((m) => `${m.percentage}%`).join(' / ')}`
           : paymentTerms,
       warrantyPeriod,
+      paymentMilestones:
+        paymentTerms === 'custom-split' && customMilestonesValid
+          ? customMilestones
+          : undefined,
     });
 
     // Reset form
@@ -213,6 +235,8 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
     setPaymentTerms("");
     setWarrantyPeriod("");
     setFormErrors({});
+    setCustomMilestones([]);
+    setCustomMilestonesValid(false);
     setIsSubmitting(false);
 
     toast({
@@ -309,6 +333,91 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
                   <p className="text-sm mt-1">{selectedRfq.description}</p>
                 </div>
               )}
+              {/* Bug C — PM-provided context: payment milestones, additional notes,
+                  terms & conditions, and supporting documents. These were being
+                  dropped before the vendor could see them. */}
+              {(() => {
+                const sr: any = selectedRfq;
+                const milestones = sr.payment_milestones ?? sr.paymentMilestones;
+                const proposedTerms = sr.paymentTerms ?? sr.payment_terms;
+                const addNotes = sr.additional_notes ?? sr.additionalNotes ?? sr.notes;
+                const tc = sr.terms_conditions ?? sr.termsConditions;
+                const docs = normalizeAttachments(
+                  sr.supportingDocuments ?? sr.attachments,
+                );
+                const hasAny =
+                  (Array.isArray(milestones) && milestones.length > 0) ||
+                  !!proposedTerms ||
+                  !!addNotes ||
+                  !!tc ||
+                  docs.length > 0;
+                if (!hasAny) return null;
+                return (
+                  <div className="mt-2 pt-3 border-t border-border/60 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Buyer's requested terms
+                    </p>
+                    {proposedTerms && (
+                      <div>
+                        <span className="text-muted-foreground text-sm">Proposed payment terms:</span>
+                        <p className="text-sm font-medium mt-1">{proposedTerms}</p>
+                      </div>
+                    )}
+                    {Array.isArray(milestones) && milestones.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground text-sm">Proposed payment milestones:</span>
+                        <ul className="mt-1 space-y-1">
+                          {milestones.map((m: any, i: number) => (
+                            <li key={i} className="text-sm flex justify-between gap-3 border-l-2 border-primary/40 pl-2">
+                              <span>
+                                {m.label ?? m.name ?? `Milestone ${i + 1}`}
+                                {(m.triggerCondition ?? m.trigger_condition) && (
+                                  <span className="text-xs text-muted-foreground ml-2">
+                                    ({String(m.triggerCondition ?? m.trigger_condition).replace(/_/g, ' ')})
+                                  </span>
+                                )}
+                              </span>
+                              <span className="font-medium">{m.percentage ?? m.percent ?? 0}%</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {addNotes && (
+                      <div>
+                        <span className="text-muted-foreground text-sm">Additional notes:</span>
+                        <p className="text-sm mt-1 whitespace-pre-line">{addNotes}</p>
+                      </div>
+                    )}
+                    {tc && (
+                      <div>
+                        <span className="text-muted-foreground text-sm">Terms &amp; conditions:</span>
+                        <p className="text-sm mt-1 whitespace-pre-line">{tc}</p>
+                      </div>
+                    )}
+                    {docs.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground text-sm">Supporting documents:</span>
+                        <ul className="mt-1 space-y-1">
+                          {docs.map((d, i) => (
+                            <li key={i} className="text-sm">
+                              <a
+                                href={d.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline inline-flex items-center gap-1"
+                              >
+                                <Paperclip className="h-3 w-3" />
+                                {d.name}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -442,35 +551,13 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
               </Select>
               {formErrors.paymentTerms && <p className="text-sm text-destructive">{formErrors.paymentTerms}</p>}
               {paymentTerms === 'custom-split' && (
-                <div className="mt-3 p-3 rounded-md border bg-muted/40 space-y-2">
-                  <Label className="text-sm">Custom split (advance % / balance on delivery %)</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={1}
-                      max={99}
-                      step={1}
-                      value={Number.isFinite(customAdvancePct) ? customAdvancePct : ''}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value, 10);
-                        setCustomAdvancePct(Number.isFinite(v) ? v : NaN);
-                      }}
-                      className="w-20"
-                      aria-label="Advance percentage"
-                    />
-                    <span className="text-sm text-muted-foreground">% advance /</span>
-                    <Input
-                      type="number"
-                      value={Number.isFinite(customAdvancePct) ? customBalancePct : ''}
-                      readOnly
-                      className="w-20 bg-muted"
-                      aria-label="Balance percentage (auto-calculated)"
-                    />
-                    <span className="text-sm text-muted-foreground">% on delivery (auto)</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Enter any whole number 1–99 for the advance. The balance auto-completes so the two always sum to 100.
-                  </p>
+                <div className="mt-3 p-3 rounded-md border bg-muted/40">
+                  <PaymentMilestoneBuilder
+                    value={customMilestones}
+                    onChange={setCustomMilestones}
+                    onValidityChange={setCustomMilestonesValid}
+                    required
+                  />
                 </div>
               )}
             </div>
