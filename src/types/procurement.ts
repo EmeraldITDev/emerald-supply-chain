@@ -117,6 +117,13 @@ export interface POFormPayload {
     percentage: number;
     trigger_condition: string;
   }>;
+  /**
+   * When true, the server treats this generate-po call as a regeneration of an
+   * already-finalised PO: it bumps the PO version, archives the previous PDF
+   * (kept in PO history for audit), and replaces the entry in the Supply Chain
+   * Director's approval queue so the SCD only ever sees the latest revision.
+   */
+  regenerate?: boolean;
 }
 
 /**
