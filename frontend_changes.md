@@ -53,6 +53,23 @@ _(append here as each check completes; do not start Batch 2 until both 0a and 0b
 
 ### Reclassified from Batch 0b
 
+#### Bug B — Budget vs Actuals "No line items available" (fetch/display mapping fix)
+- Added `src/utils/normalizeProfitAndLoss.ts`. Accepts any of: `{ items }`, `{ line_items }`, `{ lineItems }`, `{ rows }`, bare array, or wrapped `{ data: { items|line_items } }`. Per-row: resolves `item_name`/`itemName`/`name`/`description`, `budget_amount`/`budgetAmount`/`budget`/`estimated_amount`, `quoted_amount`/`actual_amount`/`total_price`, and derives `varianceType` from sign when backend omits it. Summary falls back to computed totals across the rows.
+- `mrfApi.getLineItemPnL` and `srfApi.getLineItemPnL` now route every response through the normalizer.
+- `LineItemPnLSection` also normalizes the `initialPnL` baked into the MRF/SRF detail payload (mixed casing was leaking through and rendering as empty).
+- Dev-only `console.warn('[BugB/mrf.getLineItemPnL] empty after normalize', …)` fires when the normalized result is empty — surfaces backend-side missing-data cases without spamming production.
+- If the warning fires consistently for MRFs that DO have line items, the residual issue is backend (response truly empty) — bumped a backend ask under "Backend BLOCKING items" §Bug B.
+
+#### Item 2 — `isPoGeneratedMrf` fallback hardening
+- All heuristic branches in `src/utils/poHelpers.ts` now fire independently. Previously the justification-text branch was gated behind `hasLinkedPo`, so half-finished manual POs (no PO row yet) leaked into list views.
+- Added `suppress_notifications` flag as an additional authoritative signal (matches the payload `ManualPOQuickStartDialog` sends).
+- Added a second justification-text needle (`"vendor and pricing captured directly on the purchase order"`) for resilience against backend trimming.
+- Unit tests deferred — no test runner currently configured in the project; manual coverage via the Batch 1 verification checklist (items 3 + 9) instead. If a test runner is added later, the four cases to cover are: (a) plain MRF → false, (b) MRF with `source: 'po_generated'` → true, (c) MRF with only justification text → true, (d) MRF with linked PO id → true.
+
+#### Item 1d — Manual PO must not trigger MRF email (frontend audit)
+- Audit complete: `ManualPOQuickStartDialog.tsx`, `POGenerationDialog.tsx`, and `CreatePOForm.tsx` contain **no client-side notify side-effect** for manual-PO MRFs. The only signal the frontend can send is the `suppress_notifications: true` (and `source: 'po_generated'`) payload hint, which is already wired in `ManualPOQuickStartDialog`.
+- Remaining work is fully backend (see BLOCKING §Item 1d).
+
 #### Bug C — RFQ payload to vendors (frontend completeness)
 - `src/components/RFQManagement.tsx` create-RFQ dialog now exposes **Delivery Terms**, **Technical Requirements**, **Additional Notes**, **Terms & Conditions**, and a **Supporting Documents** file picker. All previously-declared local state (`paymentTerms`, `deliveryTerms`, `technicalReqs`) was unwired — that is fixed.
 - All five free-text fields are now forwarded on `rfqApi.create()`. Payload mirrors both camelCase and snake_case (`payment_terms`, `additional_notes`, `terms_and_conditions`, `delivery_terms`, `technical_requirements`) so the backend can pick either.

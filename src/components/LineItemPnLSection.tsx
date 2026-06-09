@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ProfitAndLossTable } from "@/components/ProfitAndLossTable";
 import { mrfApi, srfApi } from "@/services/api";
 import type { ProfitAndLoss } from "@/types";
+import { normalizeProfitAndLoss } from "@/utils/normalizeProfitAndLoss";
 
 interface LineItemPnLSectionProps {
   type: "mrf" | "srf";
@@ -11,12 +12,16 @@ interface LineItemPnLSectionProps {
 }
 
 export function LineItemPnLSection({ type, id, initialPnL }: LineItemPnLSectionProps) {
-  const [pnl, setPnl] = useState<ProfitAndLoss | undefined>(initialPnL);
-  const [loading, setLoading] = useState(!initialPnL);
+  // Bug B — even pre-baked detail payloads may arrive in mixed casing; normalize.
+  const normalizedInitial = initialPnL ? normalizeProfitAndLoss(initialPnL) : undefined;
+  const [pnl, setPnl] = useState<ProfitAndLoss | undefined>(normalizedInitial);
+  const [loading, setLoading] = useState(!normalizedInitial || normalizedInitial.items.length === 0);
 
   useEffect(() => {
-    setPnl(initialPnL);
-    if (initialPnL) {
+    const seed = initialPnL ? normalizeProfitAndLoss(initialPnL) : undefined;
+    setPnl(seed);
+    // If the embedded payload already has items, trust it.
+    if (seed && seed.items.length > 0) {
       setLoading(false);
       return;
     }
