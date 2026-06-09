@@ -3630,6 +3630,17 @@ const Procurement = () => {
                                   Continue Draft
                                 </Button>
                               )}
+                              {isDraft && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDiscardDraft(mrf as MRF)}
+                                  className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/40"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Discard Draft
+                                </Button>
+                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
