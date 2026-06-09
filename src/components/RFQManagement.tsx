@@ -353,6 +353,49 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     };
   }, [rfqQuotations]);
 
+  // Item 7 — seed evaluation drafts from the latest fetched quotations so the
+  // textarea + score input start populated with whatever the backend has.
+  useEffect(() => {
+    if (!rfqQuotations.length) return;
+    setEvalDrafts((prev) => {
+      const next = { ...prev };
+      rfqQuotations.forEach((q: any) => {
+        const id = String(q.id ?? '');
+        if (!id || next[id]) return;
+        const src = q.fullData?.quotation || q.fullData || q;
+        const notes = src.evaluation_notes ?? src.evaluationNotes ?? '';
+        const score =
+          src.evaluation_score ?? src.evaluationScore ?? '';
+        next[id] = { notes: String(notes ?? ''), score: score === null || score === undefined ? '' : String(score) };
+      });
+      return next;
+    });
+  }, [rfqQuotations]);
+
+  const handleSaveEvaluation = async (quotationId: string) => {
+    const draft = evalDrafts[quotationId];
+    if (!draft) return;
+    const parsedScore = draft.score === '' ? null : Number(draft.score);
+    if (parsedScore !== null && (Number.isNaN(parsedScore) || parsedScore < 0 || parsedScore > 10)) {
+      toast({ title: 'Score must be 0–10', variant: 'destructive' });
+      return;
+    }
+    setSavingEvalId(quotationId);
+    try {
+      const res = await quotationEvaluationApi.save(quotationId, {
+        evaluation_notes: draft.notes || undefined,
+        evaluation_score: parsedScore,
+      });
+      if (res.success) {
+        toast({ title: 'Evaluation saved' });
+      } else {
+        toast({ title: 'Save failed', description: res.error || 'Try again.', variant: 'destructive' });
+      }
+    } finally {
+      setSavingEvalId(null);
+    }
+  };
+
   const handleCreateRFQ = async () => {
     if (!selectedMRF || !deadline) {
       toast({
