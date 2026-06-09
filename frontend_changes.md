@@ -294,3 +294,35 @@ Earlier 1a added a per-row "+ Line item" button, but the PO PDF model only ever 
 - `src/pages/Procurement.tsx`
 - `mem://access-control/mrf-deletion-permissions`
 - `.lovable/plan.md`
+
+## Batch 2 — Item 8: Trip scheduling (8a / 8d / 8e)
+
+### 8a — External drivers (DONE)
+- `src/components/logistics/TripScheduling.tsx` Create + Edit Trip dialogs: new **"Use external driver"** `Switch` block under the passenger picker. When ON, the internal driver select is hidden (via `EligiblePassengerPicker` `showDriver={false}`) and three inputs appear: **Name *** , **Phone *** , **License #** (optional).
+- Validation: when the switch is ON, both `name` and `phone` are required; otherwise the form blocks with a destructive toast.
+- Payload: `driver_user_id` is sent only for internal drivers. When external is selected, payload includes `external_driver: { name, phone, license_number? }` and omits `driver_user_id`.
+- Edit dialog round-trips: if a trip carries an `external_driver` block (or has a `driverName` / `driverPhone` without `driver_id`), the switch starts ON and the inputs are prefilled.
+
+### 8d — Accommodation cross-link (DONE)
+- `AccommodationBookings.tsx` (already in place) now listens for a new `accommodation:prefill` `CustomEvent` and opens its create dialog with the trip's passenger names, destination, and check-in date prefilled, with `linkedTripId` set to the originating trip.
+- `TripScheduling`'s row dropdown gained a **Book Accommodation** action that fires two events: `logistics:set-tab` → `"accommodation"` (handled by `Logistics.tsx`'s new `useEffect` listener that drives `setActiveTab`) and `accommodation:prefill` with the trip payload.
+- Net effect: from any trip row, one click switches to the Accommodation tab and opens the create dialog already linked to that trip — no data re-entry.
+
+### 8e — Edit passenger list (DONE)
+- New **Edit Passengers** dropdown action on each trip row (visible for `personnel` and `mixed` trip types) opens a focused dialog that hosts only the `EligiblePassengerPicker` (no driver, no other trip fields).
+- Saves via `tripsApi.update(tripId, { passenger_user_ids: number[] })`, then re-fetches trips. The full Edit Trip dialog still works for everything else; this is the lightweight "add/remove a passenger" path.
+
+### 8b — Notifications (backend-only, not in this batch)
+- No frontend changes. Backend should continue to fire passenger / driver notifications on trip create, passenger-list change, and reassignment per existing email service spec.
+
+### Backend contract (asks)
+- `POST /api/trips` and `PUT /api/trips/{id}` must accept `external_driver: { name: string; phone: string; license_number?: string }` and persist it on the trip row alongside (or instead of) `driver_user_id`. The two fields are mutually exclusive per trip; if both are sent, prefer `driver_user_id` and ignore `external_driver` (or 422 with a clear field error).
+- `PUT /api/trips/{id}` must accept a partial body containing only `{ passenger_user_ids: number[] }` for the lightweight Edit Passengers flow. Backend should compute additions vs removals and trigger the appropriate passenger notifications (8b).
+- `GET /api/trips/{id}` should return the persisted `external_driver` block when present, so the Edit Trip dialog can round-trip the values. Either snake_case or nested camelCase is fine — the normalizer already accepts both.
+- No new endpoints, no migration beyond an `external_driver` JSON column (or three columns) on the `trips` table.
+
+### Files Edited
+- `src/components/logistics/TripScheduling.tsx`
+- `src/components/logistics/AccommodationBookings.tsx`
+- `src/pages/Logistics.tsx`
+- `.lovable/plan.md`
