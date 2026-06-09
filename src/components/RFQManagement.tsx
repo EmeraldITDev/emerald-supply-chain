@@ -392,6 +392,34 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       } as any);
 
       if (response.success) {
+        // Bug C — upload any attached supporting documents now that the RFQ
+        // record exists. Non-fatal: warn the user but keep the RFQ.
+        const newRfqId =
+          (response.data as any)?.id ??
+          (response.data as any)?.rfq?.id ??
+          (response.data as any)?.rfqId;
+        if (supportingDocuments.length > 0 && newRfqId) {
+          const uploadRes = await rfqApi.uploadAttachments(
+            String(newRfqId),
+            supportingDocuments,
+          );
+          if (!uploadRes.success) {
+            toast({
+              title: "Supporting documents not attached",
+              description:
+                uploadRes.error ||
+                "RFQ was sent, but the supporting files failed to upload. Re-attach from the RFQ detail view.",
+              variant: "destructive",
+            });
+          }
+        } else if (supportingDocuments.length > 0 && !newRfqId) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[RFQ] create succeeded but no id returned in response; skipping attachments upload",
+            response.data,
+          );
+        }
+
         // Persist the chosen payment schedule template on the MRF (Phase 1).
         if (selectedScheduleTemplateKey && !scheduleLocked) {
           const scheduleRes = await paymentScheduleApi.createSchedule(
@@ -984,7 +1012,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               />
               {supportingDocuments.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {supportingDocuments.length} file(s) selected. Uploads will be enabled once the backend RFQ attachment endpoint is live (see frontend_changes.md → Bug C).
+                  {supportingDocuments.length} file(s) selected — these will be uploaded to the RFQ after it is created.
                 </p>
               )}
             </div>

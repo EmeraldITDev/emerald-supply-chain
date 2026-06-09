@@ -57,9 +57,9 @@ _(append here as each check completes; do not start Batch 2 until both 0a and 0b
 - `src/components/RFQManagement.tsx` create-RFQ dialog now exposes **Delivery Terms**, **Technical Requirements**, **Additional Notes**, **Terms & Conditions**, and a **Supporting Documents** file picker. All previously-declared local state (`paymentTerms`, `deliveryTerms`, `technicalReqs`) was unwired — that is fixed.
 - All five free-text fields are now forwarded on `rfqApi.create()`. Payload mirrors both camelCase and snake_case (`payment_terms`, `additional_notes`, `terms_and_conditions`, `delivery_terms`, `technical_requirements`) so the backend can pick either.
 - Form reset on dialog close clears the new fields too.
-- **Supporting Documents** are captured in local state but **not** uploaded yet — see backend ask below for the multipart endpoint contract.
+- **Supporting Documents** are now uploaded via `rfqApi.uploadAttachments()` immediately after `rfqApi.create()` returns success. Endpoint: `POST /api/rfqs/{id}/attachments`, multipart field name `attachments[]`. Upload failures surface a non-fatal toast — the RFQ is already dispatched.
 - `CreateRFQData` (`src/types/index.ts`) extended with `termsAndConditions?`, `deliveryTerms?`, `technicalRequirements?`.
-- **Backend ask (BLOCKING, repeated above):** `POST /api/rfqs` must accept and persist these fields, and `GET /api/rfqs/{id}` (the vendor-facing read) must echo them so the vendor portal can render them. Also expose `POST /api/rfqs/{id}/attachments` (multipart) returning `{ id, filename, url }[]` so the supporting documents upload can be wired.
+- **Backend ask (BLOCKING, repeated above):** `POST /api/rfqs` must accept and persist these fields, and `GET /api/rfqs/{id}` (the vendor-facing read) must echo them so the vendor portal can render them. `POST /api/rfqs/{id}/attachments` (multipart, field `attachments[]`) must accept the files and return `{ id, filename, url }[]`; the frontend call is already wired and will start succeeding the moment the route ships.
 
 #### Bug D — Custom payment-terms split (vendor portal)
 - `src/components/VendorQuoteSubmission.tsx` Payment Terms select gained a **"Custom Split (e.g. 70/30, 60/40)"** option. Selecting it reveals a single advance-% input (1–99, integer); the balance auto-completes so the two always sum to 100.
