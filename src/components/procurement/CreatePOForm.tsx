@@ -260,7 +260,7 @@ export function CreatePOForm({
 
       const incoming = pcRes.success && pcRes.data ? pcRes.data : m.priceComparisons;
       if (Array.isArray(incoming) && incoming.length > 0) {
-        setRows(incoming.map(hydrateRow));
+        setRows(incoming.map((e) => hydrateRow(e, groupKeyFor(e))));
       }
     } catch (err) {
       setHydrateError(err instanceof Error ? err.message : 'Failed to load MRF.');
