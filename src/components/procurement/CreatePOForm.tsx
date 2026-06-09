@@ -158,7 +158,6 @@ export function CreatePOForm({
   const [form, setForm] = useState<FormState>(initialState());
   const [rows, setRows] = useState<PriceComparisonRow[]>(() => [
     makeEmptyRow({ supplierMode: fastTrack || allowMissingRfq ? 'manual' : 'directory' }),
-    makeEmptyRow({ supplierMode: fastTrack || allowMissingRfq ? 'manual' : 'directory' }),
   ]);
 
   const [paymentMilestones, setPaymentMilestones] = useState<PaymentMilestoneInput[]>([]);
