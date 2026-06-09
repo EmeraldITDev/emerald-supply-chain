@@ -203,6 +203,12 @@ export function CreatePOForm({
   const [finalisedMrf, setFinalisedMrf] = useState<MRF | null>(null);
   /** Mirrors `data.fast_tracked` from generate-po when the PO tab fast-track path was used. */
   const [finalisedFastTracked, setFinalisedFastTracked] = useState(false);
+  /**
+   * When the user reopens an already-finalised PO to edit it, we unlock the
+   * form (`editingFinalised = true`) and the next finalise call regenerates
+   * the PO — the SCD's approval queue only ever shows the latest version.
+   */
+  const [editingFinalised, setEditingFinalised] = useState(false);
 
   useEffect(() => {
     setFinalisedFastTracked(false);
@@ -330,7 +336,8 @@ export function CreatePOForm({
   const isDraft =
     Boolean((mrf as MRF & { is_po_draft?: boolean })?.is_po_draft) ||
     !mrf?.po_number;
-  const isFinalised = Boolean(finalisedMrf?.po_number || mrf?.po_number);
+  const isFinalisedRaw = Boolean(finalisedMrf?.po_number || mrf?.po_number);
+  const isFinalised = isFinalisedRaw && !editingFinalised;
 
   const ccBlocked =
     form.invoice_submission_cc.trim().toLowerCase() === BLOCKED_EMAIL.toLowerCase();
@@ -420,7 +427,7 @@ export function CreatePOForm({
     section1Valid &&
     pcErrors.length === 0 &&
     !isSaving &&
-    !finalisedMrf;
+    (!finalisedMrf || editingFinalised);
 
   const hasAnyInput =
     form.ship_to_address.trim() ||
