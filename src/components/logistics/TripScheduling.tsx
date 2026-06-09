@@ -47,6 +47,8 @@ import {
   Mail,
   Bell,
 } from "lucide-react";
+import { Hotel, UserCog } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { TripVendorComparison } from "./TripVendorComparison";
 import { JCCDialog } from "./JCCDialog";
 import { Users2, FileSignature } from "lucide-react";
@@ -123,6 +125,17 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [jccOpen, setJccOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
+  // 8a — external driver toggle + fields (shared by create + edit dialogs)
+  const [useExternalDriver, setUseExternalDriver] = useState(false);
+  const [externalDriver, setExternalDriver] = useState<{
+    name: string;
+    phone: string;
+    license_number: string;
+  }>({ name: "", phone: "", license_number: "" });
+  // 8e — dedicated edit passengers dialog
+  const [editPassengersOpen, setEditPassengersOpen] = useState(false);
+  const [passengerEditList, setPassengerEditList] = useState<string[]>([]);
+  const [savingPassengers, setSavingPassengers] = useState(false);
   
   // Form states
   const [formData, setFormData] = useState<Partial<CreateTripData>>({
@@ -584,6 +597,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     });
     setSelectedPassengers([]);
     setDriverUserId(undefined);
+    setUseExternalDriver(false);
+    setExternalDriver({ name: "", phone: "", license_number: "" });
   };
 
   const filteredTrips = trips.filter(trip => {
