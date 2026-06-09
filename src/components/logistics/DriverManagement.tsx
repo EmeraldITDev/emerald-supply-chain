@@ -377,6 +377,12 @@ export const DriverManagement = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DriverDocumentsDialog
+        driver={docsDriver}
+        open={!!docsDriver}
+        onOpenChange={(o) => !o && setDocsDriver(null)}
+      />
     </div>
   );
 };
