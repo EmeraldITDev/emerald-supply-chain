@@ -4249,6 +4249,45 @@ const Procurement = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Discard PO Draft Confirmation Dialog */}
+      <AlertDialog
+        open={discardDraftDialogOpen}
+        onOpenChange={setDiscardDraftDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard saved PO draft?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the in-progress PO draft for MRF{" "}
+              {selectedMRFForDraftDiscard
+                ? getDisplayId(selectedMRFForDraftDiscard as MRF)
+                : ""}
+              . The MRF will return to the procurement stage with no draft to
+              resume. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDiscardingDraft}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDiscardDraft}
+              disabled={isDiscardingDraft}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDiscardingDraft ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Discarding...
+                </>
+              ) : (
+                "Discard Draft"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* MRF Details Dialog */}
         <Dialog
           open={mrfDetailsDialogOpen}
