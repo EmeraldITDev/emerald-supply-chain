@@ -178,6 +178,10 @@ const Procurement = () => {
   const [selectedMRFForPODelete, setSelectedMRFForPODelete] =
     useState<MRF | null>(null);
   const [isDeletingPO, setIsDeletingPO] = useState(false);
+  const [discardDraftDialogOpen, setDiscardDraftDialogOpen] = useState(false);
+  const [selectedMRFForDraftDiscard, setSelectedMRFForDraftDiscard] =
+    useState<MRF | null>(null);
+  const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
   const [platformKpis, setPlatformKpis] = useState<import("@/types").DashboardKPIs | null>(null);
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
   const [selectedMRFForDetails, setSelectedMRFForDetails] =
@@ -1623,6 +1627,51 @@ const Procurement = () => {
       setIsDeletingPO(false);
       setDeletePODialogOpen(false);
       setSelectedMRFForPODelete(null);
+    }
+  };
+
+  const handleDiscardDraft = (mrf: MRF) => {
+    setSelectedMRFForDraftDiscard(mrf);
+    setDiscardDraftDialogOpen(true);
+  };
+
+  const confirmDiscardDraft = async () => {
+    if (!selectedMRFForDraftDiscard) return;
+    const apiId = getMrfApiId(selectedMRFForDraftDiscard as MRF);
+    if (!apiId) {
+      toast({
+        title: "Missing MRF identifier",
+        description: "Could not resolve this draft's id.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsDiscardingDraft(true);
+    try {
+      const response = await mrfApi.discardPODraft(apiId);
+      if (response.success) {
+        toast({
+          title: "Draft discarded",
+          description: "The saved PO draft has been removed.",
+        });
+        await fetchMRFs();
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to discard draft",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to server",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDiscardingDraft(false);
+      setDiscardDraftDialogOpen(false);
+      setSelectedMRFForDraftDiscard(null);
     }
   };
 
@@ -3581,6 +3630,17 @@ const Procurement = () => {
                                   Continue Draft
                                 </Button>
                               )}
+                              {isDraft && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDiscardDraft(mrf as MRF)}
+                                  className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/40"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Discard Draft
+                                </Button>
+                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -4183,6 +4243,45 @@ const Procurement = () => {
                 </>
               ) : (
                 "Delete PO"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Discard PO Draft Confirmation Dialog */}
+      <AlertDialog
+        open={discardDraftDialogOpen}
+        onOpenChange={setDiscardDraftDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard saved PO draft?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the in-progress PO draft for MRF{" "}
+              {selectedMRFForDraftDiscard
+                ? getDisplayId(selectedMRFForDraftDiscard as MRF)
+                : ""}
+              . The MRF will return to the procurement stage with no draft to
+              resume. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDiscardingDraft}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDiscardDraft}
+              disabled={isDiscardingDraft}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDiscardingDraft ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Discarding...
+                </>
+              ) : (
+                "Discard Draft"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

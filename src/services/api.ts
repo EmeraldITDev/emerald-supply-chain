@@ -747,6 +747,16 @@ export const mrfApi = {
     });
   },
 
+  // Procurement Manager discards an in-progress PO draft.
+  // Backend ask: DELETE /api/mrfs/{id}/po-draft clears po_draft_saved_at,
+  // is_po_draft, and any persisted draft payload without affecting the MRF
+  // status or workflow_state. Returns the updated MRF row.
+  discardPODraft: async (id: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/po-draft`, {
+      method: 'DELETE',
+    });
+  },
+
   // Procurement Manager generates PO
   generatePO: async (id: string, poNumber: string, poFile?: File, items?: any[]): Promise<ApiResponse<MRF>> => {
     const { token, expired } = getAuthToken();
@@ -1597,7 +1607,7 @@ export const rfqApi = {
       average_bid: number;
     };
   }>> => {
-    const res = await apiRequest<any>(`/rfqs/${rfqId}/quotations`);
+    let res = await apiRequest<any>(`/rfqs/${rfqId}/quotations`);
     // Bug E — RFQ vendor response invisible on PM, 500 regression.
     // Always log full error context so we can attach to the backend ticket.
     if (!res?.success) {
@@ -1614,6 +1624,67 @@ export const rfqApi = {
         });
       } catch {
         /* diagnostic only */
+      }
+      // Bug E — fallback: when the wrapped endpoint 5xx's, rebuild the same
+      // shape from the flat `/quotations/rfq/{rfqId}` listing so the PM can
+      // still see vendor responses. Remove once the wrapped endpoint is fixed.
+      const status = (res as any)?.status;
+      if (status === 0 || status === undefined || status >= 500) {
+        try {
+          const [flatRes, rfqRes] = await Promise.all([
+            apiRequest<any>(`/quotations/rfq/${rfqId}`),
+            apiRequest<any>(`/rfqs/${rfqId}`),
+          ]);
+          const flat: any[] = Array.isArray(flatRes?.data)
+            ? flatRes.data
+            : Array.isArray((flatRes?.data as any)?.data)
+              ? (flatRes.data as any).data
+              : [];
+          if (flatRes?.success && flat.length >= 0) {
+            const wrapped = flat.map((q: any) => ({
+              quotation: q,
+              vendor:
+                q?.vendor ||
+                (q?.vendor_id || q?.vendorId
+                  ? {
+                      id: q.vendor_id ?? q.vendorId,
+                      name: q.vendor_name ?? q.vendorName ?? 'Vendor',
+                    }
+                  : null),
+              items: Array.isArray(q?.items)
+                ? q.items
+                : Array.isArray(q?.line_items)
+                  ? q.line_items
+                  : [],
+            }));
+            const prices = wrapped
+              .map((w) => Number(w.quotation?.total_amount ?? w.quotation?.totalAmount ?? w.quotation?.price ?? 0))
+              .filter((n) => Number.isFinite(n) && n > 0);
+            const statistics = {
+              total_quotations: wrapped.length,
+              lowest_bid: prices.length ? Math.min(...prices) : 0,
+              highest_bid: prices.length ? Math.max(...prices) : 0,
+              average_bid: prices.length ? prices.reduce((a, b) => a + b, 0) / prices.length : 0,
+            };
+            res = {
+              success: true,
+              data: {
+                rfq: rfqRes?.data ?? null,
+                quotations: wrapped,
+                statistics,
+                _fallback: true,
+              } as any,
+            } as any;
+            // eslint-disable-next-line no-console
+            console.warn('[BugE/getQuotations] using flat fallback', {
+              rfqId,
+              fallbackCount: wrapped.length,
+            });
+          }
+        } catch (fallbackErr) {
+          // eslint-disable-next-line no-console
+          console.error('[BugE/getQuotations] fallback failed', fallbackErr);
+        }
       }
     }
     // Bug E — backend may return quotations under several keys depending on serializer.

@@ -1,5 +1,17 @@
 # Frontend Changes — Multi-Feature Update (in progress)
 
+## Bug E — RFQ quotations PM 500 fallback (Sub-batch 1.6)
+
+- `src/services/api.ts` `rfqApi.getQuotations()` — when `GET /api/rfqs/{id}/quotations` returns status 0 / undefined / ≥500, falls back to `GET /api/quotations/rfq/{rfqId}` plus `GET /api/rfqs/{rfqId}` and rebuilds the wrapped `{ rfq, quotations:[{quotation,vendor,items}], statistics }` shape (price stats computed client-side, `_fallback: true` flag set for telemetry). PM comparison view stays usable while backend is broken.
+- Pre-existing `[BugE/getQuotations]` diagnostic log still fires on every failure with `{ rfqId, role, error, status, raw }`.
+- **Backend ask (BLOCKING):** repair the wrapped endpoint — most likely cause is a serializer crash when a quotation row has a null `vendor` join or `items` stored as object `{}` instead of array `[]`. Acceptance: 200 with documented shape for every RFQ with ≥1 quotation, including FormData submissions with `attachments[]`. Frontend fallback to be removed once green.
+
+## Discard saved PO draft (Sub-batch 1.5b)
+
+- `src/pages/Procurement.tsx` — added a destructive **Discard Draft** button next to **Continue Draft** on every draft row in the Purchase Orders tab. Click opens an `AlertDialog` confirmation. On confirm, calls `mrfApi.discardPODraft(apiId)` then `fetchMRFs()` to refresh the list. New state: `discardDraftDialogOpen`, `selectedMRFForDraftDiscard`, `isDiscardingDraft`.
+- `src/services/api.ts` — new `mrfApi.discardPODraft(id)` helper that issues `DELETE /api/mrfs/{id}/po-draft` and returns the updated MRF.
+- **Blocking backend ask:** implement `DELETE /api/mrfs/{id}/po-draft` (procurement role). Clear `po_draft_saved_at`, `is_po_draft`, persisted draft payload, and the reserved `po_number` without touching `status` / `workflow_state` and without firing Finance or SCD notifications. Record a `discarded_po_draft` audit event and return the row via `scmTransactionApiFields()`.
+
 ## Pending cleanup (owners + deadlines)
 
 - **2026-06-22** — `@logistics-team`: remove the `console.debug('[Item6/assignVendor]', …)` and the defensive `email_sent === false` branch in `src/services/logisticsApi.ts` `tripsApi.assignVendor` once the backend returns the new shape `{ assigned: true, email_sent: boolean, email_error?: string }` on email failure.
