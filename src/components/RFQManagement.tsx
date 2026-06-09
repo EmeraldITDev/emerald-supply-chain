@@ -15,7 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, FileText, Award, X, Filter, Loader2 } from "lucide-react";
-import { vendorApi, rfqApi, quotationApi } from "@/services/api";
+import { vendorApi, rfqApi, quotationApi, quotationEvaluationApi } from "@/services/api";
 import { paymentScheduleApi } from "@/services/paymentScheduleApi";
 import type { PaymentTermTemplate } from "@/types/payment-schedule";
 import { normalizeQuotation, displayNumeric, displayString, displayCurrency, formatDays, formatAmount } from "@/utils/normalizeQuotation";
@@ -103,6 +103,11 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     quotationId: string;
     vendorId: string;
   } | null>(null);
+
+  // Item 7 — comparison view mode + per-submission evaluation state.
+  const [compareView, setCompareView] = useState<'cards' | 'table'>('cards');
+  const [evalDrafts, setEvalDrafts] = useState<Record<string, { notes: string; score: string }>>({});
+  const [savingEvalId, setSavingEvalId] = useState<string | null>(null);
 
   // RFQ Creation form state
   const [selectionMethod, setSelectionMethod] = useState<'all_category' | 'manual' | 'preferred'>('manual');
