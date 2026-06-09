@@ -333,6 +333,91 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
                   <p className="text-sm mt-1">{selectedRfq.description}</p>
                 </div>
               )}
+              {/* Bug C — PM-provided context: payment milestones, additional notes,
+                  terms & conditions, and supporting documents. These were being
+                  dropped before the vendor could see them. */}
+              {(() => {
+                const sr: any = selectedRfq;
+                const milestones = sr.payment_milestones ?? sr.paymentMilestones;
+                const proposedTerms = sr.paymentTerms ?? sr.payment_terms;
+                const addNotes = sr.additional_notes ?? sr.additionalNotes ?? sr.notes;
+                const tc = sr.terms_conditions ?? sr.termsConditions;
+                const docs = normalizeAttachments(
+                  sr.supportingDocuments ?? sr.attachments,
+                );
+                const hasAny =
+                  (Array.isArray(milestones) && milestones.length > 0) ||
+                  !!proposedTerms ||
+                  !!addNotes ||
+                  !!tc ||
+                  docs.length > 0;
+                if (!hasAny) return null;
+                return (
+                  <div className="mt-2 pt-3 border-t border-border/60 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Buyer's requested terms
+                    </p>
+                    {proposedTerms && (
+                      <div>
+                        <span className="text-muted-foreground text-sm">Proposed payment terms:</span>
+                        <p className="text-sm font-medium mt-1">{proposedTerms}</p>
+                      </div>
+                    )}
+                    {Array.isArray(milestones) && milestones.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground text-sm">Proposed payment milestones:</span>
+                        <ul className="mt-1 space-y-1">
+                          {milestones.map((m: any, i: number) => (
+                            <li key={i} className="text-sm flex justify-between gap-3 border-l-2 border-primary/40 pl-2">
+                              <span>
+                                {m.label ?? m.name ?? `Milestone ${i + 1}`}
+                                {(m.triggerCondition ?? m.trigger_condition) && (
+                                  <span className="text-xs text-muted-foreground ml-2">
+                                    ({String(m.triggerCondition ?? m.trigger_condition).replace(/_/g, ' ')})
+                                  </span>
+                                )}
+                              </span>
+                              <span className="font-medium">{m.percentage ?? m.percent ?? 0}%</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {addNotes && (
+                      <div>
+                        <span className="text-muted-foreground text-sm">Additional notes:</span>
+                        <p className="text-sm mt-1 whitespace-pre-line">{addNotes}</p>
+                      </div>
+                    )}
+                    {tc && (
+                      <div>
+                        <span className="text-muted-foreground text-sm">Terms &amp; conditions:</span>
+                        <p className="text-sm mt-1 whitespace-pre-line">{tc}</p>
+                      </div>
+                    )}
+                    {docs.length > 0 && (
+                      <div>
+                        <span className="text-muted-foreground text-sm">Supporting documents:</span>
+                        <ul className="mt-1 space-y-1">
+                          {docs.map((d, i) => (
+                            <li key={i} className="text-sm">
+                              <a
+                                href={d.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline inline-flex items-center gap-1"
+                              >
+                                <Paperclip className="h-3 w-3" />
+                                {d.name}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
