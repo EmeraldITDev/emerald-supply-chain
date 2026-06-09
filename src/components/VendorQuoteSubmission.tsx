@@ -235,6 +235,8 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
     setPaymentTerms("");
     setWarrantyPeriod("");
     setFormErrors({});
+    setCustomMilestones([]);
+    setCustomMilestonesValid(false);
     setIsSubmitting(false);
 
     toast({
