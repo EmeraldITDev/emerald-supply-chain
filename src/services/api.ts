@@ -1487,7 +1487,12 @@ export const srfApi = {
 
   // Get line item P&L for SRF
   getLineItemPnL: async (id: string): Promise<ApiResponse<import('@/types').ProfitAndLoss>> => {
-    return apiRequest(`/srfs/${id}/line-item-pnl`);
+    const res = await apiRequest<any>(`/srfs/${id}/line-item-pnl`);
+    if (res.success) {
+      const { normalizeProfitAndLoss } = await import('@/utils/normalizeProfitAndLoss');
+      return { ...res, data: normalizeProfitAndLoss(res.data ?? res.raw) };
+    }
+    return res as ApiResponse<import('@/types').ProfitAndLoss>;
   },
 };
 
