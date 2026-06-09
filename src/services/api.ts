@@ -747,6 +747,16 @@ export const mrfApi = {
     });
   },
 
+  // Procurement Manager discards an in-progress PO draft.
+  // Backend ask: DELETE /api/mrfs/{id}/po-draft clears po_draft_saved_at,
+  // is_po_draft, and any persisted draft payload without affecting the MRF
+  // status or workflow_state. Returns the updated MRF row.
+  discardPODraft: async (id: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/po-draft`, {
+      method: 'DELETE',
+    });
+  },
+
   // Procurement Manager generates PO
   generatePO: async (id: string, poNumber: string, poFile?: File, items?: any[]): Promise<ApiResponse<MRF>> => {
     const { token, expired } = getAuthToken();
