@@ -77,17 +77,18 @@ Manual smoke test, ~15 min:
 3. After manual PO creation → associated MRF does NOT appear in Active / Official / All MRF tabs. DOES appear in Procurement History and inside the PO record.
 4. On an advance-payment PO with payment complete, missing docs → Close button shows "Checking documents…" while fetching, then disabled with tooltip listing missing docs.
 5. Vendor trip assignment → either backend fix landed (preferred), or defensive path returns a warning toast instead of a blocking error.
+6. PO form: can add multiple line items per supplier, single-supplier PO can be generated/routed, empty/invalid rows block Generate & Route with inline + top-summary errors.
+7. Stop halfway through a manual PO → draft PO appears in the PO list with a Draft badge and a Continue action that re-opens the form pre-filled.
+8. Budget vs Actuals on an MRF that has line items → P&L panel shows those line items (no "No line items available" message).
+9. Manual PO MRF stays hidden from Active / Official / All MRF lists even when the PO was abandoned mid-creation (justification-text fallback fires).
 
-All five must pass before Batch 2 is approved to start.
+All nine must pass before Batch 2 is approved to start.
 
 ---
 
 ## Batch 2 — Features (scope finalised after Batch 0 + 1)
 
 **Scope caveat:** Item 7's exact size is unknown until 0b results land. Do not estimate Batch 2 effort until Batch 0 completes.
-
-### 1a/1b/1c. PO form refactor
-Suppliers carry `line_items[]`. Remove min-2-supplier guard. Required-field audit with inline + top-summary errors.
 
 ### 3. PM MRF delete at any stage
 AlertDialog with required copy. Gated by PM role. **Depends on 0a passing.**
