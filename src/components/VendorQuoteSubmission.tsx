@@ -22,9 +22,26 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { RFQ } from "@/contexts/AppContext";
+import { PaymentMilestoneBuilder, type PaymentMilestoneInput } from "@/components/payments/PaymentMilestoneBuilder";
+import { normalizeAttachments } from "@/utils/attachments";
 
 interface VendorQuoteSubmissionProps {
-  rfqs: RFQ[];
+  // RFQ from AppContext plus optional fields the PM may attach when sending
+  // (Bug C: surface paymentMilestones / additional notes / T&Cs / supporting docs
+  // to the vendor instead of dropping them on the wire).
+  rfqs: Array<RFQ & {
+    payment_milestones?: any;
+    paymentMilestones?: any;
+    additional_notes?: string;
+    additionalNotes?: string;
+    notes?: string;
+    terms_conditions?: string;
+    termsConditions?: string;
+    attachments?: any;
+    supportingDocuments?: any;
+    paymentTerms?: string;
+    payment_terms?: string;
+  }>;
   vendorId: string;
   vendorName: string;
   onSubmit: (quote: {
@@ -39,6 +56,7 @@ interface VendorQuoteSubmissionProps {
     validityPeriod: string;
     paymentTerms: string;
     warrantyPeriod: string;
+    paymentMilestones?: PaymentMilestoneInput[];
   }) => void;
   onSave?: (quote: {
     rfqId: string;
