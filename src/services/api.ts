@@ -1558,6 +1558,23 @@ export const rfqApi = {
     };
   }>> => {
     const res = await apiRequest<any>(`/rfqs/${rfqId}/quotations`);
+    // Bug E — RFQ vendor response invisible on PM, 500 regression.
+    // Always log full error context so we can attach to the backend ticket.
+    if (!res?.success) {
+      try {
+        const stored = localStorage.getItem('user');
+        const role = stored ? (JSON.parse(stored)?.role ?? 'unknown') : 'unknown';
+        // eslint-disable-next-line no-console
+        console.error('[BugE/getQuotations] failed', {
+          rfqId,
+          role,
+          error: res?.error,
+          status: (res as any)?.status,
+        });
+      } catch {
+        /* diagnostic only */
+      }
+    }
     // Item 2 — diagnostic: capture raw payload + caller role for PM vs SCD comparison.
     try {
       const stored = localStorage.getItem('user');
