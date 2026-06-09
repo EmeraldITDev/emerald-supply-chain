@@ -51,6 +51,34 @@ _(append here as each check completes; do not start Batch 2 until both 0a and 0b
 
 ## Batch 1 — Bugs (Shipped this loop)
 
+### Reclassified from Batch 0b
+
+#### Bug C — RFQ payload to vendors (frontend completeness)
+- `src/components/RFQManagement.tsx` create-RFQ dialog now exposes **Delivery Terms**, **Technical Requirements**, **Additional Notes**, **Terms & Conditions**, and a **Supporting Documents** file picker. All previously-declared local state (`paymentTerms`, `deliveryTerms`, `technicalReqs`) was unwired — that is fixed.
+- All five free-text fields are now forwarded on `rfqApi.create()`. Payload mirrors both camelCase and snake_case (`payment_terms`, `additional_notes`, `terms_and_conditions`, `delivery_terms`, `technical_requirements`) so the backend can pick either.
+- Form reset on dialog close clears the new fields too.
+- **Supporting Documents** are captured in local state but **not** uploaded yet — see backend ask below for the multipart endpoint contract.
+- `CreateRFQData` (`src/types/index.ts`) extended with `termsAndConditions?`, `deliveryTerms?`, `technicalRequirements?`.
+- **Backend ask (BLOCKING, repeated above):** `POST /api/rfqs` must accept and persist these fields, and `GET /api/rfqs/{id}` (the vendor-facing read) must echo them so the vendor portal can render them. Also expose `POST /api/rfqs/{id}/attachments` (multipart) returning `{ id, filename, url }[]` so the supporting documents upload can be wired.
+
+#### Bug D — Custom payment-terms split (vendor portal)
+- `src/components/VendorQuoteSubmission.tsx` Payment Terms select gained a **"Custom Split (e.g. 70/30, 60/40)"** option. Selecting it reveals a single advance-% input (1–99, integer); the balance auto-completes so the two always sum to 100.
+- On submit the encoded value is `custom-{advance}-{balance}` (e.g. `custom-70-30`). All other preset values (`advance`, `50-50`, `delivery`, `net-30`, `net-60`, `lc`) are unchanged.
+- Validation: blocks submit with an inline error if the advance value is out of range.
+- **Backend ask:** `POST /api/rfqs/{id}/submit-quotation` should accept and round-trip the `custom-{advance}-{balance}` string in `payment_terms`. Persist as-is; PM and SCD comparison views already render whatever string the backend returns.
+
+#### Bug E — RFQ vendor response invisible on PM, 500 (regression)
+- `src/services/api.ts` `rfqApi.getQuotations` now `console.error`s the full failure context (rfqId, role, error message, status) before the existing `[Item2/getQuotations]` success-path debug. This gives the backend team the exact role + RFQ id to reproduce.
+- No frontend behaviour change: the UI already surfaces a toast on `success === false`. The bug is server-side — see BLOCKING entry above.
+
+#### Bug A — Final Invoice display on MRF (deferred to backend ack)
+- Frontend has the existing `VendorInvoicesPanel` pattern ready to extend into the MRF detail page. The block is the MRF detail response: it does not include the linked vendor invoice (URL, filename, vendor, amount, uploaded_at). Listed in the BLOCKING table above. Once the field lands, the UI surface is a ~30-line addition to `src/pages/Procurement.tsx` MRF detail dialog mirroring the existing "Supporting Document" download block.
+
+#### Bug B — Budget vs Actuals not saving (needs backend clarification)
+- Audit result: `LineItemPnLSection` + `ProfitAndLossTable` are purely read-only. There is no editable field that the user can type into and "save". The values are computed by the backend from MRF line-item budgets vs the winning quotation.
+- Either (a) the user expects an actuals-entry surface that has never existed and needs to be specced + built, or (b) the GET endpoint is returning stale/empty data after approval and this is a server-side bug.
+- **Action required:** confirm intent with the requester before building a save surface. Listed under the BLOCKING table so it does not silently fall off.
+
 ### Item 1d — Manual PO must not trigger MRF "created" email
 - `src/components/procurement/ManualPOQuickStartDialog.tsx` now sends `source: 'po_generated'`, `is_po_linked: true`, and `suppress_notifications: true` on the underlying `mrfApi.create()` call.
 - The PO-finalisation step (`CreatePOForm.tsx` → `generate-po`) was not touched — it already creates the PO against the existing MRF id.
