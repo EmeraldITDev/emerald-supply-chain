@@ -1630,6 +1630,51 @@ const Procurement = () => {
     }
   };
 
+  const handleDiscardDraft = (mrf: MRF) => {
+    setSelectedMRFForDraftDiscard(mrf);
+    setDiscardDraftDialogOpen(true);
+  };
+
+  const confirmDiscardDraft = async () => {
+    if (!selectedMRFForDraftDiscard) return;
+    const apiId = getMrfApiId(selectedMRFForDraftDiscard as MRF);
+    if (!apiId) {
+      toast({
+        title: "Missing MRF identifier",
+        description: "Could not resolve this draft's id.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsDiscardingDraft(true);
+    try {
+      const response = await mrfApi.discardPODraft(apiId);
+      if (response.success) {
+        toast({
+          title: "Draft discarded",
+          description: "The saved PO draft has been removed.",
+        });
+        await fetchMRFs();
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to discard draft",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to server",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDiscardingDraft(false);
+      setDiscardDraftDialogOpen(false);
+      setSelectedMRFForDraftDiscard(null);
+    }
+  };
+
   const handleDeleteMRF = (mrfId: string) => {
     setMrfToDelete(mrfId);
     setDeleteDialogOpen(true);
