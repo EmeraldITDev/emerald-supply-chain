@@ -464,28 +464,30 @@ export function PriceComparisonTable({
                     />
                   </TableCell>
                   <TableCell className="align-top">
-                    <div className="flex flex-col items-center gap-1">
+                    <div className="flex flex-col items-stretch gap-1.5 min-w-[140px]">
                       <Button
                         type="button"
-                        variant="ghost"
-                        size="icon"
+                        variant="outline"
+                        size="sm"
                         onClick={() => addLineItemForRow(row._key)}
                         disabled={disabled}
                         title="Add another line item for this supplier"
-                        className="h-8 w-8"
+                        className="h-8 justify-start"
                       >
-                        <Copy className="h-4 w-4" />
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        Add line item
                       </Button>
                       <Button
                         type="button"
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => removeRow(row._key)}
                         disabled={disabled || value.length <= 1}
                         title={value.length <= 1 ? 'At least one row required' : 'Remove row'}
-                        className="h-8 w-8"
+                        className="h-8 justify-start text-destructive hover:text-destructive"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        Remove
                       </Button>
                     </div>
                   </TableCell>
