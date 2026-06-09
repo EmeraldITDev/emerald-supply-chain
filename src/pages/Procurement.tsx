@@ -178,6 +178,10 @@ const Procurement = () => {
   const [selectedMRFForPODelete, setSelectedMRFForPODelete] =
     useState<MRF | null>(null);
   const [isDeletingPO, setIsDeletingPO] = useState(false);
+  const [discardDraftDialogOpen, setDiscardDraftDialogOpen] = useState(false);
+  const [selectedMRFForDraftDiscard, setSelectedMRFForDraftDiscard] =
+    useState<MRF | null>(null);
+  const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
   const [platformKpis, setPlatformKpis] = useState<import("@/types").DashboardKPIs | null>(null);
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
   const [selectedMRFForDetails, setSelectedMRFForDetails] =
