@@ -295,6 +295,10 @@ export interface CreateRFQData {
   category?: string;
   paymentTerms?: string;
   notes?: string;
+  /** Bug C — extra fields that must be forwarded to the vendor portal. */
+  termsAndConditions?: string;
+  deliveryTerms?: string;
+  technicalRequirements?: string;
 }
 
 // Quotation Types

@@ -10,6 +10,11 @@
 
 ## Backend BLOCKING items (must ship before Batch 2)
 
+- **[BLOCKING] Bug E — RFQ vendor response invisible on PM, 500 error (regression).** `GET /api/rfqs/{rfqId}/quotations` (or the per-quotation detail endpoint) currently 500s for Procurement Manager users after a vendor submits a response via `POST /api/rfqs/{rfqId}/quotations`. Restore previous behaviour: PM must see vendor-submitted quotations with all fields (pricing, delivery period, payment terms/milestones, supporting docs). Investigate role-scoped query, missing join, or null-field deref introduced by the regression. Frontend diagnostic already in place — `console.debug('[Item2/getQuotations]', …)` in `src/services/api.ts`.
+- **[BLOCKING] Bug C — RFQ payload to vendor is incomplete.** When PM creates an RFQ with Payment Milestones, Additional Notes, Terms & Conditions, and Supporting Documents, those fields must be persisted on the RFQ record AND included in the response served to vendor portal (`GET /api/rfqs/{id}` and the vendor distribution email). Currently dropped between PM create and vendor render. Confirm `POST /api/rfqs` accepts and round-trips: `payment_milestones[]`, `additional_notes`, `terms_and_conditions`, `supporting_documents[]` (S3 keys + signed URLs).
+- **[Bug A] Final Invoice upload echo on MRF detail.** `GET /api/mrfs/{id}` must include the linked vendor invoice (file URL, filename, uploaded_at, vendor_id, amount) so the frontend can render and offer download from the MRF detail page. Currently the upload succeeds but the MRF detail response does not surface it.
+- **[Bug B] Line-item P&L (Budget vs Actuals) persistence.** If editable actuals are intended, expose `PATCH /api/mrfs/{id}/line-items/{lineId}/pnl` (or equivalent) accepting `{ actual_amount, notes }` and echo on `GET /api/mrfs/{id}/line-item-pnl`. Confirm with backend whether actuals are user-entered or computed from approved quotations — frontend behaviour depends on this answer.
+
 - **[BLOCKING] Item 6 — Vendor trip assignment 500.** `POST /api/trips/{id}/assign-vendor` currently 500s when the invitation email throws. Wrap the email send in try/catch; never block the assignment on email failure. Response on success: `{ success: true, data: { ...trip, assigned: true, email_sent: boolean, email_error?: string } }`. On email failure, status is 200 (not 500) and `email_sent: false` is returned so the frontend can warn the Logistics Manager without rolling back the assignment.
 - **[BLOCKING] Item 1d — Suppress MRF "created" email on manual PO.** `POST /api/mrfs` must skip the standard `mrf.created` notification when the request body carries `source: 'po_generated'` (or `suppress_notifications: true`).
 - **[BLOCKING] Item 2 — MRF list filtering at source.** Until `source` / `is_po_linked` flags ship on MRF responses, the frontend uses a heuristic that can leak edge cases. Add the flag to every MRF list endpoint (`GET /api/mrfs`, dashboards, etc.) so the frontend filter is one-line.
@@ -45,6 +50,34 @@ _(append here as each check completes; do not start Batch 2 until both 0a and 0b
 ---
 
 ## Batch 1 — Bugs (Shipped this loop)
+
+### Reclassified from Batch 0b
+
+#### Bug C — RFQ payload to vendors (frontend completeness)
+- `src/components/RFQManagement.tsx` create-RFQ dialog now exposes **Delivery Terms**, **Technical Requirements**, **Additional Notes**, **Terms & Conditions**, and a **Supporting Documents** file picker. All previously-declared local state (`paymentTerms`, `deliveryTerms`, `technicalReqs`) was unwired — that is fixed.
+- All five free-text fields are now forwarded on `rfqApi.create()`. Payload mirrors both camelCase and snake_case (`payment_terms`, `additional_notes`, `terms_and_conditions`, `delivery_terms`, `technical_requirements`) so the backend can pick either.
+- Form reset on dialog close clears the new fields too.
+- **Supporting Documents** are captured in local state but **not** uploaded yet — see backend ask below for the multipart endpoint contract.
+- `CreateRFQData` (`src/types/index.ts`) extended with `termsAndConditions?`, `deliveryTerms?`, `technicalRequirements?`.
+- **Backend ask (BLOCKING, repeated above):** `POST /api/rfqs` must accept and persist these fields, and `GET /api/rfqs/{id}` (the vendor-facing read) must echo them so the vendor portal can render them. Also expose `POST /api/rfqs/{id}/attachments` (multipart) returning `{ id, filename, url }[]` so the supporting documents upload can be wired.
+
+#### Bug D — Custom payment-terms split (vendor portal)
+- `src/components/VendorQuoteSubmission.tsx` Payment Terms select gained a **"Custom Split (e.g. 70/30, 60/40)"** option. Selecting it reveals a single advance-% input (1–99, integer); the balance auto-completes so the two always sum to 100.
+- On submit the encoded value is `custom-{advance}-{balance}` (e.g. `custom-70-30`). All other preset values (`advance`, `50-50`, `delivery`, `net-30`, `net-60`, `lc`) are unchanged.
+- Validation: blocks submit with an inline error if the advance value is out of range.
+- **Backend ask:** `POST /api/rfqs/{id}/submit-quotation` should accept and round-trip the `custom-{advance}-{balance}` string in `payment_terms`. Persist as-is; PM and SCD comparison views already render whatever string the backend returns.
+
+#### Bug E — RFQ vendor response invisible on PM, 500 (regression)
+- `src/services/api.ts` `rfqApi.getQuotations` now `console.error`s the full failure context (rfqId, role, error message, status) before the existing `[Item2/getQuotations]` success-path debug. This gives the backend team the exact role + RFQ id to reproduce.
+- No frontend behaviour change: the UI already surfaces a toast on `success === false`. The bug is server-side — see BLOCKING entry above.
+
+#### Bug A — Final Invoice display on MRF (deferred to backend ack)
+- Frontend has the existing `VendorInvoicesPanel` pattern ready to extend into the MRF detail page. The block is the MRF detail response: it does not include the linked vendor invoice (URL, filename, vendor, amount, uploaded_at). Listed in the BLOCKING table above. Once the field lands, the UI surface is a ~30-line addition to `src/pages/Procurement.tsx` MRF detail dialog mirroring the existing "Supporting Document" download block.
+
+#### Bug B — Budget vs Actuals not saving (needs backend clarification)
+- Audit result: `LineItemPnLSection` + `ProfitAndLossTable` are purely read-only. There is no editable field that the user can type into and "save". The values are computed by the backend from MRF line-item budgets vs the winning quotation.
+- Either (a) the user expects an actuals-entry surface that has never existed and needs to be specced + built, or (b) the GET endpoint is returning stale/empty data after approval and this is a server-side bug.
+- **Action required:** confirm intent with the requester before building a save surface. Listed under the BLOCKING table so it does not silently fall off.
 
 ### Item 1d — Manual PO must not trigger MRF "created" email
 - `src/components/procurement/ManualPOQuickStartDialog.tsx` now sends `source: 'po_generated'`, `is_po_linked: true`, and `suppress_notifications: true` on the underlying `mrfApi.create()` call.

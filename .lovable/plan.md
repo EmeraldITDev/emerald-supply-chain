@@ -25,6 +25,13 @@ Both 0a and 0b complete with documented results. Reclassified bugs added to Batc
 
 ## Batch 1 — Bugs
 
+### Reclassified from Batch 0b (priority order)
+- **Bug E (BLOCKING) — RFQ vendor response not visible on PM, 500 error.** Regression. Investigate `submitQuotation` payload (vendor side) + `getQuotations` (PM side). Highest priority; everything else in RFQ flow is blocked behind PM visibility.
+- **Bug C — RFQ to vendors is incomplete.** Payment Milestones, Additional Notes, T&Cs, Supporting Documents are dropped before vendor sees them. Trace `rfqApi.create`/distribute payload and the vendor-side render in `VendorPortal` → `VendorQuoteSubmission`.
+- **Bug A — Final Invoice UI missing on MRF detail.** Backend accepts upload; no surface to display/download on MRF record. Extend existing `VendorInvoicesPanel` pattern into MRF detail view rather than building a new component.
+- **Bug B — Budget vs Actuals not saving.** `LineItemPnLSection` is currently read-only (fetch-only). Either values are not editable yet (build save) or save call is missing/broken — investigate before deciding fix.
+- **Bug D — Custom payment-terms split in vendor portal.** Reuse `PaymentMilestoneBuilder` (already supports Custom with sum-to-100 validation) inside `VendorQuoteSubmission` instead of adding a parallel control.
+
 ### 1d. Manual PO must not trigger MRF email
 Trace `CreatePOForm.tsx` + `ManualPOQuickStartDialog.tsx` + `POGenerationDialog.tsx`; remove side-effect MRF notify call. Backend ask: suppress `mrf.created` email when `source === 'manual_po'`.
 

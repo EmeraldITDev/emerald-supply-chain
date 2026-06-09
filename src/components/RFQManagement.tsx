@@ -113,6 +113,10 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   const [paymentTerms, setPaymentTerms] = useState('');
   const [technicalReqs, setTechnicalReqs] = useState('');
   const [minRating, setMinRating] = useState(0);
+  // Bug C — additional RFQ fields that must reach the vendor portal.
+  const [additionalNotes, setAdditionalNotes] = useState('');
+  const [termsAndConditions, setTermsAndConditions] = useState('');
+  const [supportingDocuments, setSupportingDocuments] = useState<File[]>([]);
 
   // Payment schedule (Finance AP Phase 1) — chosen at RFQ create time and
   // persisted via POST /mrfs/{id}/payment-schedule after the RFQ is created.
@@ -376,6 +380,15 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
         quantity: selectedMRF.quantity || '1',
         estimatedCost: selectedMRF.estimatedCost || '0',
         vendorIds: vendorIds,
+        paymentTerms: paymentTerms || undefined,
+        notes: additionalNotes || undefined,
+        termsAndConditions: termsAndConditions || undefined,
+        deliveryTerms: deliveryTerms || undefined,
+        technicalRequirements: technicalReqs || undefined,
+        // Note: supportingDocuments handled separately once backend exposes
+        // a multipart endpoint for RFQ attachments (tracked in
+        // frontend_changes.md → Bug C). They are kept in local state so the
+        // user does not lose them on re-render.
       } as any);
 
       if (response.success) {
@@ -407,6 +420,11 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     setDeadline('');
     setSelectionMethod('manual');
     setSelectedCategory('');
+    setAdditionalNotes('');
+    setTermsAndConditions('');
+    setDeliveryTerms('');
+    setTechnicalReqs('');
+    setSupportingDocuments([]);
     
     // Refresh RFQs after creation
     await refreshRFQs();
@@ -911,6 +929,62 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               ) : (
                 <p className="text-xs text-muted-foreground">
                   Drives milestone-based payments on the generated PO. Leave blank to keep the free-text payment terms above.
+                </p>
+              )}
+            </div>
+
+            {/* Bug C — extra context for vendors */}
+            <div className="space-y-2">
+              <Label htmlFor="rfq-delivery-terms">Delivery Terms</Label>
+              <Input
+                id="rfq-delivery-terms"
+                value={deliveryTerms}
+                onChange={(e) => setDeliveryTerms(e.target.value)}
+                placeholder="e.g. DDP Lagos, partial deliveries allowed"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rfq-technical-reqs">Technical Requirements</Label>
+              <Textarea
+                id="rfq-technical-reqs"
+                value={technicalReqs}
+                onChange={(e) => setTechnicalReqs(e.target.value)}
+                placeholder="Specifications, standards, certifications…"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rfq-additional-notes">Additional Notes</Label>
+              <Textarea
+                id="rfq-additional-notes"
+                value={additionalNotes}
+                onChange={(e) => setAdditionalNotes(e.target.value)}
+                placeholder="Anything else the vendor should know before quoting…"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rfq-terms-conditions">Terms &amp; Conditions</Label>
+              <Textarea
+                id="rfq-terms-conditions"
+                value={termsAndConditions}
+                onChange={(e) => setTermsAndConditions(e.target.value)}
+                placeholder="Standard procurement T&Cs, warranty, penalties, jurisdiction…"
+                rows={4}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rfq-supporting-docs">Supporting Documents</Label>
+              <Input
+                id="rfq-supporting-docs"
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                onChange={(e) => setSupportingDocuments(Array.from(e.target.files || []))}
+              />
+              {supportingDocuments.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {supportingDocuments.length} file(s) selected. Uploads will be enabled once the backend RFQ attachment endpoint is live (see frontend_changes.md → Bug C).
                 </p>
               )}
             </div>
