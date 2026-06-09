@@ -420,6 +420,11 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     setDeadline('');
     setSelectionMethod('manual');
     setSelectedCategory('');
+    setAdditionalNotes('');
+    setTermsAndConditions('');
+    setDeliveryTerms('');
+    setTechnicalReqs('');
+    setSupportingDocuments([]);
     
     // Refresh RFQs after creation
     await refreshRFQs();
