@@ -83,6 +83,12 @@ export interface CreatePOFormProps {
   onFinalised?: (mrf: MRF) => void;
   /** Called whenever the user wants to close (Cancel / X). */
   onRequestClose: () => void;
+  /**
+   * When true and the MRF is already finalised, the form opens directly in edit
+   * mode (unlocked for changes) instead of showing the read-only finalised view.
+   * Used by the "Edit PO" entry point in the Purchase Orders list.
+   */
+  initialEditMode?: boolean;
 }
 
 const BLOCKED_EMAIL = 'douglas.anuforo@emeraldcfze.com';
@@ -161,6 +167,7 @@ export function CreatePOForm({
   allowMissingRfq = false,
   onFinalised,
   onRequestClose,
+  initialEditMode = false,
 }: CreatePOFormProps) {
   /** Urgent / direct procurement: Purchase Orders tab or “no RFQ” path — still uses full price comparison, not vendor-ID shortcuts. */
   const isDirectProcurement = fastTrack || allowMissingRfq;
@@ -213,6 +220,14 @@ export function CreatePOForm({
   useEffect(() => {
     setFinalisedFastTracked(false);
   }, [mrfId]);
+
+  // When opened in edit mode from the PO list, unlock the form for editing as
+  // soon as the hydrated MRF reveals it is already finalised.
+  useEffect(() => {
+    if (initialEditMode && mrf?.po_number && !editingFinalised) {
+      setEditingFinalised(true);
+    }
+  }, [initialEditMode, mrf?.po_number, editingFinalised]);
 
   // -------------------------------------------------------------------------
   // Hydrate MRF + price comparison

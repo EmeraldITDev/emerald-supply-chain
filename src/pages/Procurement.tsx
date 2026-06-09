@@ -39,6 +39,7 @@ import {
   RefreshCw,
   Trash2,
   Star,
+  Pencil,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
@@ -201,6 +202,7 @@ const Procurement = () => {
   const [createPOFastTrack, setCreatePOFastTrack] = useState(false);
   /** True when opening PO generator without an RFQ (manual PO or MRF overview no-RFQ path). */
   const [createPOAllowMissingRfq, setCreatePOAllowMissingRfq] = useState(false);
+  const [createPOEditMode, setCreatePOEditMode] = useState(false);
   const [manualPOOpen, setManualPOOpen] = useState(false);
   /** RFQ dialog opened from MRF row vs SRF row (affects `rfqApi.create` payload). */
   const [rfqCreateSource, setRfqCreateSource] = useState<"mrf" | "srf">("mrf");
@@ -3653,6 +3655,35 @@ const Procurement = () => {
                                   Download PO
                                 </Button>
                               )}
+                              {poNumber && !isDraft && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const apiId = getMrfApiId(mrf as MRF);
+                                    if (!apiId) {
+                                      toast({
+                                        title: "Missing MRF identifier",
+                                        description:
+                                          "Could not resolve this PO's MRF id. Try refreshing the list.",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    const noRfq =
+                                      getQuotationsForMRF(mrf).length === 0;
+                                    setCreatePOFastTrack(noRfq);
+                                    setCreatePOAllowMissingRfq(noRfq);
+                                    setCreatePOMrfId(apiId);
+                                    setCreatePOEditMode(true);
+                                    setCreatePOOpen(true);
+                                  }}
+                                  title="Edit this PO and regenerate. The previous version is archived; the SCD's approval queue is replaced with the new revision."
+                                >
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Edit PO
+                                </Button>
+                              )}
                             </div>
                           </div>
                         );
@@ -3701,6 +3732,7 @@ const Procurement = () => {
             setCreatePOMrfId(null);
             setCreatePOFastTrack(false);
             setCreatePOAllowMissingRfq(false);
+            setCreatePOEditMode(false);
           }
         }}
       >
@@ -3719,6 +3751,7 @@ const Procurement = () => {
                 mrfId={createPOMrfId}
                 fastTrack={createPOFastTrack}
                 allowMissingRfq={createPOAllowMissingRfq}
+                initialEditMode={createPOEditMode}
                 onFinalised={() => {
                   void fetchMRFs();
                 }}
@@ -3727,6 +3760,7 @@ const Procurement = () => {
                   setCreatePOMrfId(null);
                   setCreatePOFastTrack(false);
                   setCreatePOAllowMissingRfq(false);
+                  setCreatePOEditMode(false);
                 }}
               />
             </div>
