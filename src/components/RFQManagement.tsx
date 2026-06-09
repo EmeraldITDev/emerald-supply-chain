@@ -928,6 +928,62 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               )}
             </div>
 
+            {/* Bug C — extra context for vendors */}
+            <div className="space-y-2">
+              <Label htmlFor="rfq-delivery-terms">Delivery Terms</Label>
+              <Input
+                id="rfq-delivery-terms"
+                value={deliveryTerms}
+                onChange={(e) => setDeliveryTerms(e.target.value)}
+                placeholder="e.g. DDP Lagos, partial deliveries allowed"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rfq-technical-reqs">Technical Requirements</Label>
+              <Textarea
+                id="rfq-technical-reqs"
+                value={technicalReqs}
+                onChange={(e) => setTechnicalReqs(e.target.value)}
+                placeholder="Specifications, standards, certifications…"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rfq-additional-notes">Additional Notes</Label>
+              <Textarea
+                id="rfq-additional-notes"
+                value={additionalNotes}
+                onChange={(e) => setAdditionalNotes(e.target.value)}
+                placeholder="Anything else the vendor should know before quoting…"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rfq-terms-conditions">Terms &amp; Conditions</Label>
+              <Textarea
+                id="rfq-terms-conditions"
+                value={termsAndConditions}
+                onChange={(e) => setTermsAndConditions(e.target.value)}
+                placeholder="Standard procurement T&Cs, warranty, penalties, jurisdiction…"
+                rows={4}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rfq-supporting-docs">Supporting Documents</Label>
+              <Input
+                id="rfq-supporting-docs"
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                onChange={(e) => setSupportingDocuments(Array.from(e.target.files || []))}
+              />
+              {supportingDocuments.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {supportingDocuments.length} file(s) selected. Uploads will be enabled once the backend RFQ attachment endpoint is live (see frontend_changes.md → Bug C).
+                </p>
+              )}
+            </div>
+
             {/* Vendor Selection Method */}
             <div className="space-y-4">
               <Label className="text-base font-semibold">Vendor Selection</Label>
