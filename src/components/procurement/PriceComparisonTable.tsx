@@ -304,33 +304,16 @@ export function PriceComparisonTable({
       ) : null}
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Add one row per supplier quote (Directory or Manual). Mark one row as the
-          <span className="font-medium text-foreground"> selected supplier</span> — that vendor is awarded the PO.
-          To put multiple items on the same PO for that supplier, use{' '}
-          <span className="font-medium text-foreground">+ Add line item</span> below; each extra row for the selected
-          supplier becomes its own line on the generated PO.
+          Each supplier card holds its own line items. Mark exactly one supplier as the
+          <span className="font-medium text-foreground"> selected supplier</span> — that vendor is awarded the PO,
+          and every line item under that card appears on the generated PO as a separate row.
         </p>
         <div className="flex items-center gap-2 shrink-0">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={addLineItemForSelected}
-            disabled={disabled || !selectedRow}
-            title={
-              selectedRow
-                ? `Add another line item for ${selectedSupplierName}`
-                : 'Mark a supplier as selected first'
-            }
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Add line item{selectedRow ? ` for ${selectedSupplierName}` : ''}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addRow}
+            onClick={addSupplier}
             disabled={disabled}
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
@@ -339,231 +322,318 @@ export function PriceComparisonTable({
         </div>
       </div>
 
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[60px] text-center">Selected</TableHead>
-              <TableHead className="min-w-[200px]">Supplier / Source *</TableHead>
-              <TableHead className="min-w-[200px]">Item / Service Description *</TableHead>
-              <TableHead className="min-w-[120px]">Unit Price (₦) *</TableHead>
-              <TableHead className="min-w-[90px]">Qty *</TableHead>
-              <TableHead className="min-w-[120px]">Total (₦)</TableHead>
-              <TableHead className="min-w-[160px]">Notes / Reason</TableHead>
-              <TableHead className="w-[60px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {value.map((row, idx) => {
-              const up = Number(row.unit_price) || 0;
-              const qty = Number(row.quantity) || 0;
-              const total = up * qty;
-              const mode = getRowMode(row);
-              const vendorName = getRowVendorName(row, vendors);
-              const fe = rowErrorMap.get(row._key) ?? {};
-
-              return (
-                <TableRow
-                  key={row._key}
-                  className={cn(row.is_selected && 'bg-success/10')}
-                >
-                  <TableCell className="text-center align-top pt-3">
-                    <input
-                      type="radio"
-                      name="pc-selected"
-                      checked={row.is_selected}
-                      onChange={() => setSelected(row._key)}
-                      disabled={disabled}
-                      className="h-4 w-4 accent-primary cursor-pointer"
-                      aria-label={`Mark row ${idx + 1} as selected`}
-                    />
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <div className="space-y-2">
-                      <ToggleGroup
-                        type="single"
-                        value={mode}
-                        onValueChange={(m) => m && setMode(row._key, m as 'directory' | 'manual')}
-                        disabled={disabled}
-                        variant="outline"
-                        size="sm"
-                        className="w-full justify-start"
+      <div className="space-y-3">
+        {groups.map((group, gIdx) => {
+          const head = group.rows[0];
+          const headMode = getRowMode(head);
+          const headFe = rowErrorMap.get(head._key) ?? {};
+          const groupSelected = group.rows.some((r) => r.is_selected);
+          const subtotal = group.rows.reduce(
+            (acc, r) =>
+              acc + (Number(r.unit_price) || 0) * (Number(r.quantity) || 0),
+            0,
+          );
+          const supplierLabel =
+            headMode === 'manual'
+              ? head.manual_vendor?.name?.trim() || `Supplier ${gIdx + 1}`
+              : head.vendor_id
+                ? getRowVendorName(head, vendors)
+                : `Supplier ${gIdx + 1}`;
+          return (
+            <div
+              key={group.key}
+              className={cn(
+                'rounded-lg border bg-card p-3 space-y-3',
+                groupSelected && 'border-success/60 bg-success/5',
+              )}
+            >
+              {/* Supplier header */}
+              <div className="flex flex-wrap items-start gap-3">
+                <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pc-supplier"
+                    checked={groupSelected}
+                    onChange={() => selectGroup(group.key)}
+                    disabled={disabled}
+                    className="h-4 w-4 accent-primary"
+                    aria-label={`Select ${supplierLabel} as the winning supplier`}
+                  />
+                  <span className="text-xs font-medium">Selected</span>
+                </label>
+                <div className="flex-1 min-w-[260px] space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-xs font-semibold uppercase tracking-wide">
+                      Supplier {gIdx + 1}
+                    </Label>
+                    {groupSelected && (
+                      <span className="text-[10px] font-semibold text-success uppercase tracking-wide">
+                        Winning
+                      </span>
+                    )}
+                  </div>
+                  <ToggleGroup
+                    type="single"
+                    value={headMode}
+                    onValueChange={(m) =>
+                      m && setGroupMode(group.key, m as 'directory' | 'manual')
+                    }
+                    disabled={disabled}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <ToggleGroupItem value="directory" className="text-xs">
+                      Directory
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="manual" className="text-xs">
+                      Manual
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                  {headMode === 'directory' ? (
+                    <Select
+                      value={head.vendor_id || undefined}
+                      onValueChange={(v) =>
+                        updateGroup(group.key, {
+                          vendor_id: v,
+                          manual_vendor: undefined,
+                        })
+                      }
+                      disabled={disabled || loadingVendors}
+                    >
+                      <SelectTrigger
+                        className={cn('h-9', headFe.supplier && 'border-destructive')}
+                        aria-invalid={!!headFe.supplier}
                       >
-                        <ToggleGroupItem value="directory" className="text-xs flex-1">
-                          Directory
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="manual" className="text-xs flex-1">
-                          Manual
-                        </ToggleGroupItem>
-                      </ToggleGroup>
-
-                      {mode === 'directory' ? (
-                        <Select
-                          value={row.vendor_id || undefined}
-                          onValueChange={(v) =>
-                            update(row._key, { vendor_id: v, manual_vendor: undefined })
+                        <SelectValue
+                          placeholder={loadingVendors ? 'Loading…' : 'Select supplier'}
+                        />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover max-h-64">
+                        {vendors.map((v) => (
+                          <SelectItem key={v.id} value={vendorStringId(v)}>
+                            {v.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <Input
+                        value={head.manual_vendor?.name || ''}
+                        onChange={(e) =>
+                          updateGroup(group.key, {
+                            manual_vendor: {
+                              ...(head.manual_vendor || {}),
+                              name: e.target.value,
+                            } as ManualVendor,
+                            vendor_id: undefined,
+                          })
+                        }
+                        placeholder="Vendor name"
+                        disabled={disabled}
+                        className={cn('h-9', headFe.supplier && 'border-destructive')}
+                        aria-invalid={!!headFe.supplier}
+                      />
+                      <div className="grid grid-cols-2 gap-1">
+                        <Input
+                          type="email"
+                          value={head.manual_vendor?.email || ''}
+                          onChange={(e) =>
+                            updateGroup(group.key, {
+                              manual_vendor: {
+                                ...(head.manual_vendor || {}),
+                                email: e.target.value,
+                              } as ManualVendor,
+                            })
                           }
-                          disabled={disabled || loadingVendors}
-                        >
-                          <SelectTrigger
-                            className={cn('h-9', fe.supplier && 'border-destructive')}
-                            aria-invalid={!!fe.supplier}
-                          >
-                            <SelectValue
-                              placeholder={loadingVendors ? 'Loading…' : 'Select supplier'}
-                            />
-                          </SelectTrigger>
-                          <SelectContent className="bg-popover max-h-64">
-                            {vendors.map((v) => (
-                              <SelectItem key={v.id} value={vendorStringId(v)}>
-                                {v.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <div className="space-y-1.5">
+                          placeholder="Email (optional)"
+                          disabled={disabled}
+                          className="h-8 text-xs"
+                        />
+                        <Input
+                          type="tel"
+                          value={head.manual_vendor?.phone || ''}
+                          onChange={(e) =>
+                            updateGroup(group.key, {
+                              manual_vendor: {
+                                ...(head.manual_vendor || {}),
+                                phone: e.target.value,
+                              } as ManualVendor,
+                            })
+                          }
+                          placeholder="Phone (optional)"
+                          disabled={disabled}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {headFe.supplier && (
+                    <p className="text-[11px] text-destructive">{headFe.supplier}</p>
+                  )}
+                  <Input
+                    value={head.selection_reason}
+                    onChange={(e) =>
+                      updateGroup(group.key, { selection_reason: e.target.value })
+                    }
+                    placeholder={
+                      groupSelected
+                        ? 'Why this supplier? (recorded on the PO)'
+                        : 'Notes / reason (optional)'
+                    }
+                    disabled={disabled}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeGroup(group.key)}
+                  disabled={disabled || group.rows.length >= value.length}
+                  title={
+                    group.rows.length >= value.length
+                      ? 'At least one supplier is required'
+                      : 'Remove this supplier and all its line items'
+                  }
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                  Remove supplier
+                </Button>
+              </div>
+
+              {/* Line items */}
+              <div className="rounded-md border bg-background/40">
+                <div className="grid grid-cols-[1fr_120px_90px_120px_40px] gap-2 px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  <span>Description *</span>
+                  <span>Unit Price (₦) *</span>
+                  <span>Qty *</span>
+                  <span className="text-right">Total (₦)</span>
+                  <span />
+                </div>
+                <div className="divide-y">
+                  {group.rows.map((row, idx) => {
+                    const up = Number(row.unit_price) || 0;
+                    const qty = Number(row.quantity) || 0;
+                    const total = up * qty;
+                    const fe = rowErrorMap.get(row._key) ?? {};
+                    const canRemove =
+                      !(group.rows.length <= 1) && value.length > 1;
+                    return (
+                      <div
+                        key={row._key}
+                        className="grid grid-cols-[1fr_120px_90px_120px_40px] gap-2 px-3 py-2 items-start"
+                      >
+                        <div>
                           <Input
-                            value={row.manual_vendor?.name || ''}
+                            value={row.item_description}
+                            onChange={(e) =>
+                              update(row._key, { item_description: e.target.value })
+                            }
+                            placeholder={`Line item ${idx + 1}`}
+                            disabled={disabled}
+                            className={cn(
+                              'h-9',
+                              fe.item_description && 'border-destructive',
+                            )}
+                            aria-invalid={!!fe.item_description}
+                          />
+                          {fe.item_description && (
+                            <p className="mt-1 text-[11px] text-destructive">
+                              {fe.item_description}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={row.unit_price}
                             onChange={(e) =>
                               update(row._key, {
-                                manual_vendor: {
-                                  ...(row.manual_vendor || {}),
-                                  name: e.target.value,
-                                } as ManualVendor,
-                                vendor_id: undefined,
+                                unit_price:
+                                  e.target.value === '' ? '' : Number(e.target.value),
                               })
                             }
-                            placeholder="Vendor name"
                             disabled={disabled}
-                            className={cn('h-9 text-xs', fe.supplier && 'border-destructive')}
-                            aria-invalid={!!fe.supplier}
+                            className={cn('h-9', fe.unit_price && 'border-destructive')}
+                            aria-invalid={!!fe.unit_price}
                           />
-                          <div className="grid grid-cols-2 gap-1">
-                            <Input
-                              type="email"
-                              value={row.manual_vendor?.email || ''}
-                              onChange={(e) =>
-                                update(row._key, {
-                                  manual_vendor: {
-                                    ...(row.manual_vendor || {}),
-                                    email: e.target.value,
-                                  } as ManualVendor,
-                                })
-                              }
-                              placeholder="Email (optional)"
-                              disabled={disabled}
-                              className="h-8 text-xs"
-                            />
-                            <Input
-                              type="tel"
-                              value={row.manual_vendor?.phone || ''}
-                              onChange={(e) =>
-                                update(row._key, {
-                                  manual_vendor: {
-                                    ...(row.manual_vendor || {}),
-                                    phone: e.target.value,
-                                  } as ManualVendor,
-                                })
-                              }
-                              placeholder="Phone (optional)"
-                              disabled={disabled}
-                              className="h-8 text-xs"
-                            />
-                          </div>
+                          {fe.unit_price && (
+                            <p className="mt-1 text-[11px] text-destructive">
+                              {fe.unit_price}
+                            </p>
+                          )}
                         </div>
-                      )}
-                      {fe.supplier && (
-                        <p className="text-[11px] text-destructive">{fe.supplier}</p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <Input
-                      value={row.item_description}
-                      onChange={(e) =>
-                        update(row._key, { item_description: e.target.value })
-                      }
-                      placeholder="e.g. HP EliteBook 840"
-                      disabled={disabled}
-                      className={cn('h-9', fe.item_description && 'border-destructive')}
-                      aria-invalid={!!fe.item_description}
-                    />
-                    {fe.item_description && (
-                      <p className="mt-1 text-[11px] text-destructive">{fe.item_description}</p>
-                    )}
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={row.unit_price}
-                      onChange={(e) =>
-                        update(row._key, {
-                          unit_price: e.target.value === '' ? '' : Number(e.target.value),
-                        })
-                      }
-                      disabled={disabled}
-                      className={cn('h-9', fe.unit_price && 'border-destructive')}
-                      aria-invalid={!!fe.unit_price}
-                    />
-                    {fe.unit_price && (
-                      <p className="mt-1 text-[11px] text-destructive">{fe.unit_price}</p>
-                    )}
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <Input
-                      type="number"
-                      min={0}
-                      step="1"
-                      value={row.quantity}
-                      onChange={(e) =>
-                        update(row._key, {
-                          quantity: e.target.value === '' ? '' : Number(e.target.value),
-                        })
-                      }
-                      disabled={disabled}
-                      className={cn('h-9', fe.quantity && 'border-destructive')}
-                      aria-invalid={!!fe.quantity}
-                    />
-                    {fe.quantity && (
-                      <p className="mt-1 text-[11px] text-destructive">{fe.quantity}</p>
-                    )}
-                  </TableCell>
-                  <TableCell className="align-top pt-4 font-medium tabular-nums">
-                    {total > 0 ? `₦${total.toLocaleString()}` : '—'}
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <Input
-                      value={row.selection_reason}
-                      onChange={(e) =>
-                        update(row._key, { selection_reason: e.target.value })
-                      }
-                      placeholder={row.is_selected ? 'Why this supplier?' : 'Optional'}
-                      disabled={disabled}
-                      className="h-9"
-                    />
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeRow(row._key)}
-                      disabled={disabled || value.length <= 1}
-                      title={value.length <= 1 ? 'At least one row required' : 'Remove row'}
-                      className="h-8 justify-start text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1" />
-                      Remove
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                        <div>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="1"
+                            value={row.quantity}
+                            onChange={(e) =>
+                              update(row._key, {
+                                quantity:
+                                  e.target.value === '' ? '' : Number(e.target.value),
+                              })
+                            }
+                            disabled={disabled}
+                            className={cn('h-9', fe.quantity && 'border-destructive')}
+                            aria-invalid={!!fe.quantity}
+                          />
+                          {fe.quantity && (
+                            <p className="mt-1 text-[11px] text-destructive">
+                              {fe.quantity}
+                            </p>
+                          )}
+                        </div>
+                        <div className="pt-2 text-right font-medium tabular-nums text-sm">
+                          {total > 0 ? `₦${total.toLocaleString()}` : '—'}
+                        </div>
+                        <div className="pt-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeRow(row._key)}
+                            disabled={disabled || !canRemove}
+                            title={
+                              canRemove
+                                ? 'Remove this line item'
+                                : 'Each supplier needs at least one line item'
+                            }
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between px-3 py-2 border-t bg-muted/30 text-xs">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addLineItemToGroup(group.key)}
+                    disabled={disabled}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Add line item
+                  </Button>
+                  <div className="font-medium">
+                    Subtotal:{' '}
+                    <span className="tabular-nums">₦{subtotal.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {(errors.length > 0 || !hasMin || selectedCount !== 1) && (
