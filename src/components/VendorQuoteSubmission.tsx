@@ -216,9 +216,13 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
       validityPeriod,
       paymentTerms:
         paymentTerms === 'custom-split'
-          ? `custom-${customAdvancePct}-${customBalancePct}`
+          ? `Custom: ${customMilestones.map((m) => `${m.percentage}%`).join(' / ')}`
           : paymentTerms,
       warrantyPeriod,
+      paymentMilestones:
+        paymentTerms === 'custom-split' && customMilestonesValid
+          ? customMilestones
+          : undefined,
     });
 
     // Reset form
