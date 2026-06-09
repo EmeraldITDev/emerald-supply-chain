@@ -4165,10 +4165,13 @@ const Procurement = () => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete MRF Request?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this MRF?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this Material Request Form? This
-              action cannot be undone.
+              This will permanently delete the Material Request Form along with
+              any linked RFQs, vendor quotations, draft or generated Purchase
+              Orders, approvals, and audit history. Vendors who already received
+              an RFQ may still hold a copy in their inbox. This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
