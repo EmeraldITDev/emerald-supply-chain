@@ -3461,10 +3461,24 @@ const Procurement = () => {
                     {mrfRequests
                       .filter((mrf) => {
                         // Show MRFs that have PO numbers (POs have been generated)
-                        return getMRFPONumber(mrf as MRF);
+                        // OR persisted PO drafts (Continue from PO list per plan §1.5).
+                        return (
+                          getMRFPONumber(mrf as MRF) ||
+                          Boolean(
+                            (mrf as MRF & { is_po_draft?: boolean }).is_po_draft,
+                          )
+                        );
                       })
                       .map((mrf) => {
                         const poNumber = getMRFPONumber(mrf as MRF);
+                        const isDraft =
+                          !poNumber &&
+                          Boolean(
+                            (mrf as MRF & { is_po_draft?: boolean }).is_po_draft,
+                          );
+                        const draftSavedAt =
+                          (mrf as MRF & { po_draft_saved_at?: string })
+                            .po_draft_saved_at || null;
                         const quotation = getQuotationsForMRF(mrf).find(
                           (q: any) =>
                             q.status === "Approved" ||
@@ -3507,21 +3521,66 @@ const Procurement = () => {
                                   {mrf.title}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  PO: {poNumber} • MRF: {getDisplayId(mrf)} • Vendor:{" "}
+                                  PO: {poNumber || (isDraft ? "Draft — not generated" : "—")} • MRF: {getDisplayId(mrf)} • Vendor:{" "}
                                   {vendorName}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
                                   Amount: ₦{parseFloat(amount).toLocaleString()}{" "}
                                   • Status:{" "}
-                                  {getWorkflowStageLabel(workflowState)} • Date:{" "}
+                                  {isDraft ? "Draft" : getWorkflowStageLabel(workflowState)} • Date:{" "}
                                   {formatMRFDate(getMRFDate(mrf as MRF))}
+                                  {isDraft && draftSavedAt && (
+                                    <> • Last saved {formatMRFDate(draftSavedAt)}</>
+                                  )}
                                 </p>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge className={getStatusColor(mrf.status)}>
-                                {getWorkflowStageLabel(workflowState)}
-                              </Badge>
+                              {isDraft ? (
+                                <Badge
+                                  variant="outline"
+                                  className="border-amber-500/60 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                >
+                                  Draft
+                                </Badge>
+                              ) : (
+                                <Badge className={getStatusColor(mrf.status)}>
+                                  {getWorkflowStageLabel(workflowState)}
+                                </Badge>
+                              )}
+                              {isDraft && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => {
+                                    const apiId = getMrfApiId(mrf as MRF);
+                                    if (!apiId) {
+                                      toast({
+                                        title: "Missing MRF identifier",
+                                        description:
+                                          "Could not resolve this draft's id. Try refreshing the list.",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    // Re-open the same CreatePOForm pre-filled
+                                    // from backend draft fields (po_draft_saved_at, etc).
+                                    const wf = String(
+                                      (mrf as MRF & { workflow_state?: string })
+                                        .workflow_state || mrf.status || "",
+                                    ).toLowerCase();
+                                    const noRfq =
+                                      getQuotationsForMRF(mrf).length === 0;
+                                    setCreatePOFastTrack(noRfq);
+                                    setCreatePOAllowMissingRfq(noRfq);
+                                    setCreatePOMrfId(apiId);
+                                    setCreatePOOpen(true);
+                                    void wf;
+                                  }}
+                                >
+                                  Continue Draft
+                                </Button>
+                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -3551,11 +3610,16 @@ const Procurement = () => {
                           </div>
                         );
                       })}
-                    {mrfRequests.filter((mrf) => getMRFPONumber(mrf as MRF))
-                      .length === 0 && (
+                    {mrfRequests.filter(
+                      (mrf) =>
+                        getMRFPONumber(mrf as MRF) ||
+                        Boolean(
+                          (mrf as MRF & { is_po_draft?: boolean }).is_po_draft,
+                        ),
+                    ).length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No purchase orders generated yet</p>
+                        <p>No purchase orders or drafts yet</p>
                       </div>
                     )}
                   </div>
