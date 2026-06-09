@@ -1474,6 +1474,16 @@ const VendorPortal = () => {
                     paymentTerms: vendorRfq.payment_terms || vendorRfq.paymentTerms || '',
                     createdDate: vendorRfq.sent_at || new Date().toISOString(),
                     vendorIds: [], // Not needed for vendor quote submission
+                    // Bug C — forward buyer-supplied terms/notes/docs/milestones to the form.
+                    payment_milestones: (vendorRfq as any).payment_milestones,
+                    paymentMilestones: (vendorRfq as any).paymentMilestones,
+                    additional_notes: (vendorRfq as any).additional_notes,
+                    additionalNotes: (vendorRfq as any).additionalNotes,
+                    notes: (vendorRfq as any).notes,
+                    terms_conditions: (vendorRfq as any).terms_conditions,
+                    termsConditions: (vendorRfq as any).termsConditions,
+                    attachments: (vendorRfq as any).attachments,
+                    supportingDocuments: (vendorRfq as any).supportingDocuments,
                   } as any)); // Type assertion to avoid strict type checking
               })()}
               vendorId={currentVendorId}
