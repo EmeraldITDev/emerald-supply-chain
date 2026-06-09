@@ -464,35 +464,13 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
               </Select>
               {formErrors.paymentTerms && <p className="text-sm text-destructive">{formErrors.paymentTerms}</p>}
               {paymentTerms === 'custom-split' && (
-                <div className="mt-3 p-3 rounded-md border bg-muted/40 space-y-2">
-                  <Label className="text-sm">Custom split (advance % / balance on delivery %)</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={1}
-                      max={99}
-                      step={1}
-                      value={Number.isFinite(customAdvancePct) ? customAdvancePct : ''}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value, 10);
-                        setCustomAdvancePct(Number.isFinite(v) ? v : NaN);
-                      }}
-                      className="w-20"
-                      aria-label="Advance percentage"
-                    />
-                    <span className="text-sm text-muted-foreground">% advance /</span>
-                    <Input
-                      type="number"
-                      value={Number.isFinite(customAdvancePct) ? customBalancePct : ''}
-                      readOnly
-                      className="w-20 bg-muted"
-                      aria-label="Balance percentage (auto-calculated)"
-                    />
-                    <span className="text-sm text-muted-foreground">% on delivery (auto)</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Enter any whole number 1–99 for the advance. The balance auto-completes so the two always sum to 100.
-                  </p>
+                <div className="mt-3 p-3 rounded-md border bg-muted/40">
+                  <PaymentMilestoneBuilder
+                    value={customMilestones}
+                    onChange={setCustomMilestones}
+                    onValidityChange={setCustomMilestonesValid}
+                    required
+                  />
                 </div>
               )}
             </div>
