@@ -1172,6 +1172,50 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit Trip
                                 </DropdownMenuItem>
+                                {(trip.type === "personnel" || trip.type === "mixed") && (
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setSelectedTrip(trip);
+                                      setPassengerEditList(
+                                        (trip.passengers || [])
+                                          .map((p) => p.staffId)
+                                          .filter(Boolean) as string[],
+                                      );
+                                      setEditPassengersOpen(true);
+                                    }}
+                                  >
+                                    <UserCog className="mr-2 h-4 w-4" />
+                                    Edit Passengers
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    window.dispatchEvent(
+                                      new CustomEvent("logistics:set-tab", {
+                                        detail: "accommodation",
+                                      }),
+                                    );
+                                    window.dispatchEvent(
+                                      new CustomEvent("accommodation:prefill", {
+                                        detail: {
+                                          tripId: String(trip.id),
+                                          tripNumber: trip.tripNumber,
+                                          passengerNames: (trip.passengers || [])
+                                            .map((p) => p.name)
+                                            .filter(Boolean),
+                                          destinationCity: trip.destination ?? "",
+                                          destinationState: "",
+                                          checkInDate: trip.scheduledDepartureAt
+                                            ? trip.scheduledDepartureAt.slice(0, 10)
+                                            : "",
+                                        },
+                                      }),
+                                    );
+                                  }}
+                                >
+                                  <Hotel className="mr-2 h-4 w-4" />
+                                  Book Accommodation
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => openAssignVendorDialog(trip)}>
                                   <UserPlus className="mr-2 h-4 w-4" />
                                   Assign Vendor
