@@ -95,7 +95,7 @@ _DONE._ Removed the `isEarlyStage` / `hasPO` gate in `src/pages/Procurement.tsx`
 Build whatever 0b flagged. Plus procurement visibility on MRF/RFQ (per-submission terms, deadlines, comparison, evaluation).
 
 ### 8a/8b/8d/8e. Trip scheduling
-External drivers, accommodation, edit passenger list. 8b notifications backend-only.
+_8a/8d/8e DONE._ `TripScheduling`'s Create + Edit Trip dialogs gained an **"Use external driver"** switch that swaps the internal-driver select for `name` / `phone` / `license_number` inputs (8a); payload sends `external_driver: { name, phone, license_number }` and clears `driver_user_id`. New **Edit Passengers** dropdown action opens a focused dialog that only carries the `EligiblePassengerPicker` and calls `tripsApi.update(id, { passenger_user_ids })` (8e). New **Book Accommodation** dropdown action switches the Logistics page to the Accommodation tab via `window.dispatchEvent("logistics:set-tab", "accommodation")` and prefills the booking dialog (passenger names, destination, check-in) via `window.dispatchEvent("accommodation:prefill", …)` — `AccommodationBookings` now listens for that event (8d). 8b notifications remain backend-only. **Backend ask:** `POST` and `PUT` on `/api/trips` and `/api/trips/{id}` must accept the `external_driver` block and persist it; `driver_user_id` and `external_driver` are mutually exclusive on a given trip. See `frontend_changes.md` § Batch 2 — Item 8.
 
 ### 9. Fleet / Driver / Maintenance
 Driver phone+license+docs; maintenance module; vehicle edit.
