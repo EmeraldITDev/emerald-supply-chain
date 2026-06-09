@@ -1691,6 +1691,85 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         </DialogContent>
       </Dialog>
 
+      {/* Edit Passengers Dialog (Batch 2 Item 8e) */}
+      <Dialog
+        open={editPassengersOpen}
+        onOpenChange={(o) => {
+          setEditPassengersOpen(o);
+          if (!o) setPassengerEditList([]);
+        }}
+      >
+        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Passengers — {selectedTrip?.tripNumber}</DialogTitle>
+            <DialogDescription>
+              Add or remove passengers without changing the rest of the trip.
+              Notifications fire automatically when the list changes.
+            </DialogDescription>
+          </DialogHeader>
+          <EligiblePassengerPicker
+            selectedPassengerIds={passengerEditList}
+            onPassengersChange={setPassengerEditList}
+            showDriver={false}
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditPassengersOpen(false)}
+              disabled={savingPassengers}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!selectedTrip) return;
+                setSavingPassengers(true);
+                try {
+                  const res = await tripsApi.update(selectedTrip.id, {
+                    passenger_user_ids: passengerEditList
+                      .map((id) => parseInt(id, 10))
+                      .filter((n) => !Number.isNaN(n)),
+                  } as any);
+                  if (res.success) {
+                    toast({
+                      title: "Passengers updated",
+                      description: `${passengerEditList.length} passenger(s) on trip ${selectedTrip.tripNumber}.`,
+                    });
+                    setEditPassengersOpen(false);
+                    setPassengerEditList([]);
+                    fetchTrips();
+                  } else {
+                    toast({
+                      title: "Failed to update passengers",
+                      description: res.error || "Please try again.",
+                      variant: "destructive",
+                    });
+                  }
+                } catch {
+                  toast({
+                    title: "Error",
+                    description: "Could not save passenger changes.",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setSavingPassengers(false);
+                }
+              }}
+              disabled={savingPassengers}
+            >
+              {savingPassengers ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                "Save Passengers"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Assign Vendor Dialog */}
       <Dialog open={assignVendorDialogOpen} onOpenChange={setAssignVendorDialogOpen}>
         <DialogContent className="sm:max-w-md">
