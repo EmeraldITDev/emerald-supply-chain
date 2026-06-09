@@ -1,5 +1,11 @@
 # Frontend Changes — Multi-Feature Update (in progress)
 
+## Discard saved PO draft (Sub-batch 1.5b)
+
+- `src/pages/Procurement.tsx` — added a destructive **Discard Draft** button next to **Continue Draft** on every draft row in the Purchase Orders tab. Click opens an `AlertDialog` confirmation. On confirm, calls `mrfApi.discardPODraft(apiId)` then `fetchMRFs()` to refresh the list. New state: `discardDraftDialogOpen`, `selectedMRFForDraftDiscard`, `isDiscardingDraft`.
+- `src/services/api.ts` — new `mrfApi.discardPODraft(id)` helper that issues `DELETE /api/mrfs/{id}/po-draft` and returns the updated MRF.
+- **Blocking backend ask:** implement `DELETE /api/mrfs/{id}/po-draft` (procurement role). Clear `po_draft_saved_at`, `is_po_draft`, persisted draft payload, and the reserved `po_number` without touching `status` / `workflow_state` and without firing Finance or SCD notifications. Record a `discarded_po_draft` audit event and return the row via `scmTransactionApiFields()`.
+
 ## Pending cleanup (owners + deadlines)
 
 - **2026-06-22** — `@logistics-team`: remove the `console.debug('[Item6/assignVendor]', …)` and the defensive `email_sent === false` branch in `src/services/logisticsApi.ts` `tripsApi.assignVendor` once the backend returns the new shape `{ assigned: true, email_sent: boolean, email_error?: string }` on email failure.
