@@ -393,3 +393,84 @@ Earlier 1a added a per-row "+ Line item" button, but the PO PDF model only ever 
 - `src/services/api.ts`
 - `src/components/RFQManagement.tsx`
 - `.lovable/plan.md`
+
+---
+
+## Batch 3 — SMS / Termii (documentation only)
+
+**No frontend code in this batch.** Termii is the chosen SMS gateway. This entry locks the contract so backend can implement and the frontend can wire surfaces in a later batch without re-litigating shape.
+
+### Provider
+- **Termii** (https://termii.com) — Nigerian carriers, alphanumeric sender ID support, delivery receipts via webhook.
+- Account: shared Oando ops Termii workspace. API key issued per environment (staging / production).
+
+### Endpoint contract (backend, to implement)
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/notifications/sms/send` | Internal: enqueue a single SMS. Body: `{ to: E.164, message: string ≤459, trigger: enum, entity_type?: string, entity_id?: string }`. Returns `{ queued: true, log_id }`. |
+| `POST` | `/api/webhooks/termii/dlr` | Termii delivery-receipt webhook. Updates the log row's `status` + `delivered_at`. Signature verified via `TERMII_DLR_SECRET`. |
+| `GET`  | `/api/notifications/sms/logs` | Admin-only. Paginated log feed for the future UI surface. Filters: `trigger`, `status`, `to`, `date_from`, `date_to`. |
+
+Roles: send endpoint is internal (called from job dispatchers, never the browser). Log feed is gated to `admin` + `supply_chain_director` for audit.
+
+### Environment variables (backend)
+- `TERMII_API_KEY` — per-environment.
+- `TERMII_SENDER_ID` — alphanumeric, max 11 chars (e.g. `OANDO`). Must be pre-registered with Termii.
+- `TERMII_BASE_URL` — default `https://api.ng.termii.com/api`.
+- `TERMII_DLR_SECRET` — shared secret for the DLR webhook signature header.
+- `SMS_ENABLED` — feature flag; when `false` the job logs the payload and short-circuits without calling Termii.
+
+None of these are needed in the SPA. Do NOT add them to `.env` / `.env.example` on the frontend.
+
+### Queue
+- All SMS sends go through the existing Laravel queue (`queue:work`), connection `redis`, queue name `sms`.
+- Job class: `App\Jobs\SendTermiiSms`. Retries: 3 with exponential backoff (10s / 30s / 90s). Failed jobs land in `failed_jobs` with the original payload.
+
+### Log table
+- `sms_logs` (new):
+  - `id` (uuid)
+  - `to` (string, E.164)
+  - `message` (text)
+  - `trigger` (enum, see triggers below)
+  - `entity_type` / `entity_id` (nullable polymorphic ref, e.g. `mrf` / `<uuid>`)
+  - `status` (enum: `queued` | `sent` | `delivered` | `failed` | `expired`)
+  - `termii_message_id` (nullable)
+  - `error` (nullable, text)
+  - `cost` (nullable, decimal — Termii reports per-message cost in DLR)
+  - `queued_at`, `sent_at`, `delivered_at`, `failed_at` (timestamps)
+- Indexes on `(trigger, status)`, `(entity_type, entity_id)`, `(to, created_at)`.
+
+### Triggers (initial set)
+SMS is sent **in addition to** existing email + in-app notifications, never instead of. Each trigger is gated by the recipient's `NotificationPreferences.sms_enabled` flag (default OFF until the user opts in on the future Settings surface).
+
+| Trigger key | When it fires | Recipient | Sample body (≤160 chars) |
+| --- | --- | --- | --- |
+| `mrf.approval_required` | MRF reaches an approver's queue | Approver | `Oando ERP: MRF {{mrf_id}} needs your approval. Open the portal to review.` |
+| `mrf.rejected` | MRF rejected at any stage | Requester | `Oando ERP: MRF {{mrf_id}} was rejected. Reason: {{reason}}.` |
+| `po.signed` | SCD signs a PO | Requester + Vendor primary contact | `Oando ERP: PO {{po_number}} has been signed and dispatched.` |
+| `rfq.invitation` | RFQ sent to a vendor | Vendor primary contact | `Oando ERP: New RFQ {{rfq_id}} — submit your quote by {{deadline}}.` |
+| `trip.assigned` | Trip assignment lands on a driver / passenger | Driver + each passenger | `Oando trip {{trip_id}}: {{origin}} → {{destination}} on {{date}} {{time}}.` |
+| `document.expiring` | Vehicle or driver document tips into "Critical" (≤7 days) | Logistics manager + driver | `Oando ERP: {{doc_type}} for {{subject}} expires in {{days}} days.` |
+
+Bodies are rendered from Blade templates under `resources/views/sms/`. Variables resolve against the same notification payload the email + in-app channels use.
+
+### Recipient resolution
+- Internal users: phone from `users.phone` (Nigerian format normalised to E.164 on save).
+- Vendors: phone from `vendors.primary_contact_phone` (already collected during registration).
+- External trip drivers: phone from `logistics_trips.external_driver.phone` (added in Batch 2 Item 8).
+- If a recipient has no valid E.164 phone, the job logs `status: 'failed', error: 'no_phone'` and does not call Termii.
+
+### Future UI surfaces (NOT in this batch)
+Documented here so they don't surprise a future agent:
+1. **Settings → Notification Preferences**: add an "SMS" column next to Email / In-app for each trigger. Wire to `NotificationPreferences.sms_enabled` per trigger key.
+2. **Admin → SMS Logs**: paginated table backed by `GET /api/notifications/sms/logs` with the filters listed above. Columns: timestamp, to, trigger, entity link, status, cost, error. Resend action for `failed` rows (admin only).
+3. **User profile**: phone field becomes mandatory once `sms_enabled` is toggled on for any trigger; surface validator error if missing.
+
+### Out of scope for Batch 3
+- No frontend code, no env additions, no UI components. Strictly contract + ops documentation so backend can ship the integration independently.
+- Bulk / marketing SMS, OTP, two-way replies — not in scope. Termii supports them but no current trigger needs them.
+
+### Files Edited
+- `.lovable/plan.md` (Batch 3 marked DONE)
+- `frontend_changes.md` (this entry)
