@@ -171,51 +171,112 @@ export function PriceComparisonTable({
   defaultSupplierModeForNewRows = 'directory',
   paymentSchedule = null,
 }: PriceComparisonTableProps) {
+  /**
+   * Group rows into supplier cards. Each card shares supplier identity
+   * (vendor_id OR manual_vendor) across all its line items. The grouping key
+   * is `group_key` when present; otherwise derived from supplier identity so
+   * legacy rows hydrated from the backend snap together automatically.
+   */
+  const groups = useMemo(() => {
+    const map = new Map<string, PriceComparisonRow[]>();
+    const orderedKeys: string[] = [];
+    value.forEach((r) => {
+      const identityKey =
+        r.vendor_id
+          ? `v:${r.vendor_id}`
+          : r.manual_vendor?.name?.trim()
+            ? `m:${r.manual_vendor.name.trim().toLowerCase()}`
+            : '';
+      const key = r.group_key || identityKey || r._key;
+      if (!map.has(key)) {
+        map.set(key, []);
+        orderedKeys.push(key);
+      }
+      map.get(key)!.push(r);
+    });
+    return orderedKeys.map((k) => ({ key: k, rows: map.get(k)! }));
+  }, [value]);
+
   const update = (key: string, patch: Partial<PriceComparisonRow>) => {
     onChange(value.map((r) => (r._key === key ? { ...r, ...patch } : r)));
   };
 
-  const setSelected = (key: string) => {
-    onChange(value.map((r) => ({ ...r, is_selected: r._key === key })));
+  /** Update supplier identity for ALL rows in a group at once. */
+  const updateGroup = (groupKey: string, patch: Partial<PriceComparisonRow>) => {
+    const rowsInGroup = new Set(
+      groups.find((g) => g.key === groupKey)?.rows.map((r) => r._key) ?? [],
+    );
+    onChange(value.map((r) => (rowsInGroup.has(r._key) ? { ...r, ...patch } : r)));
   };
 
-  const setMode = (key: string, mode: 'directory' | 'manual') => {
-    update(key, {
-      vendor_id: mode === 'directory' ? undefined : undefined,
+  /** Mark the supplier in a group as the selected (winning) supplier. */
+  const selectGroup = (groupKey: string) => {
+    const group = groups.find((g) => g.key === groupKey);
+    if (!group) return;
+    const firstRowKey = group.rows[0]?._key;
+    onChange(
+      value.map((r) => ({ ...r, is_selected: r._key === firstRowKey })),
+    );
+  };
+
+  const setGroupMode = (groupKey: string, mode: 'directory' | 'manual') => {
+    updateGroup(groupKey, {
+      vendor_id: undefined,
       manual_vendor: mode === 'manual' ? { name: '' } : undefined,
     });
   };
 
-  const addRow = () =>
-    onChange([...value, makeEmptyRow({ supplierMode: defaultSupplierModeForNewRows })]);
-
-  /**
-   * Add another line item for the SAME supplier as the currently selected row.
-   * Clones supplier identity (directory vendor_id OR manual vendor name/contact)
-   * so the PM doesn't have to re-enter it. The new row is NOT marked as selected
-   * — the "selected" radio stays on the supplier-level primary row, and ALL rows
-   * matching that supplier become line items on the generated PO.
-   */
-  const addLineItemForSelected = () => {
-    const selected = value.find((r) => r.is_selected);
-    if (!selected) return;
-    const cloned: PriceComparisonRow = {
-      ...makeEmptyRow({ supplierMode: selected.manual_vendor ? 'manual' : 'directory' }),
-      vendor_id: selected.vendor_id,
-      manual_vendor: selected.manual_vendor
-        ? { ...selected.manual_vendor }
-        : undefined,
+  /** Append a new line item to an existing supplier card. */
+  const addLineItemToGroup = (groupKey: string) => {
+    const group = groups.find((g) => g.key === groupKey);
+    if (!group) return;
+    const head = group.rows[0];
+    const newRow: PriceComparisonRow = {
+      ...makeEmptyRow({
+        supplierMode: head?.manual_vendor ? 'manual' : 'directory',
+        group_key: groupKey,
+      }),
+      vendor_id: head?.vendor_id,
+      manual_vendor: head?.manual_vendor ? { ...head.manual_vendor } : undefined,
+      selection_reason: head?.selection_reason ?? '',
       is_selected: false,
     };
-    onChange([...value, cloned]);
+    // Insert right after the last row of this group, preserving card order.
+    const lastIdx = value
+      .map((r, i) => ({ r, i }))
+      .filter(({ r }) => group.rows.some((gr) => gr._key === r._key))
+      .pop()?.i;
+    if (lastIdx === undefined) {
+      onChange([...value, newRow]);
+    } else {
+      const next = [...value];
+      next.splice(lastIdx + 1, 0, newRow);
+      onChange(next);
+    }
   };
 
-  const selectedRow = value.find((r) => r.is_selected);
-  const selectedSupplierName = selectedRow ? getRowVendorName(selectedRow, vendors) : '';
+  /** Add a brand-new supplier card (one empty line item). */
+  const addSupplier = () =>
+    onChange([
+      ...value,
+      makeEmptyRow({
+        supplierMode: defaultSupplierModeForNewRows,
+        group_key: genGroupKey(),
+      }),
+    ]);
 
-  const removeRow = (key: string) => {
-    if (value.length <= 1) return; // keep at least one row
-    onChange(value.filter((r) => r._key !== key));
+  const removeRow = (rowKey: string) => {
+    if (value.length <= 1) return;
+    onChange(value.filter((r) => r._key !== rowKey));
+  };
+
+  /** Remove an entire supplier card and all its line items. */
+  const removeGroup = (groupKey: string) => {
+    const group = groups.find((g) => g.key === groupKey);
+    if (!group) return;
+    if (group.rows.length >= value.length) return; // keep at least one row overall
+    const removeKeys = new Set(group.rows.map((r) => r._key));
+    onChange(value.filter((r) => !removeKeys.has(r._key)));
   };
 
   const errors = useMemo(() => validatePriceComparison(value, vendors), [value, vendors]);
