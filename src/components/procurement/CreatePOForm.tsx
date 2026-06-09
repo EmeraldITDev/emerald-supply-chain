@@ -7,6 +7,7 @@ import {
   Download,
   ExternalLink,
   Loader2,
+  PencilLine,
   Save,
   Send,
 } from 'lucide-react';
@@ -124,12 +125,20 @@ const initialState = (): FormState => ({
 const isValidEmail = (e: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
-/** Coerce a backend price-comparison row into the local editable shape. */
-const hydrateRow = (e: PriceComparisonEntry): PriceComparisonRow => ({
+/**
+ * Coerce a backend price-comparison row into the local editable shape.
+ * `groupKey` is passed in so multiple rows sharing the same supplier identity
+ * snap into the same supplier card in the new card-based UI.
+ */
+const hydrateRow = (
+  e: PriceComparisonEntry,
+  groupKey: string,
+): PriceComparisonRow => ({
   _key:
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `row_${Math.random().toString(36).slice(2)}`,
+  group_key: groupKey,
   vendor_id: e.vendor_id,
   manual_vendor: e.manual_vendor,
   item_description: e.item_description ?? '',
@@ -138,6 +147,13 @@ const hydrateRow = (e: PriceComparisonEntry): PriceComparisonRow => ({
   is_selected: Boolean(e.is_selected),
   selection_reason: e.selection_reason ?? '',
 });
+
+/** Group hydrated rows by supplier identity so they map to one card each. */
+const groupKeyFor = (e: PriceComparisonEntry): string => {
+  if (e.vendor_id) return `v:${String(e.vendor_id)}`;
+  const name = (e.manual_vendor?.name ?? e.vendor_name ?? '').trim().toLowerCase();
+  return name ? `m:${name}` : `r:${Math.random().toString(36).slice(2)}`;
+};
 
 export function CreatePOForm({
   mrfId,
