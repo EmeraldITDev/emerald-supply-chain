@@ -1320,6 +1320,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               </div>
 
               {/* Quotation Comparison */}
+              {compareView === 'cards' ? (
               <ScrollArea className="h-[400px]">
                 <div className="space-y-4">
                   {comparisonMetrics.scoredQuotations.map((quote, idx) => (
@@ -1370,6 +1371,26 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                               </div>
                             </div>
 
+                            {/* Item 7 — per-submission terms inline */}
+                            <div className="grid grid-cols-3 gap-4 mb-4 rounded-md border bg-muted/40 p-3 text-sm">
+                              <div>
+                                <p className="text-xs text-muted-foreground">Payment Terms</p>
+                                <p className="font-medium truncate" title={displayString(quote.paymentTerms)}>
+                                  {displayString(quote.paymentTerms)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Validity</p>
+                                <p className="font-medium">{formatDays(quote.validityDays)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Warranty</p>
+                                <p className="font-medium truncate" title={displayString(quote.warrantyPeriod)}>
+                                  {displayString(quote.warrantyPeriod)}
+                                </p>
+                              </div>
+                            </div>
+
                             {/* Score Breakdown */}
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
@@ -1392,6 +1413,65 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                             {quote.notes && (
                               <p className="text-sm text-muted-foreground mt-3 italic">"{quote.notes}"</p>
                             )}
+
+                            {/* Item 7 — evaluator notes + manual score */}
+                            <div className="mt-4 rounded-md border p-3 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                                  Evaluation
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                  <Label htmlFor={`eval-score-${quote.id}`} className="text-xs text-muted-foreground">
+                                    Score (0–10)
+                                  </Label>
+                                  <Input
+                                    id={`eval-score-${quote.id}`}
+                                    type="number"
+                                    min={0}
+                                    max={10}
+                                    step={0.5}
+                                    className="h-8 w-20"
+                                    value={evalDrafts[quote.id]?.score ?? ''}
+                                    onChange={(e) =>
+                                      setEvalDrafts((prev) => ({
+                                        ...prev,
+                                        [quote.id]: {
+                                          notes: prev[quote.id]?.notes ?? '',
+                                          score: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              </div>
+                              <Textarea
+                                rows={2}
+                                placeholder="Internal evaluation notes (technical fit, compliance, risk, follow-ups)…"
+                                value={evalDrafts[quote.id]?.notes ?? ''}
+                                onChange={(e) =>
+                                  setEvalDrafts((prev) => ({
+                                    ...prev,
+                                    [quote.id]: {
+                                      score: prev[quote.id]?.score ?? '',
+                                      notes: e.target.value,
+                                    },
+                                  }))
+                                }
+                              />
+                              <div className="flex justify-end">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleSaveEvaluation(String(quote.id))}
+                                  disabled={savingEvalId === String(quote.id)}
+                                >
+                                  {savingEvalId === String(quote.id) ? (
+                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                  ) : null}
+                                  Save evaluation
+                                </Button>
+                              </div>
+                            </div>
                           </div>
 
                           <div className="ml-4 flex flex-col gap-2">
