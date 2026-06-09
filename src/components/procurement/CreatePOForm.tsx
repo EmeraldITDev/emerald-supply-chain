@@ -158,7 +158,6 @@ export function CreatePOForm({
   const [form, setForm] = useState<FormState>(initialState());
   const [rows, setRows] = useState<PriceComparisonRow[]>(() => [
     makeEmptyRow({ supplierMode: fastTrack || allowMissingRfq ? 'manual' : 'directory' }),
-    makeEmptyRow({ supplierMode: fastTrack || allowMissingRfq ? 'manual' : 'directory' }),
   ]);
 
   const [paymentMilestones, setPaymentMilestones] = useState<PaymentMilestoneInput[]>([]);
@@ -333,6 +332,42 @@ export function CreatePOForm({
   const pcErrors = useMemo(
     () => validatePriceComparison(rows, vendors),
     [rows, vendors]
+  );
+
+  /**
+   * Top-of-form blocker summary (1c). Aggregates Section 1 + Section 2 errors so
+   * the PM can see every reason Generate & Route is disabled in one place.
+   */
+  const section1Errors = useMemo<string[]>(() => {
+    const list: string[] = [];
+    if (!form.po_date) list.push('PO Details: pick a PO date.');
+    if (!form.delivery_date) list.push('PO Details: pick a delivery / service date.');
+    if (!form.ship_to_address.trim()) list.push('PO Details: enter a ship-to address.');
+    if (!form.payment_terms.trim()) list.push('PO Details: enter payment terms.');
+    if (!paymentMilestonesValid) list.push('PO Details: payment milestones must sum to 100%.');
+    if (ccBlocked) list.push('PO Details: CC email is not allowed.');
+    if (ccInvalid) list.push('PO Details: CC email is not valid.');
+    if (toInvalid) list.push('PO Details: Invoice To email is not valid.');
+    if (termsMissing) list.push('PO Details: no standard T&C template configured for this PO type.');
+    if (termsError) list.push(`PO Details: ${termsError}`);
+    if (termsModeCustomInvalid) list.push('PO Details: enter custom terms when using "My terms only".');
+    return list;
+  }, [
+    form.po_date,
+    form.delivery_date,
+    form.ship_to_address,
+    form.payment_terms,
+    paymentMilestonesValid,
+    ccBlocked,
+    ccInvalid,
+    toInvalid,
+    termsMissing,
+    termsError,
+    termsModeCustomInvalid,
+  ]);
+  const blockingErrors = useMemo<string[]>(
+    () => [...section1Errors, ...pcErrors.map((e) => `Price Comparison: ${e}`)],
+    [section1Errors, pcErrors],
   );
 
   const selectedSupplierLabel = useMemo(() => {
@@ -1046,6 +1081,24 @@ export function CreatePOForm({
         </div>
       )}
 
+      {/* ============== Blocking errors summary (1c) ============== */}
+      {!isFinalised && blockingErrors.length > 0 && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-1.5">
+          <div className="flex items-center gap-2 font-medium text-destructive">
+            <AlertCircle className="h-3.5 w-3.5" />
+            Fix {blockingErrors.length} issue{blockingErrors.length === 1 ? '' : 's'} before generating &amp; routing
+          </div>
+          <ul className="list-disc pl-5 text-muted-foreground space-y-0.5">
+            {blockingErrors.slice(0, 12).map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+            {blockingErrors.length > 12 && (
+              <li className="italic">…and {blockingErrors.length - 12} more</li>
+            )}
+          </ul>
+        </div>
+      )}
+
       </div>
 
       {/* Footer actions — fixed below scroll area so fields are never covered */}
@@ -1097,7 +1150,13 @@ export function CreatePOForm({
           <Button
             onClick={() => void finalisePO()}
             disabled={!canFinalise}
-            title={!canFinalise && !isSaving ? 'Complete all PO details and add at least 2 supplier quotes with one selected before generating.' : undefined}
+            title={
+              !canFinalise && !isSaving
+                ? blockingErrors.length > 0
+                  ? `Fix ${blockingErrors.length} issue${blockingErrors.length === 1 ? '' : 's'} listed above before generating.`
+                  : 'Complete all required fields before generating.'
+                : undefined
+            }
           >
             <Send className="h-3.5 w-3.5 mr-1" />
             {fastTrack ? 'Generate & route to SCD (fast-track)' : 'Generate & Route for Approval'}

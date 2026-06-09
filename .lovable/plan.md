@@ -34,9 +34,9 @@ Both 0a and 0b complete with documented results. Reclassified bugs added to Batc
 
 ### Promoted from Batch 2 — PO form refactor (1a/1b/1c)
 Promoted into Batch 1 because the current `CreatePOForm.tsx` is unusable for manual testing and blocks the Batch 1 verification pass.
-- **1a — Multiple line items per supplier.** Suppliers carry `line_items[]`; UI lets PM add/remove rows freely.
-- **1b — Remove the min-2-supplier guard.** Allow generate/route with a single supplier (manual PO case).
-- **1c — Required-field audit with inline + top-summary errors.** Warn on empty rows / missing required fields before the Generate & Route button enables; surface a list at the top of the form pointing to each offending row.
+- **1a — Multiple line items per supplier.** _DONE._ Each row in `PriceComparisonTable` now has a `+ Line item` (copy) action that inserts a new row pre-filled with the same directory vendor or manual vendor block, so a single supplier can carry any number of items. Backend payload remains a flat array of rows keyed by `vendor_id` / `manual_vendor`; no schema change required.
+- **1b — Remove the min-2-supplier guard.** _DONE._ `validatePriceComparison` no longer requires ≥2 rows. Initial form state starts with 1 row, the Remove button is disabled only at length ≤1, and supporting copy now reads "Add one or more supplier quotes". Single-supplier (manual PO) POs can be generated and routed.
+- **1c — Required-field audit with inline + top-summary errors.** _DONE._ Each row now computes per-cell errors (`supplier`, `item_description`, `unit_price`, `quantity`) rendered as red borders + inline messages. `CreatePOForm` aggregates a `blockingErrors` list (Section 1 + Section 2) and renders a destructive summary card directly above the footer when generation is blocked; Generate & Route tooltip now points at the summary instead of repeating a generic message.
 
 ### NEW — Draft PO persistence and resume (Option A)
 Currently if a user starts a manual PO and bails halfway, only the backing MRF exists and there is no way to resume the PO. Causes confusion / feels broken.

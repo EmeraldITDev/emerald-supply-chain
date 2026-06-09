@@ -209,3 +209,22 @@ Manual smoke test in staging, run by the user after Batch 1 deploys. All five mu
 - `src/pages/VendorPortal.tsx`: vendor-side submit handler maps `paymentMilestones` → `payment_milestones: [{label, percentage, trigger_condition}]` on the `quotationData` sent to `vendorPortalApi.submitQuotation`.
 - `src/services/api.ts` `vendorPortalApi.submitQuotation`: type now includes optional `payment_milestones`; field is forwarded in both the JSON payload and the FormData payload (JSON-stringified under `payment_milestones`).
 - **Backend ask:** `POST /api/rfqs/{id}/submit-quotation` must accept and persist `payment_milestones: [{label, percentage, trigger_condition}]`. Echo the persisted array on the quotation detail response so PM-side comparison and downstream PO generation can read it directly.
+
+## Sub-batch 1.4 — PO form refactor (1a/1b/1c)
+
+### 1a — Multiple line items per supplier
+- `src/components/procurement/PriceComparisonTable.tsx`: added a `+ Line item` (Copy icon) button per row. Clicking it inserts a new row directly below, pre-filled with the same `vendor_id` (directory mode) or a clone of `manual_vendor` (manual mode), with item/qty/price fields empty. Backend payload remains a flat `rows[]` keyed by supplier; no schema change required — multiple rows can already share the same `vendor_id` / `manual_vendor.name`.
+
+### 1b — Remove min-2-supplier guard
+- `validatePriceComparison` no longer pushes `"Add at least two supplier rows."` — replaced with a length ≥ 1 check.
+- `CreatePOForm` initial state now seeds **one** row (was two). Remove button disabled only at `length <= 1`.
+- Supporting copy in `PriceComparisonTable` updated to "Add one or more supplier quotes" and explains the new `+ Line item` affordance.
+
+### 1c — Required-field audit (inline + top-summary errors)
+- `PriceComparisonTable`: per-row field error map (`computeRowFieldErrors`) drives red borders + inline `<p className="text-destructive">` messages on the supplier, item description, unit price, and qty cells. `aria-invalid` is set so screen readers pick it up.
+- `CreatePOForm`: new `section1Errors` memo lists each missing/invalid PO-detail field; `blockingErrors` concatenates Section 1 + Section 2 errors and renders a destructive summary card directly above the footer when present. Generate & Route tooltip now points at the summary count instead of the previous generic copy.
+
+### Files Edited
+- `src/components/procurement/PriceComparisonTable.tsx`
+- `src/components/procurement/CreatePOForm.tsx`
+- `.lovable/plan.md`

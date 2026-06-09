@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Trash2, Plus, AlertCircle } from 'lucide-react';
+import { Trash2, Plus, AlertCircle, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -90,7 +90,7 @@ const getRowMode = (row: PriceComparisonRow): 'directory' | 'manual' => {
 /** Validation summary used by the parent form to gate Generate. */
 export function validatePriceComparison(rows: PriceComparisonRow[], vendors: Vendor[]): string[] {
   const errors: string[] = [];
-  if (rows.length < 2) errors.push('Add at least two supplier rows.');
+  if (rows.length < 1) errors.push('Add at least one supplier row.');
   const selected = rows.filter((r) => r.is_selected);
   if (selected.length === 0) errors.push('Mark exactly one row as the selected supplier.');
   if (selected.length > 1) errors.push('Only one row can be marked as selected.');
@@ -131,6 +131,38 @@ export function validatePriceComparison(rows: PriceComparisonRow[], vendors: Ven
   return errors;
 }
 
+/**
+ * Per-row field error map. Used to highlight individual cells with red borders
+ * so the PM can see exactly which inputs need fixing (1c — inline errors).
+ */
+export interface RowFieldErrors {
+  supplier?: string;
+  item_description?: string;
+  unit_price?: string;
+  quantity?: string;
+}
+
+function computeRowFieldErrors(row: PriceComparisonRow, vendors: Vendor[]): RowFieldErrors {
+  const out: RowFieldErrors = {};
+  const hasVendorId = !!row.vendor_id;
+  const hasManualVendor = !!row.manual_vendor?.name?.trim();
+  if (!hasVendorId && !hasManualVendor) {
+    out.supplier = 'Select a supplier or enter manual vendor name.';
+  } else if (hasVendorId && hasManualVendor) {
+    out.supplier = 'Use directory OR manual, not both.';
+  } else if (hasVendorId && vendors.length > 0 && !vendors.some((v) => vendorStringId(v) === row.vendor_id)) {
+    out.supplier = 'Supplier does not match a known vendor.';
+  }
+  if (!row.item_description.trim()) {
+    out.item_description = 'Item description is required.';
+  }
+  const up = typeof row.unit_price === 'number' ? row.unit_price : Number(row.unit_price);
+  if (!Number.isFinite(up) || up <= 0) out.unit_price = 'Unit price must be > 0.';
+  const qty = typeof row.quantity === 'number' ? row.quantity : Number(row.quantity);
+  if (!Number.isFinite(qty) || qty <= 0) out.quantity = 'Qty must be > 0.';
+  return out;
+}
+
 export function PriceComparisonTable({
   value,
   onChange,
@@ -159,13 +191,37 @@ export function PriceComparisonTable({
     onChange([...value, makeEmptyRow({ supplierMode: defaultSupplierModeForNewRows })]);
 
   const removeRow = (key: string) => {
-    if (value.length <= 2) return; // visual guard, min 2
+    if (value.length <= 1) return; // keep at least one row
     onChange(value.filter((r) => r._key !== key));
   };
 
+  /** 1a — add another line item for the SAME supplier (copies vendor/manual fields). */
+  const addLineItemForRow = (key: string) => {
+    const src = value.find((r) => r._key === key);
+    if (!src) return;
+    const next: PriceComparisonRow = {
+      ...makeEmptyRow({
+        supplierMode: src.manual_vendor ? 'manual' : 'directory',
+      }),
+      vendor_id: src.vendor_id,
+      manual_vendor: src.manual_vendor
+        ? { ...src.manual_vendor }
+        : undefined,
+    };
+    const idx = value.findIndex((r) => r._key === key);
+    const out = [...value];
+    out.splice(idx + 1, 0, next);
+    onChange(out);
+  };
+
   const errors = useMemo(() => validatePriceComparison(value, vendors), [value, vendors]);
-  const hasMin = value.length >= 2;
+  const hasMin = value.length >= 1;
   const selectedCount = value.filter((r) => r.is_selected).length;
+  const rowErrorMap = useMemo(() => {
+    const m = new Map<string, RowFieldErrors>();
+    value.forEach((r) => m.set(r._key, computeRowFieldErrors(r, vendors)));
+    return m;
+  }, [value, vendors]);
 
   return (
     <div className="space-y-3">
@@ -183,9 +239,10 @@ export function PriceComparisonTable({
       ) : null}
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Add at least two supplier quotes. Use <span className="font-medium text-foreground">Directory</span> to pick
+          Add one or more supplier quotes. Use <span className="font-medium text-foreground">Directory</span> to pick
           an existing vendor, or <span className="font-medium text-foreground">Manual</span> to type name, contact, and
-          pricing without a directory record. Mark exactly one row as selected. This sheet is saved on the MRF and
+          pricing without a directory record. Use <span className="font-medium text-foreground">+ Line item</span> to add
+          additional items for the same supplier. Mark exactly one row as selected. This sheet is saved on the MRF and
           attached when the PO is generated for approval.
         </p>
         <Button
@@ -221,6 +278,7 @@ export function PriceComparisonTable({
               const total = up * qty;
               const mode = getRowMode(row);
               const vendorName = getRowVendorName(row, vendors);
+              const fe = rowErrorMap.get(row._key) ?? {};
 
               return (
                 <TableRow
@@ -265,7 +323,10 @@ export function PriceComparisonTable({
                           }
                           disabled={disabled || loadingVendors}
                         >
-                          <SelectTrigger className="h-9">
+                          <SelectTrigger
+                            className={cn('h-9', fe.supplier && 'border-destructive')}
+                            aria-invalid={!!fe.supplier}
+                          >
                             <SelectValue
                               placeholder={loadingVendors ? 'Loading…' : 'Select supplier'}
                             />
@@ -293,7 +354,8 @@ export function PriceComparisonTable({
                             }
                             placeholder="Vendor name"
                             disabled={disabled}
-                            className="h-9 text-xs"
+                            className={cn('h-9 text-xs', fe.supplier && 'border-destructive')}
+                            aria-invalid={!!fe.supplier}
                           />
                           <div className="grid grid-cols-2 gap-1">
                             <Input
@@ -329,6 +391,9 @@ export function PriceComparisonTable({
                           </div>
                         </div>
                       )}
+                      {fe.supplier && (
+                        <p className="text-[11px] text-destructive">{fe.supplier}</p>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="align-top">
@@ -339,8 +404,12 @@ export function PriceComparisonTable({
                       }
                       placeholder="e.g. HP EliteBook 840"
                       disabled={disabled}
-                      className="h-9"
+                      className={cn('h-9', fe.item_description && 'border-destructive')}
+                      aria-invalid={!!fe.item_description}
                     />
+                    {fe.item_description && (
+                      <p className="mt-1 text-[11px] text-destructive">{fe.item_description}</p>
+                    )}
                   </TableCell>
                   <TableCell className="align-top">
                     <Input
@@ -354,8 +423,12 @@ export function PriceComparisonTable({
                         })
                       }
                       disabled={disabled}
-                      className="h-9"
+                      className={cn('h-9', fe.unit_price && 'border-destructive')}
+                      aria-invalid={!!fe.unit_price}
                     />
+                    {fe.unit_price && (
+                      <p className="mt-1 text-[11px] text-destructive">{fe.unit_price}</p>
+                    )}
                   </TableCell>
                   <TableCell className="align-top">
                     <Input
@@ -369,8 +442,12 @@ export function PriceComparisonTable({
                         })
                       }
                       disabled={disabled}
-                      className="h-9"
+                      className={cn('h-9', fe.quantity && 'border-destructive')}
+                      aria-invalid={!!fe.quantity}
                     />
+                    {fe.quantity && (
+                      <p className="mt-1 text-[11px] text-destructive">{fe.quantity}</p>
+                    )}
                   </TableCell>
                   <TableCell className="align-top pt-4 font-medium tabular-nums">
                     {total > 0 ? `₦${total.toLocaleString()}` : '—'}
@@ -387,17 +464,30 @@ export function PriceComparisonTable({
                     />
                   </TableCell>
                   <TableCell className="align-top">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeRow(row._key)}
-                      disabled={disabled || value.length <= 2}
-                      title={value.length <= 2 ? 'Minimum of 2 rows required' : 'Remove row'}
-                      className="h-8 w-8"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex flex-col items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => addLineItemForRow(row._key)}
+                        disabled={disabled}
+                        title="Add another line item for this supplier"
+                        className="h-8 w-8"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeRow(row._key)}
+                        disabled={disabled || value.length <= 1}
+                        title={value.length <= 1 ? 'At least one row required' : 'Remove row'}
+                        className="h-8 w-8"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
