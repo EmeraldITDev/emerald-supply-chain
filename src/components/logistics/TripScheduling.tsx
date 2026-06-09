@@ -280,6 +280,17 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       });
       return;
     }
+    if (
+      useExternalDriver &&
+      (!externalDriver.name.trim() || !externalDriver.phone.trim())
+    ) {
+      toast({
+        title: "External driver details required",
+        description: "Enter the external driver's name and phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -458,6 +469,17 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       toast({
         title: "Validation Error",
         description: "Please fill all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (
+      useExternalDriver &&
+      (!externalDriver.name.trim() || !externalDriver.phone.trim())
+    ) {
+      toast({
+        title: "External driver details required",
+        description: "Enter the external driver's name and phone number.",
         variant: "destructive",
       });
       return;
