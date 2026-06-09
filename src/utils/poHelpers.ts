@@ -157,6 +157,30 @@ export const isPoGeneratedMrf = (mrf: any): boolean => {
     return true;
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // TEMPORARY fallback (remove once backend reliably persists
+  // `source` / `is_po_linked` / `linked_po_id` on MRF create + list payloads):
+  //
+  // Some backend code paths drop the justification text and the explicit flags
+  // on the floor when the MRF is created as a side-effect of a manual PO. As a
+  // last-resort heuristic, treat any MRF whose title/description/notes carries
+  // an auto-generated PO reference (e.g. "PO-EMERALD-2026-049",
+  // "PO-PRC-OFFI-2026-049", "po_number: PO-...") as PO-generated and hide it
+  // from standard list surfaces.
+  // ───────────────────────────────────────────────────────────────────────────
+  const poRefRegex = /\bPO-[A-Z0-9]+(?:-[A-Z0-9]+){1,}\b/i;
+  const haystack = [
+    mrf.title,
+    mrf.description,
+    mrf.notes,
+    mrf.summary,
+    mrf.po_number,
+    mrf.poNumber,
+  ]
+    .map((v) => (v == null ? '' : String(v)))
+    .join(' ');
+  if (poRefRegex.test(haystack)) return true;
+
   return false;
 };
 
