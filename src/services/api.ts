@@ -1533,6 +1533,27 @@ export const rfqApi = {
     });
   },
 
+  // Upload supporting documents for an RFQ (multipart).
+  // Backend contract: POST /api/rfqs/:id/attachments, field name `attachments[]`.
+  // Called after a successful rfqApi.create when the user attached files in
+  // the RFQ create dialog (Bug C — Supporting Documents).
+  uploadAttachments: async (
+    rfqId: string,
+    files: File[],
+  ): Promise<ApiResponse<{ attachments?: unknown[] }>> => {
+    if (!files || files.length === 0) {
+      return { success: true, data: { attachments: [] } };
+    }
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append('attachments[]', file, file.name);
+    }
+    return apiRequest(`/rfqs/${rfqId}/attachments`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
   // ==========================================
   // Phase 2: RFQ Workflow Endpoints
   // ==========================================
