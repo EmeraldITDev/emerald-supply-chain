@@ -1261,7 +1261,21 @@ export const mrfApi = {
 
   // Get line item P&L for MRF
   getLineItemPnL: async (id: string): Promise<ApiResponse<import('@/types').ProfitAndLoss>> => {
-    return apiRequest(`/mrfs/${id}/line-item-pnl`);
+    const res = await apiRequest<any>(`/mrfs/${id}/line-item-pnl`);
+    if (res.success) {
+      const { normalizeProfitAndLoss } = await import('@/utils/normalizeProfitAndLoss');
+      const normalized = normalizeProfitAndLoss(res.data ?? res.raw);
+      if (import.meta.env?.DEV && normalized.items.length === 0) {
+        // eslint-disable-next-line no-console
+        console.warn('[BugB/mrf.getLineItemPnL] empty after normalize', {
+          id,
+          rawKeys: res.data ? Object.keys(res.data) : [],
+          raw: res.data,
+        });
+      }
+      return { ...res, data: normalized };
+    }
+    return res as ApiResponse<import('@/types').ProfitAndLoss>;
   },
 };
 
