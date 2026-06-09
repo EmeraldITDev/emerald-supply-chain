@@ -2125,6 +2125,9 @@ export const vendorPortalApi = {
       validity_days: validityDays, // Required by database - always include with default of 30
       ...(quotationData.warranty_period && { warranty_period: quotationData.warranty_period }),
       ...(quotationData.notes && { notes: quotationData.notes }),
+      ...(quotationData.payment_milestones && quotationData.payment_milestones.length > 0
+        ? { payment_milestones: quotationData.payment_milestones }
+        : {}),
     };
 
     // Log full payload before sending so the shape can be verified during testing
