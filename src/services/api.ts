@@ -2037,6 +2037,12 @@ export const vendorPortalApi = {
         specifications?: string;
         rfq_item_id?: string; // Add rfq_item_id if available
       }>;
+      // Bug D — vendor-proposed custom payment schedule (sum-to-100 enforced client-side).
+      payment_milestones?: Array<{
+        label: string;
+        percentage: number;
+        trigger_condition: string;
+      }>;
     },
     attachments?: File[]
   ): Promise<ApiResponse<Quotation>> => {
