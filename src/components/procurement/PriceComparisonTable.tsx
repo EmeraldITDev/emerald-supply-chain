@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Trash2, Plus, AlertCircle } from 'lucide-react';
+import { Trash2, Plus, AlertCircle, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,14 +11,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import type { Vendor } from '@/types';
 import type { PriceComparisonRow, ManualVendor } from '@/types/procurement';
@@ -49,8 +41,14 @@ const vendorStringId = (v: Vendor): string => {
   return anyV.formatted_id ?? anyV.vendor_id ?? v.id;
 };
 
+const genGroupKey = (): string =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `g_${Math.random().toString(36).slice(2)}`;
+
 export const makeEmptyRow = (opts?: {
   supplierMode?: 'directory' | 'manual';
+  group_key?: string;
 }): PriceComparisonRow => {
   const mode = opts?.supplierMode ?? 'directory';
   return {
@@ -58,6 +56,7 @@ export const makeEmptyRow = (opts?: {
       typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
         : `row_${Math.random().toString(36).slice(2)}`,
+    group_key: opts?.group_key ?? genGroupKey(),
     vendor_id: undefined,
     manual_vendor: mode === 'manual' ? { name: '' } : undefined,
     item_description: '',
