@@ -271,3 +271,26 @@ Earlier 1a added a per-row "+ Line item" button, but the PO PDF model only ever 
 - `src/components/procurement/PriceComparisonTable.tsx`
 - `src/utils/emeraldPoDocumentModel.ts`
 - `frontend_changes.md`
+
+## Batch 2 — Item 3: PM MRF delete at any stage
+
+### Frontend behaviour
+- `src/pages/Procurement.tsx`:
+  - Removed the `isEarlyStage` / `hasPO` gate on the Active MRF list's Delete button. Procurement Managers (`role === "procurement_manager"` or `"procurement"`) now see Delete on every MRF regardless of status, current stage, or whether a PO already exists.
+  - Added the same Delete button on the **All MRFs** tab (previously read-only), gated by the same role check, so PMs can purge MRFs from the comprehensive list view too.
+  - Delete `AlertDialog` copy rewritten to explicitly warn that deletion is permanent and cascades to: linked RFQs, vendor quotations, draft and generated POs, approvals, and audit history. Also notes that vendors who already received an RFQ may still hold a copy.
+  - Action wiring unchanged: `handleDeleteMRF(getMrfApiId(mrf))` → `confirmDeleteMRF()` → `mrfApi.delete(uuid)` → `fetchMRFs()`.
+
+### Backend contract
+- `DELETE /api/mrfs/{id}` must accept deletions from `procurement_manager` / `procurement` roles at any workflow stage — including MRFs that already have a generated/signed PO, payment milestones, or completed GRN. No new fields, no new endpoint.
+- Cascade behaviour expected on the backend (please confirm):
+  1. Soft- or hard-delete the MRF row.
+  2. Cascade: linked RFQs, vendor quotations, price comparison rows, draft and generated PO rows (including S3 PO PDFs), approvals, line-item P&L, payment milestones, and audit-trail entries.
+  3. Suppress vendor-facing notifications on cascade (vendors do not need to be told the MRF was deleted).
+  4. Emit a single `mrf.deleted` audit event capturing the actor (`user_id`, role) and the prior stage.
+- Response shape unchanged: `{ success: true }` or `{ success: false, error: string }`.
+
+### Files Edited
+- `src/pages/Procurement.tsx`
+- `mem://access-control/mrf-deletion-permissions`
+- `.lovable/plan.md`

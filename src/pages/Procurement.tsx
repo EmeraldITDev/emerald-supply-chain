@@ -3127,52 +3127,24 @@ const Procurement = () => {
                                     )}
                                   </>
                                 )}
-                                {/* Allow delete for procurement managers - MRFs without PO and in early stages */}
-                                {(() => {
-                                  const isProcurementManager =
-                                    user?.role === "procurement_manager" ||
-                                    user?.role === "procurement";
-                                  if (!isProcurementManager) return null;
-
-                                  const status = (
-                                    request.status || ""
-                                  ).toLowerCase();
-                                  const currentStage = (
-                                    request.currentStage || ""
-                                  ).toLowerCase();
-                                  const poNumber = getMRFPONumber(
-                                    request as MRF,
-                                  );
-                                  const hasPO = poNumber && poNumber !== "N/A";
-                                  const isEarlyStage =
-                                    !hasPO &&
-                                    (status === "pending" ||
-                                      status.includes("rejected") ||
-                                      status === "procurement" ||
-                                      status === "executive_review" ||
-                                      status === "chairman_review" ||
-                                      currentStage === "pending" ||
-                                      currentStage === "procurement");
-
-                                  if (!isEarlyStage) return null;
-
-                                  return (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="text-xs text-destructive hover:text-destructive"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteMRF(
-                                          getMrfApiId(request as MRF),
-                                        );
-                                      }}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                      Delete
-                                    </Button>
-                                  );
-                                })()}
+                                {/* PM can delete MRFs at any stage (Batch 2 Item 3) */}
+                                {(user?.role === "procurement_manager" ||
+                                  user?.role === "procurement") && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-xs text-destructive hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteMRF(
+                                        getMrfApiId(request as MRF),
+                                      );
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                    Delete
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -3275,6 +3247,21 @@ const Procurement = () => {
                                   <Badge className={getStatusColor(mrf.status)}>
                                     {getMRFStatusBadgeText(mrf)}
                                   </Badge>
+                                  {(user?.role === "procurement_manager" ||
+                                    user?.role === "procurement") && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-xs text-destructive hover:text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteMRF(getMrfApiId(mrf));
+                                      }}
+                                    >
+                                      <Trash2 className="h-3 w-3 mr-1" />
+                                      Delete
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             </CardContent>
@@ -4193,10 +4180,13 @@ const Procurement = () => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete MRF Request?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this MRF?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this Material Request Form? This
-              action cannot be undone.
+              This will permanently delete the Material Request Form along with
+              any linked RFQs, vendor quotations, draft or generated Purchase
+              Orders, approvals, and audit history. Vendors who already received
+              an RFQ may still hold a copy in their inbox. This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
