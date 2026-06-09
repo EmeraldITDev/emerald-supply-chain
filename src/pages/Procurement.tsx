@@ -201,6 +201,7 @@ const Procurement = () => {
   const [createPOFastTrack, setCreatePOFastTrack] = useState(false);
   /** True when opening PO generator without an RFQ (manual PO or MRF overview no-RFQ path). */
   const [createPOAllowMissingRfq, setCreatePOAllowMissingRfq] = useState(false);
+  const [createPOEditMode, setCreatePOEditMode] = useState(false);
   const [manualPOOpen, setManualPOOpen] = useState(false);
   /** RFQ dialog opened from MRF row vs SRF row (affects `rfqApi.create` payload). */
   const [rfqCreateSource, setRfqCreateSource] = useState<"mrf" | "srf">("mrf");
