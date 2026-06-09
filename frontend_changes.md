@@ -241,3 +241,33 @@ Manual smoke test in staging, run by the user after Batch 1 deploys. All five mu
 - `src/components/procurement/PriceComparisonTable.tsx`
 - `src/components/procurement/CreatePOForm.tsx`
 - `.lovable/plan.md`
+
+## Sub-batch 1.4 (revision) — Multi line-items-per-supplier, end-to-end
+
+Earlier 1a added a per-row "+ Line item" button, but the PO PDF model only ever rendered the single selected row, so extra rows were lost on the generated PO and on the Review PO screen. That button was removed, and the feature is now re-implemented correctly with end-to-end rendering.
+
+### Frontend behaviour
+- `src/components/procurement/PriceComparisonTable.tsx`:
+  - New header action **"+ Add line item for {supplier}"** (disabled until a supplier row is marked as selected). Clicking it appends a new row that clones the selected row's supplier identity (`vendor_id` for directory mode, or a copy of `manual_vendor` for manual mode) with empty `item_description` / `quantity` / `unit_price` and `is_selected: false`.
+  - "+ Add Supplier" still adds a fresh empty row for a competing quote.
+  - The `is_selected` radio remains supplier-level — only one row carries the radio. All rows sharing that supplier identity are treated as line items on the PO.
+- `src/utils/emeraldPoDocumentModel.ts` `buildEmeraldPoDisplayModel`:
+  - New `supplierKey()` derives a stable identity from `vendor_id` or trimmed/lowercased manual vendor name.
+  - `lineItems` is now built from **every row whose `supplierKey` matches the selected row's `supplierKey`**, not just the selected row.
+  - `subtotal` = sum of `qty * unit_price` across all supplier line items; `taxAmount` and `total` recompute from the new subtotal. `EmeraldPurchaseOrderPreview` and `emeraldPOPdf` already iterate `model.lineItems`, so both the review screen and the generated PDF now correctly show one row per line item with one grand total.
+
+### Backend contract (no schema change required, but please confirm)
+- `POST /api/mrfs/{id}/price-comparison` already accepts `rows: PriceComparisonEntry[]` — the frontend continues to send the **full** array (competing quotes + extra line items for the selected supplier). No new fields.
+- The selected supplier on a PO is identified by the row with `is_selected: true`. All rows sharing the same `vendor_id` (or, for manual entries, the same trimmed/case-insensitive `manual_vendor.name`) as the selected row are the line items of the generated PO.
+- When generating/finalising the PO (`POST /api/mrfs/{id}/generate-po`), the backend should:
+  1. Resolve the selected supplier from the saved price comparison (`is_selected === true`).
+  2. Collect **all** rows matching that supplier's identity as PO line items (preserve order).
+  3. Use `SUM(qty * unit_price)` over those rows as the PO subtotal (apply `tax_rate` as before).
+  4. Persist each line item on the PO so downstream views (`unsigned_po_url`, `signed_po_url`, payments, GRN) reflect the multi-line PO.
+- Non-selected rows for OTHER suppliers remain competing quotes only — they must not appear on the PO.
+- No new endpoints, no new fields, no migration. If the backend currently picks "the selected row" as the single PO line, please widen that to "all rows matching the selected supplier's identity" using the rule above.
+
+### Files Edited
+- `src/components/procurement/PriceComparisonTable.tsx`
+- `src/utils/emeraldPoDocumentModel.ts`
+- `frontend_changes.md`
