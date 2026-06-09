@@ -1840,6 +1840,27 @@ export const quotationApi = {
   },
 };
 
+/**
+ * Item 7 — Per-submission evaluation surface.
+ * Stores evaluator notes + numeric score against a vendor quotation so the
+ * procurement comparison view shows the buyer's reasoning alongside metrics.
+ * Backend ask: `PUT /api/quotations/{id}/evaluation` accepting
+ * `{ evaluation_notes?: string, evaluation_score?: number }`, returning the
+ * updated quotation row with `evaluation_notes`, `evaluation_score`, and
+ * `evaluation_updated_at`.
+ */
+export const quotationEvaluationApi = {
+  save: async (
+    quotationId: string,
+    body: { evaluation_notes?: string; evaluation_score?: number | null },
+  ): Promise<ApiResponse<any>> => {
+    return apiRequest(`/quotations/${quotationId}/evaluation`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  },
+};
+
 // Helper function for vendor API requests (uses vendorAuthToken)
 async function vendorApiRequest<T>(
   endpoint: string,
