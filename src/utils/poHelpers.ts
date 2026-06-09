@@ -126,23 +126,36 @@ export const isPoGeneratedMrf = (mrf: any): boolean => {
   const source = String(mrf.source ?? mrf.mrf_source ?? '').toLowerCase();
   if (source === 'po_generated' || source === 'manual_po') return true;
   if (mrf.is_po_linked === true || mrf.isPoLinked === true) return true;
+  if (mrf.suppress_notifications === true || mrf.suppressNotifications === true) return true;
 
-  // Heuristic fallback: MRF carries a PO id AND looks like it was created via the manual-PO flow.
-  const hasLinkedPo = Boolean(
-    mrf.linked_po_id ?? mrf.linkedPoId ?? mrf.manual_po_id ?? mrf.manualPoId,
-  );
-  if (!hasLinkedPo) return false;
-
+  // Heuristic fallbacks — ALL must be evaluated independently. Earlier versions
+  // gated the justification-text branch behind `hasLinkedPo`, which silently
+  // failed for half-finished manual POs that never produced a PO row.
   const createdVia = String(
     mrf.created_via ?? mrf.createdVia ?? mrf.creation_method ?? mrf.creationMethod ?? '',
   ).toLowerCase();
-  if (createdVia === 'manual_po' || createdVia === 'po' || createdVia === 'po_generated') {
+  if (
+    createdVia === 'manual_po' ||
+    createdVia === 'po' ||
+    createdVia === 'po_generated'
+  ) {
     return true;
   }
 
-  // Last-ditch: justification text written by ManualPOQuickStartDialog.
+  const hasLinkedPo = Boolean(
+    mrf.linked_po_id ?? mrf.linkedPoId ?? mrf.manual_po_id ?? mrf.manualPoId,
+  );
+  if (hasLinkedPo) return true;
+
+  // Justification text written by ManualPOQuickStartDialog (the only persistent
+  // signal until backend stores `source`/`is_po_linked`).
   const just = String(mrf.justification ?? '').toLowerCase();
-  if (just.includes('manual po created without rfq')) return true;
+  if (
+    just.includes('manual po created without rfq') ||
+    just.includes('vendor and pricing captured directly on the purchase order')
+  ) {
+    return true;
+  }
 
   return false;
 };
