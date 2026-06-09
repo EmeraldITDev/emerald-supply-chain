@@ -3610,8 +3610,13 @@ const Procurement = () => {
                           </div>
                         );
                       })}
-                    {mrfRequests.filter((mrf) => getMRFPONumber(mrf as MRF))
-                      .length === 0 && (
+                    {mrfRequests.filter(
+                      (mrf) =>
+                        getMRFPONumber(mrf as MRF) ||
+                        Boolean(
+                          (mrf as MRF & { is_po_draft?: boolean }).is_po_draft,
+                        ),
+                    ).length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>No purchase orders or drafts yet</p>
