@@ -39,6 +39,7 @@ import {
   RefreshCw,
   Trash2,
   Star,
+  Pencil,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
