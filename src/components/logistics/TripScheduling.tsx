@@ -618,6 +618,23 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       cargo: trip.cargo,
     });
     setSelectedPassengers(trip.passengers?.map(p => p.staffId) || []);
+    // Detect external driver: trip carries driver name/phone but no internal driver id
+    const tAny = trip as any;
+    const extName = tAny.external_driver?.name || (!tAny.driver_id && trip.driverName) || "";
+    const extPhone = tAny.external_driver?.phone || (!tAny.driver_id && trip.driverPhone) || "";
+    const extLicense = tAny.external_driver?.license_number || tAny.external_driver?.licenseNumber || "";
+    if (extName || extPhone) {
+      setUseExternalDriver(true);
+      setExternalDriver({
+        name: extName,
+        phone: extPhone,
+        license_number: extLicense,
+      });
+      setDriverUserId(undefined);
+    } else {
+      setUseExternalDriver(false);
+      setExternalDriver({ name: "", phone: "", license_number: "" });
+    }
     setEditDialogOpen(true);
   };
 
