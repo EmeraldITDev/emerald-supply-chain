@@ -47,6 +47,8 @@ import {
   Mail,
   Bell,
 } from "lucide-react";
+import { Hotel, UserCog } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { TripVendorComparison } from "./TripVendorComparison";
 import { JCCDialog } from "./JCCDialog";
 import { Users2, FileSignature } from "lucide-react";
@@ -123,6 +125,17 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [jccOpen, setJccOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
+  // 8a — external driver toggle + fields (shared by create + edit dialogs)
+  const [useExternalDriver, setUseExternalDriver] = useState(false);
+  const [externalDriver, setExternalDriver] = useState<{
+    name: string;
+    phone: string;
+    license_number: string;
+  }>({ name: "", phone: "", license_number: "" });
+  // 8e — dedicated edit passengers dialog
+  const [editPassengersOpen, setEditPassengersOpen] = useState(false);
+  const [passengerEditList, setPassengerEditList] = useState<string[]>([]);
+  const [savingPassengers, setSavingPassengers] = useState(false);
   
   // Form states
   const [formData, setFormData] = useState<Partial<CreateTripData>>({
@@ -267,6 +280,17 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       });
       return;
     }
+    if (
+      useExternalDriver &&
+      (!externalDriver.name.trim() || !externalDriver.phone.trim())
+    ) {
+      toast({
+        title: "External driver details required",
+        description: "Enter the external driver's name and phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -303,7 +327,15 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         passenger_user_ids: selectedPassengers
           .map((id) => parseInt(id, 10))
           .filter((n) => !Number.isNaN(n)),
-        driver_user_id: driverUserId ? parseInt(driverUserId, 10) : undefined,
+        driver_user_id:
+          useExternalDriver || !driverUserId ? undefined : parseInt(driverUserId, 10),
+        external_driver: useExternalDriver
+          ? {
+              name: externalDriver.name.trim(),
+              phone: externalDriver.phone.trim(),
+              license_number: externalDriver.license_number.trim() || undefined,
+            }
+          : undefined,
       };
 
       const response = await tripsApi.create(tripPayload as any);
@@ -441,6 +473,17 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       });
       return;
     }
+    if (
+      useExternalDriver &&
+      (!externalDriver.name.trim() || !externalDriver.phone.trim())
+    ) {
+      toast({
+        title: "External driver details required",
+        description: "Enter the external driver's name and phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -470,7 +513,15 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         passenger_user_ids: selectedPassengers
           .map((id) => parseInt(id, 10))
           .filter((n) => !Number.isNaN(n)),
-        driver_user_id: driverUserId ? parseInt(driverUserId, 10) : undefined,
+        driver_user_id:
+          useExternalDriver || !driverUserId ? undefined : parseInt(driverUserId, 10),
+        external_driver: useExternalDriver
+          ? {
+              name: externalDriver.name.trim(),
+              phone: externalDriver.phone.trim(),
+              license_number: externalDriver.license_number.trim() || undefined,
+            }
+          : undefined,
       };
 
       const response = await tripsApi.update(selectedTrip.id, editPayload as any);
@@ -567,6 +618,23 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       cargo: trip.cargo,
     });
     setSelectedPassengers(trip.passengers?.map(p => p.staffId) || []);
+    // Detect external driver: trip carries driver name/phone but no internal driver id
+    const tAny = trip as any;
+    const extName = tAny.external_driver?.name || (!tAny.driver_id && trip.driverName) || "";
+    const extPhone = tAny.external_driver?.phone || (!tAny.driver_id && trip.driverPhone) || "";
+    const extLicense = tAny.external_driver?.license_number || tAny.external_driver?.licenseNumber || "";
+    if (extName || extPhone) {
+      setUseExternalDriver(true);
+      setExternalDriver({
+        name: extName,
+        phone: extPhone,
+        license_number: extLicense,
+      });
+      setDriverUserId(undefined);
+    } else {
+      setUseExternalDriver(false);
+      setExternalDriver({ name: "", phone: "", license_number: "" });
+    }
     setEditDialogOpen(true);
   };
 
@@ -584,6 +652,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     });
     setSelectedPassengers([]);
     setDriverUserId(undefined);
+    setUseExternalDriver(false);
+    setExternalDriver({ name: "", phone: "", license_number: "" });
   };
 
   const filteredTrips = trips.filter(trip => {
@@ -760,12 +830,69 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 )}
 
                 {(formData.type === "personnel" || formData.type === "mixed") && (
-                  <EligiblePassengerPicker
-                    selectedPassengerIds={selectedPassengers}
-                    onPassengersChange={setSelectedPassengers}
-                    driverUserId={driverUserId}
-                    onDriverChange={setDriverUserId}
-                  />
+                  <>
+                    <EligiblePassengerPicker
+                      selectedPassengerIds={selectedPassengers}
+                      onPassengersChange={setSelectedPassengers}
+                      driverUserId={useExternalDriver ? undefined : driverUserId}
+                      onDriverChange={useExternalDriver ? undefined : setDriverUserId}
+                      showDriver={!useExternalDriver}
+                    />
+                    <div className="space-y-3 rounded-md border p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-sm">Use external driver</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Driver is not on staff (e.g. vendor / contracted).
+                          </p>
+                        </div>
+                        <Switch
+                          checked={useExternalDriver}
+                          onCheckedChange={(v) => {
+                            setUseExternalDriver(v);
+                            if (v) setDriverUserId(undefined);
+                          }}
+                        />
+                      </div>
+                      {useExternalDriver && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Name *</Label>
+                            <Input
+                              value={externalDriver.name}
+                              onChange={(e) =>
+                                setExternalDriver((d) => ({ ...d, name: e.target.value }))
+                              }
+                              placeholder="Full name"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Phone *</Label>
+                            <Input
+                              value={externalDriver.phone}
+                              onChange={(e) =>
+                                setExternalDriver((d) => ({ ...d, phone: e.target.value }))
+                              }
+                              placeholder="e.g. 0803…"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">License #</Label>
+                            <Input
+                              value={externalDriver.license_number}
+                              onChange={(e) =>
+                                setExternalDriver((d) => ({
+                                  ...d,
+                                  license_number: e.target.value,
+                                }))
+                              }
+                              placeholder="Optional"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
 
                 {/* Notes */}
@@ -1044,6 +1171,50 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                 <DropdownMenuItem onClick={() => openEditDialog(trip)}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit Trip
+                                </DropdownMenuItem>
+                                {(trip.type === "personnel" || trip.type === "mixed") && (
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setSelectedTrip(trip);
+                                      setPassengerEditList(
+                                        (trip.passengers || [])
+                                          .map((p) => p.staffId)
+                                          .filter(Boolean) as string[],
+                                      );
+                                      setEditPassengersOpen(true);
+                                    }}
+                                  >
+                                    <UserCog className="mr-2 h-4 w-4" />
+                                    Edit Passengers
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    window.dispatchEvent(
+                                      new CustomEvent("logistics:set-tab", {
+                                        detail: "accommodation",
+                                      }),
+                                    );
+                                    window.dispatchEvent(
+                                      new CustomEvent("accommodation:prefill", {
+                                        detail: {
+                                          tripId: String(trip.id),
+                                          tripNumber: trip.tripNumber,
+                                          passengerNames: (trip.passengers || [])
+                                            .map((p) => p.name)
+                                            .filter(Boolean),
+                                          destinationCity: trip.destination ?? "",
+                                          destinationState: "",
+                                          checkInDate: trip.scheduledDepartureAt
+                                            ? trip.scheduledDepartureAt.slice(0, 10)
+                                            : "",
+                                        },
+                                      }),
+                                    );
+                                  }}
+                                >
+                                  <Hotel className="mr-2 h-4 w-4" />
+                                  Book Accommodation
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => openAssignVendorDialog(trip)}>
                                   <UserPlus className="mr-2 h-4 w-4" />
@@ -1425,12 +1596,69 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
             )}
 
             {(formData.type === "personnel" || formData.type === "mixed") && (
-              <EligiblePassengerPicker
-                selectedPassengerIds={selectedPassengers}
-                onPassengersChange={setSelectedPassengers}
-                driverUserId={driverUserId}
-                onDriverChange={setDriverUserId}
-              />
+              <>
+                <EligiblePassengerPicker
+                  selectedPassengerIds={selectedPassengers}
+                  onPassengersChange={setSelectedPassengers}
+                  driverUserId={useExternalDriver ? undefined : driverUserId}
+                  onDriverChange={useExternalDriver ? undefined : setDriverUserId}
+                  showDriver={!useExternalDriver}
+                />
+                <div className="space-y-3 rounded-md border p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm">Use external driver</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Driver is not on staff (e.g. vendor / contracted).
+                      </p>
+                    </div>
+                    <Switch
+                      checked={useExternalDriver}
+                      onCheckedChange={(v) => {
+                        setUseExternalDriver(v);
+                        if (v) setDriverUserId(undefined);
+                      }}
+                    />
+                  </div>
+                  {useExternalDriver && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Name *</Label>
+                        <Input
+                          value={externalDriver.name}
+                          onChange={(e) =>
+                            setExternalDriver((d) => ({ ...d, name: e.target.value }))
+                          }
+                          placeholder="Full name"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Phone *</Label>
+                        <Input
+                          value={externalDriver.phone}
+                          onChange={(e) =>
+                            setExternalDriver((d) => ({ ...d, phone: e.target.value }))
+                          }
+                          placeholder="e.g. 0803…"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">License #</Label>
+                        <Input
+                          value={externalDriver.license_number}
+                          onChange={(e) =>
+                            setExternalDriver((d) => ({
+                              ...d,
+                              license_number: e.target.value,
+                            }))
+                          }
+                          placeholder="Optional"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
             {/* Notes */}
@@ -1457,6 +1685,85 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 </>
               ) : (
                 "Save Changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Passengers Dialog (Batch 2 Item 8e) */}
+      <Dialog
+        open={editPassengersOpen}
+        onOpenChange={(o) => {
+          setEditPassengersOpen(o);
+          if (!o) setPassengerEditList([]);
+        }}
+      >
+        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Passengers — {selectedTrip?.tripNumber}</DialogTitle>
+            <DialogDescription>
+              Add or remove passengers without changing the rest of the trip.
+              Notifications fire automatically when the list changes.
+            </DialogDescription>
+          </DialogHeader>
+          <EligiblePassengerPicker
+            selectedPassengerIds={passengerEditList}
+            onPassengersChange={setPassengerEditList}
+            showDriver={false}
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditPassengersOpen(false)}
+              disabled={savingPassengers}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!selectedTrip) return;
+                setSavingPassengers(true);
+                try {
+                  const res = await tripsApi.update(selectedTrip.id, {
+                    passenger_user_ids: passengerEditList
+                      .map((id) => parseInt(id, 10))
+                      .filter((n) => !Number.isNaN(n)),
+                  } as any);
+                  if (res.success) {
+                    toast({
+                      title: "Passengers updated",
+                      description: `${passengerEditList.length} passenger(s) on trip ${selectedTrip.tripNumber}.`,
+                    });
+                    setEditPassengersOpen(false);
+                    setPassengerEditList([]);
+                    fetchTrips();
+                  } else {
+                    toast({
+                      title: "Failed to update passengers",
+                      description: res.error || "Please try again.",
+                      variant: "destructive",
+                    });
+                  }
+                } catch {
+                  toast({
+                    title: "Error",
+                    description: "Could not save passenger changes.",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setSavingPassengers(false);
+                }
+              }}
+              disabled={savingPassengers}
+            >
+              {savingPassengers ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                "Save Passengers"
               )}
             </Button>
           </DialogFooter>

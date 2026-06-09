@@ -106,6 +106,40 @@ export function AccommodationBookings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canRead]);
 
+  // Open the create dialog pre-filled when another module asks us to
+  // book accommodation for a specific trip (Batch 2 Item 8d cross-link).
+  useEffect(() => {
+    const handler = (e: Event) => {
+      if (!canCrud) return;
+      const detail = (e as CustomEvent<{
+        tripId?: string;
+        tripNumber?: string;
+        passengerNames?: string[];
+        destinationState?: string;
+        destinationCity?: string;
+        checkInDate?: string;
+      }>).detail;
+      if (!detail) return;
+      resetForm();
+      setForm({
+        passengerNames: Array.isArray(detail.passengerNames)
+          ? detail.passengerNames.filter(Boolean)
+          : [],
+        destinationState: detail.destinationState ?? "",
+        destinationCity: detail.destinationCity ?? "",
+        numberOfNights: 1,
+        hotelName: "",
+        checkInDate: detail.checkInDate ?? "",
+        linkedTripId: detail.tripId,
+      });
+      setDialogOpen(true);
+    };
+    window.addEventListener("accommodation:prefill", handler as EventListener);
+    return () =>
+      window.removeEventListener("accommodation:prefill", handler as EventListener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canCrud]);
+
   const filtered = useMemo(() => {
     return items.filter((it) => {
       const q = search.toLowerCase();
