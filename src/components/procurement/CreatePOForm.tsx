@@ -1081,6 +1081,24 @@ export function CreatePOForm({
         </div>
       )}
 
+      {/* ============== Blocking errors summary (1c) ============== */}
+      {!isFinalised && blockingErrors.length > 0 && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-1.5">
+          <div className="flex items-center gap-2 font-medium text-destructive">
+            <AlertCircle className="h-3.5 w-3.5" />
+            Fix {blockingErrors.length} issue{blockingErrors.length === 1 ? '' : 's'} before generating &amp; routing
+          </div>
+          <ul className="list-disc pl-5 text-muted-foreground space-y-0.5">
+            {blockingErrors.slice(0, 12).map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+            {blockingErrors.length > 12 && (
+              <li className="italic">…and {blockingErrors.length - 12} more</li>
+            )}
+          </ul>
+        </div>
+      )}
+
       </div>
 
       {/* Footer actions — fixed below scroll area so fields are never covered */}
