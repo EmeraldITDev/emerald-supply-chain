@@ -221,6 +221,14 @@ export function CreatePOForm({
     setFinalisedFastTracked(false);
   }, [mrfId]);
 
+  // When opened in edit mode from the PO list, unlock the form for editing as
+  // soon as the hydrated MRF reveals it is already finalised.
+  useEffect(() => {
+    if (initialEditMode && mrf?.po_number && !editingFinalised) {
+      setEditingFinalised(true);
+    }
+  }, [initialEditMode, mrf?.po_number, editingFinalised]);
+
   // -------------------------------------------------------------------------
   // Hydrate MRF + price comparison
   // -------------------------------------------------------------------------
