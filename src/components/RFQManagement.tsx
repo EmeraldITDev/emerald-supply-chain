@@ -1514,6 +1514,93 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                   ))}
                 </div>
               </ScrollArea>
+              ) : (
+                /* Item 7 — Side-by-side table view */
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Vendor</th>
+                        <th className="px-3 py-2 text-right">Price</th>
+                        <th className="px-3 py-2 text-right">Delivery</th>
+                        <th className="px-3 py-2 text-left">Valid Until</th>
+                        <th className="px-3 py-2 text-left">Payment Terms</th>
+                        <th className="px-3 py-2 text-left">Validity</th>
+                        <th className="px-3 py-2 text-left">Warranty</th>
+                        <th className="px-3 py-2 text-right">Score</th>
+                        <th className="px-3 py-2 text-left">Evaluation</th>
+                        <th className="px-3 py-2 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {comparisonMetrics.scoredQuotations.map((quote, idx) => (
+                        <tr key={quote.id} className={idx === 0 ? 'bg-success/5' : ''}>
+                          <td className="px-3 py-2 font-medium">
+                            <div className="flex items-center gap-2">
+                              {idx === 0 && <CheckCircle className="h-3 w-3 text-success" />}
+                              {quote.vendorName}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold">
+                            {formatAmount(quote.total ?? quote.price, quote.currency)}
+                          </td>
+                          <td className="px-3 py-2 text-right">{formatDays(quote.deliveryDays)}</td>
+                          <td className="px-3 py-2">
+                            {quote.deliveryDate ? new Date(quote.deliveryDate).toLocaleDateString() : '—'}
+                          </td>
+                          <td className="px-3 py-2 max-w-[160px] truncate" title={displayString(quote.paymentTerms)}>
+                            {displayString(quote.paymentTerms)}
+                          </td>
+                          <td className="px-3 py-2">{formatDays(quote.validityDays)}</td>
+                          <td className="px-3 py-2 max-w-[140px] truncate" title={displayString(quote.warrantyPeriod)}>
+                            {displayString(quote.warrantyPeriod)}
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-primary">
+                            {quote.overallScore}/100
+                          </td>
+                          <td className="px-3 py-2 max-w-[180px]">
+                            {evalDrafts[quote.id]?.notes ? (
+                              <span className="text-xs text-muted-foreground line-clamp-2" title={evalDrafts[quote.id]?.notes}>
+                                {evalDrafts[quote.id]?.notes}
+                                {evalDrafts[quote.id]?.score ? ` · ${evalDrafts[quote.id]?.score}/10` : ''}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">No notes</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleViewQuotationDetails(quote)}
+                                title="View details"
+                              >
+                                <FileText className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setPendingAward({
+                                    quotationId: quote.id,
+                                    vendorId: quote.vendorId,
+                                  });
+                                  setAwardReasonText('');
+                                  setAwardReasonOpen(true);
+                                }}
+                                disabled={isAwardingVendor}
+                              >
+                                <Award className="h-4 w-4 mr-1" />
+                                Award
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
