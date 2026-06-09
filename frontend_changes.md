@@ -326,3 +326,36 @@ Earlier 1a added a per-row "+ Line item" button, but the PO PDF model only ever 
 - `src/components/logistics/AccommodationBookings.tsx`
 - `src/pages/Logistics.tsx`
 - `.lovable/plan.md`
+
+---
+
+## Batch 2 — Item 9: Fleet / Driver / Maintenance
+
+### Scope reconciliation
+- **Driver phone + licence + email-optional** — already shipped in `DriverManagement.tsx` (phone required with 10-digit validation, email optional with helper text, licence-number field present, phone column in driver table). No further changes.
+- **Vehicle edit form** — already shipped in `FleetManagement.tsx` (`openEditVehicle` + `handleUpdateVehicle`, edit dialog reuses the Add Vehicle form with all fields: name, plate, type, ownership, make/model/year, capacities, fuel, colour). No further changes.
+- **Maintenance module** — already shipped (`VehicleMaintenanceTab.tsx`, `UpcomingMaintenanceWidget.tsx`, add/edit/mark-complete, schedule + inline history merge, auto-calculated next-due date, document attachments). No further changes.
+- **Gap addressed in this item: driver-level documents** — `DriverManagement` previously only stored a licence-number string. There was no surface to upload or view the actual licence file, LASDRI card, training certs, etc. This is required by the same expiry-tracking pattern used for vehicles.
+
+### What shipped (frontend)
+- `src/services/logisticsApi.ts` — extended `driversApi` with three methods:
+  - `listDocuments(driverId)` → `GET /api/fleet/drivers/{id}/documents`
+  - `uploadDocument(driverId, file, document_type, expires_at?)` → `POST /api/fleet/drivers/{id}/documents` (multipart: `file`, `document_type`, optional `expires_at`)
+  - `deleteDocument(driverId, documentId)` → `DELETE /api/fleet/drivers/{id}/documents/{doc_id}`
+- `src/components/logistics/DriverDocumentsDialog.tsx` (new) — modal with two regions:
+  - **Upload region**: document-type dropdown (Driver's Licence, LASDRI Card, Training Certificate, Medical Certificate, ID Card, Other), expiry date, file input (`.pdf,.png,.jpg,.jpeg,.webp`), Upload button.
+  - **Documents table**: Type, File (link to `file_url`/`url`/`s3_url`), Uploaded date, Expiry, colour-coded Status badge (Valid / Expiring Soon / Critical / Expired — same 6-week / 42-day / 7-day tiers as `VehicleDocumentsTab`), Delete action.
+- `src/components/logistics/DriverManagement.tsx` — added a `FileText` row action ("Manage documents", role-gated to `logistics_manager`/`admin`) that opens `DriverDocumentsDialog` for the selected driver.
+
+### Backend asks (BLOCKING)
+- `GET /api/fleet/drivers/{id}/documents` — return an array (or `{ documents: [] }`) of `{ id, document_type, name|file_name, file_url|url|s3_url, uploaded_at|created_at, expires_at }`.
+- `POST /api/fleet/drivers/{id}/documents` — accept multipart `file`, `document_type`, optional `expires_at`. Persist to S3 (same bucket/pattern as vehicle documents) and return the created row.
+- `DELETE /api/fleet/drivers/{id}/documents/{doc_id}` — remove the row and the S3 object.
+- Reuse the existing document-expiry notification job: drivers with documents in the Critical (≤7d) or Expired tier should generate the same in-app + email alerts that vehicle documents do; route them to logistics managers and the driver's supervisor.
+- No schema change requested beyond the standard `documents` table picking up an `owner_type='driver'` / `owner_id` pair, mirroring vehicles.
+
+### Files Edited
+- `src/services/logisticsApi.ts`
+- `src/components/logistics/DriverManagement.tsx`
+- `src/components/logistics/DriverDocumentsDialog.tsx` (new)
+- `.lovable/plan.md`
