@@ -89,7 +89,7 @@ All nine must pass before Batch 2 is approved to start.
 **Scope caveat:** Item 7's exact size is unknown until 0b results land. Do not estimate Batch 2 effort until Batch 0 completes.
 
 ### 3. PM MRF delete at any stage
-AlertDialog with required copy. Gated by PM role. **Depends on 0a passing.**
+_DONE._ Removed the `isEarlyStage` / `hasPO` gate in `src/pages/Procurement.tsx`; Procurement Managers now see Delete on every MRF in both the Active list and the All MRFs tab. `AlertDialog` copy rewritten to spell out the cascade (linked RFQs, quotations, draft/generated POs, approvals, audit history) and that vendors may still hold a copy of any already-sent RFQ. Calls existing `mrfApi.delete(uuid)` — no new endpoint. Backend ask: `DELETE /api/mrfs/{id}` must accept PM deletions at any workflow stage and cascade as documented in `frontend_changes.md` § Batch 2 — Item 3.
 
 ### 7. Vendor portal
 Build whatever 0b flagged. Plus procurement visibility on MRF/RFQ (per-submission terms, deadlines, comparison, evaluation).
