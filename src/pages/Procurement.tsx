@@ -3654,6 +3654,35 @@ const Procurement = () => {
                                   Download PO
                                 </Button>
                               )}
+                              {poNumber && !isDraft && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const apiId = getMrfApiId(mrf as MRF);
+                                    if (!apiId) {
+                                      toast({
+                                        title: "Missing MRF identifier",
+                                        description:
+                                          "Could not resolve this PO's MRF id. Try refreshing the list.",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    const noRfq =
+                                      getQuotationsForMRF(mrf).length === 0;
+                                    setCreatePOFastTrack(noRfq);
+                                    setCreatePOAllowMissingRfq(noRfq);
+                                    setCreatePOMrfId(apiId);
+                                    setCreatePOEditMode(true);
+                                    setCreatePOOpen(true);
+                                  }}
+                                  title="Edit this PO and regenerate. The previous version is archived; the SCD's approval queue is replaced with the new revision."
+                                >
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Edit PO
+                                </Button>
+                              )}
                             </div>
                           </div>
                         );
