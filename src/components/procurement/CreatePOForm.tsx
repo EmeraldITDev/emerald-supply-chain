@@ -628,7 +628,16 @@ export function CreatePOForm({
         });
         return;
       }
-      const finalRes = await procurementApi.finalisePO(mrfId, buildPayload());
+      const isRegen = editingFinalised;
+      const payload = {
+        ...buildPayload(),
+        // Backend contract: when `regenerate: true` is set, the server bumps
+        // the PO version, archives the previous PDF (kept for audit), and
+        // replaces the active SCD approval entry with this new revision so
+        // the SCD never sees two pending versions of the same PO.
+        ...(isRegen ? { regenerate: true } : {}),
+      };
+      const finalRes = await procurementApi.finalisePO(mrfId, payload);
       if (!finalRes.success || !finalRes.data?.mrf) {
         toast.error('PO generation failed', {
           description: describeBackendError(finalRes.raw, finalRes.error || 'Please try again.'),
@@ -650,12 +659,18 @@ export function CreatePOForm({
       );
       setFinalisedFastTracked(fastTrackedSuccess);
       setFinalisedMrf(newMrf);
+      setEditingFinalised(false);
       const poNumber = newMrf.po_number || newMrf.poNumber || '—';
-      toast.success(`PO ${poNumber} generated`, {
-        description: fastTrackedSuccess
-          ? 'Fast-track: awaiting Supply Chain Director signature (executive review skipped).'
-          : 'Routed to the Supply Chain Director for signature.',
-      });
+      toast.success(
+        isRegen ? `PO ${poNumber} regenerated` : `PO ${poNumber} generated`,
+        {
+          description: isRegen
+            ? 'Previous version archived. The Supply Chain Director now sees only the latest revision.'
+            : fastTrackedSuccess
+              ? 'Fast-track: awaiting Supply Chain Director signature (executive review skipped).'
+              : 'Routed to the Supply Chain Director for signature.',
+        },
+      );
       onFinalised?.(newMrf);
     } catch (err) {
       toast.error('PO generation failed', {
@@ -664,7 +679,7 @@ export function CreatePOForm({
     } finally {
       releaseLock();
     }
-  }, [mrfId, rows, buildPayload, onFinalised, vendors]);
+  }, [mrfId, rows, buildPayload, onFinalised, vendors, editingFinalised]);
 
   // -------------------------------------------------------------------------
   // Autosave — debounced 3s, draft mode only, lock-protected,
