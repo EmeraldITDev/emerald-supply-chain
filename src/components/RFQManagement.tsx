@@ -1256,8 +1256,37 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
           <DialogHeader>
             <DialogTitle>Compare Quotations</DialogTitle>
             <DialogDescription>
-              {selectedRFQ?.mrfTitle} - {rfqQuotations.length} quote(s) received
+              {selectedRFQ?.mrfTitle} — {rfqQuotations.length} quote(s) received
+              {selectedRFQ?.deadline && (
+                <span className="ml-2 inline-flex items-center gap-1 text-xs">
+                  <Clock className="h-3 w-3" />
+                  Submission deadline:{' '}
+                  <span className="font-medium">
+                    {new Date(selectedRFQ.deadline).toLocaleDateString()}
+                  </span>
+                </span>
+              )}
             </DialogDescription>
+            {rfqQuotations.length > 0 && (
+              <div className="flex justify-end pt-2">
+                <div className="inline-flex rounded-md border p-0.5 text-xs">
+                  <button
+                    type="button"
+                    className={`px-2 py-1 rounded ${compareView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+                    onClick={() => setCompareView('cards')}
+                  >
+                    Cards
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-2 py-1 rounded ${compareView === 'table' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+                    onClick={() => setCompareView('table')}
+                  >
+                    Side-by-side
+                  </button>
+                </div>
+              </div>
+            )}
           </DialogHeader>
 
           {comparisonMetrics && (
