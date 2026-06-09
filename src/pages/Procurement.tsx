@@ -3732,6 +3732,7 @@ const Procurement = () => {
             setCreatePOMrfId(null);
             setCreatePOFastTrack(false);
             setCreatePOAllowMissingRfq(false);
+            setCreatePOEditMode(false);
           }
         }}
       >
@@ -3750,6 +3751,7 @@ const Procurement = () => {
                 mrfId={createPOMrfId}
                 fastTrack={createPOFastTrack}
                 allowMissingRfq={createPOAllowMissingRfq}
+                initialEditMode={createPOEditMode}
                 onFinalised={() => {
                   void fetchMRFs();
                 }}
@@ -3758,6 +3760,7 @@ const Procurement = () => {
                   setCreatePOMrfId(null);
                   setCreatePOFastTrack(false);
                   setCreatePOAllowMissingRfq(false);
+                  setCreatePOEditMode(false);
                 }}
               />
             </div>
