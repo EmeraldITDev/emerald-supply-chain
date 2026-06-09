@@ -111,7 +111,7 @@ _DONE._ Audit confirmed driver phone/licence/email-optional, vehicle edit form, 
 ---
 
 ## Batch 3 — SMS / Termii documentation only
-`frontend_changes.md` entries for endpoint, env vars, queue, log table, triggers, future UI surfaces. No frontend code.
+_DONE._ See `frontend_changes.md` § Batch 3 — SMS / Termii. Locked-in contract: Termii provider, `POST /api/notifications/sms/send` + `POST /api/webhooks/termii/dlr` + `GET /api/notifications/sms/logs`, env vars (`TERMII_API_KEY` / `TERMII_SENDER_ID` / `TERMII_BASE_URL` / `TERMII_DLR_SECRET` / `SMS_ENABLED`), redis queue `sms` with retry policy, `sms_logs` table schema, six initial triggers (MRF approval/rejection, PO signed, RFQ invitation, trip assigned, document expiring), recipient resolution rules (incl. external drivers from Batch 2 Item 8), and three future UI surfaces (Settings preferences column, Admin SMS Logs page, mandatory-phone validator). No frontend code in this batch — strictly documentation.
 
 ---
 
