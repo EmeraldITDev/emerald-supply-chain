@@ -1,5 +1,11 @@
 # Frontend Changes — Multi-Feature Update (in progress)
 
+## Bug E — RFQ quotations PM 500 fallback (Sub-batch 1.6)
+
+- `src/services/api.ts` `rfqApi.getQuotations()` — when `GET /api/rfqs/{id}/quotations` returns status 0 / undefined / ≥500, falls back to `GET /api/quotations/rfq/{rfqId}` plus `GET /api/rfqs/{rfqId}` and rebuilds the wrapped `{ rfq, quotations:[{quotation,vendor,items}], statistics }` shape (price stats computed client-side, `_fallback: true` flag set for telemetry). PM comparison view stays usable while backend is broken.
+- Pre-existing `[BugE/getQuotations]` diagnostic log still fires on every failure with `{ rfqId, role, error, status, raw }`.
+- **Backend ask (BLOCKING):** repair the wrapped endpoint — most likely cause is a serializer crash when a quotation row has a null `vendor` join or `items` stored as object `{}` instead of array `[]`. Acceptance: 200 with documented shape for every RFQ with ≥1 quotation, including FormData submissions with `attachments[]`. Frontend fallback to be removed once green.
+
 ## Discard saved PO draft (Sub-batch 1.5b)
 
 - `src/pages/Procurement.tsx` — added a destructive **Discard Draft** button next to **Continue Draft** on every draft row in the Purchase Orders tab. Click opens an `AlertDialog` confirmation. On confirm, calls `mrfApi.discardPODraft(apiId)` then `fetchMRFs()` to refresh the list. New state: `discardDraftDialogOpen`, `selectedMRFForDraftDiscard`, `isDiscardingDraft`.
