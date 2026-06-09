@@ -195,25 +195,6 @@ export function PriceComparisonTable({
     onChange(value.filter((r) => r._key !== key));
   };
 
-  /** 1a — add another line item for the SAME supplier (copies vendor/manual fields). */
-  const addLineItemForRow = (key: string) => {
-    const src = value.find((r) => r._key === key);
-    if (!src) return;
-    const next: PriceComparisonRow = {
-      ...makeEmptyRow({
-        supplierMode: src.manual_vendor ? 'manual' : 'directory',
-      }),
-      vendor_id: src.vendor_id,
-      manual_vendor: src.manual_vendor
-        ? { ...src.manual_vendor }
-        : undefined,
-    };
-    const idx = value.findIndex((r) => r._key === key);
-    const out = [...value];
-    out.splice(idx + 1, 0, next);
-    onChange(out);
-  };
-
   const errors = useMemo(() => validatePriceComparison(value, vendors), [value, vendors]);
   const hasMin = value.length >= 1;
   const selectedCount = value.filter((r) => r.is_selected).length;
@@ -239,11 +220,10 @@ export function PriceComparisonTable({
       ) : null}
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Add one or more supplier quotes. Use <span className="font-medium text-foreground">Directory</span> to pick
+          Add one row per supplier quote. Use <span className="font-medium text-foreground">Directory</span> to pick
           an existing vendor, or <span className="font-medium text-foreground">Manual</span> to type name, contact, and
-          pricing without a directory record. Use <span className="font-medium text-foreground">+ Line item</span> to add
-          additional items for the same supplier. Mark exactly one row as selected. This sheet is saved on the MRF and
-          attached when the PO is generated for approval.
+          pricing without a directory record. Mark exactly one row as selected — that row becomes the line item on the
+          generated PO. This sheet is saved on the MRF and attached when the PO is generated for approval.
         </p>
         <Button
           type="button"
@@ -464,32 +444,18 @@ export function PriceComparisonTable({
                     />
                   </TableCell>
                   <TableCell className="align-top">
-                    <div className="flex flex-col items-stretch gap-1.5 min-w-[140px]">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addLineItemForRow(row._key)}
-                        disabled={disabled}
-                        title="Add another line item for this supplier"
-                        className="h-8 justify-start"
-                      >
-                        <Plus className="h-3.5 w-3.5 mr-1" />
-                        Add line item
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeRow(row._key)}
-                        disabled={disabled || value.length <= 1}
-                        title={value.length <= 1 ? 'At least one row required' : 'Remove row'}
-                        className="h-8 justify-start text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-1" />
-                        Remove
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeRow(row._key)}
+                      disabled={disabled || value.length <= 1}
+                      title={value.length <= 1 ? 'At least one row required' : 'Remove row'}
+                      className="h-8 justify-start text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      Remove
+                    </Button>
                   </TableCell>
                 </TableRow>
               );
