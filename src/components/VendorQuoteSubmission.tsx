@@ -105,13 +105,13 @@ export const VendorQuoteSubmission = ({ rfqs, vendorId, vendorName, onSubmit, on
   const [warrantyPeriod, setWarrantyPeriod] = useState(draftToLoad?.warrantyPeriod || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  // Bug D — custom payment split (e.g. 70/30, 60/40). When `paymentTerms === 'custom-split'`,
-  // the encoded value sent on submit becomes `custom-{advance}-{balance}`.
-  const [customAdvancePct, setCustomAdvancePct] = useState<number>(70);
-  const customBalancePct = 100 - customAdvancePct;
+  // Bug D — vendor proposes a structured custom payment schedule (any number of
+  // milestones, any split that sums to 100). Reuses PaymentMilestoneBuilder so
+  // the vendor side matches the PM side instead of carrying a parallel control.
+  const [customMilestones, setCustomMilestones] = useState<PaymentMilestoneInput[]>([]);
+  const [customMilestonesValid, setCustomMilestonesValid] = useState(false);
   const customSplitInvalid =
-    paymentTerms === 'custom-split' &&
-    (!Number.isFinite(customAdvancePct) || customAdvancePct < 1 || customAdvancePct > 99);
+    paymentTerms === 'custom-split' && !customMilestonesValid;
 
   // Load draft when draftToLoad changes
   useEffect(() => {
