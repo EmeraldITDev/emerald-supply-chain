@@ -1012,7 +1012,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
               />
               {supportingDocuments.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {supportingDocuments.length} file(s) selected. Uploads will be enabled once the backend RFQ attachment endpoint is live (see frontend_changes.md → Bug C).
+                  {supportingDocuments.length} file(s) selected — these will be uploaded to the RFQ after it is created.
                 </p>
               )}
             </div>
