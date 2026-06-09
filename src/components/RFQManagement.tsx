@@ -238,9 +238,24 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       if (response.success && response.data) {
         return response.data;
       }
+      // Bug E — surface real backend error instead of silently returning null
+      // so the PM understands why the comparison view is empty.
+      toast({
+        title: 'Could not load vendor quotations',
+        description:
+          response.error ||
+          'The quotations endpoint returned an error. The backend team has been notified.',
+        variant: 'destructive',
+      });
       return null;
     } catch (error) {
       console.error('Failed to fetch enhanced quotations:', error);
+      toast({
+        title: 'Could not load vendor quotations',
+        description:
+          error instanceof Error ? error.message : 'Unexpected error fetching quotations.',
+        variant: 'destructive',
+      });
       return null;
     }
   };

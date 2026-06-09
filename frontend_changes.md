@@ -184,3 +184,12 @@ Manual smoke test in staging, run by the user after Batch 1 deploys. All five mu
 - **Backend ask:**
   - `POST /api/trip-requests` and `PUT /api/trip-requests/{id}` accept `external_passengers: [{name: string, email: string, phone?: string}]`. Persist alongside `passenger_user_ids` so the detail response returns both arrays.
   - External passenger emails fire on `POST /api/trip-requests/{id}/confirm` (Logistics Manager confirm action) — **not** on initial `POST /api/trip-requests`. Email body should include: trip date/time, origin → destination, purpose, and the requester's name as the in-company contact. Plain transactional copy (no marketing content).
+
+## Batch 1 — Sub-batch 1.2 (Bug E)
+
+### Bug E — RFQ vendor responses invisible on PM (500 regression)
+- `src/services/api.ts` `rfqApi.getQuotations`:
+  - Diagnostic log now includes the full `raw` backend body alongside status/role for the backend ticket.
+  - Response shape is normalized so downstream code can always read `data.quotations`, even if the backend serializes the list under `data.data.quotations`, `results`, `items`, or returns a bare array.
+- `src/components/RFQManagement.tsx` `fetchEnhancedQuotations` now surfaces a destructive toast with the real backend error message when `getQuotations` fails, instead of silently returning `null` (which left the PM staring at an empty comparison view).
+- **Backend ask (BLOCKING):** `GET /api/rfqs/{rfqId}/quotations` 500 needs root-cause + fix on the backend. The new diagnostic + raw-body log on the frontend gives the trace; once a failing call is captured, attach the `[BugE/getQuotations]` console payload to the backend ticket.
