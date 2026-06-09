@@ -1610,9 +1610,23 @@ export const rfqApi = {
           role,
           error: res?.error,
           status: (res as any)?.status,
+          raw: (res as any)?.raw,
         });
       } catch {
         /* diagnostic only */
+      }
+    }
+    // Bug E — backend may return quotations under several keys depending on serializer.
+    // Normalize so downstream code can always read res.data.quotations.
+    if (res?.success && res.data && !Array.isArray((res.data as any).quotations)) {
+      const d: any = res.data;
+      const list =
+        d.data?.quotations ??
+        d.results ??
+        d.items ??
+        (Array.isArray(d) ? d : null);
+      if (Array.isArray(list)) {
+        (res.data as any).quotations = list;
       }
     }
     // Item 2 — diagnostic: capture raw payload + caller role for PM vs SCD comparison.
