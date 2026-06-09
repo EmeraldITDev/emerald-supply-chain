@@ -1027,20 +1027,85 @@ export function CreatePOForm({
               </dd>
             </dl>
             <div className="border-t pt-2">
-              <p className="text-xs font-medium mb-1">Comparison ({rows.length} suppliers)</p>
-              <ul className="text-xs space-y-1">
-                {rows.map((r, i) => {
-                  const vendorName = r.manual_vendor?.name
+              {(() => {
+                // Group rows by supplier identity so the review shows one entry per supplier
+                // with all their line items beneath, matching the new card-based form layout.
+                const supplierGroups = new Map<
+                  string,
+                  { name: string; selected: boolean; rows: PriceComparisonRow[] }
+                >();
+                rows.forEach((r) => {
+                  const key = r.group_key
+                    || (r.vendor_id ? `v:${r.vendor_id}` : `m:${(r.manual_vendor?.name || '').trim().toLowerCase()}`)
+                    || r._key;
+                  const name = r.manual_vendor?.name
                     ? r.manual_vendor.name
                     : r.vendor_id || '—';
-                  return (
-                    <li key={r._key} className={cn('flex justify-between', r.is_selected && 'font-semibold text-success')}>
-                      <span>{i + 1}. {vendorName} · {r.item_description || '—'}</span>
-                      <span className="tabular-nums">₦{((Number(r.unit_price) || 0) * (Number(r.quantity) || 0)).toLocaleString()}{r.is_selected && ' ✓'}</span>
-                    </li>
-                  );
-                })}
-              </ul>
+                  const existing = supplierGroups.get(key);
+                  if (existing) {
+                    existing.rows.push(r);
+                    existing.selected = existing.selected || r.is_selected;
+                  } else {
+                    supplierGroups.set(key, { name, selected: r.is_selected, rows: [r] });
+                  }
+                });
+                const groupsArr = Array.from(supplierGroups.values());
+                return (
+                  <>
+                    <p className="text-xs font-medium mb-2">
+                      Comparison ({groupsArr.length} supplier{groupsArr.length === 1 ? '' : 's'})
+                    </p>
+                    <ul className="text-xs space-y-3">
+                      {groupsArr.map((g, i) => {
+                        const subtotal = g.rows.reduce(
+                          (acc, r) =>
+                            acc + (Number(r.unit_price) || 0) * (Number(r.quantity) || 0),
+                          0,
+                        );
+                        return (
+                          <li
+                            key={i}
+                            className={cn(
+                              'rounded border bg-background/60 p-2',
+                              g.selected && 'border-success/50 bg-success/5',
+                            )}
+                          >
+                            <div className="flex justify-between items-center font-medium">
+                              <span className={cn(g.selected && 'text-success')}>
+                                {i + 1}. {g.name}
+                                {g.selected && ' ✓'}
+                              </span>
+                              <span className="tabular-nums">
+                                ₦{subtotal.toLocaleString()}
+                              </span>
+                            </div>
+                            <ul className="mt-1 ml-3 space-y-0.5 text-muted-foreground">
+                              {g.rows.map((r) => {
+                                const total =
+                                  (Number(r.unit_price) || 0) * (Number(r.quantity) || 0);
+                                return (
+                                  <li key={r._key} className="flex justify-between gap-2">
+                                    <span className="truncate">
+                                      • {r.item_description || '—'}{' '}
+                                      <span className="text-[10px]">
+                                        ({r.quantity || 0} × ₦
+                                        {(Number(r.unit_price) || 0).toLocaleString()})
+                                      </span>
+                                    </span>
+                                    <span className="tabular-nums">
+                                      ₦{total.toLocaleString()}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                );
+              })()}
             </div>
             {emeraldPreviewModel && (
               <div className="space-y-2 border-t pt-3">
