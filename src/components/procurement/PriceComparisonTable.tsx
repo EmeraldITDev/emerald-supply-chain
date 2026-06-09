@@ -92,7 +92,7 @@ export function validatePriceComparison(rows: PriceComparisonRow[], vendors: Ven
   const errors: string[] = [];
   if (rows.length < 1) errors.push('Add at least one supplier row.');
   const selected = rows.filter((r) => r.is_selected);
-  if (selected.length === 0) errors.push('Mark exactly one row as the selected supplier.');
+  if (selected.length === 0) errors.push('Mark one row as the selected supplier (the chosen vendor for the PO).');
   if (selected.length > 1) errors.push('Only one row can be marked as selected.');
   rows.forEach((r, i) => {
     // Check that either vendor_id or manual_vendor is set (but not both)
