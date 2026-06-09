@@ -684,6 +684,36 @@ export const driversApi = {
     if (res.success) window.dispatchEvent(new CustomEvent('app:refresh'));
     return res;
   },
+  /** GET /fleet/drivers/{id}/documents — list driver documents (licence, training, etc.) */
+  listDocuments: async (driverId: string): Promise<ApiResponse<any[]>> => {
+    return apiRequest<any[]>(`/fleet/drivers/${driverId}/documents`);
+  },
+  /** POST /fleet/drivers/{id}/documents (multipart) — upload one driver document */
+  uploadDocument: async (
+    driverId: string,
+    file: File,
+    documentType: string,
+    expiresAt?: string,
+  ): Promise<ApiResponse<any>> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('document_type', documentType);
+    if (expiresAt) fd.append('expires_at', expiresAt);
+    const res = await apiRequest(`/fleet/drivers/${driverId}/documents`, {
+      method: 'POST',
+      body: fd,
+    });
+    if (res.success) window.dispatchEvent(new CustomEvent('app:refresh'));
+    return res;
+  },
+  /** DELETE /fleet/drivers/{id}/documents/{doc_id} */
+  deleteDocument: async (driverId: string, documentId: string): Promise<ApiResponse<void>> => {
+    const res = await apiRequest<void>(`/fleet/drivers/${driverId}/documents/${documentId}`, {
+      method: 'DELETE',
+    });
+    if (res.success) window.dispatchEvent(new CustomEvent('app:refresh'));
+    return res;
+  },
 };
 
 // ==========================================
