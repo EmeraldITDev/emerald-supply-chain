@@ -334,6 +334,42 @@ export function CreatePOForm({
     [rows, vendors]
   );
 
+  /**
+   * Top-of-form blocker summary (1c). Aggregates Section 1 + Section 2 errors so
+   * the PM can see every reason Generate & Route is disabled in one place.
+   */
+  const section1Errors = useMemo<string[]>(() => {
+    const list: string[] = [];
+    if (!form.po_date) list.push('PO Details: pick a PO date.');
+    if (!form.delivery_date) list.push('PO Details: pick a delivery / service date.');
+    if (!form.ship_to_address.trim()) list.push('PO Details: enter a ship-to address.');
+    if (!form.payment_terms.trim()) list.push('PO Details: enter payment terms.');
+    if (!paymentMilestonesValid) list.push('PO Details: payment milestones must sum to 100%.');
+    if (ccBlocked) list.push('PO Details: CC email is not allowed.');
+    if (ccInvalid) list.push('PO Details: CC email is not valid.');
+    if (toInvalid) list.push('PO Details: Invoice To email is not valid.');
+    if (termsMissing) list.push('PO Details: no standard T&C template configured for this PO type.');
+    if (termsError) list.push(`PO Details: ${termsError}`);
+    if (termsModeCustomInvalid) list.push('PO Details: enter custom terms when using "My terms only".');
+    return list;
+  }, [
+    form.po_date,
+    form.delivery_date,
+    form.ship_to_address,
+    form.payment_terms,
+    paymentMilestonesValid,
+    ccBlocked,
+    ccInvalid,
+    toInvalid,
+    termsMissing,
+    termsError,
+    termsModeCustomInvalid,
+  ]);
+  const blockingErrors = useMemo<string[]>(
+    () => [...section1Errors, ...pcErrors.map((e) => `Price Comparison: ${e}`)],
+    [section1Errors, pcErrors],
+  );
+
   const selectedSupplierLabel = useMemo(() => {
     const sel = rows.find((r) => r.is_selected);
     if (!sel) return '— (mark one row in the price comparison)';
