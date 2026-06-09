@@ -32,6 +32,14 @@ export interface ManualVendor {
 export interface PriceComparisonRow {
   /** Local-only key for React rendering. */
   _key: string;
+  /**
+   * Local-only stable group identifier shared by every row that belongs to the
+   * same supplier card in the UI. Lets the form keep rows visually grouped
+   * even before a vendor identity is chosen, and survives identity edits
+   * (e.g. switching from Directory to Manual within the same card).
+   * Stripped before sending to the backend.
+   */
+  group_key?: string;
   /** Vendor's stable string id (e.g. VND-001) — NOT the numeric internal id. Send when using directory vendor. */
   vendor_id?: string;
   /** Manual vendor data — send when adding supplier not yet in directory. */
@@ -109,6 +117,13 @@ export interface POFormPayload {
     percentage: number;
     trigger_condition: string;
   }>;
+  /**
+   * When true, the server treats this generate-po call as a regeneration of an
+   * already-finalised PO: it bumps the PO version, archives the previous PDF
+   * (kept in PO history for audit), and replaces the entry in the Supply Chain
+   * Director's approval queue so the SCD only ever sees the latest revision.
+   */
+  regenerate?: boolean;
 }
 
 /**

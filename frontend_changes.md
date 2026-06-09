@@ -474,3 +474,94 @@ Documented here so they don't surprise a future agent:
 ### Files Edited
 - `.lovable/plan.md` (Batch 3 marked DONE)
 - `frontend_changes.md` (this entry)
+
+---
+
+## PO Form — Supplier-Card Restructure + Edit / Regenerate (Batch 4)
+
+### Problem
+The Create / Manual PO form previously treated each line item as its own
+supplier row in a flat table. Adding multiple items for the same vendor created
+visually duplicated supplier entries, the Review section counted each line as
+a distinct supplier, and there was no way to edit a PO after generating it.
+
+### Form restructure (CreatePOForm + PriceComparisonTable)
+- `PriceComparisonTable` rewritten from a flat table to **supplier cards**.
+  Each card shows supplier identity (Directory or Manual toggle + selector,
+  contact fields, notes) **once at the top**, and a nested line-items table
+  beneath it (description, unit price, qty, total, remove).
+- Top-of-card radio selects that supplier as the winning vendor for the PO.
+- **Add Supplier** creates a new supplier card with one empty line item.
+- **Add line item** (inside a card) appends a row to that card only — it
+  never spawns a new supplier.
+- **Remove supplier** removes the entire card plus all its line items.
+- Subtotal per supplier is rendered in the card footer.
+- Supplier identity edits (vendor pick, manual name, contact fields) are
+  propagated to every line item in that card via `updateGroup`, so all rows
+  remain consistent with one supplier.
+
+### Data model
+- `PriceComparisonRow` gains an optional `group_key: string` — a local-only,
+  stable identifier shared by every row belonging to the same supplier card.
+  `makeEmptyRow` always generates one for new rows. Hydration from the backend
+  reuses `vendor_id` / manual name to derive a stable group key so existing
+  multi-row payloads snap into one card automatically.
+- `group_key` is stripped by `serializeRow` before hitting the backend; no
+  contract change is required for `PUT /api/mrfs/{id}/price-comparisons`.
+
+### Review section (Section 3)
+- Comparison counter now reads **"Comparison (N suppliers)"** where N is the
+  number of distinct supplier groups, not the number of line items.
+- Each supplier is rendered as a sub-card listing its line items with qty,
+  unit price, and line total. The supplier subtotal sums every line for that
+  supplier. The selected supplier is highlighted.
+- The Emerald PO preview was already supplier-grouped (selects all rows
+  belonging to the winning supplier) — no change needed there.
+
+### Edit / Regenerate after submission
+- Finalised banner now shows an **Edit PO** button. Clicking it sets
+  `editingFinalised = true`, which:
+  - re-enables every input on the form (PO details, T&C, milestones, supplier
+    cards, line items),
+  - swaps the primary action button to **"Regenerate & replace SCD queue"**,
+  - renders a warning banner explaining the consequence.
+- On regenerate, the form calls `procurementApi.finalisePO()` with a new
+  `regenerate: true` flag on the existing `POST /api/mrfs/{id}/generate-po`
+  endpoint and shows a success toast confirming the SCD queue replacement.
+- Cancelling edit returns the form to read-only finalised state without
+  touching the server.
+
+### Backend asks (BLOCKING for regenerate)
+- `POST /api/mrfs/{id}/generate-po` must accept an optional
+  `regenerate: boolean` field (alongside the existing `fast_track`,
+  `allow_missing_rfq`, `save_as_draft` flags).
+- When `regenerate: true`:
+  1. Validate the MRF already has a finalised PO and that the caller is the
+     PM/SCM role that owns it.
+  2. Bump a `po_version` integer (1, 2, 3, …) on the MRF.
+  3. Move the existing active PO PDF + price comparison snapshot into a
+     `po_revisions` history table (audit trail) keyed by `mrf_id + version`.
+  4. Generate the new PDF, write it as the active `unsigned_po_url`, and set
+     `po_status = awaiting_scd_signature` (or the equivalent state for the
+     SCD approval queue) — replacing any existing pending entry for the same
+     `mrf_id`. The SCD must never see two pending versions of the same PO.
+  5. Log a `po.regenerated` event on the MRF activity feed with metadata:
+     `actor_id`, `previous_version`, `new_version`, `regenerated_at`.
+- `GET /api/mrfs/{id}` should include `po_version` and a `po_history[]` array
+  (each with `version`, `regenerated_at`, `regenerated_by`,
+  `archived_pdf_url`) so the procurement UI can later render the history
+  panel.
+- The SCD's pending-POs list endpoint (whatever currently powers the SCD
+  signature queue) must filter to the latest version per MRF — no UI change
+  needed once backend enforces this.
+
+### Type changes
+- `POFormPayload` gains optional `regenerate?: boolean`.
+- `PriceComparisonRow` gains optional local-only `group_key?: string`.
+
+### Files Edited
+- `src/types/procurement.ts`
+- `src/components/procurement/PriceComparisonTable.tsx`
+- `src/components/procurement/CreatePOForm.tsx`
+- `.lovable/plan.md`
+- `frontend_changes.md` (this entry)

@@ -153,3 +153,8 @@ _DONE._ See `frontend_changes.md` § Batch 3 — SMS / Termii. Locked-in contrac
 5. **Batch 4** nav (scope-locked to 8 routes + dead-end fixes).
 
 Approve to start Batch 0.
+
+## Batch 4 — PO Supplier-Card Restructure + Edit/Regenerate (DONE)
+- Form: supplier cards with nested line items (Add Supplier / Add line item).
+- Review: groups by supplier; comparison count = distinct suppliers.
+- Edit PO + Regenerate sends `regenerate: true` on generate-po; backend bumps po_version, archives previous, replaces SCD queue entry.

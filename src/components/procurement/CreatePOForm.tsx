@@ -7,6 +7,7 @@ import {
   Download,
   ExternalLink,
   Loader2,
+  PencilLine,
   Save,
   Send,
 } from 'lucide-react';
@@ -124,12 +125,20 @@ const initialState = (): FormState => ({
 const isValidEmail = (e: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
-/** Coerce a backend price-comparison row into the local editable shape. */
-const hydrateRow = (e: PriceComparisonEntry): PriceComparisonRow => ({
+/**
+ * Coerce a backend price-comparison row into the local editable shape.
+ * `groupKey` is passed in so multiple rows sharing the same supplier identity
+ * snap into the same supplier card in the new card-based UI.
+ */
+const hydrateRow = (
+  e: PriceComparisonEntry,
+  groupKey: string,
+): PriceComparisonRow => ({
   _key:
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `row_${Math.random().toString(36).slice(2)}`,
+  group_key: groupKey,
   vendor_id: e.vendor_id,
   manual_vendor: e.manual_vendor,
   item_description: e.item_description ?? '',
@@ -138,6 +147,13 @@ const hydrateRow = (e: PriceComparisonEntry): PriceComparisonRow => ({
   is_selected: Boolean(e.is_selected),
   selection_reason: e.selection_reason ?? '',
 });
+
+/** Group hydrated rows by supplier identity so they map to one card each. */
+const groupKeyFor = (e: PriceComparisonEntry): string => {
+  if (e.vendor_id) return `v:${String(e.vendor_id)}`;
+  const name = (e.manual_vendor?.name ?? e.vendor_name ?? '').trim().toLowerCase();
+  return name ? `m:${name}` : `r:${Math.random().toString(36).slice(2)}`;
+};
 
 export function CreatePOForm({
   mrfId,
@@ -187,6 +203,12 @@ export function CreatePOForm({
   const [finalisedMrf, setFinalisedMrf] = useState<MRF | null>(null);
   /** Mirrors `data.fast_tracked` from generate-po when the PO tab fast-track path was used. */
   const [finalisedFastTracked, setFinalisedFastTracked] = useState(false);
+  /**
+   * When the user reopens an already-finalised PO to edit it, we unlock the
+   * form (`editingFinalised = true`) and the next finalise call regenerates
+   * the PO — the SCD's approval queue only ever shows the latest version.
+   */
+  const [editingFinalised, setEditingFinalised] = useState(false);
 
   useEffect(() => {
     setFinalisedFastTracked(false);
@@ -244,7 +266,7 @@ export function CreatePOForm({
 
       const incoming = pcRes.success && pcRes.data ? pcRes.data : m.priceComparisons;
       if (Array.isArray(incoming) && incoming.length > 0) {
-        setRows(incoming.map(hydrateRow));
+        setRows(incoming.map((e) => hydrateRow(e, groupKeyFor(e))));
       }
     } catch (err) {
       setHydrateError(err instanceof Error ? err.message : 'Failed to load MRF.');
@@ -314,7 +336,8 @@ export function CreatePOForm({
   const isDraft =
     Boolean((mrf as MRF & { is_po_draft?: boolean })?.is_po_draft) ||
     !mrf?.po_number;
-  const isFinalised = Boolean(finalisedMrf?.po_number || mrf?.po_number);
+  const isFinalisedRaw = Boolean(finalisedMrf?.po_number || mrf?.po_number);
+  const isFinalised = isFinalisedRaw && !editingFinalised;
 
   const ccBlocked =
     form.invoice_submission_cc.trim().toLowerCase() === BLOCKED_EMAIL.toLowerCase();
@@ -404,7 +427,7 @@ export function CreatePOForm({
     section1Valid &&
     pcErrors.length === 0 &&
     !isSaving &&
-    !finalisedMrf;
+    (!finalisedMrf || editingFinalised);
 
   const hasAnyInput =
     form.ship_to_address.trim() ||
@@ -605,7 +628,16 @@ export function CreatePOForm({
         });
         return;
       }
-      const finalRes = await procurementApi.finalisePO(mrfId, buildPayload());
+      const isRegen = editingFinalised;
+      const payload = {
+        ...buildPayload(),
+        // Backend contract: when `regenerate: true` is set, the server bumps
+        // the PO version, archives the previous PDF (kept for audit), and
+        // replaces the active SCD approval entry with this new revision so
+        // the SCD never sees two pending versions of the same PO.
+        ...(isRegen ? { regenerate: true } : {}),
+      };
+      const finalRes = await procurementApi.finalisePO(mrfId, payload);
       if (!finalRes.success || !finalRes.data?.mrf) {
         toast.error('PO generation failed', {
           description: describeBackendError(finalRes.raw, finalRes.error || 'Please try again.'),
@@ -627,12 +659,18 @@ export function CreatePOForm({
       );
       setFinalisedFastTracked(fastTrackedSuccess);
       setFinalisedMrf(newMrf);
+      setEditingFinalised(false);
       const poNumber = newMrf.po_number || newMrf.poNumber || '—';
-      toast.success(`PO ${poNumber} generated`, {
-        description: fastTrackedSuccess
-          ? 'Fast-track: awaiting Supply Chain Director signature (executive review skipped).'
-          : 'Routed to the Supply Chain Director for signature.',
-      });
+      toast.success(
+        isRegen ? `PO ${poNumber} regenerated` : `PO ${poNumber} generated`,
+        {
+          description: isRegen
+            ? 'Previous version archived. The Supply Chain Director now sees only the latest revision.'
+            : fastTrackedSuccess
+              ? 'Fast-track: awaiting Supply Chain Director signature (executive review skipped).'
+              : 'Routed to the Supply Chain Director for signature.',
+        },
+      );
       onFinalised?.(newMrf);
     } catch (err) {
       toast.error('PO generation failed', {
@@ -641,7 +679,7 @@ export function CreatePOForm({
     } finally {
       releaseLock();
     }
-  }, [mrfId, rows, buildPayload, onFinalised, vendors]);
+  }, [mrfId, rows, buildPayload, onFinalised, vendors, editingFinalised]);
 
   // -------------------------------------------------------------------------
   // Autosave — debounced 3s, draft mode only, lock-protected,
@@ -1011,20 +1049,85 @@ export function CreatePOForm({
               </dd>
             </dl>
             <div className="border-t pt-2">
-              <p className="text-xs font-medium mb-1">Comparison ({rows.length} suppliers)</p>
-              <ul className="text-xs space-y-1">
-                {rows.map((r, i) => {
-                  const vendorName = r.manual_vendor?.name
+              {(() => {
+                // Group rows by supplier identity so the review shows one entry per supplier
+                // with all their line items beneath, matching the new card-based form layout.
+                const supplierGroups = new Map<
+                  string,
+                  { name: string; selected: boolean; rows: PriceComparisonRow[] }
+                >();
+                rows.forEach((r) => {
+                  const key = r.group_key
+                    || (r.vendor_id ? `v:${r.vendor_id}` : `m:${(r.manual_vendor?.name || '').trim().toLowerCase()}`)
+                    || r._key;
+                  const name = r.manual_vendor?.name
                     ? r.manual_vendor.name
                     : r.vendor_id || '—';
-                  return (
-                    <li key={r._key} className={cn('flex justify-between', r.is_selected && 'font-semibold text-success')}>
-                      <span>{i + 1}. {vendorName} · {r.item_description || '—'}</span>
-                      <span className="tabular-nums">₦{((Number(r.unit_price) || 0) * (Number(r.quantity) || 0)).toLocaleString()}{r.is_selected && ' ✓'}</span>
-                    </li>
-                  );
-                })}
-              </ul>
+                  const existing = supplierGroups.get(key);
+                  if (existing) {
+                    existing.rows.push(r);
+                    existing.selected = existing.selected || r.is_selected;
+                  } else {
+                    supplierGroups.set(key, { name, selected: r.is_selected, rows: [r] });
+                  }
+                });
+                const groupsArr = Array.from(supplierGroups.values());
+                return (
+                  <>
+                    <p className="text-xs font-medium mb-2">
+                      Comparison ({groupsArr.length} supplier{groupsArr.length === 1 ? '' : 's'})
+                    </p>
+                    <ul className="text-xs space-y-3">
+                      {groupsArr.map((g, i) => {
+                        const subtotal = g.rows.reduce(
+                          (acc, r) =>
+                            acc + (Number(r.unit_price) || 0) * (Number(r.quantity) || 0),
+                          0,
+                        );
+                        return (
+                          <li
+                            key={i}
+                            className={cn(
+                              'rounded border bg-background/60 p-2',
+                              g.selected && 'border-success/50 bg-success/5',
+                            )}
+                          >
+                            <div className="flex justify-between items-center font-medium">
+                              <span className={cn(g.selected && 'text-success')}>
+                                {i + 1}. {g.name}
+                                {g.selected && ' ✓'}
+                              </span>
+                              <span className="tabular-nums">
+                                ₦{subtotal.toLocaleString()}
+                              </span>
+                            </div>
+                            <ul className="mt-1 ml-3 space-y-0.5 text-muted-foreground">
+                              {g.rows.map((r) => {
+                                const total =
+                                  (Number(r.unit_price) || 0) * (Number(r.quantity) || 0);
+                                return (
+                                  <li key={r._key} className="flex justify-between gap-2">
+                                    <span className="truncate">
+                                      • {r.item_description || '—'}{' '}
+                                      <span className="text-[10px]">
+                                        ({r.quantity || 0} × ₦
+                                        {(Number(r.unit_price) || 0).toLocaleString()})
+                                      </span>
+                                    </span>
+                                    <span className="tabular-nums">
+                                      ₦{total.toLocaleString()}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                );
+              })()}
             </div>
             {emeraldPreviewModel && (
               <div className="space-y-2 border-t pt-3">
@@ -1058,19 +1161,29 @@ export function CreatePOForm({
             <span>
               PO <strong>{finalisedMrf?.po_number || finalisedMrf?.poNumber || mrf?.po_number}</strong> generated.
             </span>
-            {emeraldPreviewModel ? (
+            <div className="flex items-center gap-3 flex-shrink-0">
               <button
                 type="button"
-                onClick={() => void openEmeraldPoInNewTab()}
-                className="inline-flex items-center gap-1 text-primary hover:underline flex-shrink-0 font-medium bg-transparent border-0 cursor-pointer p-0"
+                onClick={() => setEditingFinalised(true)}
+                className="inline-flex items-center gap-1 text-primary hover:underline font-medium bg-transparent border-0 cursor-pointer p-0"
+                title="Edit this PO and regenerate. The previous version is archived and the SCD's approval queue is replaced with the new revision."
               >
-                <ExternalLink className="h-3.5 w-3.5" /> Open PDF
+                <PencilLine className="h-3.5 w-3.5" /> Edit PO
               </button>
-            ) : finalisedUrl ? (
-              <a href={finalisedUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline flex-shrink-0">
-                <ExternalLink className="h-3.5 w-3.5" /> Open PDF
-              </a>
-            ) : null}
+              {emeraldPreviewModel ? (
+                <button
+                  type="button"
+                  onClick={() => void openEmeraldPoInNewTab()}
+                  className="inline-flex items-center gap-1 text-primary hover:underline font-medium bg-transparent border-0 cursor-pointer p-0"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Open PDF
+                </button>
+              ) : finalisedUrl ? (
+                <a href={finalisedUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                  <ExternalLink className="h-3.5 w-3.5" /> Open PDF
+                </a>
+              ) : null}
+            </div>
           </div>
           {finalisedFastTracked && (
             <p className="text-xs text-muted-foreground border-t border-success/25 pt-2">
@@ -1078,6 +1191,29 @@ export function CreatePOForm({
               {' — '}Executive review was skipped. The Supply Chain Director signs via the dashboard or uploads the signed PO; completion matches the regular flow after signature.
             </p>
           )}
+        </div>
+      )}
+
+      {/* ============== Editing existing PO banner ============== */}
+      {editingFinalised && (
+        <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-sm space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <span>
+              Editing existing PO{' '}
+              <strong>
+                {finalisedMrf?.po_number || finalisedMrf?.poNumber || mrf?.po_number}
+              </strong>
+              . Resubmitting will replace the version currently in the SCD's approval queue.
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setEditingFinalised(false)}
+            >
+              Cancel edit
+            </Button>
+          </div>
         </div>
       )}
 
@@ -1159,7 +1295,11 @@ export function CreatePOForm({
             }
           >
             <Send className="h-3.5 w-3.5 mr-1" />
-            {fastTrack ? 'Generate & route to SCD (fast-track)' : 'Generate & Route for Approval'}
+            {editingFinalised
+              ? 'Regenerate & replace SCD queue'
+              : fastTrack
+                ? 'Generate & route to SCD (fast-track)'
+                : 'Generate & Route for Approval'}
           </Button>
         </div>
       </div>
