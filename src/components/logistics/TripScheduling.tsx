@@ -1693,7 +1693,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
 
       {/* Assign Vendor Dialog */}
       <Dialog open={assignVendorDialogOpen} onOpenChange={setAssignVendorDialogOpen}>
-        {/* (existing dialog body below) */}
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Assign Vendor - {selectedTrip?.tripNumber}</DialogTitle>
