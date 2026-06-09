@@ -2149,6 +2149,9 @@ export const vendorPortalApi = {
       if (payload.notes) {
         formData.append('notes', payload.notes);
       }
+      if (payload.payment_milestones) {
+        formData.append('payment_milestones', JSON.stringify(payload.payment_milestones));
+      }
       // Items must be sent as a single JSON-stringified array (not items[] loop)
       const itemsArray = Array.isArray(payload.items) ? payload.items : [payload.items];
       formData.append('items', JSON.stringify(itemsArray));
