@@ -1699,9 +1699,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
             <DialogDescription>
               Select a logistics vendor to handle this trip
             </DialogDescription>
-            <DialogDescription>
-              Select a logistics vendor to handle this trip
-            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
