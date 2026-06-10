@@ -38,6 +38,14 @@ import Projects from "./pages/Projects";
 import VendorPortal from "./pages/VendorPortal";
 import VendorRegistrationSuccess from "./pages/VendorRegistrationSuccess";
 import NotFound from "./pages/NotFound";
+import MRFDetailPage from "./pages/details/MRFDetailPage";
+import PODetailPage from "./pages/details/PODetailPage";
+import RFQDetailPage from "./pages/details/RFQDetailPage";
+import TripDetailPage from "./pages/details/TripDetailPage";
+import FleetDetailPage from "./pages/details/FleetDetailPage";
+import DriverDetailPage from "./pages/details/DriverDetailPage";
+import VendorDetailPage from "./pages/details/VendorDetailPage";
+import MaintenanceDetailPage from "./pages/details/MaintenanceDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -116,6 +124,15 @@ const AppRoutes = () => {
         <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
         <Route path="/vendor-portal" element={<VendorPortal />} />
         <Route path="/vendor-registration-success" element={<VendorRegistrationSuccess />} />
+        {/* Batch 4 — routed detail pages (replaces modal-only detail views). */}
+        <Route path="/mrfs/:id" element={<ProtectedRoute><MRFDetailPage /></ProtectedRoute>} />
+        <Route path="/pos/:id" element={<ProtectedRoute><PODetailPage /></ProtectedRoute>} />
+        <Route path="/rfqs/:id" element={<ProtectedRoute><RFQDetailPage /></ProtectedRoute>} />
+        <Route path="/trips/:id" element={<ProtectedRoute><TripDetailPage /></ProtectedRoute>} />
+        <Route path="/fleet/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
+        <Route path="/drivers/:id" element={<ProtectedRoute><DriverDetailPage /></ProtectedRoute>} />
+        <Route path="/vendors/:id" element={<ProtectedRoute><VendorDetailPage /></ProtectedRoute>} />
+        <Route path="/maintenance/:id" element={<ProtectedRoute><MaintenanceDetailPage /></ProtectedRoute>} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
