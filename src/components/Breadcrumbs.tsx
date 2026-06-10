@@ -35,6 +35,13 @@ const routeLabels: Record<string, string> = {
   projects: "Project Tracking",
   analytics: "Analytics",
   "vendor-portal": "Vendor Portal",
+  mrfs: "Material Requisitions",
+  pos: "Purchase Orders",
+  rfqs: "RFQs",
+  trips: "Trips",
+  fleet: "Fleet",
+  drivers: "Drivers",
+  maintenance: "Maintenance",
 };
 
 export function Breadcrumbs() {
