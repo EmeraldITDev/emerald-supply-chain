@@ -72,7 +72,9 @@ export function Breadcrumbs() {
           const isDynamicId =
             pathname.match(/^[A-Z]+(-[A-Z0-9]+)+/) ||
             pathname.match(/^[A-Z]+-\d+/) ||
-            pathname.match(/^\d+$/);
+            pathname.match(/^\d+$/) ||
+            // UUID v4-ish (lowercase hex with dashes)
+            pathname.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
           
           // For dynamic IDs on the last segment, show abbreviated version
           let label = routeLabels[pathname] || pathname.charAt(0).toUpperCase() + pathname.slice(1);
