@@ -21,6 +21,7 @@ import { procurementApi } from "@/services/procurementApi";
 import { type AvailableActions, type MRF } from "@/types";
 import { getMrfApiId } from "@/utils/displayId";
 import type { GRNLineItemOverride } from "@/types/procurement-documents";
+import { openGrnPdfFromDialogState } from "@/utils/grnPdfActions";
 
 interface GRNCompletionDialogProps {
   open: boolean;
@@ -57,6 +58,7 @@ export default function GRNCompletionDialog({
   const [qtyOverrides, setQtyOverrides] = useState<Record<number, string>>({});
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreviewingLocal, setIsPreviewingLocal] = useState(false);
 
   const mrfItems = (mrf.items ?? []) as Array<{
     itemName: string;
@@ -196,6 +198,41 @@ export default function GRNCompletionDialog({
       }
     } finally {
       setIsPreviewing(false);
+    }
+  };
+
+  const handlePreviewLocal = async () => {
+    setIsPreviewingLocal(true);
+    try {
+      const mrfAny = mrf as unknown as {
+        vendor_name?: string;
+        vendorName?: string;
+        vendor_address?: string;
+        vendorAddress?: string;
+      };
+      await openGrnPdfFromDialogState({
+        mrf,
+        grnNumber,
+        dateOfReceipt,
+        deliveryNoteNumber,
+        deliveryDate,
+        carrierName,
+        driverName: carrierName,
+        driverPhone: driverNumber,
+        vehiclePlateNumber,
+        comments,
+        quantityReceivedOverrides: qtyOverrides,
+        supplierName: mrfAny.vendor_name || mrfAny.vendorName,
+        supplierAddress: mrfAny.vendor_address || mrfAny.vendorAddress,
+      });
+    } catch (e) {
+      toast({
+        title: "Local preview failed",
+        description: e instanceof Error ? e.message : "Could not render GRN preview.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPreviewingLocal(false);
     }
   };
 
@@ -401,16 +438,32 @@ export default function GRNCompletionDialog({
               <DialogFooter className="gap-2">
                 <Button
                   variant="outline"
+                  onClick={handlePreviewLocal}
+                  disabled={isPreviewingLocal || isGenerating || isPreviewing}
+                  title="Render the Emerald-layout GRN PDF locally from form values."
+                >
+                  {isPreviewingLocal ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Rendering…
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="mr-2 h-4 w-4" /> Preview locally
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={handlePreviewGRN}
                   disabled={isPreviewing || isGenerating}
                 >
                   {isPreviewing ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating preview…
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating server preview…
                     </>
                   ) : (
                     <>
-                      <Eye className="mr-2 h-4 w-4" /> Preview PDF
+                      <Eye className="mr-2 h-4 w-4" /> Preview (server)
                     </>
                   )}
                 </Button>
