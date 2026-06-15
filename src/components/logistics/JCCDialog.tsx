@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { jccApi } from "@/services/logisticsApi";
 import type { Trip, JCC, JCCLineItem } from "@/types/logistics";
+import { openJccPdfFromDialogState } from "@/utils/jccPdfActions";
 
 interface Props {
   trip: Trip | null;
@@ -178,26 +179,56 @@ export function JCCDialog({ trip, open, onOpenChange }: Props) {
 
   const downloadPdf = async () => {
     if (!trip) return;
-    const blob = await jccApi.downloadPdf(trip.id);
-    if (!blob) {
-      toast({ variant: "destructive", title: "PDF unavailable", description: "Backend rendering not enabled yet." });
+    // Primary path: client-rendered Emerald-layout PDF from current dialog state.
+    try {
+      await openJccPdfFromDialogState({
+        trip,
+        jcc,
+        referenceNumber,
+        dateIssued,
+        certificationStatement: statement,
+        lineItems: rows,
+        emeraldSignatoryName: user?.role === "supply_chain_director" ? user?.name : undefined,
+      });
       return;
+    } catch (e) {
+      // Fallback: backend-rendered PDF (legacy server route).
+      const blob = await jccApi.downloadPdf(trip.id);
+      if (!blob) {
+        toast({
+          variant: "destructive",
+          title: "PDF unavailable",
+          description: e instanceof Error ? e.message : "Backend rendering not enabled yet.",
+        });
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `JCC-${referenceNumber || trip.tripNumber}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `JCC-${referenceNumber || trip.tripNumber}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
-  const previewDraft = () => {
-    if (!printRef.current) return;
-    const w = window.open("", "_blank");
-    if (!w) return;
-    w.document.write(`<html><head><title>JCC Draft Preview</title><style>body{font-family:sans-serif;padding:24px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:6px;text-align:left;font-size:12px;}h1{font-size:18px;}h2{font-size:14px;}</style></head><body>${printRef.current.innerHTML}</body></html>`);
-    w.document.close();
-    w.print();
+  const previewDraft = async () => {
+    if (!trip) return;
+    try {
+      await openJccPdfFromDialogState({
+        trip,
+        jcc,
+        referenceNumber,
+        dateIssued,
+        certificationStatement: statement,
+        lineItems: rows,
+      });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Preview failed",
+        description: e instanceof Error ? e.message : "Could not render JCC preview.",
+      });
+    }
   };
 
   return (
