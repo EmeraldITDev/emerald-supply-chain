@@ -559,7 +559,9 @@ export const mrfApi = {
       `/mrfs/${encodeURIComponent(id)}/progress-tracker`,
     );
     if (res.success) {
-      const { normalizeProgressTracker } = await import('@/utils/normalizeProgressTracker');
+      const { normalizeProgressTracker } = await safeDynamicImport(
+        () => import('@/utils/normalizeProgressTracker'),
+      );
       return {
         ...res,
         data: normalizeProgressTracker(res.data ?? {}, {
