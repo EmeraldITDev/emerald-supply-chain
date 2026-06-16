@@ -112,7 +112,7 @@ export const FleetManagement = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
-  const canInitiateSRF = !!user && ["logistics_officer", "logistics_manager", "logistics"].includesgetScmRole(user);
+  const canInitiateSRF = !!user && ["logistics_officer", "logistics_manager", "logistics"].includes(getScmRole(user) || "");
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [alerts, setAlerts] = useState<FleetAlert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,8 +158,8 @@ export const FleetManagement = () => {
   const [srfVehicle, setSrfVehicle] = useState<FleetVehicle | null>(null);
   const [isInitiatingSRF, setIsInitiatingSRF] = useState(false);
   const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
-  const canReactivate = !!user && ["logistics_officer", "logistics_manager", "logistics", "admin"].includesgetScmRole(user);
-  const canEditFleet = !!user && ["logistics_manager", "admin"].includesgetScmRole(user);
+  const canReactivate = !!user && ["logistics_officer", "logistics_manager", "logistics", "admin"].includes(getScmRole(user) || "");
+  const canEditFleet = !!user && ["logistics_manager", "admin"].includes(getScmRole(user) || "");
 
   const handleInitiateSRF = async () => {
     if (!srfVehicle) return;
