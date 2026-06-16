@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { getScmRole } from "@/utils/scmRole";
 import { materialsMovementsApi, type MaterialListResponse } from "@/services/logisticsApi";
 import type {
   MaterialMovementRecord, MaterialMovementSummary, MaterialMovementStatus,
@@ -46,7 +47,7 @@ const useDebouncedValue = <T,>(value: T, delay = 300) => {
 export const MaterialMovements = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const role = (user as any)?.role as string | undefined;
+  const role = getScmRole(user);
   const canManage = canManageMovementsRole(role);
 
   const [items, setItems] = useState<MaterialMovementRecord[]>([]);

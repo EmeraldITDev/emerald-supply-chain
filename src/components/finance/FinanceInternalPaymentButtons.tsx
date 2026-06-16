@@ -6,6 +6,7 @@ import { mrfApi } from "@/services/api";
 import { getMrfApiId } from "@/utils/displayId";
 import type { MRF } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 interface FinanceInternalPaymentButtonsProps {
   mrf: MRF;
@@ -34,9 +35,9 @@ export const FinanceInternalPaymentButtons = ({
     status.includes("pending payment");
 
   const canProcess =
-    ["finance", "finance_officer", "admin"].includes(user?.role || "") && isFinanceProcess;
+    ["finance", "finance_officer", "admin"].includes(getScmRole(user) || "") && isFinanceProcess;
   const canApprove =
-    user?.role === "chairman" && isChairmanPayment;
+    getScmRole(user) === "chairman" && isChairmanPayment;
 
   if (!canProcess && !canApprove) return null;
 

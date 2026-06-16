@@ -6,6 +6,7 @@ import { mrfApi } from "@/services/api";
 import type { MRF, AvailableActions } from "@/types";
 import { toast } from "sonner";
 import { getMrfApiId } from "@/utils/displayId";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 interface MRFActionButtonsProps {
   mrf: MRF;
@@ -74,7 +75,7 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
   const buttons: JSX.Element[] = [];
 
   // Generate PO - Only for Procurement role
-  if (availableActions.canGeneratePO && onGeneratePO && (user?.role === "procurement" || user?.role === "procurement_manager")) {
+  if (availableActions.canGeneratePO && onGeneratePO && (getScmRole(user) === "procurement" || getScmRole(user) === "procurement_manager")) {
     buttons.push(
       <Button
         key="generate-po"
@@ -115,7 +116,7 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
   if (
     availableActions.canGenerateGRN &&
     onGenerateGRN &&
-    (user?.role === "procurement" || user?.role === "procurement_manager")
+    (getScmRole(user) === "procurement" || getScmRole(user) === "procurement_manager")
   ) {
     buttons.push(
       <Button
@@ -135,7 +136,7 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
   }
 
   // Upload GRN - Only for Procurement when GRN is requested
-  if (availableActions.canUploadGRN && onUploadGRN && (user?.role === "procurement" || user?.role === "procurement_manager")) {
+  if (availableActions.canUploadGRN && onUploadGRN && (getScmRole(user) === "procurement" || getScmRole(user) === "procurement_manager")) {
     buttons.push(
       <Button
         key="upload-grn"
@@ -154,7 +155,7 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
   }
 
   // Delete PO - Only for Procurement managers
-  if (onDeletePO && (user?.role === "procurement_manager" || user?.role === "procurement")) {
+  if (onDeletePO && (getScmRole(user) === "procurement_manager" || getScmRole(user) === "procurement")) {
     const hasPO = mrf.po_number || mrf.poNumber;
     if (hasPO && hasPO !== "N/A") {
       buttons.push(
@@ -178,7 +179,7 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
   // Delete MRF - Only for Procurement managers or requester (if allowed)
   if (onDeleteMRF) {
     const canDelete = availableActions.canEdit || 
-      (user?.role === "procurement_manager" || user?.role === "procurement");
+      (getScmRole(user) === "procurement_manager" || getScmRole(user) === "procurement");
     
     if (canDelete) {
       buttons.push(

@@ -18,6 +18,7 @@ import { signatureApi } from "@/services/api";
 import { toast } from "sonner";
 import { useState, useRef, useEffect } from "react";
 import { PasswordInput } from "@/components/ui/password-input";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 export default function Settings() {
   const { user, login } = useAuth();
@@ -64,11 +65,11 @@ export default function Settings() {
   }, [user]);
 
   // Role-based access control
-  const isRegularEmployee = user?.role === "employee" || user?.role === "general_employee";
+  const isRegularEmployee = getScmRole(user) === "employee" || getScmRole(user) === "general_employee";
   const canViewProfile = !isRegularEmployee;
-  const canViewAuditTrail = ['chairman', 'executive', 'supply_chain_director', 'procurement', 'finance', 'logistics'].includes(user?.role || '');
-  const canManageUsers = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain'].includes(user?.role || '');
-  const normalizedRole = (user?.role || '').toLowerCase();
+  const canViewAuditTrail = ['chairman', 'executive', 'supply_chain_director', 'procurement', 'finance', 'logistics'].includes(getScmRole(user) || '');
+  const canManageUsers = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain'].includes(getScmRole(user) || '');
+  const normalizedRole = (getScmRole(user) || '').toLowerCase();
   const canUploadSignature = [
     'supply_chain_director',
     'supply_chain',
@@ -296,14 +297,25 @@ export default function Settings() {
                   <p className="text-xs text-muted-foreground">Email cannot be changed</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
+                  <Label htmlFor="role">Supply Chain Role</Label>
                   <Input 
                     id="role" 
-                    value={user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1).replace('_', ' ') : ""} 
+                    value={formatScmRoleLabel(getScmRole(user))} 
                     disabled 
                   />
-                  <p className="text-xs text-muted-foreground">Role is assigned by administrators</p>
+                  <p className="text-xs text-muted-foreground">SCM role is assigned by administrators</p>
                 </div>
+                {user?.hris_role && (
+                  <div className="space-y-2">
+                    <Label htmlFor="hris_role">HRIS Role</Label>
+                    <Input
+                      id="hris_role"
+                      value={formatScmRoleLabel(user.hris_role)}
+                      disabled
+                    />
+                    <p className="text-xs text-muted-foreground">Managed in HRIS — read-only here</p>
+                  </div>
+                )}
                 <Separator />
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
@@ -503,7 +515,7 @@ export default function Settings() {
 
           {canViewAuditTrail && (
             <TabsContent value="audit" className="space-y-6">
-              <AuditTrail userRole={user?.role} />
+              <AuditTrail userRole={getScmRole(user)} />
             </TabsContent>
           )}
         </Tabs>

@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { authApi } from "@/services/api";
 import type { User } from "@/types";
+import { getScmRole } from "@/utils/scmRole";
 
-export type UserRole = "employee" | "general_employee" | "regular_staff" | "staff" | "procurement_manager" | "finance" | "executive" | "supply_chain_director" | "supply_chain" | "chairman" | "logistics_manager" | "procurement" | "logistics";
+export type UserRole = "employee" | "general_employee" | "regular_staff" | "staff" | "procurement_manager" | "finance" | "executive" | "supply_chain_director" | "supply_chain" | "chairman" | "logistics_manager" | "logistics_officer" | "procurement" | "logistics" | "admin" | "vendor" | "finance_officer";
 
-// Helper to check if a role is a staff/employee role
+/** SCM staff/employee roles — checks supply_chain_role only (not hris_role). */
 export const isEmployeeRole = (role?: string): boolean => {
   const employeeRoles = [
     "employee",
@@ -12,28 +13,42 @@ export const isEmployeeRole = (role?: string): boolean => {
     "regular_staff",
     "staff",
   ];
-
-  const hrisRoles = [
-    "corporate_hr",
-    "logistics",
-    "hr_manager",
-    "line_manager",
-    "contract_employee",
-    "general_employee",
-    "finance_manager"
-  ];
-
-  return role ? [...employeeRoles, ...hrisRoles].includes(role) : false;
+  return role ? employeeRoles.includes(role) : false;
 };
+
+/** Convenience: isEmployeeRole for an auth/API user object. */
+export const isScmEmployee = (user?: { supply_chain_role?: string | null; role?: string | null } | null): boolean =>
+  isEmployeeRole(getScmRole(user));
 
 export interface AuthUser {
   id: number;
   email: string;
+  /** SCM permission role — source of truth for SCM gates. */
+  supply_chain_role: UserRole;
+  /** HRIS role — display-only in SCM. */
+  hris_role?: string | null;
+  /** @deprecated Alias of supply_chain_role for backward compatibility. */
   role: UserRole;
   name: string;
   department: string | null;
   employeeId?: number;
   signature_url?: string | null;
+}
+
+function mapAuthUserFromApi(data: User): AuthUser {
+  const scmRole = data.supply_chain_role ?? data.role;
+  const d = data as User & { signatureUrl?: string };
+  return {
+    id: data.id,
+    email: data.email,
+    supply_chain_role: scmRole as UserRole,
+    hris_role: data.hris_role ?? null,
+    role: scmRole as UserRole,
+    name: data.name,
+    department: data.department ?? null,
+    employeeId: data.employeeId,
+    signature_url: d.signature_url ?? d.signatureUrl ?? null,
+  };
 }
 
 interface AuthContextType {
@@ -102,16 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Verify token is still valid by calling /auth/me
         authApi.getCurrentUser().then((response) => {
           if (response.success && response.data) {
-            const d = response.data as User & { signatureUrl?: string };
-            const updatedUser: AuthUser = {
-              id: response.data.id,
-              email: response.data.email,
-              role: response.data.role as UserRole,
-              name: response.data.name,
-              department: response.data.department,
-              employeeId: response.data.employeeId,
-              signature_url: d.signature_url ?? d.signatureUrl ?? null,
-            };
+            const updatedUser = mapAuthUserFromApi(response.data);
             setUser(updatedUser);
             storage.setItem("userData", JSON.stringify(updatedUser));
             
@@ -178,18 +184,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const token = response.data.token;
         const expiresAt = response.data.expiresAt; // Token expiration from backend
 
-        const authUser: AuthUser = {
-          id: userData.id,
-          email: userData.email,
-          role: userData.role as UserRole,
-          name: userData.name,
-          department: userData.department,
-          employeeId: userData.employeeId,
-          signature_url:
-            (userData as User & { signatureUrl?: string }).signature_url ??
-            (userData as User & { signatureUrl?: string }).signatureUrl ??
-            null,
-        };
+        const authUser = mapAuthUserFromApi(userData);
 
         setUser(authUser);
         

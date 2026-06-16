@@ -49,6 +49,7 @@ import { GPSTrackingPlaceholder } from "@/components/logistics/GPSTrackingPlaceh
 import { AccommodationBookings } from "@/components/logistics/AccommodationBookings";
 import { LogisticsMyRequestsList } from "@/components/logistics/LogisticsMyRequestsList";
 import { useAuth } from "@/contexts/AuthContext";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const Logistics = () => {
   const { toast } = useToast();
@@ -648,7 +649,7 @@ const Logistics = () => {
                     srfRequests={srfRequests || []}
                     mrfRequests={mrfRequests || []}
                     filterRequester={
-                      user?.role === "logistics_manager" ? user?.name ?? null : null
+                      getScmRole(user) === "logistics_manager" ? user?.name ?? null : null
                     }
                     isActive={activeTab === "my-requests"}
                     onRefresh={async () => {

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const FinanceDashboard = () => {
   const { toast } = useToast();
@@ -233,7 +234,7 @@ const FinanceDashboard = () => {
           </div>
         )}
 
-        <FinanceApReportsSection userRole={user?.role} />
+        <FinanceApReportsSection userRole={getScmRole(user)} />
 
         <Card>
           <CardHeader>

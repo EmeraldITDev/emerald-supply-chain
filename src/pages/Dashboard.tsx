@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateLagos, formatRelativeTime as formatRelativeTimeUtil } from "@/utils/dateUtils";
 import type { VendorRegistration } from "@/types";
 import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -32,31 +33,31 @@ const Dashboard = () => {
   const [platformKpis, setPlatformKpis] = useState<DashboardKPIs | null>(null);
 
   // Route to role-specific dashboard
-  if (isEmployeeRole(user?.role)) {
+  if (isEmployeeRole(getScmRole(user))) {
     return <EmployeeDashboard />;
   }
 
-  if (user?.role === "finance") {
+  if (getScmRole(user) === "finance") {
     return <FinanceDashboard />;
   }
 
-  if (user?.role === "executive") {
+  if (getScmRole(user) === "executive") {
     return <Navigate to="/executive" replace />;
   }
 
-  if (user?.role === "chairman") {
+  if (getScmRole(user) === "chairman") {
     return <Navigate to="/chairman" replace />;
   }
 
-  if (user?.role === "supply_chain_director" || user?.role === "supply_chain") {
+  if (getScmRole(user) === "supply_chain_director" || getScmRole(user) === "supply_chain") {
     return <Navigate to="/supply-chain" replace />;
   }
 
-  if (user?.role === "procurement") {
+  if (getScmRole(user) === "procurement") {
     return <Navigate to="/procurement" replace />;
   }
 
-  if (user?.role === "logistics" || user?.role === "logistics_manager") {
+  if (getScmRole(user) === "logistics" || getScmRole(user) === "logistics_manager") {
     return <Navigate to="/logistics" replace />;
   }
 
@@ -77,7 +78,7 @@ const Dashboard = () => {
   // Fetch dashboard data for procurement_manager
   useEffect(() => {
     const fetchDashboardData = async () => {
-      if (user?.role === "procurement_manager") {
+      if (getScmRole(user) === "procurement_manager") {
         setLoading(true);
         try {
           const response = await dashboardApi.getProcurementManagerDashboard();
@@ -107,7 +108,7 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
-  }, [user?.role, toast]);
+  }, [getScmRole(user), toast]);
 
   // Fetch recent activities
   useEffect(() => {
@@ -153,7 +154,7 @@ const Dashboard = () => {
   }, [user]);
 
   const handleRefresh = async () => {
-    if (user?.role === "procurement_manager") {
+    if (getScmRole(user) === "procurement_manager") {
       setLoading(true);
       try {
         const response = await dashboardApi.getProcurementManagerDashboard();
@@ -430,7 +431,7 @@ const Dashboard = () => {
             <CardContent className="p-4 sm:p-6 pt-0">
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {/* Only employees can create MRF/SRF - show for any non-manager roles */}
-                {isEmployeeRole(user?.role) && (
+                {isEmployeeRole(getScmRole(user)) && (
                   <>
                     <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/procurement/mrf/new")}>
                       <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">

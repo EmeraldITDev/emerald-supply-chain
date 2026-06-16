@@ -22,6 +22,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import { canCreateTripRequest } from "@/utils/tripRequestAccess";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 /**
  * Employee Dashboard — a true overview page (separate from "My Requests").
@@ -144,7 +145,7 @@ const EmployeeDashboard = () => {
             <Button onClick={() => navigate("/new-srf")} variant="outline" size="sm">
               <Plus className="mr-2 h-4 w-4" /> New SRF
             </Button>
-            {canCreateTripRequest(user?.role) && (
+            {canCreateTripRequest(getScmRole(user)) && (
               <Button onClick={() => navigate("/trip-request")} variant="outline" size="sm">
                 <MapPin className="mr-2 h-4 w-4" /> Trip Request
               </Button>
@@ -251,7 +252,7 @@ const EmployeeDashboard = () => {
               <Button variant="outline" className="justify-start" onClick={() => navigate("/new-srf")}>
                 <Plus className="mr-2 h-4 w-4" /> Create Service Request (SRF)
               </Button>
-              {canCreateTripRequest(user?.role) && (
+              {canCreateTripRequest(getScmRole(user)) && (
                 <Button variant="outline" className="justify-start" onClick={() => navigate("/trip-request")}>
                   <MapPin className="mr-2 h-4 w-4" /> Submit Trip Request
                 </Button>

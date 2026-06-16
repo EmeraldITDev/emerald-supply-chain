@@ -70,6 +70,7 @@ import type { Trip, TripStatus, TripType, TripPassenger, CreateTripData, BulkTri
 import { VendorJMPSubmission } from "./VendorJMPSubmission";
 import { PassengerNotification } from "./PassengerNotification";
 import { CSVImportPreview, type CSVColumn } from "./CSVImportPreview";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 interface TripSchedulingProps {
   onViewTrip?: (trip: Trip) => void;
@@ -678,7 +679,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <TripRequestDialog userRole={user?.role} onCreated={fetchTrips} />
+          <TripRequestDialog userRole={getScmRole(user)} onCreated={fetchTrips} />
           <Button variant="outline" onClick={() => setCsvImportOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
             CSV Import
@@ -1076,16 +1077,16 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                 (trip as Trip & { workflow_stage?: string }).workflow_stage ||
                                 (trip as Trip & { workflowStage?: string }).workflowStage;
                               const isLogistics =
-                                user?.role &&
+                                getScmRole(user) &&
                                 ["logistics_manager", "logistics_officer", "logistics", "admin"].includes(
-                                  user.role,
+                                  getScmRole(user),
                                 );
                               const isProcurement =
-                                user?.role &&
-                                ["procurement", "procurement_manager"].includes(user.role);
+                                getScmRole(user) &&
+                                ["procurement", "procurement_manager"].includes(getScmRole(user));
                               const isScd =
-                                user?.role &&
-                                ["supply_chain_director", "supply_chain"].includes(user.role);
+                                getScmRole(user) &&
+                                ["supply_chain_director", "supply_chain"].includes(getScmRole(user));
                               if (
                                 isLogistics &&
                                 (stage === "trip_request" || stage === "logistics_review" || !stage)
@@ -1442,7 +1443,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               )}
               <TripWorkflowActions
                 trip={selectedTrip}
-                userRole={user?.role}
+                userRole={getScmRole(user)}
                 onUpdated={fetchTrips}
                 onAssignVendor={() => {
                   openAssignVendorDialog(selectedTrip);

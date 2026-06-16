@@ -124,6 +124,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 function convertSrfToPseudoMrfRequest(srf: SRFRequest): MRFRequest {
   return {
@@ -1851,7 +1852,7 @@ const Procurement = () => {
 
           {/* Dashboard Alerts */}
           <DashboardAlerts
-            userRole={user?.role || "procurement"}
+            userRole={getScmRole(user) || "procurement"}
             maxAlerts={5}
           />
 
@@ -2141,8 +2142,8 @@ const Procurement = () => {
                       </CardDescription>
                     </div>
                     {/* Only employees can create MRF */}
-                    {(user?.role === "employee" ||
-                      user?.role === "general_employee") && (
+                    {(getScmRole(user) === "employee" ||
+                      getScmRole(user) === "general_employee") && (
                       <Button
                         onClick={() => navigate("/procurement/mrf/new")}
                         size="sm"
@@ -2156,8 +2157,8 @@ const Procurement = () => {
                 <CardContent>
                   {/* Rejected POs - Need Resubmission - Only visible to Procurement Managers */}
                   {rejectedPOs.length > 0 &&
-                    (user?.role === "procurement" ||
-                      user?.role === "procurement_manager") && (
+                    (getScmRole(user) === "procurement" ||
+                      getScmRole(user) === "procurement_manager") && (
                       <div className="mb-6 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
                         <div className="flex items-center gap-2 mb-4">
                           <XCircle className="h-5 w-5 text-destructive" />
@@ -2223,8 +2224,8 @@ const Procurement = () => {
                                       </div>
                                     </div>
                                     {/* Regenerate PO button - Only for Procurement Managers */}
-                                    {(user?.role === "procurement" ||
-                                      user?.role === "procurement_manager") && (
+                                    {(getScmRole(user) === "procurement" ||
+                                      getScmRole(user) === "procurement_manager") && (
                                       <div className="flex flex-col sm:flex-row gap-2">
                                         <Button
                                           size="sm"
@@ -2875,8 +2876,8 @@ const Procurement = () => {
                                   if (!apiId) return null;
 
                                   const isProcurement =
-                                    user?.role === "procurement" ||
-                                    user?.role === "procurement_manager";
+                                    getScmRole(user) === "procurement" ||
+                                    getScmRole(user) === "procurement_manager";
                                   if (!isProcurement) return null;
 
                                   const isDraft = Boolean(
@@ -2947,13 +2948,13 @@ const Procurement = () => {
                                     request as MRF,
                                   );
                                    const isProcurement =
-                                     user?.role === "procurement" ||
-                                     user?.role === "procurement_manager";
+                                     getScmRole(user) === "procurement" ||
+                                     getScmRole(user) === "procurement_manager";
                                    const isOversight =
-                                     user?.role === "supply_chain_director" ||
-                                     user?.role === "supply_chain" ||
-                                     user?.role === "executive" ||
-                                     user?.role === "chairman";
+                                     getScmRole(user) === "supply_chain_director" ||
+                                     getScmRole(user) === "supply_chain" ||
+                                     getScmRole(user) === "executive" ||
+                                     getScmRole(user) === "chairman";
                                    const canViewDetails = isProcurement || isOversight;
 
                                   if (canViewDetails) {
@@ -3014,8 +3015,8 @@ const Procurement = () => {
                                     request as MRF,
                                   );
                                   const isProcurement =
-                                    user?.role === "procurement" ||
-                                    user?.role === "procurement_manager";
+                                    getScmRole(user) === "procurement" ||
+                                    getScmRole(user) === "procurement_manager";
                                   const isPendingPOUpload =
                                     workflowState === "pending_po_upload";
 
@@ -3049,8 +3050,8 @@ const Procurement = () => {
                                     request as MRF,
                                   );
                                   const isProcurement =
-                                    user?.role === "procurement" ||
-                                    user?.role === "procurement_manager";
+                                    getScmRole(user) === "procurement" ||
+                                    getScmRole(user) === "procurement_manager";
                                   const isPendingPOUpload =
                                     workflowState === "pending_po_upload";
                                   const hasInitialApproval =
@@ -3112,8 +3113,8 @@ const Procurement = () => {
                                       Download PO
                                     </Button>
                                     {/* Delete PO button - only for procurement managers */}
-                                    {(user?.role === "procurement_manager" ||
-                                      user?.role === "procurement") && (
+                                    {(getScmRole(user) === "procurement_manager" ||
+                                      getScmRole(user) === "procurement") && (
                                       <Button
                                         size="sm"
                                         variant="ghost"
@@ -3130,8 +3131,8 @@ const Procurement = () => {
                                   </>
                                 )}
                                 {/* PM can delete MRFs at any stage (Batch 2 Item 3) */}
-                                {(user?.role === "procurement_manager" ||
-                                  user?.role === "procurement") && (
+                                {(getScmRole(user) === "procurement_manager" ||
+                                  getScmRole(user) === "procurement") && (
                                   <Button
                                     size="sm"
                                     variant="ghost"
@@ -3249,8 +3250,8 @@ const Procurement = () => {
                                   <Badge className={getStatusColor(mrf.status)}>
                                     {getMRFStatusBadgeText(mrf)}
                                   </Badge>
-                                  {(user?.role === "procurement_manager" ||
-                                    user?.role === "procurement") && (
+                                  {(getScmRole(user) === "procurement_manager" ||
+                                    getScmRole(user) === "procurement") && (
                                     <Button
                                       size="sm"
                                       variant="ghost"
@@ -3287,8 +3288,8 @@ const Procurement = () => {
                       </CardDescription>
                     </div>
                     {/* Only employees can create SRF */}
-                    {(user?.role === "employee" ||
-                      user?.role === "general_employee") && (
+                    {(getScmRole(user) === "employee" ||
+                      getScmRole(user) === "general_employee") && (
                       <Button
                         onClick={() => navigate("/procurement/srf/new")}
                         size="sm"
@@ -3304,8 +3305,8 @@ const Procurement = () => {
                     {srfRequests.map((request) => {
                       const wf = getSrfWorkflowState(request);
                       const isProcurement =
-                        user?.role === "procurement" ||
-                        user?.role === "procurement_manager";
+                        getScmRole(user) === "procurement" ||
+                        getScmRole(user) === "procurement_manager";
                       const isPendingPOUpload = wf === "pending_po_upload";
                       const hasScd = isSrfPastSupplyChainDirectorForRfq(request);
                       const canShowRfqButton =

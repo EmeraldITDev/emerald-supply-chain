@@ -1,9 +1,31 @@
 // User & Authentication Types
+export type SupplyChainRole =
+  | 'admin'
+  | 'employee'
+  | 'executive'
+  | 'procurement_manager'
+  | 'procurement'
+  | 'finance'
+  | 'finance_officer'
+  | 'supply_chain_director'
+  | 'supply_chain'
+  | 'chairman'
+  | 'logistics_manager'
+  | 'logistics_officer'
+  | 'logistics'
+  | 'vendor'
+  | 'general_employee';
+
 export interface User {
   id: number;
   email: string;
   name: string;
-  role: 'employee' | 'procurement_manager' | 'procurement' | 'finance' | 'admin' | 'executive' | 'supply_chain_director' | 'chairman' | 'logistics_manager' | 'logistics' | 'finance_officer' | 'supply_chain';
+  /** SCM permission role — source of truth for SCM gates. */
+  supply_chain_role?: SupplyChainRole | string;
+  /** HRIS role — read-only in SCM; never send on create/update from SCM. */
+  hris_role?: string | null;
+  /** @deprecated Alias of supply_chain_role for backward compatibility. */
+  role: SupplyChainRole | string;
   department?: string | null;
   phone?: string | null;
   employeeId?: number;

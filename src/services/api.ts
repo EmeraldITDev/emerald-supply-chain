@@ -440,11 +440,12 @@ export const grnApi = {
   },
 };
 
-// User Management API
+// User Management API — SCM writes supply_chain_role only (never hris_role)
 export const userApi = {
-  getAll: async (filters?: { role?: string; search?: string }): Promise<ApiResponse<User[]>> => {
+  getAll: async (filters?: { supply_chain_role?: string; role?: string; search?: string }): Promise<ApiResponse<User[]>> => {
     const params = new URLSearchParams();
-    if (filters?.role) params.append('role', filters.role);
+    if (filters?.supply_chain_role) params.append('supply_chain_role', filters.supply_chain_role);
+    else if (filters?.role) params.append('role', filters.role);
     if (filters?.search) params.append('search', filters.search);
     
     return apiRequest<User[]>(`/users?${params.toString()}`);
@@ -453,7 +454,7 @@ export const userApi = {
   create: async (userData: {
     name: string;
     email: string;
-    role: string;
+    supply_chain_role: string;
     department?: string;
     password: string;
     is_admin?: boolean;
@@ -468,7 +469,7 @@ export const userApi = {
   update: async (userId: number, userData: Partial<{
     name: string;
     email: string;
-    role: string;
+    supply_chain_role: string;
     department?: string;
     password?: string;
     is_admin?: boolean;

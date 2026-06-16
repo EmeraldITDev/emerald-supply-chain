@@ -44,6 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Driver } from "@/types/logistics";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -62,7 +63,7 @@ export const DriverManagement = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const canManage =
-    (user?.role as string) === "logistics_manager" || (user?.role as string) === "admin";
+    getScmRole(user) === "logistics_manager" || getScmRole(user) === "admin";
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -5,6 +5,7 @@ import { Warehouse as WarehouseIcon, Package, CheckCircle, MapPin, Receipt as Re
 import { GRNModule } from "@/components/GRNModule";
 import { DailyMaterialsConsumption } from "@/components/warehouse/DailyMaterialsConsumption";
 import { useAuth } from "@/contexts/AuthContext";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const Warehouse = () => {
   const { user } = useAuth();
@@ -81,7 +82,7 @@ const Warehouse = () => {
           </TabsList>
 
           <TabsContent value="grn" className="space-y-4">
-            <GRNModule userRole={user?.role || 'employee'} />
+            <GRNModule userRole={getScmRole(user) || 'employee'} />
           </TabsContent>
 
           <TabsContent value="consumption" className="space-y-4">

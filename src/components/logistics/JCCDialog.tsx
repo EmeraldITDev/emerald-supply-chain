@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { jccApi } from "@/services/logisticsApi";
 import type { Trip, JCC, JCCLineItem } from "@/types/logistics";
 import { openJccPdfFromDialogState } from "@/utils/jccPdfActions";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 interface Props {
   trip: Trip | null;
@@ -56,7 +57,7 @@ export function JCCDialog({ trip, open, onOpenChange }: Props) {
   const [askPrefill, setAskPrefill] = useState(false);
   const prefillRef = useRef<JCCLineItem[] | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
-  const isApprover = user?.role === "supply_chain_director";
+  const isApprover = getScmRole(user) === "supply_chain_director";
 
   useEffect(() => {
     if (!open || !trip) return;
@@ -188,7 +189,7 @@ export function JCCDialog({ trip, open, onOpenChange }: Props) {
         dateIssued,
         certificationStatement: statement,
         lineItems: rows,
-        emeraldSignatoryName: user?.role === "supply_chain_director" ? user?.name : undefined,
+        emeraldSignatoryName: getScmRole(user) === "supply_chain_director" ? user?.name : undefined,
       });
       return;
     } catch (e) {
@@ -317,7 +318,7 @@ export function JCCDialog({ trip, open, onOpenChange }: Props) {
                 <div>
                   <p className="text-xs text-muted-foreground">Signatory</p>
                   <p className="font-medium">{user?.name ?? "—"}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{user?.role?.replace(/_/g, " ")}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{getScmRole(user)?.replace(/_/g, " ")}</p>
                 </div>
               </div>
 

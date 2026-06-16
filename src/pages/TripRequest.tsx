@@ -7,13 +7,14 @@ import { TripRequestForm } from "@/components/logistics/TripRequestForm";
 import { MyTripRequestsList } from "@/components/logistics/MyTripRequestsList";
 import { useAuth } from "@/contexts/AuthContext";
 import { canCreateTripRequest } from "@/utils/tripRequestAccess";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const TripRequest = () => {
   const { user } = useAuth();
   const [tab, setTab] = useState("new");
   const [listRefresh, setListRefresh] = useState(0);
 
-  if (!canCreateTripRequest(user?.role)) {
+  if (!canCreateTripRequest(getScmRole(user))) {
     return <Navigate to="/dashboard" replace />;
   }
 

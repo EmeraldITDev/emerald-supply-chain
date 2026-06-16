@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
 import { TripRequestDialog } from "@/components/logistics/TripRequestDialog";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -84,14 +85,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 </Button>
                 <TripRequestDialog
-                  userRole={user?.role}
+                  userRole={getScmRole(user)}
                   variant="outline"
                   size="sm"
                   label="Trip Request"
                   className="hidden sm:inline-flex"
                 />
                 <TripRequestDialog
-                  userRole={user?.role}
+                  userRole={getScmRole(user)}
                   variant="outline"
                   size="icon"
                   showIcon
@@ -110,7 +111,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                     {user?.name}
                   </p>
                   <p className="text-xs text-muted-foreground truncate max-w-[100px] lg:max-w-[160px]">
-                    {user?.role && user.role.charAt(0).toUpperCase() + user.role.slice(1).replace('_', ' ')}
+                    {formatScmRoleLabel(getScmRole(user))}
                   </p>
                 </button>
               </div>

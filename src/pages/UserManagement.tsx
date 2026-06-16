@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { userApi, departmentApi } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { getScmRole, getUserScmRole, getUserScmRoleOrDefault, formatScmRoleLabel } from "@/utils/scmRole";
 import type { User } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,21 +54,21 @@ const UserManagement = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    role: "employee",
+    supply_chain_role: "employee",
     department: "",
     password: "",
     is_admin: false,
     can_manage_users: false,
   });
 
-  // Check if user can manage users
-  const canManageUsers = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain', 'chairman', 'admin'].includes(user?.role || '');
+  const scmManageRoles = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain', 'chairman', 'admin'];
+  const canManageUsers = scmManageRoles.includes(getScmRole(user) || '');
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const filters: { role?: string; search?: string } = {};
-      if (roleFilter !== "all") filters.role = roleFilter;
+      const filters: { supply_chain_role?: string; search?: string } = {};
+      if (roleFilter !== "all") filters.supply_chain_role = roleFilter;
       if (searchQuery) filters.search = searchQuery;
 
       const response = await userApi.getAll(filters);
@@ -103,7 +104,7 @@ const UserManagement = () => {
       setFormData({
         name: user.name,
         email: user.email,
-        role: user.role,
+        supply_chain_role: getUserScmRoleOrDefault(user),
         department: user.department || "",
         password: "",
         is_admin: user.is_admin || false,
@@ -114,7 +115,7 @@ const UserManagement = () => {
       setFormData({
         name: "",
         email: "",
-        role: "employee",
+        supply_chain_role: "employee",
         department: "",
         password: "",
         is_admin: false,
@@ -138,16 +139,24 @@ const UserManagement = () => {
     try {
       if (selectedUser) {
         // Update existing user
-        const updateData: any = {
+        const updateData: {
+          name: string;
+          email: string;
+          supply_chain_role: string;
+          department: string;
+          password?: string;
+          is_admin?: boolean;
+          can_manage_users?: boolean;
+        } = {
           name: formData.name,
           email: formData.email,
-          role: formData.role,
+          supply_chain_role: formData.supply_chain_role,
           department: formData.department,
         };
         if (formData.password) {
           updateData.password = formData.password;
         }
-        if (['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain', 'admin'].includes(formData.role)) {
+        if (scmManageRoles.includes(formData.supply_chain_role)) {
           updateData.is_admin = true;
           updateData.can_manage_users = true;
         } else {
@@ -155,16 +164,14 @@ const UserManagement = () => {
           updateData.can_manage_users = formData.can_manage_users;
         }
 
-        // Log the update request for debugging role assignment issues
-
         const response = await userApi.update(selectedUser.id, updateData);
         if (response.success) {
-          // Verify role was set correctly
-          if (response.data && response.data.role && response.data.role !== formData.role) {
-            console.warn(`⚠️ Role mismatch: Sent ${formData.role}, backend returned ${response.data.role}`);
+          const returnedRole = response.data ? getUserScmRole(response.data) : undefined;
+          if (returnedRole && returnedRole !== formData.supply_chain_role) {
+            console.warn(`⚠️ Role mismatch: Sent ${formData.supply_chain_role}, backend returned ${returnedRole}`);
             toast({
               title: "Warning",
-              description: `User updated, but role may not have been set correctly. Sent: ${formData.role}, Returned: ${response.data.role}`,
+              description: `User updated, but role may not have been set correctly. Sent: ${formData.supply_chain_role}, Returned: ${returnedRole}`,
               variant: "default",
             });
           } else {
@@ -184,14 +191,22 @@ const UserManagement = () => {
         }
       } else {
         // Create new user
-        const createData: any = {
+        const createData: {
+          name: string;
+          email: string;
+          supply_chain_role: string;
+          department: string;
+          password: string;
+          is_admin?: boolean;
+          can_manage_users?: boolean;
+        } = {
           name: formData.name,
           email: formData.email,
-          role: formData.role,
+          supply_chain_role: formData.supply_chain_role,
           department: formData.department,
           password: formData.password,
         };
-        if (['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain', 'admin'].includes(formData.role)) {
+        if (scmManageRoles.includes(formData.supply_chain_role)) {
           createData.is_admin = true;
           createData.can_manage_users = true;
         } else {
@@ -199,22 +214,20 @@ const UserManagement = () => {
           createData.can_manage_users = formData.can_manage_users;
         }
 
-        // Log the create request for debugging role assignment issues
-
         const response = await userApi.create(createData);
         if (response.success) {
-          // Verify role was set correctly
-          if (response.data && response.data.role && response.data.role !== formData.role) {
-            console.warn(`⚠️ Role mismatch: Sent ${formData.role}, backend returned ${response.data.role}`);
+          const returnedRole = response.data ? getUserScmRole(response.data) : undefined;
+          if (returnedRole && returnedRole !== formData.supply_chain_role) {
+            console.warn(`⚠️ Role mismatch: Sent ${formData.supply_chain_role}, backend returned ${returnedRole}`);
             toast({
               title: "Warning",
-              description: `User created, but role may not have been set correctly. Sent: ${formData.role}, Returned: ${response.data.role}`,
+              description: `User created, but role may not have been set correctly. Sent: ${formData.supply_chain_role}, Returned: ${returnedRole}`,
               variant: "default",
             });
           } else {
             toast({
               title: "Success",
-              description: `User created successfully with role: ${formData.role}`,
+              description: `User created successfully with role: ${formData.supply_chain_role}`,
             });
           }
           setDialogOpen(false);
@@ -291,7 +304,10 @@ const UserManagement = () => {
     { value: "finance", label: "Finance" },
     { value: "chairman", label: "Chairman" },
     { value: "admin", label: "Admin" },
-    { value: "logistics", label: "Logistics Manager" },
+    { value: "logistics_manager", label: "Logistics Manager" },
+    { value: "logistics_officer", label: "Logistics Officer" },
+    { value: "logistics", label: "Logistics (legacy)" },
+    { value: "vendor", label: "Vendor" },
   ];
 
   return (
@@ -361,7 +377,16 @@ const UserManagement = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="font-semibold">{u.name}</h3>
-                        <Badge variant="outline" className="text-xs">{u.role.replace('_', ' ')}</Badge>
+                        {getUserScmRole(u) ? (
+                          <Badge variant="outline" className="text-xs">
+                            {formatScmRoleLabel(getUserScmRole(u))}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">No SCM role</Badge>
+                        )}
+                        {u.hris_role && (
+                          <Badge variant="secondary" className="text-xs">HRIS: {formatScmRoleLabel(u.hris_role)}</Badge>
+                        )}
                         {u.is_admin && <Badge variant="default" className="text-xs">Admin</Badge>}
                         {u.can_manage_users && <Badge variant="secondary" className="text-xs">Can Manage Users</Badge>}
                       </div>
@@ -548,8 +573,11 @@ const UserManagement = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="role">Role *</Label>
-                <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
+                <Label htmlFor="supply_chain_role">Supply Chain Role *</Label>
+                <Select
+                  value={formData.supply_chain_role || "employee"}
+                  onValueChange={(value) => setFormData({ ...formData, supply_chain_role: value })}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -593,7 +621,7 @@ const UserManagement = () => {
                   />
                 </div>
               )}
-              {!['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain', 'admin'].includes(formData.role) && (
+              {!scmManageRoles.includes(formData.supply_chain_role) && (
                 <>
                   <div className="flex items-center space-x-2">
                     <input

@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { accommodationApi, tripsApi } from "@/services/logisticsApi";
 import type { Accommodation, Trip, CreateAccommodationData } from "@/types/logistics";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const CRUD_ROLES = ["logistics_officer", "logistics_manager", "logistics", "admin"];
 const READ_ROLES = ["supply_chain_director", "supply_chain", "procurement_manager", "procurement"];
@@ -60,7 +61,7 @@ const computeCheckOut = (checkIn: string, nights: number) => {
 export function AccommodationBookings() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const role = (user?.role as string) ?? "";
+  const role = getScmRole(user) ?? "";
   const canCrud = CRUD_ROLES.includes(role);
   const canRead = canCrud || READ_ROLES.includes(role);
 

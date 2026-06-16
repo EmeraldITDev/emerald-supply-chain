@@ -19,6 +19,7 @@ import { Navigate } from "react-router-dom";
 import { procurementReportsApi } from "@/services/api";
 import type { ProcurementReportData } from "@/types";
 import { FinanceApReportsSection } from "@/components/finance/FinanceApReportsSection";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const REPORT_ROLES = [
   "procurement_manager",
@@ -59,12 +60,12 @@ const ProcurementReports = () => {
   }, [from, to, toast]);
 
   useEffect(() => {
-    if (user?.role && REPORT_ROLES.includes(user.role)) {
+    if (getScmRole(user) && REPORT_ROLES.includes(getScmRole(user))) {
       loadReport();
     }
-  }, [user?.role, loadReport]);
+  }, [getScmRole(user), loadReport]);
 
-  if (!user?.role || !REPORT_ROLES.includes(user.role)) {
+  if (!getScmRole(user) || !REPORT_ROLES.includes(getScmRole(user))) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -250,7 +251,7 @@ const ProcurementReports = () => {
           <p className="text-center text-muted-foreground py-8">No report data available.</p>
         )}
 
-        <FinanceApReportsSection userRole={user?.role} />
+        <FinanceApReportsSection userRole={getScmRole(user)} />
       </div>
     </DashboardLayout>
   );

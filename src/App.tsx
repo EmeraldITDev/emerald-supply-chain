@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { getScmRole } from "@/utils/scmRole";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -78,7 +79,8 @@ const ProcurementRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   if (!isAuthenticated) return <Navigate to="/auth" replace />;
-  if (!user?.role || !PROCUREMENT_ACCESS_ROLES.includes(user.role)) {
+  const scmRole = getScmRole(user);
+  if (!scmRole || !PROCUREMENT_ACCESS_ROLES.includes(scmRole)) {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;

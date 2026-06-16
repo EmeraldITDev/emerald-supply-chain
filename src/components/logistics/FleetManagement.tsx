@@ -80,6 +80,7 @@ import { UpcomingMaintenanceWidget } from "./UpcomingMaintenanceWidget";
 import { DriverManagement } from "./DriverManagement";
 import { ReactivateVehicleDialog } from "./ReactivateVehicleDialog";
 import { RotateCw } from "lucide-react";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const statusColors: Partial<Record<VehicleStatus, string>> = {
   ACTIVE: "bg-success/10 text-success",
@@ -111,7 +112,7 @@ export const FleetManagement = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
-  const canInitiateSRF = !!user && ["logistics_officer", "logistics_manager", "logistics"].includes(user.role as string);
+  const canInitiateSRF = !!user && ["logistics_officer", "logistics_manager", "logistics"].includesgetScmRole(user);
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [alerts, setAlerts] = useState<FleetAlert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,8 +158,8 @@ export const FleetManagement = () => {
   const [srfVehicle, setSrfVehicle] = useState<FleetVehicle | null>(null);
   const [isInitiatingSRF, setIsInitiatingSRF] = useState(false);
   const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
-  const canReactivate = !!user && ["logistics_officer", "logistics_manager", "logistics", "admin"].includes(user.role as string);
-  const canEditFleet = !!user && ["logistics_manager", "admin"].includes(user.role as string);
+  const canReactivate = !!user && ["logistics_officer", "logistics_manager", "logistics", "admin"].includesgetScmRole(user);
+  const canEditFleet = !!user && ["logistics_manager", "admin"].includesgetScmRole(user);
 
   const handleInitiateSRF = async () => {
     if (!srfVehicle) return;

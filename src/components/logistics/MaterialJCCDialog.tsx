@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Loader2, Plus, X, Download, Printer, FileCheck2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { getScmRole } from "@/utils/scmRole";
 import { materialsMovementsApi } from "@/services/logisticsApi";
 import type { MaterialMovementRecord, MaterialJCC, MaterialJCCLineItem, ConditionOnArrival } from "@/types/logistics";
 import {
@@ -51,10 +52,10 @@ const blankJCC = (movement: MaterialMovementRecord, signatory: { name: string; t
 export const MaterialJCCDialog = ({ movement, open, onOpenChange, onApproved, pdfEndpointAvailable = true }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const role = (user as any)?.role as string | undefined;
+  const role = getScmRole(user);
   const signatory = {
     name: user?.name ?? "",
-    title: (user as any)?.title ?? (user as any)?.role ?? "",
+    title: (user as any)?.title ?? getScmRole(user) ?? "",
   };
 
   const [loading, setLoading] = useState(false);

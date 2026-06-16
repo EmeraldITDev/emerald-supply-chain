@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { notificationApi } from "@/services/api";
+import { getScmRole } from "@/utils/scmRole";
 import { 
   NotificationService, 
   type AppNotification, 
@@ -92,7 +93,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
     const newNotifications = NotificationService.createNotificationsForEvent(
       event,
-      user.role,
+      getScmRole(user) as import("./AuthContext").UserRole,
       data,
       preferences
     );

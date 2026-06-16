@@ -35,6 +35,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { MRF, SRF } from "@/types";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const DepartmentDashboard = () => {
   const { user } = useAuth();
@@ -210,8 +211,8 @@ const DepartmentDashboard = () => {
               Submit material requests and track your procurement activities
             </p>
           </div>
-          {canCreateTripRequest(user?.role) && (
-            <TripRequestDialog userRole={user?.role} label="New Trip Request" />
+          {canCreateTripRequest(getScmRole(user)) && (
+            <TripRequestDialog userRole={getScmRole(user)} label="New Trip Request" />
           )}
         </div>
 
@@ -267,7 +268,7 @@ const DepartmentDashboard = () => {
             <TabsTrigger value="mrns" className="text-xs sm:text-sm">MRNs</TabsTrigger>
             <TabsTrigger value="mrf" className="text-xs sm:text-sm">MRFs</TabsTrigger>
             <TabsTrigger value="srf" className="text-xs sm:text-sm">SRFs</TabsTrigger>
-            {canCreateTripRequest(user?.role) && (
+            {canCreateTripRequest(getScmRole(user)) && (
               <TabsTrigger value="trips" className="text-xs sm:text-sm">My Trips</TabsTrigger>
             )}
             <TabsTrigger value="annual" className="text-xs sm:text-sm">Annual</TabsTrigger>
@@ -376,7 +377,7 @@ const DepartmentDashboard = () => {
                     <CardTitle className="text-base sm:text-lg">Material Request Forms (MRF)</CardTitle>
                     <CardDescription className="text-xs sm:text-sm">Track your material requisition forms and their progress</CardDescription>
                   </div>
-                  {isEmployeeRole(user?.role) && (
+                  {isEmployeeRole(getScmRole(user)) && (
                     <Button onClick={() => navigate("/new-mrf")} size="sm" className="sm:size-default">
                       <Plus className="mr-2 h-4 w-4" />
                       <span className="hidden sm:inline">New MRF</span>
@@ -395,7 +396,7 @@ const DepartmentDashboard = () => {
                     <div className="text-center py-8 text-muted-foreground">
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No MRFs found.</p>
-                      {isEmployeeRole(user?.role) && (
+                      {isEmployeeRole(getScmRole(user)) && (
                         <p className="text-sm mt-1">Create your first Material Request Form.</p>
                       )}
                     </div>
@@ -504,7 +505,7 @@ const DepartmentDashboard = () => {
                     <CardTitle className="text-base sm:text-lg">Service Request Forms (SRF)</CardTitle>
                     <CardDescription className="text-xs sm:text-sm">Official service requisition forms</CardDescription>
                   </div>
-                  {isEmployeeRole(user?.role) && (
+                  {isEmployeeRole(getScmRole(user)) && (
                     <Button onClick={() => navigate("/new-srf")} size="sm" className="sm:size-default">
                       <Plus className="mr-2 h-4 w-4" />
                       <span className="hidden sm:inline">New SRF</span>
@@ -522,7 +523,7 @@ const DepartmentDashboard = () => {
                   <div className="text-center py-8 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No SRFs found.</p>
-                    {isEmployeeRole(user?.role) && (
+                    {isEmployeeRole(getScmRole(user)) && (
                       <p className="text-sm mt-1">Create your first Service Request Form.</p>
                     )}
                   </div>
@@ -551,7 +552,7 @@ const DepartmentDashboard = () => {
             </Card>
           </TabsContent>
 
-          {canCreateTripRequest(user?.role) && (
+          {canCreateTripRequest(getScmRole(user)) && (
             <TabsContent value="trips" className="space-y-3 sm:space-y-4">
               <Card>
                 <CardHeader className="p-4 sm:p-6">

@@ -16,6 +16,7 @@ import { fleetApi } from "@/services/logisticsApi";
 import type { FleetVehicle } from "@/types/logistics";
 import type { LineItem } from "@/types";
 import { normalizeFleetVehicle, displayFleetVehiclePlate } from "@/utils/normalizeFleetVehicle";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const NewSRF = () => {
   const navigate = useNavigate();
@@ -25,10 +26,10 @@ const NewSRF = () => {
 
   const canAccessNewSrf =
     !!user &&
-    (isEmployeeRole(user.role) ||
-      user.role === "logistics_manager" ||
-      user.role === "logistics" ||
-      (user.role as string) === "logistics_officer");
+    (isEmployeeRole(getScmRole(user)) ||
+      getScmRole(user) === "logistics_manager" ||
+      getScmRole(user) === "logistics" ||
+      getScmRole(user) === "logistics_officer");
 
   // Staff and logistics roles can create SRF
   useEffect(() => {
@@ -62,9 +63,9 @@ const NewSRF = () => {
   });
 
   const isFleetLogistics =
-    user?.role === "logistics_manager" ||
-    user?.role === "logistics" ||
-    (user?.role as string) === "logistics_officer";
+    getScmRole(user) === "logistics_manager" ||
+    getScmRole(user) === "logistics" ||
+    getScmRole(user) === "logistics_officer";
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
 

@@ -15,6 +15,7 @@ import { type MRFRequest } from "@/contexts/AppContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { mrfApi } from "@/services/api";
 import type { LineItem } from "@/types";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const NewMRF = () => {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ const NewMRF = () => {
 
   // Staff and Logistics Manager can create MRF
   useEffect(() => {
-    if (user && !isEmployeeRole(user.role) && user.role !== "logistics_manager") {
+    if (user && !isEmployeeRole(getScmRole(user)) && getScmRole(user) !== "logistics_manager") {
       toast({
         title: "Access Denied",
         description: "Only staff members can create Material Request Forms. Please contact your administrator.",

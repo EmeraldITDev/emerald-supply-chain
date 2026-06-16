@@ -37,6 +37,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 const Vendors = () => {
   const { toast } = useToast();
@@ -44,7 +45,7 @@ const Vendors = () => {
   const { vendors: contextVendors } = useApp();
   const { user } = useAuth();
   const canEditProfileDetails =
-    user?.role === "procurement_manager" || user?.role === "supply_chain_director";
+    getScmRole(user) === "procurement_manager" || getScmRole(user) === "supply_chain_director";
   const [vendors, setVendors] = useState(contextVendors);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);

@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { mrfApi } from "@/services/api";
 import type { MRF } from "@/types";
 import FinanceSyncPanel from "./FinanceSyncPanel";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 interface MrfFinanceSyncSectionProps {
   mrfId: string;
@@ -37,7 +38,7 @@ export const MrfFinanceSyncSection = ({
       }
       const res = await mrfApi.getAvailableActions(mrfId, {
         mrf,
-        userRole: user?.role,
+        userRole: getScmRole(user),
       });
       if (cancelled) return;
       if (res.success && res.data) {
@@ -53,7 +54,7 @@ export const MrfFinanceSyncSection = ({
     return () => {
       cancelled = true;
     };
-  }, [mrfId, mrf, user?.role]);
+  }, [mrfId, mrf, getScmRole(user)]);
 
   if (visible === false) return null;
   if (visible === null) return null;

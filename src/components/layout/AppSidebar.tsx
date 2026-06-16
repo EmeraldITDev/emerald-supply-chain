@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import logo from "@/assets/emerald-logo.png";
+import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
@@ -48,7 +49,7 @@ export function AppSidebar() {
     navigate("/auth");
   };
 
-  const tripRequestNavItem = canCreateTripRequest(user?.role)
+  const tripRequestNavItem = canCreateTripRequest(getScmRole(user))
     ? [{ title: "Trip Request", url: "/trip-request", icon: MapPin }]
     : [];
 
@@ -97,7 +98,7 @@ export function AppSidebar() {
 
   // Role-based navigation structure
   const getNavigationGroups = () => {
-    if (isEmployeeRole(user?.role)) {
+    if (isEmployeeRole(getScmRole(user))) {
       return [
         {
           label: "Main",
@@ -116,10 +117,10 @@ export function AppSidebar() {
           ]
         }
       ];
-    } else if (user?.role === "procurement" || user?.role === "procurement_manager") {
+    } else if (getScmRole(user) === "procurement" || getScmRole(user) === "procurement_manager") {
       // Procurement Manager: Full system, no approvals
       return fullProcurementNav;
-    } else if (user?.role === "finance") {
+    } else if (getScmRole(user) === "finance") {
       return [
         {
           label: "Main",
@@ -146,7 +147,7 @@ export function AppSidebar() {
           ]
         }
       ];
-    } else if (user?.role === "executive") {
+    } else if (getScmRole(user) === "executive") {
       // Executive: Full procurement access + MRF approval authority
       return [
         ...fullProcurementNav,
@@ -157,7 +158,7 @@ export function AppSidebar() {
           ]
         }
       ];
-    } else if (user?.role === "chairman") {
+    } else if (getScmRole(user) === "chairman") {
       // Chairman: Full procurement access + high-value MRF & payment approvals
       return [
         ...fullProcurementNav,
@@ -169,7 +170,7 @@ export function AppSidebar() {
           ]
         }
       ];
-    } else if (user?.role === "supply_chain_director" || user?.role === "supply_chain") {
+    } else if (getScmRole(user) === "supply_chain_director" || getScmRole(user) === "supply_chain") {
       // Supply Chain Director: Full procurement access + PO signing
       // Note: Database may use "supply_chain" or "supply_chain_director" for this role
       return [
@@ -181,7 +182,7 @@ export function AppSidebar() {
           ]
         }
       ];
-    } else if (user?.role === "logistics_manager") {
+    } else if (getScmRole(user) === "logistics_manager") {
       // Logistics Manager: full logistics ops + create own MRF/SRF + read-only procurement
       return [
         {
@@ -221,7 +222,7 @@ export function AppSidebar() {
           ]
         }
       ];
-    } else if (user?.role === "logistics" || (user?.role as string) === "logistics_officer") {
+    } else if (getScmRole(user) === "logistics" || getScmRole(user) === "logistics_officer") {
       return [
         {
           label: "Main",
