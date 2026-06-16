@@ -19,6 +19,37 @@ import type {
 } from '@/types';
 import { RFQ_STANDARD_TERMS } from '@/data/rfqPoTermsTemplate';
 
+/**
+ * Recover from Vite "Failed to fetch dynamically imported module" errors.
+ * After a redeploy, the browser may hold an index.html referencing stale chunk
+ * hashes. Retry once, then force a one-time reload so the user gets the fresh
+ * bundle instead of a broken feature.
+ */
+async function safeDynamicImport<T>(loader: () => Promise<T>): Promise<T> {
+  try {
+    return await loader();
+  } catch (err) {
+    const msg = String((err as { message?: string })?.message ?? err);
+    const isChunkError =
+      /Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|error loading dynamically imported module/i.test(
+        msg,
+      );
+    if (!isChunkError) throw err;
+    try {
+      return await loader();
+    } catch (err2) {
+      if (typeof window !== 'undefined') {
+        const KEY = '__lov_chunk_reload__';
+        if (!sessionStorage.getItem(KEY)) {
+          sessionStorage.setItem(KEY, '1');
+          window.location.reload();
+        }
+      }
+      throw err2;
+    }
+  }
+}
+
 // Configure your API base URL here
 // For Lovable previews and production, always use the deployed backend
 // Only use localhost if explicitly set in VITE_API_BASE_URL for local development
