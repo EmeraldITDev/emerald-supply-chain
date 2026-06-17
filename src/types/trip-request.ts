@@ -63,6 +63,12 @@ export interface TripRequestExternalPassenger {
   phone?: string;
 }
 
+export interface TripViewerContext {
+  isInvolved?: boolean;
+  canManage?: boolean;
+  readOnly?: boolean;
+}
+
 export interface StaffTripRequest {
   id: number | string;
   tripCode?: string;
@@ -91,8 +97,12 @@ export interface StaffTripRequest {
   /** Linked logistics trip id once approved/assigned */
   trip_id?: string | number;
   tripId?: string | number;
+  logisticsTripId?: string | number;
+  logistics_trip_id?: string | number;
   requester_name?: string;
   requesterName?: string;
+  requester_department?: string;
+  requesterDepartment?: string;
   requester_id?: number;
   requesterId?: number;
   passengers?: TripRequestPassenger[];
@@ -110,7 +120,13 @@ export interface StaffTripRequest {
   driverName?: string;
   external_driver?: { name: string; phone?: string; email?: string };
   externalDriver?: { name: string; phone?: string; email?: string };
+  viewer?: TripViewerContext;
+  readOnly?: boolean;
+  canManage?: boolean;
+  canComment?: boolean;
 }
+
+export interface OrgTripListItem extends StaffTripRequest {}
 
 export interface TripComment {
   id: string | number;

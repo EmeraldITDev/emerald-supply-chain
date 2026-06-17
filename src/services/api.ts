@@ -3367,17 +3367,51 @@ export const tripRequestApi = {
 
   getById: async (
     id: string,
-  ): Promise<ApiResponse<{ trip: import('@/types/trip-request').StaffTripRequest }>> => {
+  ): Promise<
+    ApiResponse<{
+      trip: import('@/types/trip-request').StaffTripRequest;
+      viewer?: import('@/types/trip-request').TripViewerContext;
+      readOnly?: boolean;
+      canManage?: boolean;
+      canComment?: boolean;
+    }>
+  > => {
     const res = await apiRequest<Record<string, unknown>>(
       `/trip-requests/${encodeURIComponent(id)}`,
     );
     if (res.success && res.data) {
+      const raw = res.data as Record<string, unknown>;
       const trip =
-        (res.data.trip as import('@/types/trip-request').StaffTripRequest) ??
-        (res.data as unknown as import('@/types/trip-request').StaffTripRequest);
-      return { ...res, data: { trip } };
+        (raw.trip as import('@/types/trip-request').StaffTripRequest) ??
+        (raw as unknown as import('@/types/trip-request').StaffTripRequest);
+      const viewer = raw.viewer as import('@/types/trip-request').TripViewerContext | undefined;
+      return {
+        ...res,
+        data: {
+          trip: {
+            ...trip,
+            viewer: viewer ?? trip.viewer,
+            readOnly: Boolean(raw.readOnly ?? viewer?.readOnly ?? trip.readOnly),
+            canManage: Boolean(raw.canManage ?? viewer?.canManage ?? trip.canManage),
+            canComment:
+              raw.canComment !== undefined
+                ? Boolean(raw.canComment)
+                : trip.canComment,
+          },
+          viewer,
+          readOnly: Boolean(raw.readOnly ?? viewer?.readOnly),
+          canManage: Boolean(raw.canManage ?? viewer?.canManage),
+          canComment: raw.canComment !== undefined ? Boolean(raw.canComment) : undefined,
+        },
+      };
     }
-    return res as unknown as ApiResponse<{ trip: import('@/types/trip-request').StaffTripRequest }>;
+    return res as unknown as ApiResponse<{
+      trip: import('@/types/trip-request').StaffTripRequest;
+      viewer?: import('@/types/trip-request').TripViewerContext;
+      readOnly?: boolean;
+      canManage?: boolean;
+      canComment?: boolean;
+    }>;
   },
 
   getProgressTracker: async (
@@ -3461,6 +3495,37 @@ export const tripRequestApi = {
     });
   },
 
+  /** Organization-wide trip browse list (all authenticated staff, read-only) */
+  listAll: async (params?: {
+    status?: string;
+    q?: string;
+    limit?: number;
+    per_page?: number;
+  }): Promise<ApiResponse<import('@/types/trip-request').TripRequestsListResponse>> => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.q) qs.set('q', params.q);
+    const limit = params?.limit ?? params?.per_page ?? 50;
+    qs.set('limit', String(Math.min(100, Math.max(1, limit))));
+    const res = await apiRequest<Record<string, unknown>>(`/trip-requests/all?${qs.toString()}`);
+    if (res.success) {
+      const data = (res.data ?? {}) as Record<string, unknown>;
+      const trips = (
+        (data.trips as import('@/types/trip-request').StaffTripRequest[]) ??
+        (Array.isArray(res.data) ? res.data : []) ??
+        []
+      ) as import('@/types/trip-request').StaffTripRequest[];
+      return {
+        ...res,
+        data: {
+          trips,
+          pagination: data.pagination as import('@/types/trip-request').TripRequestsListResponse['pagination'],
+        },
+      };
+    }
+    return res as unknown as ApiResponse<import('@/types/trip-request').TripRequestsListResponse>;
+  },
+
   /** List trip requests awaiting Logistics Manager action */
   listPendingForLogistics: async (): Promise<
     ApiResponse<import('@/types/trip-request').TripRequestsListResponse>
@@ -3528,18 +3593,33 @@ export const tripRequestApi = {
 
   getComments: async (
     id: string,
-  ): Promise<ApiResponse<{ comments: import('@/types/trip-request').TripComment[] }>> => {
+  ): Promise<
+    ApiResponse<{
+      comments: import('@/types/trip-request').TripComment[];
+      canComment?: boolean;
+    }>
+  > => {
     const res = await apiRequest<Record<string, unknown>>(
       `/trip-requests/${encodeURIComponent(id)}/comments`,
     );
     if (res.success && res.data) {
+      const raw = res.data as Record<string, unknown>;
       const comments = (
-        (res.data.comments as import('@/types/trip-request').TripComment[]) ??
+        (raw.comments as import('@/types/trip-request').TripComment[]) ??
         (Array.isArray(res.data) ? res.data : [])
       ) as import('@/types/trip-request').TripComment[];
-      return { ...res, data: { comments } };
+      return {
+        ...res,
+        data: {
+          comments,
+          canComment: raw.canComment !== undefined ? Boolean(raw.canComment) : undefined,
+        },
+      };
     }
-    return res as unknown as ApiResponse<{ comments: import('@/types/trip-request').TripComment[] }>;
+    return res as unknown as ApiResponse<{
+      comments: import('@/types/trip-request').TripComment[];
+      canComment?: boolean;
+    }>;
   },
 
   addComment: async (

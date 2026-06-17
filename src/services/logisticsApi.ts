@@ -305,16 +305,35 @@ export const tripsApi = {
     });
   },
 
-  getComments: async (tripId: string): Promise<ApiResponse<import('@/types/logistics').TripComment[]>> => {
-    const res = await apiRequest<Record<string, unknown>>(`/trips/${encodeURIComponent(tripId)}/comments`);
+  getComments: async (
+    tripId: string,
+  ): Promise<
+    ApiResponse<{
+      comments: import('@/types/logistics').TripComment[];
+      canComment?: boolean;
+    }>
+  > => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/trips/${encodeURIComponent(tripId)}/comments`,
+    );
     if (res.success && res.data) {
+      const raw = res.data as Record<string, unknown>;
       const comments = (
-        (res.data as Record<string, unknown>).comments ??
+        raw.comments ??
         (Array.isArray(res.data) ? res.data : [])
       ) as import('@/types/logistics').TripComment[];
-      return { ...res, data: comments };
+      return {
+        ...res,
+        data: {
+          comments,
+          canComment: raw.canComment !== undefined ? Boolean(raw.canComment) : undefined,
+        },
+      };
     }
-    return res as unknown as ApiResponse<import('@/types/logistics').TripComment[]>;
+    return res as unknown as ApiResponse<{
+      comments: import('@/types/logistics').TripComment[];
+      canComment?: boolean;
+    }>;
   },
 
   addComment: async (tripId: string, body: string): Promise<ApiResponse<import('@/types/logistics').TripComment>> => {

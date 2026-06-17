@@ -15,6 +15,7 @@ import {
   BarChart3,
   Calendar,
   MapPin,
+  Route,
 } from "lucide-react";
 import { canCreateTripRequest } from "@/utils/tripRequestAccess";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -53,6 +54,13 @@ export function AppSidebar() {
     ? [{ title: "Trip Request", url: "/trip-request", icon: MapPin }]
     : [];
 
+  const allTripsNavItem = { title: "All Trips", url: "/trips", icon: Route };
+
+  const travelNavSection = {
+    label: "Travel",
+    items: [allTripsNavItem, ...tripRequestNavItem],
+  };
+
   // Full procurement navigation (shared by Procurement, Executive, Chairman, Supply Chain Director)
   const fullProcurementNav = [
     {
@@ -61,14 +69,7 @@ export function AppSidebar() {
         { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
       ]
     },
-    ...(tripRequestNavItem.length
-      ? [
-          {
-            label: "Travel",
-            items: tripRequestNavItem,
-          },
-        ]
-      : []),
+    travelNavSection,
     {
       label: "Operations",
       items: [
@@ -115,7 +116,8 @@ export function AppSidebar() {
             { title: "Trip Request", url: "/trip-request", icon: MapPin },
             { title: "Annual Planning", url: "/department?tab=annual", icon: Calendar },
           ]
-        }
+        },
+        travelNavSection,
       ];
     } else if (getScmRole(user) === "procurement" || getScmRole(user) === "procurement_manager") {
       // Procurement Manager: Full system, no approvals
@@ -136,9 +138,7 @@ export function AppSidebar() {
             { title: "Budget Control", url: "/budget", icon: BarChart3 },
           ]
         },
-        ...(tripRequestNavItem.length
-          ? [{ label: "Travel", items: tripRequestNavItem }]
-          : []),
+        travelNavSection,
         {
           label: "Analytics",
           items: [
@@ -201,18 +201,13 @@ export function AppSidebar() {
             { title: "Annual Planning", url: "/department?tab=annual", icon: Calendar },
           ]
         },
+        travelNavSection,
         {
           label: "Operations",
           items: [
             { title: "Logistics", url: "/logistics", icon: Truck },
             { title: "Vendors", url: "/vendors", icon: Users },
             { title: "Inventory", url: "/inventory", icon: Package },
-          ]
-        },
-        {
-          label: "Procurement",
-          items: [
-            { title: "Procurement Overview", url: "/procurement", icon: ShoppingCart },
           ]
         },
         {
@@ -228,7 +223,7 @@ export function AppSidebar() {
           label: "Main",
           items: [{ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard }],
         },
-        ...(tripRequestNavItem.length ? [{ label: "Travel", items: tripRequestNavItem }] : []),
+        travelNavSection,
         {
           label: "Operations",
           items: [

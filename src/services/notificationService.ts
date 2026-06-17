@@ -238,7 +238,7 @@ export const notificationRules: NotificationRule[] = [
     title: "New Trip Request",
     getMessage: (data) =>
       `${data.requesterName || "A staff member"} submitted a trip request: ${data.origin || "—"} → ${data.destination}. Departure: ${data.departureTime || "TBC"}.`,
-    actionUrl: () => `/logistics?tab=trip-requests`,
+    actionUrl: () => `/logistics`,
     priority: "high",
   },
 ];

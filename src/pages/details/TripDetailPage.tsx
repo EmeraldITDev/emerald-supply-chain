@@ -5,11 +5,14 @@ import { EntityDetailShell, DetailFields } from "./EntityDetailShell";
 import { TripCommentsPanel } from "@/components/logistics/TripCommentsPanel";
 import { JourneyManagement } from "@/components/logistics/JourneyManagement";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { Trip } from "@/types/logistics";
+import { resolveTripViewer } from "@/utils/tripViewer";
 
 export default function TripDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
   const [trip, setTrip] = useState<Trip | null>(null);
+  const [canComment, setCanComment] = useState<boolean | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,8 +23,13 @@ export default function TripDetailPage() {
       .getById(id)
       .then((res) => {
         if (cancelled) return;
-        if (res.success && res.data) setTrip(res.data);
-        else setError(res.error || "Failed to load trip");
+        if (res.success && res.data) {
+          setTrip(res.data);
+          const viewer = resolveTripViewer(res.data as unknown as Record<string, unknown>);
+          setCanComment(viewer.canComment);
+        } else {
+          setError(res.error || "Failed to load trip");
+        }
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -30,6 +38,7 @@ export default function TripDetailPage() {
   }, [id]);
 
   const t = trip as Trip & Record<string, unknown> | null;
+  const viewer = resolveTripViewer(t);
   const externalDriver = (t?.external_driver ?? t?.externalDriver) as
     | { name?: string; phone?: string }
     | undefined;
@@ -39,8 +48,8 @@ export default function TripDetailPage() {
       title={t?.tripNumber || t?.purpose || "Trip"}
       subtitle={t?.purpose || id}
       status={t?.status}
-      backTo="/logistics"
-      backLabel="Back to Logistics"
+      backTo="/trips"
+      backLabel="Back to All Trips"
       loading={loading}
       error={error}
       notFound={!loading && !error && !trip}
@@ -48,6 +57,14 @@ export default function TripDetailPage() {
     >
       {trip && (
         <div className="space-y-8">
+          {viewer.readOnly && (
+            <Alert>
+              <AlertDescription>
+                Read-only view. Logistics assignment and comment actions are limited to involved staff and logistics roles.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <DetailFields
             fields={[
               { label: "Trip number", value: trip.tripNumber },
@@ -87,7 +104,11 @@ export default function TripDetailPage() {
             </div>
           )}
 
-          <TripCommentsPanel logisticsTripId={String(trip.id)} />
+          <TripCommentsPanel
+            logisticsTripId={String(trip.id)}
+            readOnly={viewer.readOnly}
+            canComment={canComment ?? viewer.canComment}
+          />
 
           <div>
             <h3 className="text-lg font-semibold mb-4">Journey tracking</h3>

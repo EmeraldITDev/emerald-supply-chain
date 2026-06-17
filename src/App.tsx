@@ -30,6 +30,7 @@ import VendorRegistrationReview from "./pages/VendorRegistrationReview";
 import Reports from "./pages/Reports";
 import ProcurementReports from "./pages/ProcurementReports";
 import TripRequest from "./pages/TripRequest";
+import AllTrips from "./pages/AllTrips";
 import Settings from "./pages/Settings";
 import UserManagement from "./pages/UserManagement";
 import AccountsPayable from "./pages/AccountsPayable";
@@ -43,6 +44,7 @@ import MRFDetailPage from "./pages/details/MRFDetailPage";
 import PODetailPage from "./pages/details/PODetailPage";
 import RFQDetailPage from "./pages/details/RFQDetailPage";
 import TripDetailPage from "./pages/details/TripDetailPage";
+import TripRequestDetailPage from "./pages/details/TripRequestDetailPage";
 import FleetDetailPage from "./pages/details/FleetDetailPage";
 import DriverDetailPage from "./pages/details/DriverDetailPage";
 import VendorDetailPage from "./pages/details/VendorDetailPage";
@@ -67,9 +69,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Roles that can access procurement pages (full system visibility)
 const PROCUREMENT_ACCESS_ROLES = ["procurement", "procurement_manager", "executive", "chairman", "supply_chain_director", "supply_chain"];
 
-// Logistics Manager — read-only access to Procurement Overview (stats + lists)
-const PROCUREMENT_OVERVIEW_ROLES = ["logistics_manager"];
-
 const ProcurementRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user, loading } = useAuth();
   
@@ -83,10 +82,7 @@ const ProcurementRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (!isAuthenticated) return <Navigate to="/auth" replace />;
   const scmRole = getScmRole(user);
-  if (
-    !scmRole ||
-    (!PROCUREMENT_ACCESS_ROLES.includes(scmRole) && !PROCUREMENT_OVERVIEW_ROLES.includes(scmRole))
-  ) {
+  if (!scmRole || !PROCUREMENT_ACCESS_ROLES.includes(scmRole)) {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
@@ -116,6 +112,7 @@ const AppRoutes = () => {
         <Route path="/new-mrf" element={<ProtectedRoute><NewMRF /></ProtectedRoute>} />
         <Route path="/new-srf" element={<ProtectedRoute><NewSRF /></ProtectedRoute>} />
         <Route path="/trip-request" element={<ProtectedRoute><TripRequest /></ProtectedRoute>} />
+        <Route path="/trips" element={<ProtectedRoute><AllTrips /></ProtectedRoute>} />
         <Route path="/procurement/mrf/new" element={<ProtectedRoute><NewMRF /></ProtectedRoute>} />
         <Route path="/procurement/srf/new" element={<ProtectedRoute><NewSRF /></ProtectedRoute>} />
         <Route path="/logistics" element={<ProtectedRoute><Logistics /></ProtectedRoute>} />
@@ -136,6 +133,7 @@ const AppRoutes = () => {
         <Route path="/mrfs/:id" element={<ProtectedRoute><MRFDetailPage /></ProtectedRoute>} />
         <Route path="/pos/:id" element={<ProtectedRoute><PODetailPage /></ProtectedRoute>} />
         <Route path="/rfqs/:id" element={<ProtectedRoute><RFQDetailPage /></ProtectedRoute>} />
+        <Route path="/trip-requests/:id" element={<ProtectedRoute><TripRequestDetailPage /></ProtectedRoute>} />
         <Route path="/trips/:id" element={<ProtectedRoute><TripDetailPage /></ProtectedRoute>} />
         <Route path="/fleet/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
         <Route path="/drivers/:id" element={<ProtectedRoute><DriverDetailPage /></ProtectedRoute>} />

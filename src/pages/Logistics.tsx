@@ -77,13 +77,6 @@ const Logistics = () => {
       window.removeEventListener("logistics:set-tab", handler as EventListener);
   }, []);
 
-  // Deep-link: /logistics?tab=trip-requests (e.g. from notification action URL)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get("tab");
-    if (tab) setActiveTab(tab);
-  }, []);
-
   // Designate driver form
   const [driverStaffId, setDriverStaffId] = useState("");
   const [driverName, setDriverName] = useState("");
@@ -392,7 +385,7 @@ const Logistics = () => {
 
           {/* Module Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 w-full min-w-0">
-            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-9 h-auto">
+            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-8 h-auto">
               <TabsTrigger value="overview" className="text-xs sm:text-sm gap-1">
                 <BarChart3 className="h-4 w-4 hidden sm:block" />
                 Overview
@@ -424,10 +417,6 @@ const Logistics = () => {
               <TabsTrigger value="reports" className="text-xs sm:text-sm gap-1">
                 <FileText className="h-4 w-4 hidden sm:block" />
                 Reports
-              </TabsTrigger>
-              <TabsTrigger value="trip-requests" className="text-xs sm:text-sm gap-1">
-                <Calendar className="h-4 w-4 hidden sm:block" />
-                Requests
               </TabsTrigger>
               <TabsTrigger value="accommodation" className="text-xs sm:text-sm gap-1">
                 <Hotel className="h-4 w-4 hidden sm:block" />
@@ -665,14 +654,6 @@ const Logistics = () => {
             {/* Reporting & Compliance Tab */}
             <TabsContent value="reports">
               <ReportingCompliance />
-            </TabsContent>
-
-            {/* Pending Trip Requests Tab */}
-            <TabsContent value="trip-requests">
-              <PendingTripRequestsPanel
-                isActive={activeTab === "trip-requests"}
-                onApproved={fetchDashboardData}
-              />
             </TabsContent>
 
             {/* Accommodation Tab */}

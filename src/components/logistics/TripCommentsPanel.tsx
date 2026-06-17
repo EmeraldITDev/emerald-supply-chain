@@ -15,7 +15,10 @@ interface TripCommentsPanelProps {
   tripRequestId?: string | null;
   /** Linked logistics trip id (after approval) */
   logisticsTripId?: string | null;
+  /** Hide composer when user cannot comment (org-wide read-only viewers) */
   readOnly?: boolean;
+  /** Explicit override from API `canComment` flag */
+  canComment?: boolean;
   className?: string;
 }
 
@@ -48,6 +51,7 @@ export function TripCommentsPanel({
   tripRequestId,
   logisticsTripId,
   readOnly = false,
+  canComment: canCommentProp,
   className,
 }: TripCommentsPanelProps) {
   const { toast } = useToast();
@@ -55,6 +59,7 @@ export function TripCommentsPanel({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [draft, setDraft] = useState("");
+  const [canCommentFromApi, setCanCommentFromApi] = useState<boolean | undefined>(undefined);
 
   const entityId = logisticsTripId || tripRequestId;
   const useLogisticsApi = Boolean(logisticsTripId);
@@ -69,7 +74,8 @@ export function TripCommentsPanel({
       if (useLogisticsApi) {
         const res = await tripsApi.getComments(String(entityId));
         if (res.success && res.data) {
-          setComments(res.data.map(normalizeComment));
+          setComments(res.data.comments.map(normalizeComment));
+          setCanCommentFromApi(res.data.canComment);
         } else {
           setComments([]);
         }
@@ -77,6 +83,7 @@ export function TripCommentsPanel({
         const res = await tripRequestApi.getComments(tripRequestId);
         if (res.success && res.data?.comments) {
           setComments(res.data.comments.map(normalizeComment));
+          setCanCommentFromApi(res.data.canComment);
         } else {
           setComments([]);
         }
@@ -116,6 +123,10 @@ export function TripCommentsPanel({
 
   if (!entityId) return null;
 
+  const showComposer =
+    !readOnly &&
+    (canCommentProp !== undefined ? canCommentProp : canCommentFromApi !== false);
+
   return (
     <div className={className}>
       <div className="flex items-center gap-2 mb-3">
@@ -150,7 +161,7 @@ export function TripCommentsPanel({
         </div>
       )}
 
-      {!readOnly && (
+      {showComposer && (
         <div className="space-y-2">
           <Textarea
             placeholder="Leave a comment visible to trip participants and logistics…"

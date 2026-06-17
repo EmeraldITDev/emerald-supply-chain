@@ -729,11 +729,54 @@ On `POST /api/trip-requests/{id}/comments` and `POST /api/trips/{id}/comments`:
 
 ### 8. Verification checklist (staging)
 
-1. Staff submits trip request → LM sees row on `/logistics` Requests tab (after backend lists `submitted` status).
+1. Staff submits trip request → LM sees row on **Logistics → Overview** pending panel (after backend lists `submitted` status).
 2. LM opens Approve → assigns vehicle + internal driver → confirm succeeds → trip appears on Trips tab and Journeys tab.
 3. LM assigns external driver → `external_driver` echoed on `GET /trips/{id}`.
 4. `/trips/{id}` shows passengers, comments, journey tracker for the **same** id returned from confirm.
-5. LM opens `/procurement` → sees overview stats; cannot create PO / approve MRF.
-6. LM opens `/vendors` → sees vendor list (no Add Vendor button).
-7. Pending delivery confirmation → eye icon → MRF line items visible → Generate GRN opens wide dialog with full table columns.
-8. Backend: LM receives email + in-app notification on new trip request (requires backend notification dispatch).
+5. LM opens `/vendors` → sees vendor list (no Add Vendor button).
+6. Pending delivery confirmation → eye icon → MRF line items visible → Generate GRN opens wide dialog with full table columns.
+7. Backend: LM receives email + in-app notification on new trip request (requires backend notification dispatch).
+
+---
+
+## Logistics follow-up — Remove Requests tab & Procurement Overview; All Trips browse (Jun 2026)
+
+### Removed
+- **Logistics → Requests tab** — removed from `src/pages/Logistics.tsx`. LM pending-approval inbox remains on the **Overview** tab only (`PendingTripRequestsPanel` compact).
+- **Procurement Overview for Logistics Manager** — removed sidebar link (`AppSidebar.tsx`), reverted `PROCUREMENT_OVERVIEW_ROLES` gate in `App.tsx`, reverted read-only banner in `Procurement.tsx`.
+
+### Added — Organization-wide trip visibility (§10)
+
+| Surface | Route | Audience |
+| --- | --- | --- |
+| **All Trips** browse | `/trips` | Every authenticated staff member |
+| **Trip request detail** | `/trip-requests/:id` | Read-only org-wide; approve/assign only when `canManage` / logistics role |
+| **Logistics trip detail** | `/trips/:id` | Read-only when `viewer.readOnly === true` |
+
+**New files**
+- `src/pages/AllTrips.tsx` — searchable/filterable org-wide list (`tripRequestApi.listAll` → `GET /trip-requests/all`)
+- `src/pages/details/TripRequestDetailPage.tsx` — full request detail with progress, passengers, comments, journey (when linked), approve dialog for LM only
+- `src/utils/tripViewer.ts` — `resolveTripViewer()`, `resolveLogisticsTripId()` helpers
+
+**API client**
+- `tripRequestApi.listAll({ status?, q?, limit? })` → `GET /api/trip-requests/all`
+- `getById` / `getComments` now parse `viewer`, `readOnly`, `canManage`, `canComment`
+- `tripsApi.getComments` returns `{ comments, canComment }`
+
+**Read-only behaviour**
+- `TripCommentsPanel` hides composer when `readOnly` or `canComment === false`
+- `TripRequestDetailPage` hides **Approve & assign** when `viewer.readOnly` (unless `canManage`)
+- `TripDetailPage` shows read-only alert and respects `canComment`
+
+**Sidebar — Travel section** (all roles): **All Trips** + **Trip Request** (when user can create). Added to employee, finance, logistics_manager, logistics_officer, and full procurement nav.
+
+### Backend asks (§10)
+- Ship `GET /api/trip-requests/all` with `requesterName`, `requesterDepartment`, `logisticsTripId`, `viewer` block per row.
+- Relax read access on detail/comment GET endpoints for any authenticated user; gate `POST` comments to involved staff + logistics (`canComment` flag on GET).
+- Echo `viewer: { isInvolved, canManage, readOnly }` on `GET /trip-requests/{id}` and `GET /trips/{id}`.
+
+### Updated verification
+1. Any staff opens **All Trips** from sidebar → sees org-wide list.
+2. Click row → `/trip-requests/:id` opens read-only for non-involved staff (no approve, no comment composer).
+3. LM still sees pending queue on **Logistics → Overview** (not a separate tab).
+4. LM no longer has Procurement Overview in sidebar; `/procurement` redirects LM to dashboard.
