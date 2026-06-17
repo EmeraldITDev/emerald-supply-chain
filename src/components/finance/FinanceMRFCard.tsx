@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, ExternalLink, Landmark, CheckCircle } from "lucide-react";
+import { Download, ExternalLink, Landmark, CheckCircle, AlertTriangle } from "lucide-react";
 import { getDisplayId } from "@/utils/displayId";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { displayString, formatAmount } from "@/utils/normalizeQuotation";
@@ -33,6 +33,16 @@ export const FinanceMRFCard = ({ row, onRefresh }: FinanceMRFCardProps) => {
   const estimatedCost = parseFloat(String(mrf.estimated_cost || mrf.estimatedCost || "0"));
   const dateStr = mrf.created_at || mrf.date || "";
   const executiveApproved = mrf.executive_approved || (mrf as { executiveApproved?: boolean }).executiveApproved;
+
+  // Soft delivery-confirmation gate: warn (don't block) when Finance is about
+  // to pay a PO that has no GRN/JCC from Logistics yet.
+  const grnUrl =
+    (mrf as { grn_url?: string; grnUrl?: string }).grn_url ||
+    (mrf as { grn_url?: string; grnUrl?: string }).grnUrl;
+  const poType = String((mrf as { po_type?: string; poType?: string }).po_type || (mrf as { po_type?: string; poType?: string }).poType || "goods").toLowerCase();
+  const requiresGrn = poType === "goods";
+  const hasPo = Boolean(mrf.po_number || (mrf as { poNumber?: string }).poNumber || po.po_number);
+  const showDeliveryWarning = hasPo && requiresGrn && !grnUrl;
 
   const formatDate = () => {
     if (!dateStr) return "N/A";
@@ -139,6 +149,19 @@ export const FinanceMRFCard = ({ row, onRefresh }: FinanceMRFCardProps) => {
 
         {mrf.description && (
           <p className="text-sm text-muted-foreground line-clamp-2">{mrf.description}</p>
+        )}
+
+        {showDeliveryWarning && (
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">No GRN on file for this PO.</p>
+              <p className="text-amber-800/80 dark:text-amber-200/80">
+                Logistics / Warehouse hasn&apos;t confirmed delivery yet. You can still proceed,
+                but it&apos;s safer to wait for the GRN before releasing payment.
+              </p>
+            </div>
+          </div>
         )}
       </div>
 
