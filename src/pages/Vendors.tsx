@@ -46,6 +46,11 @@ const Vendors = () => {
   const { user } = useAuth();
   const canEditProfileDetails =
     getScmRole(user) === "procurement_manager" || getScmRole(user) === "supply_chain_director";
+  const canManageVendors =
+    getScmRole(user) === "procurement_manager" ||
+    getScmRole(user) === "supply_chain_director" ||
+    getScmRole(user) === "procurement" ||
+    getScmRole(user) === "admin";
   const [vendors, setVendors] = useState(contextVendors);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
@@ -716,6 +721,7 @@ const Vendors = () => {
             <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage vendor relationships, KYC, and performance</p>
           </div>
           <Dialog open={addVendorDialogOpen} onOpenChange={setAddVendorDialogOpen}>
+            {canManageVendors && (
             <DialogTrigger asChild>
               <Button className="gap-2 self-start sm:self-auto">
                 <Plus className="h-4 w-4" />
@@ -723,6 +729,7 @@ const Vendors = () => {
                 <span className="sm:hidden">Add</span>
               </Button>
             </DialogTrigger>
+            )}
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add New Vendor</DialogTitle>

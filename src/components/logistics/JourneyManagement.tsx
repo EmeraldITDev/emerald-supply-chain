@@ -47,8 +47,14 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { journeysApi } from "@/services/logisticsApi";
-import type { Journey, JourneyStatus, JourneyCheckpoint, JourneyIncident } from "@/types/logistics";
+import { journeysApi, tripsApi } from "@/services/logisticsApi";
+import type { Journey, JourneyStatus, JourneyCheckpoint, JourneyIncident, Trip } from "@/types/logistics";
+import { TripCommentsPanel } from "./TripCommentsPanel";
+import { useNavigate } from "react-router-dom";
+
+interface JourneyWithTrip extends Journey {
+  linkedTrip?: Trip;
+}
 
 interface JourneyManagementProps {
   tripId?: string;
@@ -81,7 +87,8 @@ const severityColors: Record<string, string> = {
 
 export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   const { toast } = useToast();
-  const [journeys, setJourneys] = useState<Journey[]>([]);
+  const navigate = useNavigate();
+  const [journeys, setJourneys] = useState<JourneyWithTrip[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -90,7 +97,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [incidentDialogOpen, setIncidentDialogOpen] = useState(false);
-  const [selectedJourney, setSelectedJourney] = useState<Journey | null>(null);
+  const [selectedJourney, setSelectedJourney] = useState<JourneyWithTrip | null>(null);
   
   // Form states
   const [updateStatus, setUpdateStatus] = useState<JourneyStatus>("en_route");
@@ -101,19 +108,77 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   const [incidentSeverity, setIncidentSeverity] = useState<string>("low");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch journeys from API
+  // Fetch journeys from API — tied to the same trip records created at request/approval
   const fetchJourneys = async () => {
     setLoading(true);
     try {
       if (tripId) {
-        const response = await journeysApi.getByTripId(tripId);
-        if (response.success && response.data) {
-          setJourneys([response.data]);
+        const [journeyRes, tripRes] = await Promise.all([
+          journeysApi.getByTripId(tripId),
+          tripsApi.getById(tripId),
+        ]);
+        if (journeyRes.success && journeyRes.data) {
+          setJourneys([
+            {
+              ...journeyRes.data,
+              linkedTrip: tripRes.success ? tripRes.data : undefined,
+            },
+          ]);
+        } else if (tripRes.success && tripRes.data) {
+          setJourneys([
+            {
+              id: tripId,
+              tripId,
+              tripNumber: tripRes.data.tripNumber,
+              status: tripRes.data.status === "in_progress" ? "en_route" : "not_started",
+              checkpoints: [],
+              incidents: [],
+              linkedTrip: tripRes.data,
+            } as JourneyWithTrip,
+          ]);
         } else {
           setJourneys([]);
         }
+        return;
+      }
+
+      const listRes = await journeysApi.list();
+      if (listRes.success && listRes.data && listRes.data.length > 0) {
+        setJourneys(listRes.data.map((j) => ({ ...j })));
+        return;
+      }
+
+      const tripsRes = await tripsApi.getAll();
+      if (tripsRes.success && tripsRes.data) {
+        const trackable = tripsRes.data.filter((t) =>
+          ["scheduled", "vendor_assigned", "in_progress", "approved", "completed"].includes(
+            t.status,
+          ),
+        );
+        const withJourneys = await Promise.all(
+          trackable.map(async (trip) => {
+            const jRes = await journeysApi.getByTripId(String(trip.id));
+            if (jRes.success && jRes.data) {
+              return { ...jRes.data, linkedTrip: trip } as JourneyWithTrip;
+            }
+            return {
+              id: String(trip.id),
+              tripId: String(trip.id),
+              tripNumber: trip.tripNumber,
+              status:
+                trip.status === "in_progress"
+                  ? ("en_route" as JourneyStatus)
+                  : trip.status === "completed"
+                    ? ("arrived" as JourneyStatus)
+                    : ("not_started" as JourneyStatus),
+              checkpoints: [],
+              incidents: [],
+              linkedTrip: trip,
+            } as JourneyWithTrip;
+          }),
+        );
+        setJourneys(withJourneys);
       } else {
-        // No mock data - show empty state until API provides data
         setJourneys([]);
       }
     } catch (error) {
@@ -256,9 +321,12 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
 
   const filteredJourneys = journeys.filter(journey => {
     const q = searchQuery.toLowerCase();
+    const trip = journey.linkedTrip;
     const matchesSearch =
       (journey.tripNumber || '').toLowerCase().includes(q) ||
-      (journey.currentLocation || '').toLowerCase().includes(q);
+      (journey.currentLocation || '').toLowerCase().includes(q) ||
+      (trip?.destination || '').toLowerCase().includes(q) ||
+      (trip?.driverName || '').toLowerCase().includes(q);
     const matchesStatus = statusFilter === "all" || journey.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -355,6 +423,17 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                           Current: {journey.currentLocation}
                         </p>
                       )}
+                      {journey.linkedTrip && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {journey.linkedTrip.origin} → {journey.linkedTrip.destination}
+                          {journey.linkedTrip.driverName
+                            ? ` · Driver: ${journey.linkedTrip.driverName}`
+                            : ""}
+                          {journey.linkedTrip.vehiclePlate
+                            ? ` · ${journey.linkedTrip.vehiclePlate}`
+                            : ""}
+                        </p>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <DropdownMenu>
@@ -371,6 +450,14 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
+                          {journey.linkedTrip && (
+                            <DropdownMenuItem
+                              onClick={() => navigate(`/trips/${journey.linkedTrip!.id}`)}
+                            >
+                              <Navigation className="mr-2 h-4 w-4" />
+                              Open trip record
+                            </DropdownMenuItem>
+                          )}
                           {journey.status !== "arrived" && journey.status !== "closed" && (
                             <>
                               <DropdownMenuItem onClick={() => {
@@ -499,6 +586,61 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   </p>
                 </div>
               </div>
+
+              {/* Linked trip context */}
+              {selectedJourney.linkedTrip && (
+                <div className="rounded-lg border p-4 space-y-2 bg-muted/20">
+                  <p className="text-sm font-medium">Trip assignment</p>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <Label className="text-muted-foreground">Route</Label>
+                      <p>
+                        {selectedJourney.linkedTrip.origin} →{" "}
+                        {selectedJourney.linkedTrip.destination}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Status</Label>
+                      <p className="capitalize">
+                        {selectedJourney.linkedTrip.status.replace(/_/g, " ")}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Driver</Label>
+                      <p>{selectedJourney.linkedTrip.driverName || "—"}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Vehicle</Label>
+                      <p>
+                        {selectedJourney.linkedTrip.vehiclePlate ||
+                          selectedJourney.linkedTrip.vehicleType ||
+                          "—"}
+                      </p>
+                    </div>
+                  </div>
+                  {selectedJourney.linkedTrip.passengers &&
+                    selectedJourney.linkedTrip.passengers.length > 0 && (
+                      <div>
+                        <Label className="text-muted-foreground">Passengers</Label>
+                        <p className="text-sm">
+                          {selectedJourney.linkedTrip.passengers
+                            .map((p) => p.name)
+                            .join(", ")}
+                        </p>
+                      </div>
+                    )}
+                </div>
+              )}
+
+              <TripCommentsPanel
+                logisticsTripId={
+                  selectedJourney.linkedTrip
+                    ? String(selectedJourney.linkedTrip.id)
+                    : selectedJourney.tripId
+                      ? String(selectedJourney.tripId)
+                      : null
+                }
+              />
 
               {/* Checkpoints */}
               {selectedJourney.checkpoints.length > 0 && (

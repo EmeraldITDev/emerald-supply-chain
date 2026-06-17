@@ -47,14 +47,11 @@ import { MaterialMovements } from "@/components/logistics/MaterialMovements";
 import { ReportingCompliance } from "@/components/logistics/ReportingCompliance";
 import { GPSTrackingPlaceholder } from "@/components/logistics/GPSTrackingPlaceholder";
 import { AccommodationBookings } from "@/components/logistics/AccommodationBookings";
-import { LogisticsMyRequestsList } from "@/components/logistics/LogisticsMyRequestsList";
 import { LogisticsDeliveryConfirmations } from "@/components/logistics/LogisticsDeliveryConfirmations";
-import { useAuth } from "@/contexts/AuthContext";
-import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { PendingTripRequestsPanel } from "@/components/logistics/PendingTripRequestsPanel";
 
 const Logistics = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
   const {
     staffDrivers,
     addStaffDriver,
@@ -78,6 +75,13 @@ const Logistics = () => {
     window.addEventListener("logistics:set-tab", handler as EventListener);
     return () =>
       window.removeEventListener("logistics:set-tab", handler as EventListener);
+  }, []);
+
+  // Deep-link: /logistics?tab=trip-requests (e.g. from notification action URL)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab) setActiveTab(tab);
   }, []);
 
   // Designate driver form
@@ -388,7 +392,7 @@ const Logistics = () => {
 
           {/* Module Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 w-full min-w-0">
-            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-10 h-auto">
+            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-9 h-auto">
               <TabsTrigger value="overview" className="text-xs sm:text-sm gap-1">
                 <BarChart3 className="h-4 w-4 hidden sm:block" />
                 Overview
@@ -421,13 +425,13 @@ const Logistics = () => {
                 <FileText className="h-4 w-4 hidden sm:block" />
                 Reports
               </TabsTrigger>
+              <TabsTrigger value="trip-requests" className="text-xs sm:text-sm gap-1">
+                <Calendar className="h-4 w-4 hidden sm:block" />
+                Requests
+              </TabsTrigger>
               <TabsTrigger value="accommodation" className="text-xs sm:text-sm gap-1">
                 <Hotel className="h-4 w-4 hidden sm:block" />
                 Stays
-              </TabsTrigger>
-              <TabsTrigger value="my-requests" className="text-xs sm:text-sm gap-1">
-                <FileText className="h-4 w-4 hidden sm:block" />
-                My Requests
               </TabsTrigger>
             </TabsList>
 
@@ -609,6 +613,13 @@ const Logistics = () => {
                   </CardContent>
                 </Card>
 
+                {/* Pending trip requests for Logistics Manager */}
+                <PendingTripRequestsPanel
+                  isActive={activeTab === "overview"}
+                  onApproved={fetchDashboardData}
+                  compact
+                />
+
                 {/* Delivery confirmations (GRN + JCC) */}
                 <LogisticsDeliveryConfirmations
                   mrfs={mrfRequests as unknown as Parameters<typeof LogisticsDeliveryConfirmations>[0]["mrfs"]}
@@ -656,37 +667,17 @@ const Logistics = () => {
               <ReportingCompliance />
             </TabsContent>
 
+            {/* Pending Trip Requests Tab */}
+            <TabsContent value="trip-requests">
+              <PendingTripRequestsPanel
+                isActive={activeTab === "trip-requests"}
+                onApproved={fetchDashboardData}
+              />
+            </TabsContent>
+
             {/* Accommodation Tab */}
             <TabsContent value="accommodation">
               <AccommodationBookings />
-            </TabsContent>
-
-            {/* My Requests — Logistics Manager visibility into MRFs/SRFs they raised */}
-            <TabsContent value="my-requests" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    My Procurement Activity
-                  </CardTitle>
-                  <CardDescription>
-                    Your service and material requests as line items. Open View Details for the live workflow tracker.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <LogisticsMyRequestsList
-                    srfRequests={srfRequests || []}
-                    mrfRequests={mrfRequests || []}
-                    filterRequester={
-                      getScmRole(user) === "logistics_manager" ? user?.name ?? null : null
-                    }
-                    isActive={activeTab === "my-requests"}
-                    onRefresh={async () => {
-                      await Promise.all([refreshSRFs(), refreshMRFs()]);
-                    }}
-                  />
-                </CardContent>
-              </Card>
             </TabsContent>
           </Tabs>
         </div>

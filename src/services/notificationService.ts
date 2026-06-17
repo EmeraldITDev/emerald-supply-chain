@@ -26,7 +26,8 @@ export type NotificationEvent =
   | "trip_assigned_driver"
   | "trip_assigned_passenger"
   | "trip_started"
-  | "trip_completed";
+  | "trip_completed"
+  | "trip_request_submitted";
 
 export interface AppNotification {
   id: string;
@@ -228,6 +229,17 @@ export const notificationRules: NotificationRule[] = [
     getMessage: (data) => `Trip to ${data.destination} has been completed successfully.`,
     actionUrl: () => `/logistics`,
     priority: "low",
+  },
+
+  // New staff trip request — Logistics Manager inbox
+  {
+    event: "trip_request_submitted",
+    roles: ["logistics_manager", "logistics", "logistics_officer"],
+    title: "New Trip Request",
+    getMessage: (data) =>
+      `${data.requesterName || "A staff member"} submitted a trip request: ${data.origin || "—"} → ${data.destination}. Departure: ${data.departureTime || "TBC"}.`,
+    actionUrl: () => `/logistics?tab=trip-requests`,
+    priority: "high",
   },
 ];
 

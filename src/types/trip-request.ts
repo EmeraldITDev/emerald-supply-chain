@@ -48,9 +48,25 @@ export interface TripRequestUi {
   deleteDraft?: TripUiDeleteDraft | null;
 }
 
+export interface TripRequestPassenger {
+  id?: number | string;
+  user_id?: number;
+  userId?: number;
+  name: string;
+  email?: string;
+  department?: string;
+}
+
+export interface TripRequestExternalPassenger {
+  name: string;
+  email: string;
+  phone?: string;
+}
+
 export interface StaffTripRequest {
   id: number | string;
   tripCode?: string;
+  trip_code?: string;
   destination: string;
   purpose?: string;
   origin?: string;
@@ -72,6 +88,47 @@ export interface StaffTripRequest {
   canDelete?: boolean;
   isDraft?: boolean;
   ui?: TripRequestUi;
+  /** Linked logistics trip id once approved/assigned */
+  trip_id?: string | number;
+  tripId?: string | number;
+  requester_name?: string;
+  requesterName?: string;
+  requester_id?: number;
+  requesterId?: number;
+  passengers?: TripRequestPassenger[];
+  passenger_user_ids?: number[];
+  passengerUserIds?: number[];
+  external_passengers?: TripRequestExternalPassenger[];
+  externalPassengers?: TripRequestExternalPassenger[];
+  vehicle_id?: string | number;
+  vehicleId?: string | number;
+  vehicle_plate?: string;
+  vehiclePlate?: string;
+  driver_user_id?: number;
+  driverUserId?: number;
+  driver_name?: string;
+  driverName?: string;
+  external_driver?: { name: string; phone?: string; email?: string };
+  externalDriver?: { name: string; phone?: string; email?: string };
+}
+
+export interface TripComment {
+  id: string | number;
+  body: string;
+  author_name?: string;
+  authorName?: string;
+  author_role?: string;
+  authorRole?: string;
+  created_at?: string;
+  createdAt?: string;
+}
+
+export interface TripConfirmAssignmentData {
+  vehicle_id: number | string;
+  driver_type: 'internal' | 'external';
+  driver_user_id?: number;
+  external_driver?: { name: string; phone: string; email?: string };
+  notes?: string;
 }
 
 export interface TripRequestsListResponse {

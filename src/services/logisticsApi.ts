@@ -293,12 +293,61 @@ export const tripsApi = {
       body: JSON.stringify({ reason }),
     });
   },
+
+  /** Assign vehicle and driver (internal user or external) to a trip */
+  assignResources: async (
+    tripId: string,
+    data: import('@/types/logistics').TripResourceAssignmentData,
+  ): Promise<ApiResponse<Trip>> => {
+    return apiRequest<Trip>(`/trips/${encodeURIComponent(tripId)}/assign-resources`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  getComments: async (tripId: string): Promise<ApiResponse<import('@/types/logistics').TripComment[]>> => {
+    const res = await apiRequest<Record<string, unknown>>(`/trips/${encodeURIComponent(tripId)}/comments`);
+    if (res.success && res.data) {
+      const comments = (
+        (res.data as Record<string, unknown>).comments ??
+        (Array.isArray(res.data) ? res.data : [])
+      ) as import('@/types/logistics').TripComment[];
+      return { ...res, data: comments };
+    }
+    return res as unknown as ApiResponse<import('@/types/logistics').TripComment[]>;
+  },
+
+  addComment: async (tripId: string, body: string): Promise<ApiResponse<import('@/types/logistics').TripComment>> => {
+    const res = await apiRequest<Record<string, unknown>>(`/trips/${encodeURIComponent(tripId)}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    });
+    if (res.success && res.data) {
+      const comment =
+        ((res.data as Record<string, unknown>).comment as import('@/types/logistics').TripComment) ??
+        (res.data as unknown as import('@/types/logistics').TripComment);
+      return { ...res, data: comment };
+    }
+    return res as unknown as ApiResponse<import('@/types/logistics').TripComment>;
+  },
 };
 
 // ==========================================
 // JOURNEYS API (Execution Layer)
 // ==========================================
 export const journeysApi = {
+  /** List all active journeys (falls back to per-trip fetch when endpoint unavailable) */
+  list: async (): Promise<ApiResponse<Journey[]>> => {
+    const res = await apiRequest<Journey[] | Record<string, unknown>>('/journeys');
+    if (res.success && res.data) {
+      if (Array.isArray(res.data)) return { ...res, data: res.data };
+      const wrapped = res.data as Record<string, unknown>;
+      const journeys = (wrapped.journeys ?? wrapped.data) as Journey[] | undefined;
+      if (Array.isArray(journeys)) return { ...res, data: journeys };
+    }
+    return { success: false, error: res.error || 'Journey list unavailable', data: [] };
+  },
+
   // Get journey for a trip
   getByTripId: async (tripId: string): Promise<ApiResponse<Journey>> => {
     return apiRequest<Journey>(`/journeys/${tripId}`);

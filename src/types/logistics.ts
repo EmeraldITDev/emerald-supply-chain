@@ -945,3 +945,28 @@ export interface TripSignedPOData {
 export interface DriverAssignmentData {
   vehicle_id?: number;
 }
+
+export interface ExternalDriverInfo {
+  name: string;
+  phone: string;
+  email?: string;
+}
+
+export interface TripResourceAssignmentData {
+  vehicle_id: number | string;
+  driver_type: 'internal' | 'external';
+  driver_user_id?: number;
+  external_driver?: ExternalDriverInfo;
+  notes?: string;
+}
+
+export interface TripComment {
+  id: string | number;
+  body: string;
+  authorName?: string;
+  author_name?: string;
+  authorRole?: string;
+  author_role?: string;
+  createdAt?: string;
+  created_at?: string;
+}

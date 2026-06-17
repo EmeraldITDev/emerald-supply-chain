@@ -270,7 +270,7 @@ export default function GRNCompletionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Goods Received Note (GRN)</DialogTitle>
           <DialogDescription>
@@ -394,22 +394,33 @@ export default function GRNCompletionDialog({
                   <p className="text-xs text-muted-foreground">
                     Leave blank to use the original ordered quantity.
                   </p>
-                  <div className="overflow-hidden rounded-md border">
-                    <table className="w-full text-sm">
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full min-w-[640px] text-sm">
                       <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
                         <tr>
-                          <th className="px-3 py-2 text-left">Item</th>
-                          <th className="px-3 py-2 text-right">Ordered</th>
-                          <th className="px-3 py-2 text-right">Unit</th>
-                          <th className="px-3 py-2 text-right">Received</th>
+                          <th className="px-3 py-2 text-left min-w-[180px]">Item</th>
+                          <th className="px-3 py-2 text-right whitespace-nowrap">Ordered</th>
+                          <th className="px-3 py-2 text-right whitespace-nowrap">Unit</th>
+                          <th className="px-3 py-2 text-right whitespace-nowrap">Unit price</th>
+                          <th className="px-3 py-2 text-right whitespace-nowrap">Received</th>
+                          <th className="px-3 py-2 text-right whitespace-nowrap">Total</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {mrfItems.map((item, idx) => (
+                        {mrfItems.map((item, idx) => {
+                          const unitPrice = (item as { unitPrice?: number; unit_price?: number }).unitPrice
+                            ?? (item as { unit_price?: number }).unit_price;
+                          const lineTotal = unitPrice != null
+                            ? Number(unitPrice) * Number(item.quantity)
+                            : undefined;
+                          return (
                           <tr key={idx} className="border-t">
                             <td className="px-3 py-2">{item.itemName}</td>
                             <td className="px-3 py-2 text-right">{item.quantity}</td>
                             <td className="px-3 py-2 text-right">{item.unit ?? "—"}</td>
+                            <td className="px-3 py-2 text-right whitespace-nowrap">
+                              {unitPrice != null ? String(unitPrice) : "—"}
+                            </td>
                             <td className="px-3 py-2 text-right">
                               <Input
                                 type="number"
@@ -427,8 +438,12 @@ export default function GRNCompletionDialog({
                                 className="ml-auto h-8 w-24 text-right"
                               />
                             </td>
+                            <td className="px-3 py-2 text-right whitespace-nowrap">
+                              {lineTotal != null ? lineTotal.toLocaleString() : "—"}
+                            </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

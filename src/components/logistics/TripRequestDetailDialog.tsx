@@ -12,6 +12,7 @@ import { tripRequestApi } from "@/services/api";
 import type { StaffTripRequest, TripProgressStep } from "@/types/trip-request";
 import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepper";
 import { DeleteTripDraftButton } from "./DeleteTripDraftButton";
+import { TripCommentsPanel } from "./TripCommentsPanel";
 
 interface TripRequestDetailDialogProps {
   tripId: string | null;
@@ -124,6 +125,7 @@ export function TripRequestDetailDialog({
                 }))}
               />
             </div>
+            {tripId && <TripCommentsPanel tripRequestId={tripId} />}
           </div>
         )}
       </DialogContent>

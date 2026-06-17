@@ -565,3 +565,175 @@ a distinct supplier, and there was no way to edit a PO after generating it.
 - `src/components/procurement/CreatePOForm.tsx`
 - `.lovable/plan.md`
 - `frontend_changes.md` (this entry)
+
+---
+
+## Logistics Module — Trip Request Flow, Notifications, Access, GRN Layout (Jun 2026)
+
+### Principle
+Every backend action or state change must have a corresponding visible UI surface for the relevant user. This batch wires (or documents) the frontend surfaces for trip requests, journey tracking, delivery confirmations, and role access that were previously backend-only or disconnected.
+
+---
+
+### 1. Trip request flow — end-to-end (frontend)
+
+#### New UI surfaces
+| Surface | Path | Purpose |
+| --- | --- | --- |
+| **Pending Trip Requests** (Overview compact + dedicated tab) | `/logistics` → Overview panel + **Requests** tab | Logistics Manager lists incoming staff trip requests and acts on them |
+| **Approve & assign dialog** | `TripRequestApprovalDialog` | LM approves request, picks vehicle + driver (system user or external) |
+| **Trip comments** | `TripCommentsPanel` | Staff/passengers/LM leave comments visible throughout trip lifecycle |
+| **Trip detail page** | `/trips/:id` | Full trip record: passengers, vehicle, driver, comments, embedded journey tracker |
+| **Journey tab** | `/logistics` → Journeys | Lists trackable trips and pulls journey data from the same trip id created at approval |
+
+#### New / extended components
+- `src/components/logistics/PendingTripRequestsPanel.tsx` — table of pending requests with View + Approve actions
+- `src/components/logistics/TripRequestApprovalDialog.tsx` — confirm + assign vehicle/driver UI
+- `src/components/logistics/TripCommentsPanel.tsx` — fetch/post comments on trip-request or logistics-trip id
+- `src/components/logistics/DeliveryConfirmationDetailSheet.tsx` — full MRF/SRF/trip context before GRN/JCC
+
+#### Modified components
+- `src/pages/Logistics.tsx` — added **Requests** tab; Overview shows compact pending-requests panel; removed **My Requests** tab; supports `?tab=trip-requests` deep link (notification action URL)
+- `src/components/logistics/JourneyManagement.tsx` — fetches `GET /journeys` when available, else hydrates from `GET /trips` + per-trip `GET /journeys/{tripId}`; shows linked trip passengers, driver, vehicle; links to `/trips/:id`
+- `src/pages/details/TripDetailPage.tsx` — passengers, comments, embedded `JourneyManagement`
+- `src/components/logistics/TripRequestDetailDialog.tsx` — comments panel on staff request detail
+- `src/components/logistics/LogisticsDeliveryConfirmations.tsx` — click row or eye icon → detail sheet with line items, vendor, PO ref before GRN/JCC
+
+#### API client additions (`src/services/api.ts` — `tripRequestApi`)
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `listPendingForLogistics()` | `GET /trip-requests?status=submitted` (+ client filter fallback) | Pending inbox for LM |
+| `confirm(id, data)` | `POST /trip-requests/{id}/confirm` | Approve + assign vehicle/driver; creates linked logistics trip |
+| `reject(id, reason?)` | `POST /trip-requests/{id}/reject` | Reject request |
+| `getComments(id)` | `GET /trip-requests/{id}/comments` | List comments |
+| `addComment(id, body)` | `POST /trip-requests/{id}/comments` | Post comment |
+
+`confirm` payload shape (`TripConfirmAssignmentData`):
+```json
+{
+  "vehicle_id": 12,
+  "driver_type": "internal" | "external",
+  "driver_user_id": 45,
+  "external_driver": { "name": "...", "phone": "...", "email": "..." },
+  "notes": "optional pickup instructions"
+}
+```
+
+#### API client additions (`src/services/logisticsApi.ts`)
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `journeysApi.list()` | `GET /journeys` | List all active journeys |
+| `tripsApi.assignResources(id, data)` | `POST /trips/{id}/assign-resources` | Re-assign vehicle/driver on logistics trip |
+| `tripsApi.getComments` / `addComment` | `GET/POST /trips/{id}/comments` | Comments on logistics trip record |
+
+#### Type extensions
+- `src/types/trip-request.ts` — `TripRequestPassenger`, `TripComment`, `TripConfirmAssignmentData`, extended `StaffTripRequest` fields (`trip_id`, passengers, driver, vehicle)
+- `src/types/logistics.ts` — `TripResourceAssignmentData`, `ExternalDriverInfo`, `TripComment`
+
+---
+
+### 2. Notifications (trip request submitted)
+
+#### Frontend
+- `src/services/notificationService.ts` — new event `trip_request_submitted` targeting `logistics_manager`, `logistics`, `logistics_officer`; action URL `/logistics?tab=trip-requests`
+- In-app notifications for LM **require backend** `POST /notifications` (or equivalent) on trip submit — client-side rules only fire for the **current user's role**, so a staff submitter cannot push an in-app notification into the LM's browser session from the SPA alone
+
+#### Backend asks (BLOCKING for full notification flow)
+On `POST /api/trip-requests` (successful create):
+1. **Email** all users with role `logistics_manager` (and optionally `logistics_officer`) — subject/body: requester name, origin → destination, departure datetime, purpose, link to `/logistics?tab=trip-requests`
+2. **In-app** notification row per LM user: `type: trip_request_submitted`, `action_url: /logistics?tab=trip-requests`, surfaced via existing `GET /api/notifications`
+
+On `POST /api/trip-requests/{id}/confirm`:
+1. Email external passengers (existing ask from Item 6) + internal passengers + assigned driver
+2. In-app notifications: `trip_assigned_driver`, `trip_assigned_passenger`
+3. Create **one** `logistics_trips` row (or equivalent) and link back via `trip_requests.trip_id` / `logistics_trip_id` in confirm response
+4. Auto-create journey stub: `POST /journeys` with `{ tripId }` so Track Journey is populated immediately
+
+On `POST /api/trip-requests/{id}/comments` and `POST /api/trips/{id}/comments`:
+- Persist comment; notify trip requester, assigned driver, and passengers (in-app; email optional)
+
+---
+
+### 3. Logistics Manager role access
+
+| Change | File | Detail |
+| --- | --- | --- |
+| **Procurement Overview** (read-only) | `src/App.tsx`, `src/pages/Procurement.tsx` | `logistics_manager` added to `PROCUREMENT_OVERVIEW_ROLES`; page title → "Procurement Overview"; view-only banner; create/approval actions remain gated by existing role checks |
+| **Sidebar label** | `src/components/layout/AppSidebar.tsx` | "Procurement Activity" renamed → **Procurement Overview** |
+| **Vendors view** | `src/pages/Vendors.tsx` | LM can view vendor list + profiles; **Add Vendor** hidden unless `canManageVendors` (procurement roles) |
+| **Removed from Logistics section** | `src/pages/Logistics.tsx` | **My Requests** tab and embedded "My Procurement Activity" (`LogisticsMyRequestsList`) removed — LM uses `/department` sidebar link or Procurement Overview instead |
+
+#### Backend asks (vendors)
+- `GET /api/vendors` and `GET /api/vendors/{id}` must allow `logistics_manager` (read). If currently 403, add role to vendor list/detail policies without granting create/delete/invite.
+
+---
+
+### 4. Pending delivery confirmations — MRF/SRF visibility
+
+- `DeliveryConfirmationDetailSheet` fetches `GET /api/mrfs/{id}` (falls back to `GET /api/srfs/{id}`) and renders: reference, PO number, vendor, category, justification, **line items table** (description, unit, qty, unit price, total)
+- Trip JCC path shows route, status, vendor/driver from the completed trip object
+- User must review detail sheet before tapping **Generate GRN** / **Generate JCC**
+
+#### Backend ask
+- Ensure `GET /api/mrfs/{id}` returns `items[]` with `item_name`, `quantity`, `unit`, `unit_price`, `vendor_name`, `po_number` for every PO-linked MRF in the pending-GRN queue
+
+---
+
+### 5. GRN dialog layout fix
+
+- `src/components/GRNCompletionDialog.tsx` — `DialogContent` widened to `w-[95vw] max-w-6xl max-h-[90vh]` (was default `max-w-lg` ≈ 512px)
+- Line items table: added **Unit price** and **Total** columns; `min-w-[640px]` table inside `overflow-x-auto` container
+- Applies to both **Generate** and **Upload** tabs (shared dialog shell)
+
+---
+
+### 6. Navigation summary (Logistics Manager)
+
+| Sidebar | In-page Logistics tabs |
+| --- | --- |
+| Dashboard | Overview (stats + pending trip requests + delivery confirmations) |
+| My Requests → `/department` | Trips, **Requests**, Journeys, Fleet, … |
+| Logistics | *(My Requests tab removed)* |
+| Vendors | |
+| Procurement Overview → `/procurement` (read-only) | |
+
+---
+
+### 7. Files edited (this batch)
+
+**New**
+- `src/components/logistics/PendingTripRequestsPanel.tsx`
+- `src/components/logistics/TripRequestApprovalDialog.tsx`
+- `src/components/logistics/TripCommentsPanel.tsx`
+- `src/components/logistics/DeliveryConfirmationDetailSheet.tsx`
+
+**Modified**
+- `src/services/api.ts`
+- `src/services/logisticsApi.ts`
+- `src/types/trip-request.ts`
+- `src/types/logistics.ts`
+- `src/pages/Logistics.tsx`
+- `src/pages/Procurement.tsx`
+- `src/pages/Vendors.tsx`
+- `src/pages/details/TripDetailPage.tsx`
+- `src/App.tsx`
+- `src/components/layout/AppSidebar.tsx`
+- `src/components/GRNCompletionDialog.tsx`
+- `src/components/logistics/JourneyManagement.tsx`
+- `src/components/logistics/LogisticsDeliveryConfirmations.tsx`
+- `src/components/logistics/TripRequestDetailDialog.tsx`
+- `src/services/notificationService.ts`
+- `frontend_changes.md` (this entry)
+
+---
+
+### 8. Verification checklist (staging)
+
+1. Staff submits trip request → LM sees row on `/logistics` Requests tab (after backend lists `submitted` status).
+2. LM opens Approve → assigns vehicle + internal driver → confirm succeeds → trip appears on Trips tab and Journeys tab.
+3. LM assigns external driver → `external_driver` echoed on `GET /trips/{id}`.
+4. `/trips/{id}` shows passengers, comments, journey tracker for the **same** id returned from confirm.
+5. LM opens `/procurement` → sees overview stats; cannot create PO / approve MRF.
+6. LM opens `/vendors` → sees vendor list (no Add Vendor button).
+7. Pending delivery confirmation → eye icon → MRF line items visible → Generate GRN opens wide dialog with full table columns.
+8. Backend: LM receives email + in-app notification on new trip request (requires backend notification dispatch).

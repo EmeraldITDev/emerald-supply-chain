@@ -3460,6 +3460,104 @@ export const tripRequestApi = {
       body: JSON.stringify(data),
     });
   },
+
+  /** List trip requests awaiting Logistics Manager action */
+  listPendingForLogistics: async (): Promise<
+    ApiResponse<import('@/types/trip-request').TripRequestsListResponse>
+  > => {
+    const fetchList = async (status?: string) => {
+      const qs = new URLSearchParams();
+      if (status) qs.set('status', status);
+      qs.set('limit', '100');
+      const res = await apiRequest<Record<string, unknown>>(`/trip-requests?${qs.toString()}`);
+      if (res.success) {
+        const data = (res.data ?? {}) as Record<string, unknown>;
+        const trips = (
+          (data.trips as import('@/types/trip-request').StaffTripRequest[]) ??
+          (Array.isArray(res.data) ? res.data : []) ??
+          []
+        ) as import('@/types/trip-request').StaffTripRequest[];
+        return { ...res, data: { trips, pagination: data.pagination as import('@/types/trip-request').TripRequestsListResponse['pagination'] } };
+      }
+      return res as unknown as ApiResponse<import('@/types/trip-request').TripRequestsListResponse>;
+    };
+
+    const res = await fetchList('submitted');
+    if (res.success && res.data?.trips?.length) return res;
+
+    const fallback = await fetchList();
+    if (fallback.success && fallback.data?.trips) {
+      const pending = fallback.data.trips.filter((t) => {
+        const stage = t.workflowStage ?? t.workflow_stage ?? '';
+        const status = (t.status ?? '').toLowerCase();
+        return (
+          ['trip_request', 'logistics_review', 'submitted', 'pending'].includes(stage) ||
+          ['submitted', 'pending', 'pending_logistics_review'].includes(status)
+        );
+      });
+      return { ...fallback, data: { ...fallback.data, trips: pending } };
+    }
+    return res.success ? res : fallback;
+  },
+
+  /** Logistics Manager approves and assigns vehicle + driver */
+  confirm: async (
+    id: string,
+    data: import('@/types/trip-request').TripConfirmAssignmentData,
+  ): Promise<ApiResponse<{ trip: import('@/types/trip-request').StaffTripRequest; logistics_trip_id?: string | number }>> => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/trip-requests/${encodeURIComponent(id)}/confirm`,
+      { method: 'POST', body: JSON.stringify(data) },
+    );
+    if (res.success && res.data) {
+      const trip =
+        (res.data.trip as import('@/types/trip-request').StaffTripRequest) ??
+        (res.data as unknown as import('@/types/trip-request').StaffTripRequest);
+      const logisticsTripId = res.data.logistics_trip_id ?? res.data.logisticsTripId ?? res.data.trip_id ?? res.data.tripId;
+      return { ...res, data: { trip, logistics_trip_id: logisticsTripId as string | number | undefined } };
+    }
+    return res as unknown as ApiResponse<{ trip: import('@/types/trip-request').StaffTripRequest; logistics_trip_id?: string | number }>;
+  },
+
+  reject: async (id: string, reason?: string): Promise<ApiResponse<{ message?: string }>> => {
+    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason ?? '' }),
+    });
+  },
+
+  getComments: async (
+    id: string,
+  ): Promise<ApiResponse<{ comments: import('@/types/trip-request').TripComment[] }>> => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/trip-requests/${encodeURIComponent(id)}/comments`,
+    );
+    if (res.success && res.data) {
+      const comments = (
+        (res.data.comments as import('@/types/trip-request').TripComment[]) ??
+        (Array.isArray(res.data) ? res.data : [])
+      ) as import('@/types/trip-request').TripComment[];
+      return { ...res, data: { comments } };
+    }
+    return res as unknown as ApiResponse<{ comments: import('@/types/trip-request').TripComment[] }>;
+  },
+
+  addComment: async (
+    id: string,
+    body: string,
+  ): Promise<ApiResponse<{ comment: import('@/types/trip-request').TripComment }>> => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/trip-requests/${encodeURIComponent(id)}/comments`,
+      { method: 'POST', body: JSON.stringify({ body }) },
+    );
+    if (res.success && res.data) {
+      const comment =
+        (res.data.comment as import('@/types/trip-request').TripComment) ??
+        (res.data as unknown as import('@/types/trip-request').TripComment);
+      return { ...res, data: { comment } };
+    }
+    return res as unknown as ApiResponse<{ comment: import('@/types/trip-request').TripComment }>;
+  },
 };
 
 // ==========================================

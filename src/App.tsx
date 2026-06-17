@@ -67,6 +67,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Roles that can access procurement pages (full system visibility)
 const PROCUREMENT_ACCESS_ROLES = ["procurement", "procurement_manager", "executive", "chairman", "supply_chain_director", "supply_chain"];
 
+// Logistics Manager — read-only access to Procurement Overview (stats + lists)
+const PROCUREMENT_OVERVIEW_ROLES = ["logistics_manager"];
+
 const ProcurementRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user, loading } = useAuth();
   
@@ -80,7 +83,10 @@ const ProcurementRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (!isAuthenticated) return <Navigate to="/auth" replace />;
   const scmRole = getScmRole(user);
-  if (!scmRole || !PROCUREMENT_ACCESS_ROLES.includes(scmRole)) {
+  if (
+    !scmRole ||
+    (!PROCUREMENT_ACCESS_ROLES.includes(scmRole) && !PROCUREMENT_OVERVIEW_ROLES.includes(scmRole))
+  ) {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
