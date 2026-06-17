@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { getEmeraldPoLogoPublicPath, type EmeraldPoDisplayModel } from '@/utils/emeraldPoDocumentModel';
+import { getAuthToken } from '@/services/api';
 
 const M = 14;
 const PAGE_BOTTOM = 285;
@@ -29,7 +30,29 @@ export async function blobToDataUrl(blob: Blob): Promise<string> {
 
 export async function fetchUrlAsDataUrl(url: string): Promise<string | null> {
   try {
-    const res = await fetch(url, { mode: 'cors' });
+    // Resolve absolute URL: prefix API base when relative (e.g. "/files/...").
+    let target = url;
+    if (!/^https?:\/\//i.test(url) && !url.startsWith('data:') && !url.startsWith('blob:')) {
+      const apiBase =
+        (import.meta.env?.VITE_API_BASE_URL as string | undefined) ||
+        'https://supply-chain-backend-hwh6.onrender.com/api';
+      const origin = apiBase.replace(/\/api\/?$/, '');
+      target = url.startsWith('/') ? `${origin}${url}` : `${origin}/${url}`;
+    }
+    // Attach Bearer when calling our backend; S3 ignores unknown headers,
+    // so this is safe for both signed S3 URLs and backend-proxied URLs.
+    const headers: Record<string, string> = {};
+    try {
+      const { token, expired } = getAuthToken();
+      if (token && !expired) headers.Authorization = `Bearer ${token}`;
+    } catch {
+      /* ignore */
+    }
+    let res = await fetch(target, { mode: 'cors', headers });
+    // If S3 rejected the Authorization header (some buckets do), retry without.
+    if (!res.ok && headers.Authorization) {
+      res = await fetch(target, { mode: 'cors' });
+    }
     if (!res.ok) return null;
     const blob = await res.blob();
     return blobToDataUrl(blob);
