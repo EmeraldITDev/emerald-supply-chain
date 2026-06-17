@@ -611,7 +611,7 @@ const Logistics = () => {
 
                 {/* Delivery confirmations (GRN + JCC) */}
                 <LogisticsDeliveryConfirmations
-                  mrfs={mrfRequests}
+                  mrfs={mrfRequests as unknown as Parameters<typeof LogisticsDeliveryConfirmations>[0]["mrfs"]}
                   trips={recentTrips}
                   onRefresh={() => {
                     void fetchDashboardData();
