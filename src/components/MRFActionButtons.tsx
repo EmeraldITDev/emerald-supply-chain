@@ -72,6 +72,34 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
     return null;
   }
 
+  const hasPoFile =
+    mrf.unsigned_po_url ||
+    mrf.unsignedPOUrl ||
+    mrf.signed_po_url ||
+    mrf.signedPOUrl;
+
+  if (availableActions.readOnly) {
+    if (onDownloadPO && hasPoFile) {
+      return (
+        <div className={`flex items-center gap-2 ${className}`}>
+          <Button
+            size={size}
+            variant="outline"
+            className={className}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownloadPO();
+            }}
+          >
+            <Download className="h-3 w-3 mr-1" />
+            {compact ? "PO" : "Download PO"}
+          </Button>
+        </div>
+      );
+    }
+    return null;
+  }
+
   const buttons: JSX.Element[] = [];
 
   // Generate PO - Only for Procurement role
@@ -94,7 +122,7 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
   }
 
   // Download PO - If PO exists
-  if (onDownloadPO && (mrf.unsigned_po_url || mrf.unsignedPOUrl || mrf.signed_po_url || mrf.signedPOUrl)) {
+  if (onDownloadPO && hasPoFile) {
     buttons.push(
       <Button
         key="download-po"

@@ -125,7 +125,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
-import { isProcurementOverviewOnly } from "@/utils/procurementAccess";
+import { resolveProcurementOverviewMode } from "@/utils/procurementAccess";
+import type { ProcurementManagerDashboardPayload } from "@/utils/normalizeProcurementDashboard";
 
 function convertSrfToPseudoMrfRequest(srf: SRFRequest): MRFRequest {
   return {
@@ -161,7 +162,18 @@ const Procurement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const scmRole = getScmRole(user);
-  const isLogisticsOverviewOnly = isProcurementOverviewOnly(scmRole);
+  const [procurementDashboard, setProcurementDashboard] =
+    useState<ProcurementManagerDashboardPayload | null>(null);
+  const [procurementDashboardLoading, setProcurementDashboardLoading] =
+    useState(true);
+  const procurementAccess = useMemo(
+    () => resolveProcurementOverviewMode(scmRole, procurementDashboard),
+    [scmRole, procurementDashboard],
+  );
+  const {
+    isOverviewOnly: isLogisticsOverviewOnly,
+    readOnly: isProcurementReadOnly,
+  } = procurementAccess;
 
   // MRF requests from backend API
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
@@ -414,10 +426,33 @@ const Procurement = () => {
   }, [fetchMRFs, fetchRFQs]);
 
   useEffect(() => {
+    let cancelled = false;
+    const loadDashboard = async () => {
+      setProcurementDashboardLoading(true);
+      try {
+        const res = await dashboardApi.getProcurementManagerDashboard();
+        if (!cancelled && res.success && res.data) {
+          setProcurementDashboard(res.data);
+          if (res.data.kpis) setPlatformKpis(res.data.kpis);
+        }
+      } catch {
+        // Non-fatal — fall back to role-based overview flags and KPI endpoint
+      } finally {
+        if (!cancelled) setProcurementDashboardLoading(false);
+      }
+    };
+    void loadDashboard();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (procurementDashboard?.kpis) return;
     dashboardKpiApi.getKpis().then((res) => {
       if (res.success && res.data?.kpis) setPlatformKpis(res.data.kpis);
     });
-  }, []);
+  }, [procurementDashboard?.kpis]);
 
   useEffect(() => {
     if (rfqs.length > 0) {
@@ -951,8 +986,13 @@ const Procurement = () => {
     };
   }, [searchParams, mrfRequests, toast]);
 
-  // Fetch vendor registrations directly so both procurement and procurement managers can review them
+  // Fetch vendor registrations (procurement roles only — LM overview is read-only)
   useEffect(() => {
+    if (isProcurementReadOnly) {
+      setVendorRegistrations([]);
+      setVendorRegistrationsLoading(false);
+      return;
+    }
     const fetchVendorRegistrations = async () => {
       setVendorRegistrationsLoading(true);
       try {
@@ -971,7 +1011,7 @@ const Procurement = () => {
     };
 
     fetchVendorRegistrations();
-  }, [toast]);
+  }, [toast, isProcurementReadOnly]);
 
   // Stats
   const pendingMRNs = mrns.filter(
@@ -1793,6 +1833,13 @@ const Procurement = () => {
             </div>
           )}
 
+          {procurementDashboardLoading && isLogisticsOverviewOnly && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading procurement overview…
+            </div>
+          )}
+
           {/* Stats */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard
@@ -1868,13 +1915,15 @@ const Procurement = () => {
           />
 
           {/* Vendor Registrations Section */}
-          <VendorRegistrationsList
-            maxItems={3}
-            showTabs={false}
-            title="Pending Vendor Registrations"
-            externalRegistrations={vendorRegistrations}
-            externalLoading={vendorRegistrationsLoading}
-          />
+          {!isProcurementReadOnly && (
+            <VendorRegistrationsList
+              maxItems={3}
+              showTabs={false}
+              title="Pending Vendor Registrations"
+              externalRegistrations={vendorRegistrations}
+              externalLoading={vendorRegistrationsLoading}
+            />
+          )}
 
           <Tabs value={tab} onValueChange={setTab} className="space-y-4">
             <TabsList className="flex w-full flex-wrap h-auto gap-1 justify-start">
@@ -2109,8 +2158,9 @@ const Procurement = () => {
                               )}
                             </div>
 
-                            {mrn.status === "Pending" ||
-                            mrn.status === "Under Review" ? (
+                            {(mrn.status === "Pending" ||
+                            mrn.status === "Under Review") &&
+                            !isProcurementReadOnly ? (
                               <div className="flex gap-2">
                                 <Button
                                   onClick={() => handleConvertMRNToMRF(mrn.id)}

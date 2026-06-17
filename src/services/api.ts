@@ -615,9 +615,14 @@ export const mrfApi = {
     const res = await apiRequest<import('@/types').AvailableActions>(
       `/mrfs/${id}/available-actions`,
     );
-    if (res.success && res.data && options?.mrf) {
-      const { enrichAvailableActions } = await import('@/utils/enrichFinanceRouting');
-      res.data = enrichAvailableActions(res.data, options.mrf, options.userRole);
+    if (res.success && res.data) {
+      const { applyReadOnlyAvailableActions } = await import('@/utils/stripReadOnlyActions');
+      let actions = res.data;
+      if (options?.mrf) {
+        const { enrichAvailableActions } = await import('@/utils/enrichFinanceRouting');
+        actions = enrichAvailableActions(actions, options.mrf, options.userRole);
+      }
+      res.data = applyReadOnlyAvailableActions(actions);
     }
     return res;
   },
@@ -2891,8 +2896,19 @@ export const vendorAuthApi = {
 
 // Dashboard API
 export const dashboardApi = {
-  getProcurementManagerDashboard: async (): Promise<ApiResponse<any>> => {
-    return apiRequest<any>('/dashboard/procurement-manager');
+  getProcurementManagerDashboard: async (): Promise<
+    ApiResponse<import('@/utils/normalizeProcurementDashboard').ProcurementManagerDashboardPayload>
+  > => {
+    const res = await apiRequest<Record<string, unknown>>('/dashboard/procurement-manager');
+    if (res.success && res.data) {
+      const { normalizeProcurementManagerDashboard } = await import(
+        '@/utils/normalizeProcurementDashboard'
+      );
+      return { ...res, data: normalizeProcurementManagerDashboard(res.data) };
+    }
+    return res as unknown as ApiResponse<
+      import('@/utils/normalizeProcurementDashboard').ProcurementManagerDashboardPayload
+    >;
   },
 
   getSupplyChainDirectorDashboard: async (): Promise<ApiResponse<any>> => {

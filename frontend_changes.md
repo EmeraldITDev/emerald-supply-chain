@@ -788,3 +788,43 @@ On `POST /api/trip-requests/{id}/comments` and `POST /api/trips/{id}/comments`:
 2. Click row → `/trip-requests/:id` opens read-only for non-involved staff (no approve, no comment composer).
 3. LM still sees pending queue on **Logistics → Overview** (not a separate tab).
 4. LM opens **Procurement Overview** from sidebar → read-only stats and MRF/SRF lists at `/procurement`.
+
+---
+
+## 11. Procurement Overview — Logistics Manager (backend §11 + frontend wiring)
+
+**Role:** `logistics_manager` (alias `logistics`)  
+**Route:** `/procurement` — **Procurement Overview** (view-only)
+
+### Backend contract (implemented server-side)
+| Method | Path | LM access |
+|--------|------|-----------|
+| `GET` | `/api/mrfs` | Full org MRF list |
+| `GET` | `/api/srfs` | Full org list; optional `?scope=logistics` / `?logistics_only=1` |
+| `GET` | `/api/dashboard/procurement-manager` | Same payload as PM + `readOnly`, `isProcurementOverviewOnly`, `canManageProcurement` |
+| `GET` | MRF/SRF detail reads | Allowed |
+| `GET` | `/api/mrfs/{id}/available-actions` | `readOnly: true`; mutation flags stripped |
+| Mutations | approve/reject, PO, GRN, uploads, etc. | **403** |
+
+### Frontend wiring
+| File | Change |
+|------|--------|
+| `src/utils/procurementAccess.ts` | `logistics` alias; `resolveProcurementOverviewMode()` merges API flags + client fallback |
+| `src/utils/normalizeProcurementDashboard.ts` | Normalizes dashboard payload + KPIs from snake/camel case |
+| `src/utils/stripReadOnlyActions.ts` | `applyReadOnlyAvailableActions()` when `available-actions` returns `readOnly` |
+| `src/services/api.ts` | `dashboardApi.getProcurementManagerDashboard()` normalizes flags; `mrfApi.getAvailableActions` applies read-only strip |
+| `src/types/index.ts` | `AvailableActions.readOnly?: boolean` |
+| `src/pages/Procurement.tsx` | Loads `GET /dashboard/procurement-manager` on mount; API flags drive overview mode; KPIs from dashboard when present; hides **Create PO**, vendor registrations, MRN convert/reject when read-only |
+| `src/components/MRFActionButtons.tsx` | Hides mutations when `readOnly`; still allows **Download PO** |
+
+### Access helpers (mirror `App\Support\ProcurementOverviewAccess`)
+- `canAccessProcurementPage(role)` — full procurement roles + LM overview roles
+- `isProcurementOverviewOnly(role)` — client fallback (`logistics_manager` \| `logistics`)
+- `resolveProcurementOverviewMode(role, apiFlags)` — prefer API flags from dashboard endpoint
+
+### Verification (LM)
+1. Sidebar **Procurement → Procurement Overview** visible for `logistics_manager`.
+2. `/procurement` returns **200** for MRF/SRF lists and procurement-manager dashboard.
+3. Read-only banner shown; **Create PO** and vendor registration review hidden.
+4. MRF detail opens; `available-actions` shows no mutation buttons (download PO still works when file exists).
+5. Workflow mutations return **403** if attempted via API.

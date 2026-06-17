@@ -445,6 +445,8 @@ export interface AvailableActions {
   canViewGRN: boolean;
   canGenerateGRN?: boolean;
   availableActions: string[]; // List of action keys: 'view', 'edit', 'approve', 'reject', etc.
+  /** When true, all mutation flags are stripped (Logistics Manager overview). */
+  readOnly?: boolean;
 
   // Phase 7: Finance AP routing fields
   usesFinanceAp?: boolean; // true if created_at >= FINANCE_AP_CUTOVER_DATE
