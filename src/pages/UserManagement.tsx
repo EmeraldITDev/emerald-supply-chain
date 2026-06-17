@@ -306,7 +306,6 @@ const UserManagement = () => {
     { value: "admin", label: "Admin" },
     { value: "logistics_manager", label: "Logistics Manager" },
     { value: "logistics_officer", label: "Logistics Officer" },
-    { value: "logistics", label: "Logistics (legacy)" },
     { value: "vendor", label: "Vendor" },
   ];
 

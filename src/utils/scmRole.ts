@@ -8,12 +8,46 @@ export interface ScmRoleFields {
 }
 
 /**
+ * Canonical SCM role identifiers.
+ * Any value not in this set (including all HRIS roles) resolves to "employee".
+ * Legacy aliases (logistics, procurement, supply_chain, finance_officer) are kept
+ * so existing users retain access, but are not offered in the role picker.
+ */
+export const CANONICAL_SCM_ROLES = new Set([
+  "employee",
+  "executive",
+  "procurement_manager",
+  "procurement",         // legacy alias
+  "supply_chain_director",
+  "supply_chain",        // legacy alias
+  "finance",
+  "finance_officer",     // legacy alias
+  "chairman",
+  "admin",
+  "vendor",
+  "logistics_manager",
+  "logistics_officer",
+  "logistics",           // legacy: kept working, hidden from picker
+]);
+
+/**
+ * Normalizes a raw role string to a canonical SCM role.
+ * HRIS roles (line_manager, finance_manager, power_user, contract_employee,
+ * general_employee, etc.) and any unknown value all resolve to "employee".
+ */
+export function normalizeScmRole(role?: string | null): string | undefined {
+  if (role == null || typeof role !== "string") return undefined;
+  const r = role.trim().toLowerCase();
+  if (!r) return undefined;
+  return CANONICAL_SCM_ROLES.has(r) ? r : "employee";
+}
+
+/**
  * SCM permission source of truth.
- * Reads supply_chain_role exclusively; falls back to deprecated role for legacy sessions.
+ * Returns a normalized canonical SCM role; HRIS or unknown values become "employee".
  */
 export function getScmRole(user?: ScmRoleFields | null): string | undefined {
-  const role = user?.supply_chain_role ?? user?.role;
-  return role ?? undefined;
+  return normalizeScmRole(user?.supply_chain_role ?? user?.role);
 }
 
 export function formatScmRoleLabel(role?: string | null): string {

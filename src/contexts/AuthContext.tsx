@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { authApi } from "@/services/api";
 import type { User } from "@/types";
-import { getScmRole } from "@/utils/scmRole";
+import { getScmRole, normalizeScmRole } from "@/utils/scmRole";
 
 export type UserRole = "employee" | "general_employee" | "regular_staff" | "staff" | "procurement_manager" | "finance" | "executive" | "supply_chain_director" | "supply_chain" | "chairman" | "logistics_manager" | "logistics_officer" | "procurement" | "logistics" | "admin" | "vendor" | "finance_officer";
 
@@ -36,14 +36,16 @@ export interface AuthUser {
 }
 
 function mapAuthUserFromApi(data: User): AuthUser {
-  const scmRole = data.supply_chain_role ?? data.role;
+  const rawRole = data.supply_chain_role ?? data.role;
+  // Normalize so HRIS/unknown roles become "employee" throughout the session.
+  const scmRole = (normalizeScmRole(rawRole) ?? "employee") as UserRole;
   const d = data as User & { signatureUrl?: string };
   return {
     id: data.id,
     email: data.email,
-    supply_chain_role: scmRole as UserRole,
+    supply_chain_role: scmRole,
     hris_role: data.hris_role ?? null,
-    role: scmRole as UserRole,
+    role: scmRole,
     name: data.name,
     department: data.department ?? null,
     employeeId: data.employeeId,
