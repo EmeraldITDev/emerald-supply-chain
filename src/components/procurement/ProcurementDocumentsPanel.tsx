@@ -31,10 +31,16 @@ import type {
   ProcurementDocumentType,
   ProcurementDocumentsResponse,
 } from "@/types/procurement-documents";
+import { LM_UPLOADABLE_DOC_TYPES } from "@/utils/stripReadOnlyActions";
 
 interface ProcurementDocumentsPanelProps {
   mrfId: string;
   defaultUploadType?: ProcurementDocumentType;
+  /**
+   * When true (Logistics Manager procurement overview), the upload section is
+   * restricted to JCC and waybill only. All other document types are view-only.
+   */
+  restrictToLmTypes?: boolean;
 }
 
 const UPLOADABLE_TYPES: { value: ProcurementDocumentType; label: string }[] = [
@@ -71,6 +77,7 @@ function formatDate(value?: string) {
 export default function ProcurementDocumentsPanel({
   mrfId,
   defaultUploadType = "waybill",
+  restrictToLmTypes = false,
 }: ProcurementDocumentsPanelProps) {
   const { toast } = useToast();
   const [data, setData] = useState<ProcurementDocumentsResponse | null>(null);
@@ -301,9 +308,18 @@ export default function ProcurementDocumentsPanel({
           </section>
         )}
 
-        {/* Upload form */}
+        {/* Upload form — hidden entirely when no types are available for this user */}
+        {(!restrictToLmTypes ||
+          LM_UPLOADABLE_DOC_TYPES.some((t) =>
+            UPLOADABLE_TYPES.find((u) => u.value === t),
+          )) && (
         <section className="space-y-3 rounded-md border bg-muted/30 p-3">
           <h4 className="text-sm font-semibold">Upload Supporting Document</h4>
+          {restrictToLmTypes && (
+            <p className="text-xs text-muted-foreground">
+              Your role can upload JCC and Waybill documents only.
+            </p>
+          )}
           <div className="grid gap-3 sm:grid-cols-[180px_1fr_auto]">
             <div className="space-y-1">
               <Label className="text-xs">Type</Label>
@@ -315,7 +331,12 @@ export default function ProcurementDocumentsPanel({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {UPLOADABLE_TYPES.map((t) => (
+                  {(restrictToLmTypes
+                    ? UPLOADABLE_TYPES.filter((t) =>
+                        (LM_UPLOADABLE_DOC_TYPES as readonly string[]).includes(t.value),
+                      )
+                    : UPLOADABLE_TYPES
+                  ).map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
                     </SelectItem>
@@ -351,6 +372,7 @@ export default function ProcurementDocumentsPanel({
             Accepted: PDF, DOC, DOCX, JPG, PNG · Max 20MB
           </p>
         </section>
+        )}
       </CardContent>
     </Card>
   );

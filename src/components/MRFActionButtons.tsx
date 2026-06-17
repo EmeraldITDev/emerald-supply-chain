@@ -79,25 +79,65 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
     mrf.signedPOUrl;
 
   if (availableActions.readOnly) {
+    const readOnlyButtons: JSX.Element[] = [];
+
     if (onDownloadPO && hasPoFile) {
-      return (
-        <div className={`flex items-center gap-2 ${className}`}>
-          <Button
-            size={size}
-            variant="outline"
-            className={className}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDownloadPO();
-            }}
-          >
-            <Download className="h-3 w-3 mr-1" />
-            {compact ? "PO" : "Download PO"}
-          </Button>
-        </div>
+      readOnlyButtons.push(
+        <Button
+          key="download-po"
+          size={size}
+          variant="outline"
+          className={className}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDownloadPO();
+          }}
+        >
+          <Download className="h-3 w-3 mr-1" />
+          {compact ? "PO" : "Download PO"}
+        </Button>,
       );
     }
-    return null;
+
+    // GRN generate/upload — allowed for LM when backend grants them
+    if (availableActions.canGenerateGRN && onGenerateGRN) {
+      readOnlyButtons.push(
+        <Button
+          key="generate-grn"
+          size={size}
+          variant={variant}
+          className={className}
+          onClick={(e) => {
+            e.stopPropagation();
+            onGenerateGRN();
+          }}
+        >
+          <FileCheck className="h-3 w-3 mr-1" />
+          {compact ? "GRN" : "Generate GRN"}
+        </Button>,
+      );
+    }
+
+    if (availableActions.canUploadGRN && onUploadGRN) {
+      readOnlyButtons.push(
+        <Button
+          key="upload-grn"
+          size={size}
+          variant={variant}
+          className={className}
+          onClick={(e) => {
+            e.stopPropagation();
+            onUploadGRN();
+          }}
+        >
+          <Upload className="h-3 w-3 mr-1" />
+          {compact ? "GRN" : "Upload GRN"}
+        </Button>,
+      );
+    }
+
+    if (readOnlyButtons.length === 0) return null;
+    return <div className={`flex items-center gap-2 ${className}`}>{readOnlyButtons}</div>;
   }
 
   const buttons: JSX.Element[] = [];

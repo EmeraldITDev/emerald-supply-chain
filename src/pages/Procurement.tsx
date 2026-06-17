@@ -4164,6 +4164,7 @@ const Procurement = () => {
                   getMrfApiId(selectedMRFForPODetails as unknown as MRF) ||
                   String((selectedMRFForPODetails as any).id ?? "")
                 }
+                restrictToLmTypes={isProcurementReadOnly}
               />
               {/* Phase 3 — Finance AP workflow gates */}
               <WorkflowGatesPanel
