@@ -48,6 +48,7 @@ import { ReportingCompliance } from "@/components/logistics/ReportingCompliance"
 import { GPSTrackingPlaceholder } from "@/components/logistics/GPSTrackingPlaceholder";
 import { AccommodationBookings } from "@/components/logistics/AccommodationBookings";
 import { LogisticsMyRequestsList } from "@/components/logistics/LogisticsMyRequestsList";
+import { LogisticsDeliveryConfirmations } from "@/components/logistics/LogisticsDeliveryConfirmations";
 import { useAuth } from "@/contexts/AuthContext";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
@@ -553,7 +554,7 @@ const Logistics = () => {
                     <CardTitle>Quick Actions</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid gap-3 sm:grid-cols-4">
+                    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                       <Button 
                         variant="outline" 
                         className="h-auto py-4 flex-col gap-2"
@@ -586,9 +587,37 @@ const Logistics = () => {
                         <Package className="h-5 w-5" />
                         <span className="text-sm">Track Materials</span>
                       </Button>
+                      <Button
+                        variant="outline"
+                        className="h-auto py-4 flex-col gap-2"
+                        onClick={() => setActiveTab("trips")}
+                        title="Open a completed trip to issue its JCC"
+                      >
+                        <FileText className="h-5 w-5" />
+                        <span className="text-sm">Generate JCC</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-auto py-4 flex-col gap-2"
+                        onClick={() => setActiveTab("movements")}
+                        title="Issue a Material JCC from a movement"
+                      >
+                        <Package className="h-5 w-5" />
+                        <span className="text-sm">Material JCC</span>
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Delivery confirmations (GRN + JCC) */}
+                <LogisticsDeliveryConfirmations
+                  mrfs={mrfRequests}
+                  trips={recentTrips}
+                  onRefresh={() => {
+                    void fetchDashboardData();
+                    void refreshMRFs();
+                  }}
+                />
               </div>
             </TabsContent>
 
