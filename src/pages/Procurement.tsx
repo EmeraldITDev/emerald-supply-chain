@@ -159,6 +159,8 @@ const Procurement = () => {
   } = useApp();
   const { user } = useAuth();
   const { toast } = useToast();
+  const scmRole = getScmRole(user);
+  const isLogisticsOverviewOnly = scmRole === "logistics_manager";
 
   // MRF requests from backend API
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
@@ -1774,13 +1776,21 @@ const Procurement = () => {
           <div className="flex flex-col gap-2 sm:gap-4">
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
-                Procurement Dashboard
+                {isLogisticsOverviewOnly ? "Procurement Overview" : "Procurement Dashboard"}
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Manage material and service requests
+                {isLogisticsOverviewOnly
+                  ? "Read-only view of procurement activity, MRFs, and service requests"
+                  : "Manage material and service requests"}
               </p>
             </div>
           </div>
+
+          {isLogisticsOverviewOnly && (
+            <div className="rounded-lg border border-info/30 bg-info/5 px-4 py-3 text-sm text-muted-foreground">
+              You have view-only access to procurement data. Create, edit, and approval actions are not available for your role.
+            </div>
+          )}
 
           {/* Stats */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

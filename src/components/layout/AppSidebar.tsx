@@ -211,6 +211,12 @@ export function AppSidebar() {
           ]
         },
         {
+          label: "Procurement",
+          items: [
+            { title: "Procurement Overview", url: "/procurement", icon: ShoppingCart },
+          ]
+        },
+        {
           label: "Analytics",
           items: [
             { title: "Reports", url: "/reports", icon: FileText },

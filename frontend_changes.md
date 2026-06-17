@@ -741,9 +741,14 @@ On `POST /api/trip-requests/{id}/comments` and `POST /api/trips/{id}/comments`:
 
 ## Logistics follow-up — Remove Requests tab & Procurement Overview; All Trips browse (Jun 2026)
 
-### Removed
+### Removed (later revised)
 - **Logistics → Requests tab** — removed from `src/pages/Logistics.tsx`. LM pending-approval inbox remains on the **Overview** tab only (`PendingTripRequestsPanel` compact).
-- **Procurement Overview for Logistics Manager** — removed sidebar link (`AppSidebar.tsx`), reverted `PROCUREMENT_OVERVIEW_ROLES` gate in `App.tsx`, reverted read-only banner in `Procurement.tsx`.
+- ~~**Procurement Overview for Logistics Manager**~~ — **re-added** (see below). Sidebar link, route gate, and read-only procurement page restored for `logistics_manager`.
+
+### Re-added — Procurement Overview for Logistics Manager
+- `src/components/layout/AppSidebar.tsx` — **Procurement → Procurement Overview** (`/procurement`) under Logistics Manager nav.
+- `src/App.tsx` — `PROCUREMENT_OVERVIEW_ROLES = ["logistics_manager"]` on `ProcurementRoute`.
+- `src/pages/Procurement.tsx` — read-only title, subtitle, and info banner when `scmRole === "logistics_manager"`. Existing per-action role gates continue to hide create/approve controls.
 
 ### Added — Organization-wide trip visibility (§10)
 
@@ -779,4 +784,4 @@ On `POST /api/trip-requests/{id}/comments` and `POST /api/trips/{id}/comments`:
 1. Any staff opens **All Trips** from sidebar → sees org-wide list.
 2. Click row → `/trip-requests/:id` opens read-only for non-involved staff (no approve, no comment composer).
 3. LM still sees pending queue on **Logistics → Overview** (not a separate tab).
-4. LM no longer has Procurement Overview in sidebar; `/procurement` redirects LM to dashboard.
+4. LM opens **Procurement Overview** from sidebar → read-only stats and MRF/SRF lists at `/procurement`.
