@@ -8,6 +8,9 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { getScmRole } from "@/utils/scmRole";
+import {
+  canAccessProcurementPage,
+} from "@/utils/procurementAccess";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -66,11 +69,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return isAuthenticated ? <>{children}</> : <Navigate to="/auth" replace />;
 };
 
-// Roles that can access procurement pages (full system visibility)
-const PROCUREMENT_ACCESS_ROLES = ["procurement", "procurement_manager", "executive", "chairman", "supply_chain_director", "supply_chain"];
-
-// Logistics Manager — read-only Procurement Overview (stats + lists, no create/approve actions)
-const PROCUREMENT_OVERVIEW_ROLES = ["logistics_manager"];
+// Roles that can access procurement pages — see src/utils/procurementAccess.ts
 
 const ProcurementRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user, loading } = useAuth();
@@ -85,10 +84,7 @@ const ProcurementRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (!isAuthenticated) return <Navigate to="/auth" replace />;
   const scmRole = getScmRole(user);
-  if (
-    !scmRole ||
-    (!PROCUREMENT_ACCESS_ROLES.includes(scmRole) && !PROCUREMENT_OVERVIEW_ROLES.includes(scmRole))
-  ) {
+  if (!canAccessProcurementPage(scmRole)) {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;

@@ -125,6 +125,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { isProcurementOverviewOnly } from "@/utils/procurementAccess";
 
 function convertSrfToPseudoMrfRequest(srf: SRFRequest): MRFRequest {
   return {
@@ -160,7 +161,7 @@ const Procurement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const scmRole = getScmRole(user);
-  const isLogisticsOverviewOnly = scmRole === "logistics_manager";
+  const isLogisticsOverviewOnly = isProcurementOverviewOnly(scmRole);
 
   // MRF requests from backend API
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
@@ -3500,10 +3501,12 @@ const Procurement = () => {
                     <CardTitle>Purchase Orders</CardTitle>
                     <CardDescription>List of all purchase orders</CardDescription>
                   </div>
-                  <Button size="sm" onClick={() => setManualPOOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create PO
-                  </Button>
+                  {!isLogisticsOverviewOnly && (
+                    <Button size="sm" onClick={() => setManualPOOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create PO
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">

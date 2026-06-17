@@ -746,9 +746,12 @@ On `POST /api/trip-requests/{id}/comments` and `POST /api/trips/{id}/comments`:
 - ~~**Procurement Overview for Logistics Manager**~~ — **re-added** (see below). Sidebar link, route gate, and read-only procurement page restored for `logistics_manager`.
 
 ### Re-added — Procurement Overview for Logistics Manager
-- `src/components/layout/AppSidebar.tsx` — **Procurement → Procurement Overview** (`/procurement`) under Logistics Manager nav.
-- `src/App.tsx` — `PROCUREMENT_OVERVIEW_ROLES = ["logistics_manager"]` on `ProcurementRoute`.
-- `src/pages/Procurement.tsx` — read-only title, subtitle, and info banner when `scmRole === "logistics_manager"`. Existing per-action role gates continue to hide create/approve controls.
+- `src/components/layout/AppSidebar.tsx` — **Procurement → Procurement Overview** (`/procurement`) in Logistics Manager sidebar (between Operations and Analytics).
+- `src/App.tsx` — `ProcurementRoute` uses `canAccessProcurementPage()` from `src/utils/procurementAccess.ts` (includes `logistics_manager`).
+- `src/pages/Procurement.tsx` — read-only title **Procurement Overview**, subtitle, info banner; **Create PO** hidden when `isProcurementOverviewOnly`.
+- `src/utils/procurementAccess.ts` — shared `PROCUREMENT_OVERVIEW_ROLES`, `canAccessProcurementPage()`, `isProcurementOverviewOnly()`.
+
+**Backend ask:** `GET /api/mrfs`, `GET /api/srfs`, and `GET /api/dashboard/procurement-manager` (or a dedicated read-only overview endpoint) must return **200** for `logistics_manager` — otherwise the overview page loads empty. View-only; no POST/PATCH/DELETE for this role.
 
 ### Added — Organization-wide trip visibility (§10)
 
