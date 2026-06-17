@@ -467,11 +467,22 @@ export default function Settings() {
                           )}
                         </Button>
                       </div>
-                      <img
-                        src={savedSignatureUrl}
-                        alt="Saved signature"
-                        className="max-h-24 object-contain"
-                      />
+                      {savedSignatureDataUrl ? (
+                        <img
+                          src={savedSignatureDataUrl}
+                          alt="Saved signature"
+                          className="max-h-24 object-contain bg-white rounded p-1"
+                        />
+                      ) : signatureLoadError ? (
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          {signatureLoadError}
+                        </p>
+                      ) : (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Loading saved signature…
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className="space-y-2">
