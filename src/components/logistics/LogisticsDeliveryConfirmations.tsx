@@ -5,12 +5,24 @@ import { Badge } from "@/components/ui/badge";
 import { FileCheck, FileText, ClipboardCheck } from "lucide-react";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import { JCCDialog } from "@/components/logistics/JCCDialog";
-import type { MRF } from "@/types";
 import type { Trip } from "@/types/logistics";
 import { getDisplayId } from "@/utils/displayId";
 
+// Loose MRF shape — the Overview hands us context MRFs that don't satisfy the
+// strict `MRF` type but carry every field GRNCompletionDialog needs.
+type AnyMrf = {
+  id: string | number;
+  po_number?: string;
+  poNumber?: string;
+  category?: string;
+  grn_url?: string;
+  grnUrl?: string;
+  items?: unknown;
+  [key: string]: unknown;
+};
+
 interface Props {
-  mrfs: MRF[];
+  mrfs: AnyMrf[];
   trips: Trip[];
   onRefresh?: () => void;
 }
@@ -22,7 +34,7 @@ interface Props {
  * with inline buttons that open the existing dialogs.
  */
 export function LogisticsDeliveryConfirmations({ mrfs, trips, onRefresh }: Props) {
-  const [grnMrf, setGrnMrf] = useState<MRF | null>(null);
+  const [grnMrf, setGrnMrf] = useState<AnyMrf | null>(null);
   const [jccTrip, setJccTrip] = useState<Trip | null>(null);
 
   const pendingGrnMrfs = useMemo(() => {
@@ -124,7 +136,7 @@ export function LogisticsDeliveryConfirmations({ mrfs, trips, onRefresh }: Props
         <GRNCompletionDialog
           open={Boolean(grnMrf)}
           onOpenChange={(o) => !o && setGrnMrf(null)}
-          mrf={grnMrf}
+          mrf={grnMrf as unknown as Parameters<typeof GRNCompletionDialog>[0]["mrf"]}
           onSuccess={() => {
             setGrnMrf(null);
             onRefresh?.();
