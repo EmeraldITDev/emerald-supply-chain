@@ -15,6 +15,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/services/api";
 import { signatureApi } from "@/services/api";
+import { fetchUrlAsDataUrl } from "@/utils/emeraldPOPdf";
 import { toast } from "sonner";
 import { useState, useRef, useEffect } from "react";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -35,6 +36,8 @@ export default function Settings() {
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
   const [isRemovingSignature, setIsRemovingSignature] = useState(false);
   const [savedSignatureUrl, setSavedSignatureUrl] = useState<string | null>(null);
+  const [savedSignatureDataUrl, setSavedSignatureDataUrl] = useState<string | null>(null);
+  const [signatureLoadError, setSignatureLoadError] = useState<string | null>(null);
   const signatureInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -63,6 +66,32 @@ export default function Settings() {
       setSavedSignatureUrl(null);
     }
   }, [user]);
+
+  // Resolve the saved signature URL to a viewable data URL — the raw URL
+  // is bearer-protected on our API, so a plain <img src> would show nothing.
+  useEffect(() => {
+    let cancelled = false;
+    setSignatureLoadError(null);
+    if (!savedSignatureUrl) {
+      setSavedSignatureDataUrl(null);
+      return;
+    }
+    (async () => {
+      const data = await fetchUrlAsDataUrl(savedSignatureUrl);
+      if (cancelled) return;
+      if (data) {
+        setSavedSignatureDataUrl(data);
+      } else {
+        setSavedSignatureDataUrl(null);
+        setSignatureLoadError(
+          "Couldn't load the saved signature image. It may have expired — re-upload it below.",
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [savedSignatureUrl]);
 
   // Role-based access control
   const isRegularEmployee = getScmRole(user) === "employee" || getScmRole(user) === "general_employee";
@@ -438,11 +467,22 @@ export default function Settings() {
                           )}
                         </Button>
                       </div>
-                      <img
-                        src={savedSignatureUrl}
-                        alt="Saved signature"
-                        className="max-h-24 object-contain"
-                      />
+                      {savedSignatureDataUrl ? (
+                        <img
+                          src={savedSignatureDataUrl}
+                          alt="Saved signature"
+                          className="max-h-24 object-contain bg-white rounded p-1"
+                        />
+                      ) : signatureLoadError ? (
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          {signatureLoadError}
+                        </p>
+                      ) : (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Loading saved signature…
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className="space-y-2">
