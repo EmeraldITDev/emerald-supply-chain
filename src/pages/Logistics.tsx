@@ -55,7 +55,6 @@ const Logistics = () => {
   const {
     staffDrivers,
     addStaffDriver,
-    mrfRequests,
     srfRequests,
     refreshSRFs,
     refreshMRFs,
@@ -170,7 +169,7 @@ const Logistics = () => {
   };
 
   const handleRefresh = async () => {
-    await fetchDashboardData();
+    await Promise.all([fetchDashboardData(), refreshMRFs()]);
   };
 
   return (
@@ -611,12 +610,8 @@ const Logistics = () => {
 
                 {/* Delivery confirmations (GRN + JCC) */}
                 <LogisticsDeliveryConfirmations
-                  mrfs={mrfRequests as unknown as Parameters<typeof LogisticsDeliveryConfirmations>[0]["mrfs"]}
-                  trips={recentTrips}
-                  onRefresh={() => {
-                    void fetchDashboardData();
-                    void refreshMRFs();
-                  }}
+                  isActive={activeTab === "overview"}
+                  onRefresh={fetchDashboardData}
                 />
               </div>
             </TabsContent>

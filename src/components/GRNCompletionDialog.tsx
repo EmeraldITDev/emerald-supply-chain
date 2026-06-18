@@ -16,10 +16,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, FileText, Eye, FileCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { grnApi, mrfApi } from "@/services/api";
 import { procurementApi } from "@/services/procurementApi";
 import { type AvailableActions, type MRF } from "@/types";
 import { getMrfApiId } from "@/utils/displayId";
+import { getScmRole } from "@/utils/scmRole";
 import type { GRNLineItemOverride } from "@/types/procurement-documents";
 import { openGrnPdfFromDialogState } from "@/utils/grnPdfActions";
 
@@ -37,6 +39,12 @@ export default function GRNCompletionDialog({
   onSuccess,
 }: GRNCompletionDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const scmRole = getScmRole(user);
+  const isLogisticsGrnRole =
+    scmRole === "logistics_manager" ||
+    scmRole === "logistics" ||
+    scmRole === "logistics_officer";
   const [isCompleting, setIsCompleting] = useState(false);
   const [grnFile, setGrnFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -190,9 +198,16 @@ export default function GRNCompletionDialog({
       if (res.success && res.data) {
         window.open(res.data.objectUrl, "_blank", "noopener,noreferrer");
       } else {
+        const isPermissionDenied =
+          res.status === 403 ||
+          /permission/i.test(res.error || "");
         toast({
           title: "Preview Failed",
-          description: res.error || "Unable to generate GRN preview.",
+          description: isPermissionDenied
+            ? isLogisticsGrnRole
+              ? "Server preview is not enabled for your role yet. Use Preview locally to review the PDF, then Confirm & Generate to save."
+              : res.error || "You do not have permission to preview GRN for this MRF."
+            : res.error || "Unable to generate GRN preview.",
           variant: "destructive",
         });
       }
@@ -266,7 +281,8 @@ export default function GRNCompletionDialog({
   };
 
   const canGenerate = actions?.canGenerateGRN ?? false;
-  const canUpload = actions?.canUploadGRN ?? true; // backwards compatible
+  const canUpload = actions?.canUploadGRN ?? false;
+  const showServerPreview = canGenerate && !isLogisticsGrnRole;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -295,11 +311,23 @@ export default function GRNCompletionDialog({
             </TabsList>
 
             <TabsContent value="generate" className="space-y-4 pt-4">
+              {!canGenerate ? (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    GRN generation is not available for this MRF at its current workflow stage,
+                    or your role does not have permission. If goods were received, contact
+                    Procurement or wait until payment processing completes.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+              <>
               <Alert>
                 <FileCheck className="h-4 w-4" />
                 <AlertDescription>
-                  Preview the auto-generated GRN PDF, then confirm to save it to
-                  the document registry.
+                  {isLogisticsGrnRole
+                    ? "Preview the GRN locally, then confirm to save it to the document registry."
+                    : "Preview the auto-generated GRN PDF, then confirm to save it to the document registry."}
                 </AlertDescription>
               </Alert>
 
@@ -454,7 +482,7 @@ export default function GRNCompletionDialog({
                 <Button
                   variant="outline"
                   onClick={handlePreviewLocal}
-                  disabled={isPreviewingLocal || isGenerating || isPreviewing}
+                  disabled={!canGenerate || isPreviewingLocal || isGenerating || isPreviewing}
                   title="Render the Emerald-layout GRN PDF locally from form values."
                 >
                   {isPreviewingLocal ? (
@@ -467,6 +495,7 @@ export default function GRNCompletionDialog({
                     </>
                   )}
                 </Button>
+                {showServerPreview && (
                 <Button
                   variant="outline"
                   onClick={handlePreviewGRN}
@@ -482,7 +511,8 @@ export default function GRNCompletionDialog({
                     </>
                   )}
                 </Button>
-                <Button onClick={handleGenerateGRN} disabled={isGenerating || isPreviewing}>
+                )}
+                <Button onClick={handleGenerateGRN} disabled={!canGenerate || isGenerating || isPreviewing}>
                   {isGenerating ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating…
@@ -492,6 +522,8 @@ export default function GRNCompletionDialog({
                   )}
                 </Button>
               </DialogFooter>
+              </>
+              )}
             </TabsContent>
 
             <TabsContent value="upload" className="space-y-4 pt-4">

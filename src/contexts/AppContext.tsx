@@ -914,6 +914,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const onRefresh = () => {
+      void refreshMRFs();
       void refreshSRFs();
     };
     window.addEventListener("app:refresh", onRefresh);
