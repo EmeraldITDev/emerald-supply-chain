@@ -17,11 +17,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, FileText, Eye, FileCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { grnApi, mrfApi } from "@/services/api";
+import { grnApi, mrfApi, vendorApi } from "@/services/api";
 import { procurementApi } from "@/services/procurementApi";
-import { type AvailableActions, type MRF } from "@/types";
+import { type AvailableActions, type MRF, type Vendor } from "@/types";
+import type { PriceComparisonEntry } from "@/types/procurement";
 import { getMrfApiId } from "@/utils/displayId";
 import { getScmRole } from "@/utils/scmRole";
+import { resolveSelectedSupplier } from "@/utils/emeraldPoDocumentModel";
 import type { GRNLineItemOverride } from "@/types/procurement-documents";
 import { openGrnPdfFromDialogState } from "@/utils/grnPdfActions";
 
@@ -68,17 +70,41 @@ export default function GRNCompletionDialog({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPreviewingLocal, setIsPreviewingLocal] = useState(false);
 
-  const mrfItems = (mrf.items ?? []) as Array<{
+  // Enriched data for the local GRN PDF (line items + supplier come from the
+  // price comparison, same source the PO uses).
+  const [enrichedMrf, setEnrichedMrf] = useState<MRF>(mrf);
+  const [priceComparisonRows, setPriceComparisonRows] = useState<PriceComparisonEntry[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+
+  const effectiveMrf = enrichedMrf ?? mrf;
+  const embeddedItems = (effectiveMrf.items ?? []) as Array<{
     itemName: string;
     quantity: number;
     unit?: string;
+    unitPrice?: number;
+    unit_price?: number;
   }>;
+  // Fall back to price-comparison rows (selected supplier) when the MRF has no
+  // embedded line items — matches what the PO and GRN PDF render.
+  const mrfItems =
+    embeddedItems.length > 0
+      ? embeddedItems
+      : (priceComparisonRows.length > 0
+          ? resolveSelectedSupplier(priceComparisonRows, vendors).supplierRows
+          : []
+        ).map((r) => ({
+          itemName: r.item_description || effectiveMrf.title || "Item",
+          quantity: Number(r.quantity) || 0,
+          unit: undefined as string | undefined,
+          unitPrice: Number(r.unit_price) || 0,
+        }));
 
   const mrfPathId = getMrfApiId(mrf) || String(mrf.id ?? "");
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    setEnrichedMrf(mrf);
     (async () => {
       setActionsLoading(true);
       try {
@@ -93,10 +119,35 @@ export default function GRNCompletionDialog({
         if (!cancelled) setActionsLoading(false);
       }
     })();
+
+    // Enrich for the local PDF: full MRF (line items/currency), price comparison
+    // (selected supplier + line items), and the vendor directory.
+    (async () => {
+      try {
+        const [fullRes, pcRes, vendorsRes] = await Promise.all([
+          mrfApi.getById(mrfPathId),
+          procurementApi.getPriceComparison(mrfPathId),
+          vendorApi.getAll(),
+        ]);
+        if (cancelled) return;
+        if (fullRes.success && fullRes.data) {
+          setEnrichedMrf((prev) => ({ ...prev, ...fullRes.data }));
+        }
+        if (pcRes.success && Array.isArray(pcRes.data)) {
+          setPriceComparisonRows(pcRes.data);
+        }
+        if (vendorsRes.success && Array.isArray(vendorsRes.data)) {
+          setVendors(vendorsRes.data);
+        }
+      } catch {
+        // Non-fatal — local preview still renders header/comment fields.
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
-  }, [open, mrfPathId]);
+  }, [open, mrfPathId, mrf]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -219,14 +270,14 @@ export default function GRNCompletionDialog({
   const handlePreviewLocal = async () => {
     setIsPreviewingLocal(true);
     try {
-      const mrfAny = mrf as unknown as {
+      const mrfAny = effectiveMrf as unknown as {
         vendor_name?: string;
         vendorName?: string;
         vendor_address?: string;
         vendorAddress?: string;
       };
       await openGrnPdfFromDialogState({
-        mrf,
+        mrf: effectiveMrf,
         grnNumber,
         dateOfReceipt,
         deliveryNoteNumber,
@@ -239,6 +290,8 @@ export default function GRNCompletionDialog({
         quantityReceivedOverrides: qtyOverrides,
         supplierName: mrfAny.vendor_name || mrfAny.vendorName,
         supplierAddress: mrfAny.vendor_address || mrfAny.vendorAddress,
+        priceComparisonRows,
+        vendors,
       });
     } catch (e) {
       toast({

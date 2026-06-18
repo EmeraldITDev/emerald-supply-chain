@@ -113,6 +113,52 @@ function vendorNameForId(vendors: Vendor[], vendorId: string): string {
   return v?.name?.trim() || vendorId || '—';
 }
 
+/**
+ * Resolve the selected supplier (winning vendor) and all price-comparison rows
+ * that belong to that supplier. Shared by the PO and GRN document models so both
+ * documents show the same vendor + line items.
+ */
+export function resolveSelectedSupplier(
+  rows: Array<PriceComparisonRow | PriceComparisonEntry>,
+  vendors: Vendor[] = [],
+): {
+  supplierName: string;
+  supplierAddress: string;
+  supplierRows: Array<PriceComparisonRow | PriceComparisonEntry>;
+} {
+  const row = pickSelectedRow(rows);
+  const selectedKey = supplierKey(row);
+  const supplierRows = selectedKey
+    ? rows.filter((r) => supplierKey(r) === selectedKey)
+    : row
+      ? [row]
+      : [];
+
+  let supplierName = '—';
+  let supplierAddress = '';
+  if (row) {
+    const pe = row as PriceComparisonEntry;
+    const pr = row as PriceComparisonRow;
+    if (pe.vendor_name?.trim()) {
+      supplierName = pe.vendor_name.trim();
+    } else if (pr.manual_vendor?.name?.trim()) {
+      supplierName = pr.manual_vendor.name.trim();
+      supplierAddress = pr.manual_vendor.address?.trim() || '';
+    } else if (pr.vendor_id) {
+      supplierName = vendorNameForId(vendors, String(pr.vendor_id));
+    }
+    // Prefer the directory vendor's address when available.
+    if (!supplierAddress && (pr.vendor_id || pe.vendor_id)) {
+      const v = vendors.find(
+        (x) => String(x.id) === String(pr.vendor_id ?? pe.vendor_id),
+      );
+      supplierAddress =
+        (v as unknown as { address?: string })?.address?.trim() || supplierAddress;
+    }
+  }
+  return { supplierName, supplierAddress, supplierRows };
+}
+
 function parsePaymentTermsFromCustomTerms(custom?: string | null): string | null {
   if (!custom?.trim()) return null;
   const m = custom.match(/Payment\s*Terms:\s*([^\n]+)/i);
@@ -214,12 +260,7 @@ export function buildEmeraldPoDisplayModel(input: {
 
   // All rows belonging to the selected supplier become line items on the PO.
   // Falls back to just the selected row if no supplier identity is resolvable.
-  const selectedKey = supplierKey(row);
-  const supplierRows: Array<PriceComparisonRow | PriceComparisonEntry> = selectedKey
-    ? rows.filter((r) => supplierKey(r) === selectedKey)
-    : row
-      ? [row]
-      : [];
+  const { supplierName, supplierRows } = resolveSelectedSupplier(rows, vendors);
 
   const subtotal = supplierRows.reduce(
     (acc, r) => acc + (Number(r.quantity) || 0) * (Number(r.unit_price) || 0),
@@ -233,16 +274,6 @@ export function buildEmeraldPoDisplayModel(input: {
   const taxRate = Number.isFinite(traw) ? traw : 7.5;
   const taxAmount = subtotal * (taxRate / 100);
   const total = subtotal + taxAmount;
-
-  const supplierName = (() => {
-    if (!row) return '—';
-    const pe = row as PriceComparisonEntry;
-    if (pe.vendor_name?.trim()) return pe.vendor_name.trim();
-    const pr = row as PriceComparisonRow;
-    if (pr.manual_vendor?.name?.trim()) return pr.manual_vendor.name.trim();
-    if (pr.vendor_id) return vendorNameForId(vendors, String(pr.vendor_id));
-    return '—';
-  })();
 
   const shipTo =
     mrf.ship_to_address?.trim() ||
