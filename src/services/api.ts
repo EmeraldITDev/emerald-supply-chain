@@ -2337,11 +2337,16 @@ export const vendorApi = {
     return apiRequest<unknown>('/vendors/categories');
   },
 
+  /**
+   * List procurement vendors. By default the backend **excludes Inactive** rows
+   * (merged duplicates). Pass `{ includeInactive: true }` to audit all records.
+   */
   getAll: async (filters?: FilterOptions): Promise<ApiResponse<Vendor[]>> => {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
     if (filters?.category) params.append('category', filters.category);
-    
+    if (filters?.includeInactive) params.append('include_inactive', '1');
+
     return apiRequest<Vendor[]>(`/vendors?${params.toString()}`);
   },
 

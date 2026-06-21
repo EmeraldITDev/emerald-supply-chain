@@ -425,7 +425,7 @@ const Vendors = () => {
   const fetchVendors = async () => {
     setLoadingVendors(true);
     try {
-      const response = await vendorApi.getAll();
+      const response = await vendorApi.getAll({ includeInactive: true });
       if (response.success && response.data) {
         const transformedVendors = response.data.map((vendor: any) => ({
           id: vendor.id,
@@ -533,7 +533,7 @@ const Vendors = () => {
           setVendorRegistrations(refreshResponse.data);
         }
         // Also refresh vendors list
-        const vendorsResponse = await vendorApi.getAll();
+        const vendorsResponse = await vendorApi.getAll({ includeInactive: true });
         if (vendorsResponse.success && vendorsResponse.data) {
           const transformedVendors = vendorsResponse.data.map((vendor: any) => ({
             id: vendor.id, // Use actual database ID for API calls
@@ -729,6 +729,7 @@ const Vendors = () => {
       case "Under Review":
         return "bg-warning/10 text-warning";
       case "Suspended":
+      case "Inactive":
         return "bg-destructive/10 text-destructive";
       default:
         return "bg-muted text-muted-foreground";
@@ -971,7 +972,9 @@ const Vendors = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
                 <CardTitle>Vendor Directory</CardTitle>
-                <CardDescription>Complete list of registered vendors</CardDescription>
+                <CardDescription>
+                  Active and pending vendors, plus inactive merged duplicates for audit
+                </CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -983,6 +986,7 @@ const Vendors = () => {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold whitespace-nowrap">{vendor.id}</span>
                       <span className="text-sm truncate">{vendor.name}</span>
+                      <Badge className={getStatusColor(vendor.status)}>{vendor.status}</Badge>
                       <Badge className={getStatusColor(vendor.kyc)}>{vendor.kyc}</Badge>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">

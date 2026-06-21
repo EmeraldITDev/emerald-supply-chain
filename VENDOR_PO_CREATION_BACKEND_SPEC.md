@@ -8,6 +8,10 @@ behaviour is live; the frontend calls `GET /vendors/lookup`, surfaces
 `resolvedVendors` on PO finalise, and honours `profile_completed` on the
 Vendor Portal.
 
+**Vendor list:** `GET /api/vendors` excludes `Inactive` rows by default
+(merged duplicates). Frontend passes `?include_inactive=1` only on Vendor
+Management audit views; PO/RFQ directory pickers use the default list.
+
 ---
 
 ## 1. Problem recap

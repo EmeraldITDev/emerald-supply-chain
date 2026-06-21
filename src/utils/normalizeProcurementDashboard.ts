@@ -89,7 +89,7 @@ export function normalizeProcurementDashboardStats(
   };
 }
 
-/** Count directory vendors shown in procurement flows (Active + Pending). */
+/** Count directory vendors for KPIs (Active + Pending; Inactive excluded by default API). */
 export function countRegisteredVendors(vendors: Vendor[]): number {
   return vendors.filter((v) => v.status === 'Active' || v.status === 'Pending').length;
 }

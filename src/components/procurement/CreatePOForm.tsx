@@ -313,7 +313,8 @@ export function CreatePOForm({
   }, [hydrate]);
 
   // -------------------------------------------------------------------------
-  // Vendors (full /api/vendors list — PC table is broader than RFQ vendors)
+  // Vendors — default GET /vendors excludes Inactive (merged duplicates).
+  // Directory picker only needs Active + Pending.
   // -------------------------------------------------------------------------
   useEffect(() => {
     let cancelled = false;

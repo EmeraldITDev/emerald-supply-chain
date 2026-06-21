@@ -583,6 +583,8 @@ export interface FilterOptions {
   minAmount?: number;
   maxAmount?: number;
   search?: string;
+  /** When true, sends `include_inactive=1` — includes merged duplicate rows (Inactive). */
+  includeInactive?: boolean;
 }
 
 export interface SortOptions {
