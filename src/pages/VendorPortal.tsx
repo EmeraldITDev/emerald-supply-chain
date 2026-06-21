@@ -276,7 +276,11 @@ const VendorPortal = () => {
     const has = (...keys: string[]) =>
       keys.some((k) => v[k] !== undefined && v[k] !== null && String(v[k]).trim() !== "");
     const missing: string[] = [];
-    if (!has("category")) missing.push("Company category");
+    const category = String(v.category ?? "").trim();
+    // Backend treats "General" as a placeholder until the vendor picks a real category.
+    if (!category || category.toLowerCase() === "general") {
+      missing.push("Company category");
+    }
     if (!has("address")) missing.push("Business address");
     if (!has("tax_id", "taxId")) missing.push("Tax information");
     if (!has("website")) missing.push("Website");

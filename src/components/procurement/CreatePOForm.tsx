@@ -139,11 +139,13 @@ function formatResolvedVendorsSummary(entries: ResolvedVendorEntry[]): string | 
       const label = r.input?.name || r.input?.email || 'Supplier';
       const id = r.vendorId || r.vendor_id;
       const idPart = id ? ` (${id})` : '';
+      const statusPart =
+        r.status && r.status !== 'Active' ? ` — status: ${r.status}` : '';
       if (r.action === 'linked_existing') {
-        return `Linked to existing vendor ${label}${idPart}.`;
+        return `Linked to existing vendor ${label}${idPart}${statusPart}.`;
       }
       const sent = r.onboardingEmailSent ?? r.onboarding_email_sent;
-      return `New vendor ${label}${idPart}${sent ? ' — portal onboarding email sent' : ''}.`;
+      return `New vendor ${label}${idPart}${sent ? ' — portal onboarding email sent' : ''}${statusPart}.`;
     })
     .join(' ');
 }

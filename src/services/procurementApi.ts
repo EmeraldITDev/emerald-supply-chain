@@ -27,6 +27,7 @@ export type ResolvedVendorEntry = {
   action?: 'created' | 'linked_existing';
   onboardingEmailSent?: boolean;
   onboarding_email_sent?: boolean;
+  status?: string;
 };
 
 /** Successful POST /mrfs/{id}/generate-po body (after `apiRequest` unwraps `data`). */
