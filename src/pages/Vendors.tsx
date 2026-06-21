@@ -18,7 +18,7 @@ import { VendorRegistration, Vendor } from "@/types";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import { resolveTotalVendorCount } from "@/utils/normalizeProcurementDashboard";
 import { cn } from "@/lib/utils";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
@@ -54,6 +54,12 @@ const Vendors = () => {
     getScmRole(user) === "supply_chain_director" ||
     getScmRole(user) === "procurement" ||
     getScmRole(user) === "admin";
+  const canDeleteVendors =
+    getScmRole(user) === "procurement_manager" ||
+    getScmRole(user) === "supply_chain_director" ||
+    getScmRole(user) === "executive" ||
+    getScmRole(user) === "chairman" ||
+    getScmRole(user) === "admin";
   const [vendors, setVendors] = useState(contextVendors);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
@@ -74,6 +80,9 @@ const Vendors = () => {
   const [deleteVendorDialogOpen, setDeleteVendorDialogOpen] = useState(false);
   const [vendorToDelete, setVendorToDelete] = useState<any>(null);
   const [isDeletingVendor, setIsDeletingVendor] = useState(false);
+  const [selectedDirectoryIds, setSelectedDirectoryIds] = useState<string[]>([]);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Admin profile-edit dialog (backfill of legacy NULL fields)
   const [editVendor, setEditVendor] = useState<{ id: number; name: string } | null>(null);
@@ -94,8 +103,6 @@ const Vendors = () => {
     onTimeDelivery: 0,
   });
   const [loadingStats, setLoadingStats] = useState(true);
-  /** Audit toggle: include Inactive merged rows (pre-purge). Default list is Active + Pending only. */
-  const [showInactiveMerged, setShowInactiveMerged] = useState(false);
   
   // New vendor form
   const [newVendorName, setNewVendorName] = useState("");
@@ -360,6 +367,78 @@ const Vendors = () => {
     }
   };
 
+  const toggleDirectorySelection = (vendorId: string, checked: boolean) => {
+    setSelectedDirectoryIds((prev) =>
+      checked ? [...new Set([...prev, vendorId])] : prev.filter((id) => id !== vendorId),
+    );
+  };
+
+  const toggleSelectAllDirectory = (checked: boolean) => {
+    setSelectedDirectoryIds(checked ? vendors.map((v) => v.id) : []);
+  };
+
+  const handleBulkDeleteVendors = async () => {
+    if (selectedDirectoryIds.length === 0) return;
+
+    setIsBulkDeleting(true);
+    try {
+      const response = await vendorApi.bulkDelete(selectedDirectoryIds);
+      const deleted = response.data?.deleted ?? [];
+      const failed = response.data?.failed ?? [];
+
+      if (deleted.length > 0) {
+        const deletedIds = new Set(deleted.map((row) => row.vendorId));
+        setVendors((prev) => prev.filter((v) => !deletedIds.has(v.id)));
+        setDashboardStats((prev) => ({
+          ...prev,
+          totalVendors: Math.max(0, prev.totalVendors - deleted.length),
+          activeVendors: Math.max(0, prev.activeVendors - deleted.length),
+        }));
+        refreshDashboardStats();
+      }
+
+      if (failed.length === 0 && deleted.length > 0) {
+        toast({
+          title: "Vendors deleted",
+          description: `${deleted.length} vendor(s) removed from the directory.`,
+        });
+      } else if (deleted.length > 0) {
+        toast({
+          title: "Partial delete",
+          description: `${deleted.length} deleted, ${failed.length} could not be removed.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Delete failed",
+          description: failed[0]?.error || response.error || "No vendors were deleted.",
+          variant: "destructive",
+        });
+      }
+
+      setSelectedDirectoryIds(failed.map((row) => row.vendorId));
+      setBulkDeleteDialogOpen(false);
+
+      if (selectedVendor && deleted.some((row) => row.vendorId === selectedVendor.id)) {
+        setVendorDetailsOpen(false);
+        setSelectedVendor(null);
+      }
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete vendors",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const allDirectorySelected =
+    vendors.length > 0 && selectedDirectoryIds.length === vendors.length;
+  const someDirectorySelected =
+    selectedDirectoryIds.length > 0 && selectedDirectoryIds.length < vendors.length;
+
   // Open contact dialog with pre-filled vendor email
   const handleOpenContactDialog = () => {
     if (selectedVendor) {
@@ -425,13 +504,11 @@ const Vendors = () => {
     fetchVendorData();
   }, [toast]);
 
-  // Fetch vendor directory (default excludes Inactive; toggle for pre-purge audit)
-  const fetchVendors = async (includeInactive = showInactiveMerged) => {
+  // Fetch vendor directory (excludes Inactive merged duplicates by default)
+  const fetchVendors = async () => {
     setLoadingVendors(true);
     try {
-      const response = await vendorApi.getAll(
-        includeInactive ? { includeInactive: true } : undefined,
-      );
+      const response = await vendorApi.getAll();
       if (response.success && response.data) {
         const transformedVendors = response.data.map((vendor: any) => ({
           id: vendor.id,
@@ -455,14 +532,15 @@ const Vendors = () => {
           website: vendor.website ?? null,
         }));
         setVendors(transformedVendors);
-        if (!includeInactive) {
-          const total = resolveTotalVendorCount(undefined, response.data);
-          setDashboardStats((prev) => ({
-            ...prev,
-            totalVendors: total || prev.totalVendors,
-            activeVendors: total || prev.activeVendors,
-          }));
-        }
+        setSelectedDirectoryIds((prev) =>
+          prev.filter((id) => transformedVendors.some((v) => v.id === id)),
+        );
+        const total = resolveTotalVendorCount(undefined, response.data);
+        setDashboardStats((prev) => ({
+          ...prev,
+          totalVendors: total || prev.totalVendors,
+          activeVendors: total || prev.activeVendors,
+        }));
       }
     } catch (error) {
       setVendors(contextVendors);
@@ -472,19 +550,17 @@ const Vendors = () => {
   };
 
   const refreshVendorDirectory = async () => {
-    await Promise.all([fetchVendors(showInactiveMerged), refreshDashboardStats()]);
+    await Promise.all([fetchVendors(), refreshDashboardStats()]);
     toast({
       title: "Directory refreshed",
-      description: showInactiveMerged
-        ? "Loaded active vendors plus inactive merged rows for audit."
-        : "Loaded active and pending vendors (inactive merged rows excluded).",
+      description: "Loaded active and pending vendors.",
     });
   };
 
   useEffect(() => {
-    fetchVendors(showInactiveMerged);
+    fetchVendors();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contextVendors, showInactiveMerged]);
+  }, [contextVendors]);
 
   // Handle approval
   const handleApprove = async (registrationId: string) => {
@@ -970,21 +1046,24 @@ const Vendors = () => {
               <div>
                 <CardTitle>Vendor Directory</CardTitle>
                 <CardDescription>
-                  Active and pending suppliers. After backend merge + purge, refresh to see the
-                  canonical list. Toggle audit mode to include inactive merged rows still in the DB.
+                  Active and pending suppliers. Select rows to delete duplicates or obsolete
+                  entries in bulk.
                 </CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="show-inactive-merged"
-                    checked={showInactiveMerged}
-                    onCheckedChange={setShowInactiveMerged}
-                  />
-                  <Label htmlFor="show-inactive-merged" className="text-xs cursor-pointer">
-                    Show inactive merged
-                  </Label>
-                </div>
+                {canDeleteVendors && vendors.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setBulkDeleteDialogOpen(true)}
+                    disabled={selectedDirectoryIds.length === 0 || isBulkDeleting}
+                    className="gap-1.5"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete selected ({selectedDirectoryIds.length})
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"
@@ -1001,6 +1080,18 @@ const Vendors = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {canDeleteVendors && vendors.length > 0 && (
+                <div className="flex items-center gap-2 pb-1 border-b">
+                  <Checkbox
+                    id="select-all-vendors"
+                    checked={allDirectorySelected ? true : someDirectorySelected ? "indeterminate" : false}
+                    onCheckedChange={(checked) => toggleSelectAllDirectory(checked === true)}
+                  />
+                  <Label htmlFor="select-all-vendors" className="text-sm cursor-pointer">
+                    Select all ({vendors.length})
+                  </Label>
+                </div>
+              )}
               {loadingVendors && vendors.length === 0 ? (
                 <div className="flex items-center justify-center py-8 text-sm text-muted-foreground gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1008,12 +1099,22 @@ const Vendors = () => {
                 </div>
               ) : vendors.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  No vendors found. Refresh after backend merge/purge, or enable inactive merged
-                  rows if cleanup is still in progress.
+                  No vendors found. Use Refresh to reload the directory.
                 </p>
               ) : null}
               {vendors.map((vendor) => (
                 <div key={vendor.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    {canDeleteVendors && (
+                      <Checkbox
+                        className="mt-1"
+                        checked={selectedDirectoryIds.includes(vendor.id)}
+                        onCheckedChange={(checked) =>
+                          toggleDirectorySelection(vendor.id, checked === true)
+                        }
+                        aria-label={`Select ${vendor.name}`}
+                      />
+                    )}
                   <div className="space-y-2 flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold whitespace-nowrap">{vendor.id}</span>
@@ -1029,6 +1130,7 @@ const Vendors = () => {
                         {vendor.rating}
                       </span>
                     </div>
+                  </div>
                   </div>
                   <div className="flex flex-wrap gap-2 self-start sm:self-center">
                     <Button
@@ -1633,6 +1735,36 @@ const Vendors = () => {
                 </>
               ) : (
                 "Delete Vendor"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete selected vendors</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete <strong>{selectedDirectoryIds.length}</strong> vendor
+              {selectedDirectoryIds.length === 1 ? "" : "s"}? This cannot be undone and removes
+              portal access for those suppliers. Vendors with active quotations will be skipped.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDeleteVendors}
+              disabled={isBulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                `Delete ${selectedDirectoryIds.length} vendor${selectedDirectoryIds.length === 1 ? "" : "s"}`
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

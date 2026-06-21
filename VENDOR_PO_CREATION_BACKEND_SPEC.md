@@ -9,10 +9,9 @@ behaviour is live; the frontend calls `GET /api/vendors/lookup`, surfaces
 Vendor Portal.
 
 **Vendor list:** `GET /api/vendors` excludes `Inactive` rows by default
-(merged duplicates). Frontend passes `?include_inactive=1` only on Vendor
-Management when **Show inactive merged** is enabled (pre-purge audit). PO/RFQ
-directory pickers always use the default list. After backend merge + purge, use
-**Refresh** on Vendor Directory to reload the canonical active list.
+(merged duplicates). PO/RFQ directory pickers use the default list. Vendor
+Management supports **bulk delete** for cleanup; use **Refresh** after server-side
+merge + purge.
 
 ---
 
@@ -48,7 +47,7 @@ backend must honour:
 | Manual vendor payload | `src/services/procurementApi.ts` (`serializeRow`) | Rows still send `manual_vendor: { name, email, phone, address?, contact_person?, contact_person_email? }` on `PUT /mrfs/{id}/price-comparisons`. |
 | PO finalise feedback | `src/components/procurement/CreatePOForm.tsx` | Success toast includes `resolvedVendors` / `resolved_vendors` summary (created vs linked, onboarding email sent, status). |
 | Vendor Portal profile completion | `src/pages/VendorPortal.tsx`, `vendorAuthApi.updateProfile` in `src/services/api.ts` | Profile editor submits extended fields; banner driven by `profile_completed` and missing business fields (category must not be placeholder `General`). |
-| Vendor directory after merge | `src/pages/Vendors.tsx` | Default list excludes Inactive; **Show inactive merged** + **Refresh** for post-purge reload. |
+| Vendor directory bulk delete | `src/pages/Vendors.tsx` + `vendorApi.bulkDelete` | Row checkboxes + **Delete selected**; calls `POST /api/vendors/bulk-delete`. |
 
 > The client-side directory scan can miss matches (pagination, filters). **`GET /api/vendors/lookup` on blur is authoritative**; backend find-or-create on save is the source of truth for persistence.
 
@@ -301,10 +300,10 @@ php artisan vendors:merge-duplicates --repair-inactive --force
 Keeper selection prefers **real email** (not `@supplier.placeholder`), then portal
 user, then lowest vendor code.
 
-| Frontend surface | Behaviour after purge |
-|------------------|----------------------|
+| Frontend surface | Behaviour |
+|------------------|-----------|
 | Vendor Directory (default) | `GET /api/vendors` — Active + Pending (excludes Inactive) |
-| Vendor Directory → **Show inactive merged** | `GET /api/vendors?include_inactive=1` — audit rows still in DB |
+| **Delete selected** | `POST /api/vendors/bulk-delete` with vendor codes; partial success returns `deleted` + `failed` |
 | **Refresh** button | Re-fetches directory + dashboard vendor KPI |
 | Manual PO duplicate lookup | `GET /api/vendors/lookup` — any status; Inactive returned with `status` |
 | Dashboard **Total Vendors** | Counts from default vendor list (excludes Inactive) |
@@ -334,6 +333,7 @@ Quick reference:
 | Save price sheet | `PUT /api/mrfs/{id}/price-comparisons` | Find-or-create vendor; email + phone required (422) |
 | Finalise PO | `POST /api/mrfs/{id}/generate-po` | Portal user + onboarding email; `resolvedVendors` in response |
 | Complete profile | `PUT /api/vendors/auth/profile` | Extended fields; sets `profile_completed` |
+| Bulk delete | `POST /api/vendors/bulk-delete` | Deletes selected vendor codes; skips active quotations |
 
-- `GET /api/vendors` excludes `Inactive` by default; `?include_inactive=1` for merged-row audit.
+- `GET /api/vendors` excludes `Inactive` by default.
 - Legacy duplicate cleanup: `php artisan vendors:merge-duplicates --list` then `--purge-merged --force`.

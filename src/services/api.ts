@@ -2380,6 +2380,16 @@ export const vendorApi = {
     });
   },
 
+  bulkDelete: async (ids: string[]): Promise<ApiResponse<{
+    deleted: Array<{ vendorId: string; vendorName: string }>;
+    failed: Array<{ vendorId: string; vendorName?: string; error: string; code?: string }>;
+  }>> => {
+    return apiRequest(`/vendors/bulk-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    });
+  },
+
   // Enhanced vendor registration with documents (with auto-retry for cold-start 5xx)
   register: async (data: {
     companyName: string;
