@@ -41,6 +41,32 @@ const vendorStringId = (v: Vendor): string => {
   return anyV.formatted_id ?? anyV.vendor_id ?? v.id;
 };
 
+const isValidEmail = (e: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+
+/**
+ * Find an existing directory vendor that matches a manual vendor entry by
+ * (case-insensitive) name or email. Used for inline duplicate detection so the
+ * PM is steered toward the existing record instead of creating a duplicate.
+ */
+export const findExistingVendorMatch = (
+  manual: ManualVendor | undefined,
+  vendors: Vendor[],
+): Vendor | null => {
+  if (!manual) return null;
+  const name = manual.name?.trim().toLowerCase();
+  const email = manual.email?.trim().toLowerCase();
+  if (!name && !email) return null;
+  return (
+    vendors.find((v) => {
+      const vName = v.name?.trim().toLowerCase();
+      const vEmail = (v.email ?? '').trim().toLowerCase();
+      if (email && vEmail && vEmail === email) return true;
+      if (name && vName && vName === name) return true;
+      return false;
+    }) ?? null
+  );
+};
+
 const genGroupKey = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
@@ -114,10 +140,20 @@ export function validatePriceComparison(rows: PriceComparisonRow[], vendors: Ven
       }
     }
     
-    // Validate manual_vendor if using manual mode
+    // Validate manual_vendor if using manual mode. Email + phone are mandatory
+    // because the manually-created vendor will later access the Vendor Portal.
     if (hasManualVendor && !hasVendorId) {
-      if (!r.manual_vendor!.name.trim()) {
+      const mv = r.manual_vendor!;
+      if (!mv.name.trim()) {
         errors.push(`Row ${i + 1}: vendor name is required.`);
+      }
+      if (!mv.email?.trim()) {
+        errors.push(`Row ${i + 1}: vendor email is required.`);
+      } else if (!isValidEmail(mv.email)) {
+        errors.push(`Row ${i + 1}: enter a valid vendor email.`);
+      }
+      if (!mv.phone?.trim()) {
+        errors.push(`Row ${i + 1}: vendor phone number is required.`);
       }
     }
     
@@ -136,6 +172,8 @@ export function validatePriceComparison(rows: PriceComparisonRow[], vendors: Ven
  */
 export interface RowFieldErrors {
   supplier?: string;
+  email?: string;
+  phone?: string;
   item_description?: string;
   unit_price?: string;
   quantity?: string;
@@ -144,13 +182,26 @@ export interface RowFieldErrors {
 function computeRowFieldErrors(row: PriceComparisonRow, vendors: Vendor[]): RowFieldErrors {
   const out: RowFieldErrors = {};
   const hasVendorId = !!row.vendor_id;
-  const hasManualVendor = !!row.manual_vendor?.name?.trim();
-  if (!hasVendorId && !hasManualVendor) {
+  const hasManualVendor = !!row.manual_vendor;
+  const hasManualName = !!row.manual_vendor?.name?.trim();
+  if (!hasVendorId && !hasManualName) {
     out.supplier = 'Select a supplier or enter manual vendor name.';
-  } else if (hasVendorId && hasManualVendor) {
+  } else if (hasVendorId && hasManualName) {
     out.supplier = 'Use directory OR manual, not both.';
   } else if (hasVendorId && vendors.length > 0 && !vendors.some((v) => vendorStringId(v) === row.vendor_id)) {
     out.supplier = 'Supplier does not match a known vendor.';
+  }
+  // Manual vendors must capture a valid email + phone (used for Vendor Portal access).
+  if (!hasVendorId && hasManualVendor) {
+    const mv = row.manual_vendor!;
+    if (!mv.email?.trim()) {
+      out.email = 'Email is required.';
+    } else if (!isValidEmail(mv.email)) {
+      out.email = 'Enter a valid email.';
+    }
+    if (!mv.phone?.trim()) {
+      out.phone = 'Phone is required.';
+    }
   }
   if (!row.item_description.trim()) {
     out.item_description = 'Item description is required.';
@@ -328,6 +379,8 @@ export function PriceComparisonTable({
           const headMode = getRowMode(head);
           const headFe = rowErrorMap.get(head._key) ?? {};
           const groupSelected = group.rows.some((r) => r.is_selected);
+          const duplicateMatch =
+            headMode === 'manual' ? findExistingVendorMatch(head.manual_vendor, vendors) : null;
           const subtotal = group.rows.reduce(
             (acc, r) =>
               acc + (Number(r.unit_price) || 0) * (Number(r.quantity) || 0),
@@ -430,43 +483,91 @@ export function PriceComparisonTable({
                             vendor_id: undefined,
                           })
                         }
-                        placeholder="Vendor name"
+                        placeholder="Vendor name *"
                         disabled={disabled}
                         className={cn('h-9', headFe.supplier && 'border-destructive')}
                         aria-invalid={!!headFe.supplier}
                       />
                       <div className="grid grid-cols-2 gap-1">
-                        <Input
-                          type="email"
-                          value={head.manual_vendor?.email || ''}
-                          onChange={(e) =>
-                            updateGroup(group.key, {
-                              manual_vendor: {
-                                ...(head.manual_vendor || {}),
-                                email: e.target.value,
-                              } as ManualVendor,
-                            })
-                          }
-                          placeholder="Email (optional)"
-                          disabled={disabled}
-                          className="h-8 text-xs"
-                        />
-                        <Input
-                          type="tel"
-                          value={head.manual_vendor?.phone || ''}
-                          onChange={(e) =>
-                            updateGroup(group.key, {
-                              manual_vendor: {
-                                ...(head.manual_vendor || {}),
-                                phone: e.target.value,
-                              } as ManualVendor,
-                            })
-                          }
-                          placeholder="Phone (optional)"
-                          disabled={disabled}
-                          className="h-8 text-xs"
-                        />
+                        <div className="space-y-0.5">
+                          <Input
+                            type="email"
+                            value={head.manual_vendor?.email || ''}
+                            onChange={(e) =>
+                              updateGroup(group.key, {
+                                manual_vendor: {
+                                  ...(head.manual_vendor || {}),
+                                  email: e.target.value,
+                                } as ManualVendor,
+                              })
+                            }
+                            placeholder="Email *"
+                            disabled={disabled}
+                            className={cn('h-8 text-xs', headFe.email && 'border-destructive')}
+                            aria-invalid={!!headFe.email}
+                          />
+                          {headFe.email && (
+                            <p className="text-[10px] text-destructive">{headFe.email}</p>
+                          )}
+                        </div>
+                        <div className="space-y-0.5">
+                          <Input
+                            type="tel"
+                            value={head.manual_vendor?.phone || ''}
+                            onChange={(e) =>
+                              updateGroup(group.key, {
+                                manual_vendor: {
+                                  ...(head.manual_vendor || {}),
+                                  phone: e.target.value,
+                                } as ManualVendor,
+                              })
+                            }
+                            placeholder="Phone *"
+                            disabled={disabled}
+                            className={cn('h-8 text-xs', headFe.phone && 'border-destructive')}
+                            aria-invalid={!!headFe.phone}
+                          />
+                          {headFe.phone && (
+                            <p className="text-[10px] text-destructive">{headFe.phone}</p>
+                          )}
+                        </div>
                       </div>
+                      <p className="text-[10px] text-muted-foreground leading-snug">
+                        Email &amp; phone are required — the vendor uses them to access the Vendor Portal and finish onboarding.
+                      </p>
+                      {duplicateMatch && (
+                        <div className="rounded-md border border-warning/50 bg-warning/10 p-2 space-y-1.5">
+                          <div className="flex items-start gap-1.5 text-[11px] text-warning-foreground">
+                            <AlertCircle className="h-3.5 w-3.5 mt-px shrink-0" />
+                            <span>
+                              A vendor matching this{' '}
+                              {head.manual_vendor?.email?.trim().toLowerCase() ===
+                              (duplicateMatch.email ?? '').trim().toLowerCase()
+                                ? 'email'
+                                : 'name'}{' '}
+                              already exists:{' '}
+                              <span className="font-medium">{duplicateMatch.name}</span>
+                              {duplicateMatch.email ? ` (${duplicateMatch.email})` : ''}. Use the
+                              existing record to avoid creating a duplicate.
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            disabled={disabled}
+                            onClick={() =>
+                              updateGroup(group.key, {
+                                vendor_id: vendorStringId(duplicateMatch),
+                                manual_vendor: undefined,
+                              })
+                            }
+                          >
+                            Use existing vendor
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                   {headFe.supplier && (

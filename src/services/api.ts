@@ -2880,7 +2880,21 @@ export const vendorAuthApi = {
     return apiRequest<Vendor>('/vendors/auth/me');
   },
 
-  updateProfile: async (data: { contact_person?: string; phone?: string; address?: string }): Promise<ApiResponse<Vendor>> => {
+  updateProfile: async (data: {
+    contact_person?: string;
+    phone?: string;
+    address?: string;
+    // Profile-completion fields — used by vendors onboarded via manual PO to
+    // finish their profile after first logging into the portal. Backend must
+    // accept and persist these on PUT /vendors/auth/profile.
+    category?: string;
+    category_other?: string;
+    website?: string;
+    tax_id?: string;
+    year_established?: number | string;
+    number_of_employees?: string;
+    annual_revenue?: string;
+  }): Promise<ApiResponse<Vendor>> => {
     return apiRequest<Vendor>('/vendors/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(data),

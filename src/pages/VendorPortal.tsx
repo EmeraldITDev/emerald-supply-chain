@@ -25,6 +25,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { formatMRFDate } from "@/utils/dateUtils";
 import { normalizeAttachments } from "@/utils/attachments";
 import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
+import { VENDOR_CATEGORIES, OTHERS_VENDOR_CATEGORY } from "@/types/vendor-registration";
 import type { Vendor } from "@/types";
 import { VendorTripSubmissionForm } from "@/components/logistics/VendorTripSubmissionForm";
 import { vendorTripApi } from "@/services/logisticsApi";
@@ -217,6 +218,13 @@ const VendorPortal = () => {
     contactPerson: "",
     phone: "",
     address: "",
+    category: "",
+    categoryOther: "",
+    website: "",
+    taxId: "",
+    yearEstablished: "",
+    numberOfEmployees: "",
+    annualRevenue: "",
   });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
@@ -238,36 +246,82 @@ const VendorPortal = () => {
   };
 
   const handleStartEditProfile = () => {
+    const v = currentVendor as any;
+    const rawCategory = v?.category || "";
+    const knownCategory = (VENDOR_CATEGORIES as readonly string[]).includes(rawCategory);
     setEditProfileData({
-      contactPerson: (currentVendor as any)?.contact_person || (currentVendor as any)?.contactPerson || "",
-      phone: (currentVendor as any)?.phone || "",
-      address: (currentVendor as any)?.address || "",
+      contactPerson: v?.contact_person || v?.contactPerson || "",
+      phone: v?.phone || "",
+      address: v?.address || "",
+      category: rawCategory ? (knownCategory ? rawCategory : OTHERS_VENDOR_CATEGORY) : "",
+      categoryOther:
+        v?.category_other ||
+        v?.categoryOther ||
+        (rawCategory && !knownCategory ? rawCategory : ""),
+      website: v?.website || "",
+      taxId: v?.tax_id || v?.taxId || "",
+      yearEstablished: String(v?.year_established || v?.yearEstablished || ""),
+      numberOfEmployees: v?.number_of_employees || v?.numberOfEmployees || "",
+      annualRevenue: v?.annual_revenue || v?.annualRevenue || "",
     });
     setIsEditingProfile(true);
   };
 
+  /**
+   * Profile is "incomplete" when the company-level onboarding fields are blank.
+   * This is the common case for vendors created inline during manual PO creation
+   * (only name/email/phone captured up front) — we nudge them to finish.
+   */
+  const isProfileIncomplete = (() => {
+    const v = currentVendor as any;
+    if (!v) return false;
+    const has = (...keys: string[]) =>
+      keys.some((k) => v[k] !== undefined && v[k] !== null && String(v[k]).trim() !== "");
+    const missing: string[] = [];
+    if (!has("category")) missing.push("Company category");
+    if (!has("address")) missing.push("Business address");
+    if (!has("tax_id", "taxId")) missing.push("Tax information");
+    if (!has("website")) missing.push("Website");
+    return missing.length > 0 ? missing : false;
+  })();
+
   const handleSaveProfile = async () => {
     setIsSavingProfile(true);
     try {
+      const usesOtherCategory = editProfileData.category === OTHERS_VENDOR_CATEGORY;
       const response = await vendorAuthApi.updateProfile({
         contact_person: editProfileData.contactPerson,
         phone: editProfileData.phone,
         address: editProfileData.address,
+        category: editProfileData.category || undefined,
+        category_other: usesOtherCategory
+          ? editProfileData.categoryOther.trim() || undefined
+          : undefined,
+        website: editProfileData.website.trim() || undefined,
+        tax_id: editProfileData.taxId.trim() || undefined,
+        year_established: editProfileData.yearEstablished.trim() || undefined,
+        number_of_employees: editProfileData.numberOfEmployees.trim() || undefined,
+        annual_revenue: editProfileData.annualRevenue.trim() || undefined,
       });
 
       if (response.success && response.data) {
-        setCurrentVendor((prev: any) => ({
-          ...prev,
+        const patch: Record<string, unknown> = {
           contact_person: editProfileData.contactPerson,
           contactPerson: editProfileData.contactPerson,
           phone: editProfileData.phone,
           address: editProfileData.address,
-        }));
+          category: editProfileData.category,
+          category_other: usesOtherCategory ? editProfileData.categoryOther.trim() : undefined,
+          website: editProfileData.website.trim(),
+          tax_id: editProfileData.taxId.trim(),
+          year_established: editProfileData.yearEstablished.trim(),
+          number_of_employees: editProfileData.numberOfEmployees.trim(),
+          annual_revenue: editProfileData.annualRevenue.trim(),
+        };
+        setCurrentVendor((prev: any) => ({ ...prev, ...patch }));
         localStorage.setItem('vendorData', JSON.stringify({
           ...currentVendor,
-          contact_person: editProfileData.contactPerson,
-          phone: editProfileData.phone,
-          address: editProfileData.address,
+          ...patch,
         }));
         toast({
           title: "Profile Updated",
@@ -1991,6 +2045,29 @@ const VendorPortal = () => {
               </Alert>
             )}
 
+            {/* Profile completion banner — nudges vendors (e.g. created via manual PO) to finish onboarding */}
+            {isProfileIncomplete && !isEditingProfile && (
+              <Alert className="border-primary bg-primary/5">
+                <AlertTriangle className="h-4 w-4 text-primary" />
+                <AlertDescription>
+                  <div className="font-semibold text-primary mb-1">Complete your company profile</div>
+                  <div className="text-sm text-muted-foreground">
+                    Welcome! Your account was set up with basic details. Please complete the
+                    following to finish onboarding:
+                    <ul className="mt-1 list-disc list-inside">
+                      {(isProfileIncomplete as string[]).map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <Button size="sm" className="mt-2 gap-2" onClick={handleStartEditProfile}>
+                    <Edit className="h-4 w-4" />
+                    Complete Profile
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -2175,6 +2252,75 @@ const VendorPortal = () => {
                     <Building className="h-4 w-4" />
                     Business Information
                   </h4>
+                  {isEditingProfile ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <Label className="text-muted-foreground text-xs">Company Category</Label>
+                        <Select
+                          value={editProfileData.category}
+                          onValueChange={(v) => setEditProfileData((prev) => ({ ...prev, category: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {VENDOR_CATEGORIES.map((c) => (
+                              <SelectItem key={c} value={c}>{c}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {editProfileData.category === OTHERS_VENDOR_CATEGORY && (
+                          <Input
+                            className="mt-2"
+                            value={editProfileData.categoryOther}
+                            onChange={(e) => setEditProfileData((prev) => ({ ...prev, categoryOther: e.target.value }))}
+                            placeholder="Please specify your category"
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Website</Label>
+                        <Input
+                          value={editProfileData.website}
+                          onChange={(e) => setEditProfileData((prev) => ({ ...prev, website: e.target.value }))}
+                          placeholder="https://example.com"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Tax ID / TIN</Label>
+                        <Input
+                          value={editProfileData.taxId}
+                          onChange={(e) => setEditProfileData((prev) => ({ ...prev, taxId: e.target.value }))}
+                          placeholder="Enter tax identification number"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Year Established</Label>
+                        <Input
+                          type="number"
+                          value={editProfileData.yearEstablished}
+                          onChange={(e) => setEditProfileData((prev) => ({ ...prev, yearEstablished: e.target.value }))}
+                          placeholder="e.g. 2010"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Number of Employees</Label>
+                        <Input
+                          value={editProfileData.numberOfEmployees}
+                          onChange={(e) => setEditProfileData((prev) => ({ ...prev, numberOfEmployees: e.target.value }))}
+                          placeholder="e.g. 50-100"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Annual Revenue</Label>
+                        <Input
+                          value={editProfileData.annualRevenue}
+                          onChange={(e) => setEditProfileData((prev) => ({ ...prev, annualRevenue: e.target.value }))}
+                          placeholder="e.g. ₦500M"
+                        />
+                      </div>
+                    </div>
+                  ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div>
                       <Label className="text-muted-foreground text-xs">Tax ID</Label>
@@ -2202,6 +2348,7 @@ const VendorPortal = () => {
                       </p>
                     </div>
                   </div>
+                  )}
                 </div>
 
                 {/* Registration Documents */}
