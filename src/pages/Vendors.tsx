@@ -16,6 +16,7 @@ import { useApp } from "@/contexts/AppContext";
 import { vendorApi, dashboardApi } from "@/services/api";
 import { VendorRegistration, Vendor } from "@/types";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
+import { resolveTotalVendorCount } from "@/utils/normalizeProcurementDashboard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -288,12 +289,18 @@ const Vendors = () => {
   // Refresh dashboard stats
   const refreshDashboardStats = async () => {
     try {
-      const response = await dashboardApi.getProcurementManagerDashboard();
+      const [response, vendorsRes] = await Promise.all([
+        dashboardApi.getProcurementManagerDashboard(),
+        vendorApi.getAll(),
+      ]);
       if (response.success && response.data) {
         const stats = response.data.stats;
+        const vendorDirectory =
+          vendorsRes.success && Array.isArray(vendorsRes.data) ? vendorsRes.data : [];
+        const total = resolveTotalVendorCount(stats, vendorDirectory);
         setDashboardStats({
-          totalVendors: stats?.totalVendors || 0,
-          activeVendors: stats?.totalVendors || 0,
+          totalVendors: total,
+          activeVendors: total,
           pendingRegistrations: stats?.pendingKYC || response.data.pendingRegistrations?.length || 0,
           avgRating: stats?.avgRating || 0,
           onTimeDelivery: stats?.onTimeDelivery || 0,
@@ -365,27 +372,37 @@ const Vendors = () => {
       setLoadingRegistrations(true);
       setLoadingStats(true);
       try {
-        const [pendingRegsResponse, dashboardResponse] = await Promise.all([
+        const [pendingRegsResponse, dashboardResponse, vendorsListResponse] = await Promise.all([
           getPendingVendorRegistrations(),
           dashboardApi.getProcurementManagerDashboard(),
+          vendorApi.getAll(),
         ]);
 
         if (pendingRegsResponse.success && pendingRegsResponse.data) {
           setVendorRegistrations(pendingRegsResponse.data);
         }
 
+        const vendorDirectory =
+          vendorsListResponse.success && Array.isArray(vendorsListResponse.data)
+            ? vendorsListResponse.data
+            : [];
+
         if (dashboardResponse.success && dashboardResponse.data) {
           const stats = dashboardResponse.data.stats;
+          const total = resolveTotalVendorCount(stats, vendorDirectory);
           setDashboardStats({
-            totalVendors: stats?.totalVendors || 0,
-            activeVendors: stats?.totalVendors || 0,
+            totalVendors: total,
+            activeVendors: total,
             pendingRegistrations: stats?.pendingKYC || dashboardResponse.data.pendingRegistrations?.length || pendingRegsResponse.data?.length || 0,
             avgRating: stats?.avgRating || 0,
             onTimeDelivery: stats?.onTimeDelivery || 0,
           });
         } else {
+          const total = resolveTotalVendorCount(undefined, vendorDirectory);
           setDashboardStats((prev) => ({
             ...prev,
+            totalVendors: total,
+            activeVendors: total,
             pendingRegistrations: pendingRegsResponse.data?.length || 0,
           }));
         }
@@ -433,6 +450,12 @@ const Vendors = () => {
           website: vendor.website ?? null,
         }));
         setVendors(transformedVendors);
+        const total = resolveTotalVendorCount(undefined, response.data);
+        setDashboardStats((prev) => ({
+          ...prev,
+          totalVendors: total || prev.totalVendors,
+          activeVendors: total || prev.activeVendors,
+        }));
       }
     } catch (error) {
       setVendors(contextVendors);

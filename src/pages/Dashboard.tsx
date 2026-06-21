@@ -8,9 +8,10 @@ import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import EmployeeDashboard from "./EmployeeDashboard";
 import FinanceDashboard from "./FinanceDashboard";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { dashboardApi, dashboardKpiApi, mrfApi } from "@/services/api";
-import type { DashboardKPIs } from "@/types";
+import { dashboardApi, dashboardKpiApi, mrfApi, vendorApi } from "@/services/api";
+import type { DashboardKPIs, Vendor } from "@/types";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
+import { resolveTotalVendorCount } from "@/utils/normalizeProcurementDashboard";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ const Dashboard = () => {
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [platformKpis, setPlatformKpis] = useState<DashboardKPIs | null>(null);
+  const [registeredVendors, setRegisteredVendors] = useState<Vendor[]>([]);
 
   // Route to role-specific dashboard
   if (isEmployeeRole(getScmRole(user))) {
@@ -81,14 +83,23 @@ const Dashboard = () => {
       if (getScmRole(user) === "procurement_manager") {
         setLoading(true);
         try {
-          const response = await dashboardApi.getProcurementManagerDashboard();
+          const [response, vendorsRes, pendingRes] = await Promise.all([
+            dashboardApi.getProcurementManagerDashboard(),
+            vendorApi.getAll(),
+            getPendingVendorRegistrations(),
+          ]);
+
           if (response.success && response.data) {
             setDashboardData(response.data);
           }
 
-          // Reuse the exact same pending vendor registrations logic as Procurement.
+          if (vendorsRes.success && Array.isArray(vendorsRes.data)) {
+            setRegisteredVendors(vendorsRes.data);
+          } else {
+            setRegisteredVendors([]);
+          }
+
           setPendingRegistrationsLoading(true);
-          const pendingRes = await getPendingVendorRegistrations();
           if (pendingRes.success && pendingRes.data) {
             setPendingRegistrations(pendingRes.data as any);
           } else {
@@ -157,13 +168,21 @@ const Dashboard = () => {
     if (getScmRole(user) === "procurement_manager") {
       setLoading(true);
       try {
-        const response = await dashboardApi.getProcurementManagerDashboard();
+        const [response, vendorsRes, pendingRes] = await Promise.all([
+          dashboardApi.getProcurementManagerDashboard(),
+          vendorApi.getAll(),
+          getPendingVendorRegistrations(),
+        ]);
+
         if (response.success && response.data) {
           setDashboardData(response.data);
         }
 
+        if (vendorsRes.success && Array.isArray(vendorsRes.data)) {
+          setRegisteredVendors(vendorsRes.data);
+        }
+
         setPendingRegistrationsLoading(true);
-        const pendingRes = await getPendingVendorRegistrations();
         if (pendingRes.success && pendingRes.data) {
           setPendingRegistrations(pendingRes.data as any);
         } else {
@@ -221,12 +240,15 @@ const Dashboard = () => {
       ]
     : [];
 
+  const dashboardStats = dashboardData?.stats;
+  const totalVendorCount = resolveTotalVendorCount(dashboardStats, registeredVendors);
+
   // Procurement dashboard (default) - All stats from live database
   const stats = [
     ...kpiTiles,
     {
       title: "Total Vendors",
-      value: dashboardData?.stats?.totalVendors?.toString() || "0",
+      value: totalVendorCount.toString(),
       description: "Active suppliers",
       icon: Package,
       trend: "Registered",
@@ -234,7 +256,7 @@ const Dashboard = () => {
     },
     {
       title: "Pending KYC",
-      value: pendingRegistrations.length.toString(),
+      value: (dashboardStats?.pendingKYC || pendingRegistrations.length).toString(),
       description: "Vendor registrations",
       icon: Users,
       trend: "Awaiting review",
@@ -242,7 +264,7 @@ const Dashboard = () => {
     },
     {
       title: "Awaiting Review",
-      value: pendingRegistrations.length.toString(),
+      value: (dashboardStats?.awaitingReview || pendingRegistrations.length).toString(),
       description: "Pending registrations",
       icon: Clock,
       trend: "Needs attention",
@@ -250,7 +272,9 @@ const Dashboard = () => {
     },
     {
       title: "Avg Rating",
-      value: dashboardData?.stats?.avgRating ? `${dashboardData.stats.avgRating.toFixed(1)}/5.0` : "0.0/5.0",
+      value: dashboardStats?.avgRating
+        ? `${dashboardStats.avgRating.toFixed(1)}/5.0`
+        : "0.0/5.0",
       description: "Vendor performance",
       icon: TrendingUp,
       trend: "Average rating",
@@ -258,7 +282,9 @@ const Dashboard = () => {
     },
     {
       title: "On-Time Delivery",
-      value: dashboardData?.stats?.onTimeDelivery ? `${dashboardData.stats.onTimeDelivery}%` : "0%",
+      value: dashboardStats?.onTimeDelivery
+        ? `${dashboardStats.onTimeDelivery}%`
+        : "0%",
       description: "Delivery performance",
       icon: CheckCircle,
       trend: "On-time rate",
@@ -266,7 +292,7 @@ const Dashboard = () => {
     },
     {
       title: "Pending MRFs",
-      value: dashboardData?.stats?.pendingMRFs?.toString() || "0",
+      value: dashboardStats?.pendingMRFs?.toString() || "0",
       description: "Material requests",
       icon: Clock,
       trend: "Awaiting approval",
