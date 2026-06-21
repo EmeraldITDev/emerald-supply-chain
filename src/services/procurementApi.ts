@@ -19,12 +19,24 @@ import type { WorkflowGatesResponse } from '@/types/workflow-gates';
 import type { DeliveryConfirmationResponse } from '@/types/delivery-confirmation';
 import type { FinanceSyncResponse } from '@/types/finance-sync';
 
+/** Per-supplier resolution metadata from POST /mrfs/{id}/generate-po. */
+export type ResolvedVendorEntry = {
+  input?: { name?: string; email?: string };
+  vendorId?: string;
+  vendor_id?: string;
+  action?: 'created' | 'linked_existing';
+  onboardingEmailSent?: boolean;
+  onboarding_email_sent?: boolean;
+};
+
 /** Successful POST /mrfs/{id}/generate-po body (after `apiRequest` unwraps `data`). */
 export type GeneratePOResponse = {
   mrf: MRF;
   po_url?: string;
   fast_tracked?: boolean;
   fastTracked?: boolean;
+  resolvedVendors?: ResolvedVendorEntry[];
+  resolved_vendors?: ResolvedVendorEntry[];
 };
 
 /**

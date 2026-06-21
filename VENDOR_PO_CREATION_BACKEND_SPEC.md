@@ -1,15 +1,12 @@
 # Vendor Creation via Manual PO — Backend Specification
 
-Status: **Backend work required** · Owner: Procurement / Vendor Management
-Frontend changes landed: see "Frontend changes shipped" below.
+Status: **Backend implemented** · **Frontend integrated** (Jun 2026)
 
-This document captures every **backend ask** needed to fully deliver the
-"Vendor Creation via Manual Purchase Order" improvements. The frontend in this
-repo is React/Vite and talks to the external Laravel API
-(`supply-chain-backend`, base URL configured via `VITE_API_BASE_URL`,
-default `https://supply-chain-backend-hwh6.onrender.com/api`). All persistence,
-account creation, email/notification sending, and uniqueness enforcement live
-in that backend, **not** in this repo.
+This document describes the manual-PO vendor dedupe & onboarding contract between
+the React frontend and the Laravel API (`supply-chain-backend`). Backend
+behaviour is live; the frontend calls `GET /vendors/lookup`, surfaces
+`resolvedVendors` on PO finalise, and honours `profile_completed` on the
+Vendor Portal.
 
 ---
 

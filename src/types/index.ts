@@ -367,6 +367,21 @@ export interface Vendor {
   number_of_employees?: string | null;
   year_established?: number | null;
   website?: string | null;
+  /** Set by backend when business onboarding fields are complete. */
+  profile_completed?: boolean;
+  /** How the vendor entered the system (`manual_po` = created via inline PO supplier). */
+  onboarding_source?: 'registration' | 'invite' | 'manual_po';
+  onboarding_email_sent_at?: string | null;
+}
+
+/** Match returned by GET /vendors/lookup (authoritative duplicate detection). */
+export interface VendorLookupMatch {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  status?: string;
+  matchedOn?: 'email' | 'name';
 }
 
 export interface VendorRegistration {

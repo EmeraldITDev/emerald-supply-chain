@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Trash2, Plus, AlertCircle, Building2 } from 'lucide-react';
+import { useMemo, useState, useCallback } from 'react';
+import { Trash2, Plus, AlertCircle, Building2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,8 @@ import {
 } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
-import type { Vendor } from '@/types';
+import { vendorApi } from '@/services/api';
+import type { Vendor, VendorLookupMatch } from '@/types';
 import type { PriceComparisonRow, ManualVendor } from '@/types/procurement';
 import type { PaymentSchedule } from '@/types/payment-schedule';
 import { formatScheduleSummary } from '@/types/payment-schedule';
@@ -222,6 +223,44 @@ export function PriceComparisonTable({
   defaultSupplierModeForNewRows = 'directory',
   paymentSchedule = null,
 }: PriceComparisonTableProps) {
+  /** Authoritative duplicate matches from GET /vendors/lookup, keyed by supplier group. */
+  const [lookupMatches, setLookupMatches] = useState<
+    Record<string, VendorLookupMatch | null | undefined>
+  >({});
+  const [lookupLoading, setLookupLoading] = useState<Set<string>>(() => new Set());
+
+  const runVendorLookup = useCallback(
+    async (groupKey: string, manual: ManualVendor | undefined) => {
+      const email = manual?.email?.trim();
+      const name = manual?.name?.trim();
+      if (!email && !name) {
+        setLookupMatches((prev) => ({ ...prev, [groupKey]: null }));
+        return;
+      }
+      setLookupLoading((prev) => new Set(prev).add(groupKey));
+      try {
+        const res = await vendorApi.lookup({ email, name });
+        if (res.success && res.data) {
+          setLookupMatches((prev) => ({ ...prev, [groupKey]: res.data!.match ?? null }));
+        }
+      } finally {
+        setLookupLoading((prev) => {
+          const next = new Set(prev);
+          next.delete(groupKey);
+          return next;
+        });
+      }
+    },
+    [],
+  );
+
+  const clearLookupForGroup = useCallback((groupKey: string) => {
+    setLookupMatches((prev) => {
+      const next = { ...prev };
+      delete next[groupKey];
+      return next;
+    });
+  }, []);
   /**
    * Group rows into supplier cards. Each card shares supplier identity
    * (vendor_id OR manual_vendor) across all its line items. The grouping key
@@ -271,6 +310,7 @@ export function PriceComparisonTable({
   };
 
   const setGroupMode = (groupKey: string, mode: 'directory' | 'manual') => {
+    clearLookupForGroup(groupKey);
     updateGroup(groupKey, {
       vendor_id: undefined,
       manual_vendor: mode === 'manual' ? { name: '' } : undefined,
@@ -379,8 +419,27 @@ export function PriceComparisonTable({
           const headMode = getRowMode(head);
           const headFe = rowErrorMap.get(head._key) ?? {};
           const groupSelected = group.rows.some((r) => r.is_selected);
-          const duplicateMatch =
+          const apiLookupMatch = lookupMatches[group.key];
+          const clientDuplicateMatch =
             headMode === 'manual' ? findExistingVendorMatch(head.manual_vendor, vendors) : null;
+          /** Prefer authoritative API match; fall back to client-side directory scan. */
+          const duplicateMatch: (Vendor & { matchedOn?: 'email' | 'name' }) | null =
+            headMode === 'manual'
+              ? apiLookupMatch
+                ? {
+                    id: apiLookupMatch.id,
+                    name: apiLookupMatch.name,
+                    email: apiLookupMatch.email,
+                    phone: apiLookupMatch.phone,
+                    status: (apiLookupMatch.status as Vendor['status']) || 'Active',
+                    category: '',
+                    rating: 0,
+                    totalOrders: 0,
+                    matchedOn: apiLookupMatch.matchedOn,
+                  }
+                : clientDuplicateMatch
+              : null;
+          const isLookupPending = lookupLoading.has(group.key);
           const subtotal = group.rows.reduce(
             (acc, r) =>
               acc + (Number(r.unit_price) || 0) * (Number(r.quantity) || 0),
@@ -487,6 +546,13 @@ export function PriceComparisonTable({
                         disabled={disabled}
                         className={cn('h-9', headFe.supplier && 'border-destructive')}
                         aria-invalid={!!headFe.supplier}
+                        onBlur={(e) => {
+                          const name = e.target.value;
+                          void runVendorLookup(group.key, {
+                            ...(head.manual_vendor || { name: '' }),
+                            name,
+                          } as ManualVendor);
+                        }}
                       />
                       <div className="grid grid-cols-2 gap-1">
                         <div className="space-y-0.5">
@@ -505,6 +571,13 @@ export function PriceComparisonTable({
                             disabled={disabled}
                             className={cn('h-8 text-xs', headFe.email && 'border-destructive')}
                             aria-invalid={!!headFe.email}
+                            onBlur={(e) => {
+                              const email = e.target.value;
+                              void runVendorLookup(group.key, {
+                                ...(head.manual_vendor || { name: '' }),
+                                email,
+                              } as ManualVendor);
+                            }}
                           />
                           {headFe.email && (
                             <p className="text-[10px] text-destructive">{headFe.email}</p>
@@ -535,20 +608,31 @@ export function PriceComparisonTable({
                       <p className="text-[10px] text-muted-foreground leading-snug">
                         Email &amp; phone are required — the vendor uses them to access the Vendor Portal and finish onboarding.
                       </p>
-                      {duplicateMatch && (
+                      {isLookupPending && (
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Checking vendor directory…
+                        </p>
+                      )}
+                      {duplicateMatch && !isLookupPending && (
                         <div className="rounded-md border border-warning/50 bg-warning/10 p-2 space-y-1.5">
                           <div className="flex items-start gap-1.5 text-[11px] text-warning-foreground">
                             <AlertCircle className="h-3.5 w-3.5 mt-px shrink-0" />
                             <span>
                               A vendor matching this{' '}
-                              {head.manual_vendor?.email?.trim().toLowerCase() ===
-                              (duplicateMatch.email ?? '').trim().toLowerCase()
+                              {duplicateMatch.matchedOn === 'email' ||
+                              (!duplicateMatch.matchedOn &&
+                                head.manual_vendor?.email?.trim().toLowerCase() ===
+                                  (duplicateMatch.email ?? '').trim().toLowerCase())
                                 ? 'email'
                                 : 'name'}{' '}
                               already exists:{' '}
                               <span className="font-medium">{duplicateMatch.name}</span>
-                              {duplicateMatch.email ? ` (${duplicateMatch.email})` : ''}. Use the
-                              existing record to avoid creating a duplicate.
+                              {duplicateMatch.email ? ` (${duplicateMatch.email})` : ''}
+                              {duplicateMatch.status === 'Inactive' && (
+                                <span className="font-medium"> — status: Inactive</span>
+                              )}
+                              . Use the existing record to avoid creating a duplicate.
                             </span>
                           </div>
                           <Button
@@ -557,12 +641,13 @@ export function PriceComparisonTable({
                             size="sm"
                             className="h-7 text-xs"
                             disabled={disabled}
-                            onClick={() =>
+                            onClick={() => {
+                              clearLookupForGroup(group.key);
                               updateGroup(group.key, {
                                 vendor_id: vendorStringId(duplicateMatch),
                                 manual_vendor: undefined,
-                              })
-                            }
+                              });
+                            }}
                           >
                             Use existing vendor
                           </Button>

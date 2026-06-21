@@ -11,6 +11,7 @@ import type {
   Quotation,
   CreateQuotationData,
   Vendor,
+  VendorLookupMatch,
   VendorRegistration,
   CreateVendorRegistrationData,
   ApiResponse,
@@ -2346,6 +2347,25 @@ export const vendorApi = {
 
   getById: async (id: string): Promise<ApiResponse<Vendor>> => {
     return apiRequest<Vendor>(`/vendors/${id}`);
+  },
+
+  /**
+   * Authoritative vendor duplicate lookup (email wins over name, case-insensitive).
+   * Used by manual PO price comparison on blur of supplier name/email.
+   */
+  lookup: async (params: {
+    email?: string;
+    name?: string;
+  }): Promise<ApiResponse<{ match: VendorLookupMatch | null }>> => {
+    const search = new URLSearchParams();
+    if (params.email?.trim()) search.set('email', params.email.trim());
+    if (params.name?.trim()) search.set('name', params.name.trim());
+    if (!search.toString()) {
+      return { success: true, data: { match: null } };
+    }
+    return apiRequest<{ match: VendorLookupMatch | null }>(
+      `/vendors/lookup?${search.toString()}`,
+    );
   },
 
   delete: async (id: string): Promise<ApiResponse<void>> => {

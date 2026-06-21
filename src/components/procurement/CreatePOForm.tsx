@@ -41,7 +41,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 import { vendorApi } from '@/services/api';
-import { procurementApi, type GeneratePOResponse } from '@/services/procurementApi';
+import { procurementApi, type GeneratePOResponse, type ResolvedVendorEntry } from '@/services/procurementApi';
 import { describeBackendError } from '@/utils/poStatus';
 import type { ApiResponse, MRF, Vendor } from '@/types';
 import type {
@@ -130,6 +130,23 @@ const initialState = (): FormState => ({
 
 const isValidEmail = (e: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+
+/** Summarise backend vendor resolution from generate-po for the success toast. */
+function formatResolvedVendorsSummary(entries: ResolvedVendorEntry[]): string | undefined {
+  if (!entries.length) return undefined;
+  return entries
+    .map((r) => {
+      const label = r.input?.name || r.input?.email || 'Supplier';
+      const id = r.vendorId || r.vendor_id;
+      const idPart = id ? ` (${id})` : '';
+      if (r.action === 'linked_existing') {
+        return `Linked to existing vendor ${label}${idPart}.`;
+      }
+      const sent = r.onboardingEmailSent ?? r.onboarding_email_sent;
+      return `New vendor ${label}${idPart}${sent ? ' — portal onboarding email sent' : ''}.`;
+    })
+    .join(' ');
+}
 
 /**
  * Coerce a backend price-comparison row into the local editable shape.
@@ -676,14 +693,20 @@ export function CreatePOForm({
       setFinalisedMrf(newMrf);
       setEditingFinalised(false);
       const poNumber = newMrf.po_number || newMrf.poNumber || '—';
+      const resolved =
+        gen.resolvedVendors ?? gen.resolved_vendors ?? [];
+      const vendorSummary = formatResolvedVendorsSummary(resolved);
+      const baseDescription = isRegen
+        ? 'Previous version archived. The Supply Chain Director now sees only the latest revision.'
+        : fastTrackedSuccess
+          ? 'Fast-track: awaiting Supply Chain Director signature (executive review skipped).'
+          : 'Routed to the Supply Chain Director for signature.';
       toast.success(
         isRegen ? `PO ${poNumber} regenerated` : `PO ${poNumber} generated`,
         {
-          description: isRegen
-            ? 'Previous version archived. The Supply Chain Director now sees only the latest revision.'
-            : fastTrackedSuccess
-              ? 'Fast-track: awaiting Supply Chain Director signature (executive review skipped).'
-              : 'Routed to the Supply Chain Director for signature.',
+          description: vendorSummary
+            ? `${baseDescription} ${vendorSummary}`
+            : baseDescription,
         },
       );
       onFinalised?.(newMrf);

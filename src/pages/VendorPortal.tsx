@@ -268,13 +268,11 @@ const VendorPortal = () => {
   };
 
   /**
-   * Profile is "incomplete" when the company-level onboarding fields are blank.
-   * This is the common case for vendors created inline during manual PO creation
-   * (only name/email/phone captured up front) — we nudge them to finish.
+   * Profile is incomplete when the backend sets profile_completed=false (typical
+   * for vendors onboarded via manual PO) or when legacy responses omit the flag
+   * but business fields are still blank.
    */
-  const isProfileIncomplete = (() => {
-    const v = currentVendor as any;
-    if (!v) return false;
+  const getMissingProfileFields = (v: Record<string, unknown>): string[] => {
     const has = (...keys: string[]) =>
       keys.some((k) => v[k] !== undefined && v[k] !== null && String(v[k]).trim() !== "");
     const missing: string[] = [];
@@ -282,8 +280,23 @@ const VendorPortal = () => {
     if (!has("address")) missing.push("Business address");
     if (!has("tax_id", "taxId")) missing.push("Tax information");
     if (!has("website")) missing.push("Website");
+    return missing;
+  };
+
+  const isProfileIncomplete = (() => {
+    const v = currentVendor as Record<string, unknown> | null;
+    if (!v) return false;
+    if (v.profile_completed === true) return false;
+    if (v.profile_completed === false) {
+      const missing = getMissingProfileFields(v);
+      return missing.length > 0 ? missing : (["Complete your company profile"] as string[]);
+    }
+    const missing = getMissingProfileFields(v);
     return missing.length > 0 ? missing : false;
   })();
+
+  const isManualPoOnboarding =
+    (currentVendor as Record<string, unknown> | null)?.onboarding_source === "manual_po";
 
   const handleSaveProfile = async () => {
     setIsSavingProfile(true);
@@ -305,6 +318,7 @@ const VendorPortal = () => {
       });
 
       if (response.success && response.data) {
+        const updated = response.data as Record<string, unknown>;
         const patch: Record<string, unknown> = {
           contact_person: editProfileData.contactPerson,
           contactPerson: editProfileData.contactPerson,
@@ -314,14 +328,17 @@ const VendorPortal = () => {
           category_other: usesOtherCategory ? editProfileData.categoryOther.trim() : undefined,
           website: editProfileData.website.trim(),
           tax_id: editProfileData.taxId.trim(),
+          taxId: editProfileData.taxId.trim(),
           year_established: editProfileData.yearEstablished.trim(),
           number_of_employees: editProfileData.numberOfEmployees.trim(),
           annual_revenue: editProfileData.annualRevenue.trim(),
+          profile_completed: updated.profile_completed,
         };
-        setCurrentVendor((prev: any) => ({ ...prev, ...patch }));
+        setCurrentVendor((prev: any) => ({ ...prev, ...patch, ...updated }));
         localStorage.setItem('vendorData', JSON.stringify({
           ...currentVendor,
           ...patch,
+          ...updated,
         }));
         toast({
           title: "Profile Updated",
@@ -2052,8 +2069,10 @@ const VendorPortal = () => {
                 <AlertDescription>
                   <div className="font-semibold text-primary mb-1">Complete your company profile</div>
                   <div className="text-sm text-muted-foreground">
-                    Welcome! Your account was set up with basic details. Please complete the
-                    following to finish onboarding:
+                    {isManualPoOnboarding
+                      ? "Your account was created from a purchase order with basic details. "
+                      : "Welcome! Your account was set up with basic details. "}
+                    Please complete the following to finish onboarding:
                     <ul className="mt-1 list-disc list-inside">
                       {(isProfileIncomplete as string[]).map((item) => (
                         <li key={item}>{item}</li>
