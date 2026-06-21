@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send, AlertTriangle, AlertCircle } from "lucide-react";
+import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send, AlertTriangle, AlertCircle, RefreshCw } from "lucide-react";
 import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES } from "@/types/vendor-registration";
 import { parseVendorCategoriesApiPayload, isOthersVendorCategoryLabel, formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +17,9 @@ import { vendorApi, dashboardApi } from "@/services/api";
 import { VendorRegistration, Vendor } from "@/types";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import { resolveTotalVendorCount } from "@/utils/normalizeProcurementDashboard";
+import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +39,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
@@ -92,6 +94,8 @@ const Vendors = () => {
     onTimeDelivery: 0,
   });
   const [loadingStats, setLoadingStats] = useState(true);
+  /** Audit toggle: include Inactive merged rows (pre-purge). Default list is Active + Pending only. */
+  const [showInactiveMerged, setShowInactiveMerged] = useState(false);
   
   // New vendor form
   const [newVendorName, setNewVendorName] = useState("");
@@ -421,11 +425,13 @@ const Vendors = () => {
     fetchVendorData();
   }, [toast]);
 
-  // Fetch approved vendors
-  const fetchVendors = async () => {
+  // Fetch vendor directory (default excludes Inactive; toggle for pre-purge audit)
+  const fetchVendors = async (includeInactive = showInactiveMerged) => {
     setLoadingVendors(true);
     try {
-      const response = await vendorApi.getAll({ includeInactive: true });
+      const response = await vendorApi.getAll(
+        includeInactive ? { includeInactive: true } : undefined,
+      );
       if (response.success && response.data) {
         const transformedVendors = response.data.map((vendor: any) => ({
           id: vendor.id,
@@ -443,19 +449,20 @@ const Vendors = () => {
           taxId: vendor.tax_id || vendor.taxId || '',
           contactPerson: vendor.contact_person || vendor.contactPerson || '',
           documents: vendor.documents || [],
-          // Surface the four backfill-target fields so the "Profile incomplete" filter works against the list response.
           annualRevenue: vendor.annual_revenue ?? vendor.annualRevenue ?? null,
           numberOfEmployees: vendor.number_of_employees ?? vendor.numberOfEmployees ?? null,
           yearEstablished: vendor.year_established ?? vendor.yearEstablished ?? null,
           website: vendor.website ?? null,
         }));
         setVendors(transformedVendors);
-        const total = resolveTotalVendorCount(undefined, response.data);
-        setDashboardStats((prev) => ({
-          ...prev,
-          totalVendors: total || prev.totalVendors,
-          activeVendors: total || prev.activeVendors,
-        }));
+        if (!includeInactive) {
+          const total = resolveTotalVendorCount(undefined, response.data);
+          setDashboardStats((prev) => ({
+            ...prev,
+            totalVendors: total || prev.totalVendors,
+            activeVendors: total || prev.activeVendors,
+          }));
+        }
       }
     } catch (error) {
       setVendors(contextVendors);
@@ -464,10 +471,20 @@ const Vendors = () => {
     }
   };
 
+  const refreshVendorDirectory = async () => {
+    await Promise.all([fetchVendors(showInactiveMerged), refreshDashboardStats()]);
+    toast({
+      title: "Directory refreshed",
+      description: showInactiveMerged
+        ? "Loaded active vendors plus inactive merged rows for audit."
+        : "Loaded active and pending vendors (inactive merged rows excluded).",
+    });
+  };
+
   useEffect(() => {
-    fetchVendors();
+    fetchVendors(showInactiveMerged);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contextVendors]);
+  }, [contextVendors, showInactiveMerged]);
 
   // Handle approval
   const handleApprove = async (registrationId: string) => {
@@ -533,27 +550,7 @@ const Vendors = () => {
           setVendorRegistrations(refreshResponse.data);
         }
         // Also refresh vendors list
-        const vendorsResponse = await vendorApi.getAll({ includeInactive: true });
-        if (vendorsResponse.success && vendorsResponse.data) {
-          const transformedVendors = vendorsResponse.data.map((vendor: any) => ({
-            id: vendor.id, // Use actual database ID for API calls
-            displayId: vendor.vendor_id || `V${String(vendor.id).padStart(3, '0')}`,
-            name: vendor.name || vendor.company_name,
-            category: vendor.category || 'Unknown',
-            categoryOther: pickCategoryOtherFromUnknown(vendor) ?? null,
-            status: vendor.status || 'Active',
-            kyc: vendor.kyc_status || 'Verified',
-            rating: vendor.rating || 0,
-            orders: vendor.total_orders || 0,
-            email: vendor.email || '',
-            phone: vendor.phone || '',
-            address: vendor.address || '',
-            taxId: vendor.tax_id || vendor.taxId || '',
-            contactPerson: vendor.contact_person || vendor.contactPerson || '',
-            documents: vendor.documents || [],
-          }));
-          setVendors(transformedVendors);
-        }
+        await fetchVendors(showInactiveMerged);
         setKycReviewOpen(false);
         setReviewingVendor(null);
       } else {
@@ -973,13 +970,48 @@ const Vendors = () => {
               <div>
                 <CardTitle>Vendor Directory</CardTitle>
                 <CardDescription>
-                  Active and pending vendors, plus inactive merged duplicates for audit
+                  Active and pending suppliers. After backend merge + purge, refresh to see the
+                  canonical list. Toggle audit mode to include inactive merged rows still in the DB.
                 </CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="show-inactive-merged"
+                    checked={showInactiveMerged}
+                    onCheckedChange={setShowInactiveMerged}
+                  />
+                  <Label htmlFor="show-inactive-merged" className="text-xs cursor-pointer">
+                    Show inactive merged
+                  </Label>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void refreshVendorDirectory()}
+                  disabled={loadingVendors}
+                  className="gap-1.5"
+                >
+                  <RefreshCw className={cn('h-3.5 w-3.5', loadingVendors && 'animate-spin')} />
+                  Refresh
+                </Button>
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {loadingVendors && vendors.length === 0 ? (
+                <div className="flex items-center justify-center py-8 text-sm text-muted-foreground gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading vendor directory…
+                </div>
+              ) : vendors.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No vendors found. Refresh after backend merge/purge, or enable inactive merged
+                  rows if cleanup is still in progress.
+                </p>
+              ) : null}
               {vendors.map((vendor) => (
                 <div key={vendor.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg">
                   <div className="space-y-2 flex-1 min-w-0">

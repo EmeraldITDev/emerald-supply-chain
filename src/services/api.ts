@@ -2339,7 +2339,8 @@ export const vendorApi = {
 
   /**
    * List procurement vendors. By default the backend **excludes Inactive** rows
-   * (merged duplicates). Pass `{ includeInactive: true }` to audit all records.
+   * (merged duplicates). Pass `{ includeInactive: true }` (`?include_inactive=1`) to
+   * audit rows not yet purged by `vendors:merge-duplicates --purge-merged`.
    */
   getAll: async (filters?: FilterOptions): Promise<ApiResponse<Vendor[]>> => {
     const params = new URLSearchParams();

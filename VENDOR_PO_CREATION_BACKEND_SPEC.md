@@ -10,7 +10,9 @@ Vendor Portal.
 
 **Vendor list:** `GET /api/vendors` excludes `Inactive` rows by default
 (merged duplicates). Frontend passes `?include_inactive=1` only on Vendor
-Management audit views; PO/RFQ directory pickers use the default list.
+Management when **Show inactive merged** is enabled (pre-purge audit). PO/RFQ
+directory pickers always use the default list. After backend merge + purge, use
+**Refresh** on Vendor Directory to reload the canonical active list.
 
 ---
 
@@ -245,6 +247,38 @@ Requirements:
       and other business fields via `PUT /vendors/auth/profile`; data persists and
       the "Complete your profile" banner clears.
 - [ ] `generate-po` returns `resolvedVendors` so the UI can confirm outcomes (nice-to-have).
+
+---
+
+## 8. Cleanup after merge (backend ops)
+
+Only **Active** rows with the same name count as unresolved duplicates in `--list`.
+After running merge/purge on the server, refresh **Vendor Management → Vendor Directory**.
+
+```bash
+# 1. See what still needs merging (Active duplicates only)
+php artisan vendors:merge-duplicates --list
+
+# 2. Merge a group (example)
+php artisan vendors:merge-duplicates --canonical=V023 --merge=V020 --force
+
+# 3. Remove inactive merged ghost rows from the database
+php artisan vendors:merge-duplicates --purge-merged --force
+
+# 4. Fix any row marked merged but still Active
+php artisan vendors:merge-duplicates --repair-inactive --force
+```
+
+Keeper selection prefers **real email** (not `@supplier.placeholder`), then portal
+user, then lowest vendor code.
+
+| Frontend surface | Behaviour after purge |
+|------------------|----------------------|
+| Vendor Directory (default) | `GET /vendors` — Active + Pending only |
+| Vendor Directory → **Show inactive merged** | `GET /vendors?include_inactive=1` — audit rows still in DB |
+| **Refresh** button | Re-fetches directory + dashboard vendor KPI |
+| Manual PO duplicate lookup | `GET /vendors/lookup` — Active matches; Inactive returned with status for audit |
+| Dashboard **Total Vendors** | Counts from default vendor list (excludes Inactive) |
 
 ---
 
