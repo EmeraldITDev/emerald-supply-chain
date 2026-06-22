@@ -47,7 +47,12 @@ import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { FilterBar } from "@/components/dashboard/FilterBar";
+import { ListControls } from "@/components/dashboard/ListControls";
+import {
+  applyListControls,
+  defaultListControls,
+  type ListControlsState,
+} from "@/utils/listFilters";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { POGenerationDialog } from "@/components/POGenerationDialog";
@@ -252,11 +257,17 @@ const Procurement = () => {
   const [vendorRegistrationsLoading, setVendorRegistrationsLoading] =
     useState(true);
 
-  // Filter states
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("date-desc");
+  // List controls for MRF / SRF / PO tabs (search / status / date-range / sort).
+  // Plain useState => persists while on the page, resets on navigate away.
+  const [mrfControls, setMrfControls] = useState<ListControlsState>(
+    defaultListControls,
+  );
+  const [srfControls, setSrfControls] = useState<ListControlsState>(
+    defaultListControls,
+  );
+  const [poControls, setPoControls] = useState<ListControlsState>(
+    defaultListControls,
+  );
 
   // Fetch MRFs from backend API
   const fetchMRFs = useCallback(async () => {
@@ -929,7 +940,11 @@ const Procurement = () => {
   }, [vendorFromState]);
 
   useEffect(() => {
-    if (vendorFilter) setTab("po");
+    if (vendorFilter) {
+      setTab("po");
+      // Seed the PO list search with the vendor so the deep link actually filters.
+      setPoControls((prev) => ({ ...prev, search: vendorFilter }));
+    }
   }, [vendorFilter]);
 
   // Deep links: /procurement?srf=SRF-... or ?mrf=MRF-...
@@ -1025,69 +1040,168 @@ const Procurement = () => {
   const totalPOs = purchaseOrders.length;
 
   // Filtered data
+  const mrfStatusMatches = (mrf: MRF, status: string): boolean => {
+    const stage = getMRFStage(mrf);
+    if (status === "pending") return stage === "procurement";
+    if (status === "approved") return stage === "completed";
+    if (status === "rejected") return stage === "rejected";
+    if (status === "finance") return stage === "finance";
+    if (status === "chairman")
+      return stage === "chairman" || stage === "chairman_review";
+    return true;
+  };
+
   const filteredMRFs = useMemo(() => {
-    let filtered = [...mrfRequests];
-
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (mrf) =>
-          mrf.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          mrf.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          getDisplayId(mrf).toLowerCase().includes(searchQuery.toLowerCase()) ||
-          getMRFRequester(mrf)
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()),
-      );
-    }
-
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((mrf) => {
-        const stage = getMRFStage(mrf);
-        if (statusFilter === "pending") return stage === "procurement";
-        if (statusFilter === "approved") return stage === "completed";
-        if (statusFilter === "rejected") return stage === "rejected";
-        if (statusFilter === "finance") return stage === "finance";
-        if (statusFilter === "chairman")
-          return stage === "chairman" || stage === "chairman_review";
-        return true;
-      });
-    }
-
-    if (dateFilter !== "all") {
-      const now = new Date();
-      filtered = filtered.filter((mrf) => {
-        const mrfDate = new Date(getMRFDate(mrf));
-        const daysDiff =
-          (now.getTime() - mrfDate.getTime()) / (1000 * 60 * 60 * 24);
-
-        if (dateFilter === "today") return daysDiff < 1;
-        if (dateFilter === "week") return daysDiff < 7;
-        if (dateFilter === "month") return daysDiff < 30;
-        return true;
-      });
-    }
-
-    filtered.sort((a, b) => {
-      const dateA = getMRFDate(a);
-      const dateB = getMRFDate(b);
-      const costA = parseFloat(getMRFEstimatedCost(a));
-      const costB = parseFloat(getMRFEstimatedCost(b));
-
-      if (sortBy === "date-desc")
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
-      if (sortBy === "date-asc")
-        return new Date(dateA).getTime() - new Date(dateB).getTime();
-      if (sortBy === "amount-desc") return costB - costA;
-      if (sortBy === "amount-asc") return costA - costB;
-      return 0;
+    return applyListControls<MRF>(mrfRequests, mrfControls, {
+      searchText: (mrf) =>
+        [
+          mrf.title,
+          mrf.id,
+          getDisplayId(mrf),
+          getMRFRequester(mrf),
+          (mrf as { vendor_name?: string }).vendor_name,
+          (mrf as { selectedVendorName?: string }).selectedVendorName,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      date: (mrf) => getMRFDate(mrf),
+      value: (mrf) => parseFloat(getMRFEstimatedCost(mrf)) || 0,
+      matchesStatus: (mrf, status) => mrfStatusMatches(mrf, status),
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mrfRequests, mrfControls]);
 
-    return filtered;
-  }, [mrfRequests, searchQuery, statusFilter, dateFilter, sortBy]);
+  // ── SRF list controls (search / status / date-range / sort) ──────────────
+  const srfStatusBucket = (srf: SRFRequest): string => {
+    const raw = `${getSrfWorkflowState(srf)} ${String(
+      (srf as { status?: string }).status ?? "",
+    )}`.toLowerCase();
+    if (raw.includes("reject")) return "rejected";
+    if (raw.includes("complete")) return "completed";
+    if (
+      raw.includes("approved") ||
+      raw.includes("po_generated") ||
+      raw.includes("vendor_selected") ||
+      raw.includes("invoice")
+    )
+      return "approved";
+    return "pending";
+  };
 
-  const filteredPOs = purchaseOrders.filter(
-    (po) => !vendorFilter || po.vendor === vendorFilter,
+  const filteredSRFs = useMemo(() => {
+    return applyListControls<SRFRequest>(srfRequests, srfControls, {
+      searchText: (srf) => {
+        const vendors = getQuotationsForSRF(srf)
+          .map(
+            (q: any) =>
+              q.vendorName || q.vendor_name || "",
+          )
+          .join(" ");
+        return [
+          srf.title,
+          getDisplayId(srf),
+          getSrfRequesterDisplayName(srf),
+          (srf as { serviceType?: string }).serviceType,
+          vendors,
+        ]
+          .filter(Boolean)
+          .join(" ");
+      },
+      date: (srf) =>
+        (srf as { createdAt?: string }).createdAt ||
+        (srf as { created_at?: string }).created_at ||
+        srf.date,
+      value: (srf) =>
+        parseFloat(
+          String(
+            (srf as { estimatedCost?: string }).estimatedCost ??
+              (srf as { estimated_cost?: string }).estimated_cost ??
+              0,
+          ),
+        ) || 0,
+      matchesStatus: (srf, status) => srfStatusBucket(srf) === status,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [srfRequests, srfControls]);
+
+  // ── PO list controls (search / status / date-range / sort) ───────────────
+  const poBaseItems = useMemo(
+    () =>
+      mrfRequests.filter(
+        (mrf) =>
+          getMRFPONumber(mrf as MRF) ||
+          Boolean((mrf as MRF & { is_po_draft?: boolean }).is_po_draft),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mrfRequests],
   );
+
+  const poAwardedQuotation = (mrf: MRF | MRFRequest) =>
+    getQuotationsForMRF(mrf).find(
+      (q: any) =>
+        q.status === "Approved" ||
+        q.status === "approved" ||
+        q.status === "awarded",
+    );
+
+  const poVendorName = (mrf: MRF): string => {
+    const q = poAwardedQuotation(mrf);
+    return (
+      q?.vendorName ||
+      (mrf as any).selectedVendorName ||
+      (mrf as any).vendor_name ||
+      ""
+    );
+  };
+
+  const poValueOf = (mrf: MRF): number => {
+    const q = poAwardedQuotation(mrf);
+    const amt = q
+      ? q.total_amount || q.totalAmount || q.price || 0
+      : getMRFEstimatedCost(mrf);
+    return parseFloat(String(amt)) || 0;
+  };
+
+  const poStatusBucket = (mrf: MRF): string => {
+    const isDraft =
+      !getMRFPONumber(mrf) &&
+      Boolean((mrf as MRF & { is_po_draft?: boolean }).is_po_draft);
+    if (isDraft) return "draft";
+    const raw = `${getWorkflowState(mrf)} ${String(mrf.status ?? "")} ${String(
+      (mrf as { po_status?: string }).po_status ?? "",
+    )}`.toLowerCase();
+    if (
+      raw.includes("reject") ||
+      raw.includes("revision") ||
+      raw.includes("returned")
+    )
+      return "rejected";
+    if (raw.includes("complete") || raw.includes("grn")) return "completed";
+    if (raw.includes("awaiting_scd_signature") || raw.includes("awaiting-scd"))
+      return "pending";
+    if (raw.includes("signed") || raw.includes("approved")) return "signed";
+    return "pending";
+  };
+
+  const filteredPOItems = useMemo(() => {
+    return applyListControls<MRF>(poBaseItems as MRF[], poControls, {
+      searchText: (mrf) =>
+        [
+          getMRFPONumber(mrf),
+          getDisplayId(mrf),
+          mrf.title,
+          poVendorName(mrf),
+        ]
+          .filter(Boolean)
+          .join(" "),
+      date: (mrf) =>
+        getMRFDate(mrf) ||
+        (mrf as MRF & { po_draft_saved_at?: string }).po_draft_saved_at,
+      value: (mrf) => poValueOf(mrf),
+      matchesStatus: (mrf, status) => poStatusBucket(mrf) === status,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poBaseItems, poControls]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -1795,8 +1909,22 @@ const Procurement = () => {
     { label: "Rejected", value: "rejected" },
   ];
 
-  const activeFiltersCount =
-    (statusFilter !== "all" ? 1 : 0) + (dateFilter !== "all" ? 1 : 0);
+  const srfStatusOptions = [
+    { label: "All statuses", value: "all" },
+    { label: "Pending", value: "pending" },
+    { label: "Approved", value: "approved" },
+    { label: "Rejected", value: "rejected" },
+    { label: "Completed", value: "completed" },
+  ];
+
+  const poStatusOptions = [
+    { label: "All statuses", value: "all" },
+    { label: "Draft", value: "draft" },
+    { label: "Awaiting signature", value: "pending" },
+    { label: "Signed / Approved", value: "signed" },
+    { label: "Rejected", value: "rejected" },
+    { label: "Completed", value: "completed" },
+  ];
 
   return (
     <DashboardLayout>
@@ -2405,70 +2533,11 @@ const Procurement = () => {
                     )}
 
                   <div className="space-y-4">
-                    <FilterBar
-                      searchQuery={searchQuery}
-                      onSearchChange={setSearchQuery}
-                      statusFilter={statusFilter}
-                      onStatusFilterChange={setStatusFilter}
+                    <ListControls
+                      state={mrfControls}
+                      onChange={setMrfControls}
                       statusOptions={statusOptions}
-                      placeholder="Search by title, ID, or requester..."
-                      activeFiltersCount={activeFiltersCount}
-                      onClearFilters={() => {
-                        setStatusFilter("all");
-                        setDateFilter("all");
-                      }}
-                      additionalFilters={
-                        <div className="space-y-3">
-                          <div>
-                            <label className="text-sm font-medium mb-2 block">
-                              Date Range
-                            </label>
-                            <Select
-                              value={dateFilter}
-                              onValueChange={setDateFilter}
-                            >
-                              <SelectTrigger>
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="h-4 w-4" />
-                                  <SelectValue />
-                                </div>
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">All Time</SelectItem>
-                                <SelectItem value="today">Today</SelectItem>
-                                <SelectItem value="week">This Week</SelectItem>
-                                <SelectItem value="month">
-                                  This Month
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium mb-2 block">
-                              Sort By
-                            </label>
-                            <Select value={sortBy} onValueChange={setSortBy}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="date-desc">
-                                  Newest First
-                                </SelectItem>
-                                <SelectItem value="date-asc">
-                                  Oldest First
-                                </SelectItem>
-                                <SelectItem value="amount-desc">
-                                  Highest Amount
-                                </SelectItem>
-                                <SelectItem value="amount-asc">
-                                  Lowest Amount
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      }
+                      searchPlaceholder="Search by title, ID, requester, or vendor..."
                     />
 
                     {/* Results */}
@@ -3362,8 +3431,22 @@ const Procurement = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  <div className="mb-4">
+                    <ListControls
+                      state={srfControls}
+                      onChange={setSrfControls}
+                      statusOptions={srfStatusOptions}
+                      searchPlaceholder="Search by title, ID, requester, or vendor..."
+                    />
+                  </div>
                   <div className="space-y-3">
-                    {srfRequests.map((request) => {
+                    {filteredSRFs.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No service request forms match your filters</p>
+                      </div>
+                    )}
+                    {filteredSRFs.map((request) => {
                       const wf = getSrfWorkflowState(request);
                       const isProcurement =
                         getScmRole(user) === "procurement" ||
@@ -3559,18 +3642,16 @@ const Procurement = () => {
                   )}
                 </CardHeader>
                 <CardContent>
+                  <div className="mb-4">
+                    <ListControls
+                      state={poControls}
+                      onChange={setPoControls}
+                      statusOptions={poStatusOptions}
+                      searchPlaceholder="Search by PO number, MRF ID, title, or vendor..."
+                    />
+                  </div>
                   <div className="space-y-3">
-                    {mrfRequests
-                      .filter((mrf) => {
-                        // Show MRFs that have PO numbers (POs have been generated)
-                        // OR persisted PO drafts (Continue from PO list per plan §1.5).
-                        return (
-                          getMRFPONumber(mrf as MRF) ||
-                          Boolean(
-                            (mrf as MRF & { is_po_draft?: boolean }).is_po_draft,
-                          )
-                        );
-                      })
+                    {filteredPOItems
                       .map((mrf) => {
                         const poNumber = getMRFPONumber(mrf as MRF);
                         const isDraft =
@@ -3752,16 +3833,14 @@ const Procurement = () => {
                           </div>
                         );
                       })}
-                    {mrfRequests.filter(
-                      (mrf) =>
-                        getMRFPONumber(mrf as MRF) ||
-                        Boolean(
-                          (mrf as MRF & { is_po_draft?: boolean }).is_po_draft,
-                        ),
-                    ).length === 0 && (
+                    {filteredPOItems.length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No purchase orders or drafts yet</p>
+                        <p>
+                          {poBaseItems.length === 0
+                            ? "No purchase orders or drafts yet"
+                            : "No purchase orders match your filters"}
+                        </p>
                       </div>
                     )}
                   </div>

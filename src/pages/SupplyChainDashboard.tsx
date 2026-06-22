@@ -576,7 +576,7 @@ const SupplyChainDashboard = () => {
       const response = await mrfApi.uploadSignedPO(mrfId, file);
       if (response.success) {
         toast.success(
-          "Signature attached — signed Purchase Order sent to Finance.",
+          "Signature attached — opening the signed Purchase Order.",
         );
         setAttachSignatureFiles((prev) => ({ ...prev, [mrfId]: null }));
         setSignedPOs((prev) => ({ ...prev, [mrfId]: null }));
@@ -585,7 +585,9 @@ const SupplyChainDashboard = () => {
         } catch {
           /* ignore */
         }
-        await fetchMRFs();
+        // Take the SCD straight to the PO detail view she just signed, where she
+        // can immediately download the signed PO PDF (with her signature).
+        navigate(`/pos/${encodeURIComponent(mrfId)}?signed=1`);
       } else {
         toast.error(response.error || "Failed to attach signature");
       }

@@ -58,7 +58,8 @@ import {
   makeEmptyRow,
 } from './PriceComparisonTable';
 import { EmeraldPurchaseOrderPreview } from './EmeraldPurchaseOrderPreview';
-import { buildEmeraldPoDisplayModel, coercePOTermsMode } from '@/utils/emeraldPoDocumentModel';
+import { buildEmeraldPoDisplayModel, coercePOTermsMode, resolveSelectedSupplier } from '@/utils/emeraldPoDocumentModel';
+import { previewPoNumber } from '@/utils/poNumber';
 import { buildEmeraldPurchaseOrderPdf } from '@/utils/emeraldPOPdf';
 import { openEmeraldPurchaseOrderPdfInNewTab } from '@/utils/emeraldPoPdfActions';
 import {
@@ -543,7 +544,10 @@ export function CreatePOForm({
           finalisedMrf?.poNumber ||
           mrf.po_number ||
           mrf.poNumber ||
-          'DRAFT') as string,
+          previewPoNumber(
+            resolveSelectedSupplier(rows, vendors).supplierName,
+            form.po_date ?? new Date(),
+          )) as string,
     } as MRF & { ship_to_address?: string; tax_rate?: number | string; custom_terms?: string };
     return buildEmeraldPoDisplayModel({
       mrf: merged,
