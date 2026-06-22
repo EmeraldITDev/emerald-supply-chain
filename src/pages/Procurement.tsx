@@ -870,14 +870,6 @@ const Procurement = () => {
     return isEmeraldContract(mrf) ? "Executive" : "Supply Chain Director";
   };
 
-  // Procurement Manager can ONLY upload PO for Executive-approved MRFs
-  const executiveApprovedMRFs = useMemo(() => {
-    return mrfRequests.filter((mrf) => {
-      const hasNoUnsignedPO = !getMRFPOUrl(mrf);
-      return isInitialApprovalApproved(mrf as MRF) && hasNoUnsignedPO;
-    });
-  }, [mrfRequests]);
-
   // POs rejected by Supply Chain Director
   const rejectedPOs = useMemo(() => {
     return mrfRequests.filter((mrf) => {
@@ -1032,7 +1024,6 @@ const Procurement = () => {
   const pendingMRNs = mrns.filter(
     (mrn) => mrn.status === "Pending" || mrn.status === "Under Review",
   );
-  const pendingPOUpload = executiveApprovedMRFs.length;
   const rejectedPOCount = rejectedPOs.length;
   const inSupplyChain = mrfRequests.filter(
     (mrf) => mrf.currentStage === "supply_chain_director_review",
@@ -1970,14 +1961,6 @@ const Procurement = () => {
 
           {/* Stats */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Pending PO Upload"
-              value={pendingPOUpload}
-              description="Initial approval completed, awaiting PO"
-              icon={Clock}
-              iconColor="text-warning"
-              onClick={() => setTab("mrf")}
-            />
             <StatCard
               title="Rejected POs"
               value={rejectedPOCount}
