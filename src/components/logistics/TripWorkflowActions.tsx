@@ -297,8 +297,16 @@ export function TripWorkflowActions({
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label>PO number *</Label>
-              <Input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} />
+              <Label>PO number (optional)</Label>
+              <Input
+                value={poNumber}
+                onChange={(e) => setPoNumber(e.target.value)}
+                placeholder="Leave blank to auto-generate (PO-DDMMYY-Supplier-NNNN)"
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave blank and the system generates the PO number from the
+                carrier/vendor name.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Unsigned PO URL *</Label>
@@ -307,12 +315,14 @@ export function TripWorkflowActions({
           </div>
           <DialogFooter>
             <Button
-              disabled={busy || !poNumber || !unsignedPoUrl}
+              disabled={busy || !unsignedPoUrl}
               onClick={async () => {
                 setBusy(true);
                 try {
                   const res = await tripRequestApi.generatePO(String(trip.id), {
-                    po_number: poNumber,
+                    ...(poNumber.trim()
+                      ? { po_number: poNumber.trim() }
+                      : {}),
                     unsigned_po_url: unsignedPoUrl,
                   });
                   if (res.success) {

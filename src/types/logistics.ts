@@ -930,7 +930,8 @@ export interface EligiblePassengersResponse {
 }
 
 export interface TripPOData {
-  po_number: string;
+  /** Optional — backend auto-generates from the carrier/vendor name when omitted. */
+  po_number?: string;
   unsigned_po_url: string;
 }
 
