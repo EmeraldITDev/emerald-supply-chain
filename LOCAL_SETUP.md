@@ -8,7 +8,7 @@ The frontend runs on **port 8080** by default (configured in `vite.config.ts`).
 
 ### 1. Install Dependencies
 
-```bashi
+```bash
 cd /Applications/XAMPP/htdocs/emerald-supply-chain
 npm install
 ```
