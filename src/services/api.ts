@@ -3221,10 +3221,7 @@ export const signatureApi = {
     }
   },
 
-  /**
-   * Remove the user's saved digital signature.
-   * Backend: DELETE /api/users/{id}/signature
-   */
+  /** Remove the user's saved digital signature. Backend: DELETE /api/users/{id}/signature */
   remove: async (userId: string): Promise<ApiResponse<void>> => {
     const { token, expired } = getAuthToken();
     if (expired || !token) {
@@ -3245,6 +3242,39 @@ export const signatureApi = {
       return { success: true, data: undefined };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : 'Network error' };
+    }
+  },
+
+  /**
+   * Download the user's saved signature image via the stable API route.
+   * Prefer this over presigned signature_url values that expire.
+   * Backend: GET /api/users/{id}/signature
+   */
+  downloadImage: async (userId: string): Promise<string | null> => {
+    const { token, expired } = getAuthToken();
+    if (expired || !token) return null;
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/users/${encodeURIComponent(userId)}/signature`,
+        {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      if (!blob.size) return null;
+      return await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const out = String(reader.result || '');
+          resolve(out.startsWith('data:image/') ? out : null);
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
     }
   },
 };

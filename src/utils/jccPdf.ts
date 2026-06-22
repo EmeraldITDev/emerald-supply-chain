@@ -110,7 +110,7 @@ function drawSignatoryBlock(doc: jsPDF, x: number, y: number, w: number, s: JccS
   if (s.signatureDataUrl) {
     try {
       const fmt = s.signatureDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-      doc.addImage(s.signatureDataUrl, fmt, x + 2, y - 8, 30, 8);
+      doc.addImage(s.signatureDataUrl, fmt, x + 2, y - 14, 48, 14);
     } catch {
       // ignore
     }

@@ -298,8 +298,8 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
 
   /** Signature image with aspect ratio preservation. */
   const sigSlotW = 110;
-  const sigMaxW = 34;
-  const sigMaxH = 8;
+  const sigMaxW = 58;
+  const sigMaxH = 18;
   let sigDrawW = sigMaxW;
   let sigDrawH = sigMaxH;
   const sigLineY = y + sigMaxH + 1;

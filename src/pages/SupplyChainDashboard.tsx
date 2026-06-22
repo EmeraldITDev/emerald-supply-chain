@@ -52,11 +52,8 @@ import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { authApi, mrfApi, vendorApi, dashboardApi, srfApi } from "@/services/api";
 import { procurementApi } from "@/services/procurementApi";
 import { buildEmeraldPoDisplayModel, coercePOTermsMode, userClausesFromStoredCustomTerms } from "@/utils/emeraldPoDocumentModel";
-import {
-  buildEmeraldPurchaseOrderPdf,
-  blobToDataUrl,
-  fetchUrlAsDataUrl,
-} from "@/utils/emeraldPOPdf";
+import { buildEmeraldPurchaseOrderPdf } from "@/utils/emeraldPOPdf";
+import { resolveUserSignatureDataUrl, readCachedUserSignature } from "@/utils/userSignature";
 import { openEmeraldPurchaseOrderForMrf } from "@/utils/emeraldPoPdfActions";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { VendorRegistration } from "@/types";
@@ -199,8 +196,12 @@ const SupplyChainDashboard = () => {
 
   const hasProfileSignature = useMemo(() => {
     void signaturePresenceTick;
-    return Boolean(user?.signature_url || readStoredUserSignatureUrl());
-  }, [user?.signature_url, signaturePresenceTick]);
+    return Boolean(
+      user?.signature_url ||
+        readStoredUserSignatureUrl() ||
+        (user?.id ? readCachedUserSignature(user.id) : null),
+    );
+  }, [user?.signature_url, user?.id, signaturePresenceTick]);
 
   useEffect(() => {
     const fetchVendorRegistrations = async () => {
@@ -505,25 +506,31 @@ const SupplyChainDashboard = () => {
       const vendors = vendorsRes.success && Array.isArray(vendorsRes.data) ? vendorsRes.data : [];
 
       let sigDataUrl: string | null = null;
+      const me = await authApi.getCurrentUser();
+      const signatureUrl =
+        (me.data as { signature_url?: string; signatureUrl?: string } | undefined)
+          ?.signature_url ||
+        (me.data as { signature_url?: string; signatureUrl?: string } | undefined)
+          ?.signatureUrl ||
+        user?.signature_url ||
+        readStoredUserSignatureUrl() ||
+        null;
+      const userId = me.data?.id ?? user?.id ?? null;
+
       if (override) {
         if (override.size > 2 * 1024 * 1024) {
           toast.error("Signature image must be 2MB or less.");
           return;
         }
-        sigDataUrl = await blobToDataUrl(override);
+        sigDataUrl = await resolveUserSignatureDataUrl({
+          userId,
+          overrideFile: override,
+        });
       } else {
-        const me = await authApi.getCurrentUser();
-        const url =
-          (me.data as { signature_url?: string; signatureUrl?: string } | undefined)
-            ?.signature_url ||
-          (me.data as { signature_url?: string; signatureUrl?: string } | undefined)
-            ?.signatureUrl ||
-          user?.signature_url ||
-          readStoredUserSignatureUrl() ||
-          null;
-        if (url) {
-          sigDataUrl = await fetchUrlAsDataUrl(url);
-        }
+        sigDataUrl = await resolveUserSignatureDataUrl({
+          userId,
+          signatureUrl,
+        });
       }
 
       if (!sigDataUrl) {

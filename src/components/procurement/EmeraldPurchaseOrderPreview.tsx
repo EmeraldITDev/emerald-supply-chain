@@ -157,12 +157,12 @@ export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplay
         <div>
           <p className="font-bold">Approved By</p>
           <p className="mt-2 font-medium">{model.approverName}</p>
-          <div className="relative mt-2 h-8 border-b border-black">
+          <div className="relative mt-2 h-16 border-b border-black">
             {model.signatureDataUrl ? (
               <img
                 src={model.signatureDataUrl}
                 alt="Signature"
-                className="pointer-events-none absolute bottom-0 left-1/2 max-h-7 max-w-[10rem] -translate-x-1/2 object-contain object-bottom"
+                className="pointer-events-none absolute bottom-0 left-1/2 max-h-14 max-w-[12rem] -translate-x-1/2 object-contain object-bottom"
               />
             ) : null}
           </div>

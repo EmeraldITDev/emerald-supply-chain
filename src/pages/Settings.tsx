@@ -15,7 +15,10 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/services/api";
 import { signatureApi } from "@/services/api";
-import { fetchUrlAsDataUrl } from "@/utils/emeraldPOPdf";
+import {
+  clearCachedUserSignature,
+  resolveUserSignatureDataUrl,
+} from "@/utils/userSignature";
 import { toast } from "sonner";
 import { useState, useRef, useEffect } from "react";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -77,21 +80,24 @@ export default function Settings() {
       return;
     }
     (async () => {
-      const data = await fetchUrlAsDataUrl(savedSignatureUrl);
+      const data = await resolveUserSignatureDataUrl({
+        userId: user?.id,
+        signatureUrl: savedSignatureUrl,
+      });
       if (cancelled) return;
       if (data) {
         setSavedSignatureDataUrl(data);
       } else {
         setSavedSignatureDataUrl(null);
         setSignatureLoadError(
-          "Couldn't load the saved signature image. It may have expired — re-upload it below.",
+          "Couldn't load the saved signature image. Try re-uploading it below, or sign out and back in.",
         );
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [savedSignatureUrl]);
+  }, [savedSignatureUrl, user?.id]);
 
   // Role-based access control
   const isRegularEmployee = getScmRole(user) === "employee" || getScmRole(user) === "general_employee";
@@ -124,6 +130,13 @@ export default function Settings() {
       if (res.success) {
         toast.success("Digital signature uploaded.");
         const sigUrl = res.data?.signature_url || res.data?.signatureUrl;
+        if (signatureFile) {
+          const previewData = await resolveUserSignatureDataUrl({
+            userId: user.id,
+            overrideFile: signatureFile,
+          });
+          if (previewData) setSavedSignatureDataUrl(previewData);
+        }
         if (sigUrl) {
           try {
             const raw = localStorage.getItem("userData") || sessionStorage.getItem("userData");
@@ -154,6 +167,7 @@ export default function Settings() {
   };
 
   const clearStoredSignatureFields = () => {
+    if (user?.id) clearCachedUserSignature(user.id);
     try {
       const raw = localStorage.getItem("userData") || sessionStorage.getItem("userData");
       if (raw) {
