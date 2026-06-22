@@ -22,6 +22,7 @@ import { procurementApi } from "@/services/procurementApi";
 import { type AvailableActions, type MRF, type Vendor } from "@/types";
 import type { PriceComparisonEntry } from "@/types/procurement";
 import { getMrfApiId } from "@/utils/displayId";
+import { describeGrnUnavailable } from "@/utils/grnEligibility";
 import { getScmRole } from "@/utils/scmRole";
 import { resolveSelectedSupplier } from "@/utils/emeraldPoDocumentModel";
 import type { GRNLineItemOverride } from "@/types/procurement-documents";
@@ -336,6 +337,7 @@ export default function GRNCompletionDialog({
   const canGenerate = actions?.canGenerateGRN ?? false;
   const canUpload = actions?.canUploadGRN ?? false;
   const showServerPreview = canGenerate && !isLogisticsGrnRole;
+  const grnBlocked = describeGrnUnavailable(mrf, actions);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -368,9 +370,12 @@ export default function GRNCompletionDialog({
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    GRN generation is not available for this MRF at its current workflow stage,
-                    or your role does not have permission. If goods were received, contact
-                    Procurement or wait until payment processing completes.
+                    <p className="font-medium">{grnBlocked.title}</p>
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
+                      {grnBlocked.details.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
                   </AlertDescription>
                 </Alert>
               ) : (

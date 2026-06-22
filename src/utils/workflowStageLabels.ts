@@ -23,6 +23,7 @@ export function getWorkflowStageLabel(stage?: string | null): string {
   if (s === "vendor_selected") return "Vendor selected";
   if (s === "final_approval") return "Final approval";
   if (s === "po_generated") return "PO generated";
+  if (s === "grn_requested") return "GRN requested — awaiting goods receipt";
   if (s === "pending_po_upload") return "PO upload pending";
   if (s === "vendor_approved") return "Vendor approved";
   if (s === "invoice_received" || s === "invoice_approved")
