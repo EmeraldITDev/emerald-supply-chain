@@ -40,6 +40,8 @@ import {
   formatRequesterEditTimeRemaining,
   resolveRequesterEditAccess,
 } from "@/utils/requesterEditWindow";
+import type { MRF } from "@/types";
+import { getScmRole } from "@/utils/scmRole";
 
 const DepartmentDashboard = () => {
   const { user } = useAuth();
