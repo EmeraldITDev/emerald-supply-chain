@@ -3,12 +3,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, MapPin, RefreshCw } from "lucide-react";
+import { Loader2, MapPin, RefreshCw, Edit } from "lucide-react";
 import { tripRequestApi } from "@/services/api";
 import type { StaffTripRequest } from "@/types/trip-request";
 import { TripRequestDetailDialog } from "./TripRequestDetailDialog";
 import { DeleteTripDraftButton } from "./DeleteTripDraftButton";
+import { EditTripRequestDialog } from "./EditTripRequestDialog";
 import { tripCanDeleteDraft } from "@/utils/tripDraftUi";
+import {
+  formatRequesterEditTimeRemaining,
+  resolveRequesterEditAccess,
+} from "@/utils/requesterEditWindow";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MyTripRequestsListProps {
   refreshKey?: number;
@@ -27,10 +33,13 @@ function scopeLabel(t: StaffTripRequest): string {
 }
 
 export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) {
+  const { user } = useAuth();
   const [trips, setTrips] = useState<StaffTripRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [editTrip, setEditTrip] = useState<StaffTripRequest | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,6 +58,12 @@ export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) 
   useEffect(() => {
     load();
   }, [load, refreshKey]);
+
+  useEffect(() => {
+    const onRefresh = () => load();
+    window.addEventListener("app:refresh", onRefresh);
+    return () => window.removeEventListener("app:refresh", onRefresh);
+  }, [load]);
 
   const openDetail = (id: string | number) => {
     setSelectedId(String(id));
@@ -96,6 +111,8 @@ export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) 
               trip.createdAt ??
               trip.created_at;
             const isDraft = trip.isDraft ?? trip.status === "draft";
+            const editAccess = resolveRequesterEditAccess(trip, user);
+            const editTimeLeft = formatRequesterEditTimeRemaining(editAccess.expiresAt);
 
             return (
               <Card
@@ -155,6 +172,20 @@ export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) 
                     >
                       View progress
                     </Button>
+                    {editAccess.canEdit && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        title={editTimeLeft ?? undefined}
+                        onClick={() => {
+                          setEditTrip(trip);
+                          setEditOpen(true);
+                        }}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                    )}
                     {tripCanDeleteDraft(trip) && (
                       <DeleteTripDraftButton
                         trip={trip}
@@ -176,6 +207,13 @@ export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) 
         open={detailOpen}
         onOpenChange={setDetailOpen}
         onDeleted={load}
+      />
+
+      <EditTripRequestDialog
+        trip={editTrip}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSaved={load}
       />
     </>
   );

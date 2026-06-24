@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Eye } from "lucide-react";
+import { Eye, Edit } from "lucide-react";
 import type { SrfWithUi } from "@/types/srf-ui";
 import {
   lineItemsFromSrf,
@@ -15,6 +15,9 @@ interface SRFCardListProps {
   getStatusColor: (status: string) => string;
   onOpenSrf: (srf: SrfWithUi) => void;
   onOpenLineItem: (srf: SrfWithUi, lineItemId: string, fetchPath?: string) => void;
+  onEditSrf?: (srf: SrfWithUi) => void;
+  canEditSrf?: (srf: SrfWithUi) => boolean;
+  editTimeRemaining?: (srf: SrfWithUi) => string | null;
 }
 
 export function SRFCardList({
@@ -22,6 +25,9 @@ export function SRFCardList({
   getStatusColor,
   onOpenSrf,
   onOpenLineItem,
+  onEditSrf,
+  canEditSrf,
+  editTimeRemaining,
 }: SRFCardListProps) {
   return (
     <div className="space-y-4">
@@ -30,6 +36,8 @@ export function SRFCardList({
         const cardClickable = srf.ui?.cardClickable !== false;
         const cardAction = srf.ui?.viewDetails;
         const showCardDetails = srfUiActionVisible(cardAction);
+        const showEdit = Boolean(onEditSrf && canEditSrf?.(srf));
+        const timeLeft = editTimeRemaining?.(srf);
 
         const openCard = () => {
           if (!cardClickable && !showCardDetails) return;
@@ -54,19 +62,35 @@ export function SRFCardList({
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
                   <Badge className={getStatusColor(srf.status)}>{getSrfStatusLabel(srf.status)}</Badge>
-                  {showCardDetails && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenSrf(srf);
-                      }}
-                    >
-                      <Eye className="h-3 w-3 mr-1" />
-                      {cardAction?.label ?? "View Details"}
-                    </Button>
-                  )}
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {showEdit && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        title={timeLeft ?? undefined}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditSrf!(srf);
+                        }}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                    )}
+                    {showCardDetails && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenSrf(srf);
+                        }}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        {cardAction?.label ?? "View Details"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
 

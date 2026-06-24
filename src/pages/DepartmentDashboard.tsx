@@ -34,8 +34,12 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { MRF, SRF } from "@/types";
-import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { RequesterEditMrfDialog } from "@/components/requester/RequesterEditMrfDialog";
+import { RequesterEditSrfDialog } from "@/components/requester/RequesterEditSrfDialog";
+import {
+  formatRequesterEditTimeRemaining,
+  resolveRequesterEditAccess,
+} from "@/utils/requesterEditWindow";
 
 const DepartmentDashboard = () => {
   const { user } = useAuth();
@@ -87,6 +91,11 @@ const DepartmentDashboard = () => {
   const [selectedLineItemId, setSelectedLineItemId] = useState<string | null>(null);
   const [selectedLineItemFetchPath, setSelectedLineItemFetchPath] = useState<string | null>(null);
 
+  const [editMrfOpen, setEditMrfOpen] = useState(false);
+  const [selectedMrfForEdit, setSelectedMrfForEdit] = useState<MRF | null>(null);
+  const [editSrfOpen, setEditSrfOpen] = useState(false);
+  const [selectedSrfForEdit, setSelectedSrfForEdit] = useState<SrfWithUi | null>(null);
+
   // Fetch MRFs from backend
   const fetchMRFs = useCallback(async () => {
     setMrfLoading(true);
@@ -134,6 +143,15 @@ const DepartmentDashboard = () => {
   useEffect(() => {
     if (activeTab === "srf") fetchMySrfs();
   }, [activeTab, fetchMySrfs]);
+
+  useEffect(() => {
+    const onRefresh = () => {
+      fetchMRFs();
+      if (activeTab === "srf") fetchMySrfs();
+    };
+    window.addEventListener("app:refresh", onRefresh);
+    return () => window.removeEventListener("app:refresh", onRefresh);
+  }, [fetchMRFs, fetchMySrfs, activeTab]);
 
   // Filter MRNs for current user only (employees see only their own requests)
   const departmentMRNs = useMemo(() => {
@@ -402,7 +420,10 @@ const DepartmentDashboard = () => {
                     </div>
                   ) : (
                     mrfRequests.map((mrf) => {
-                      
+                      const mrfEditAccess = resolveRequesterEditAccess(mrf, user);
+                      const mrfEditTimeLeft = formatRequesterEditTimeRemaining(mrfEditAccess.expiresAt);
+                      const isRejected = (mrf.status || "").toLowerCase() === "rejected";
+
                       return (
                         <Card key={mrf.id} className="hover:shadow-md transition-shadow">
                           <CardContent className="p-4">
@@ -460,8 +481,23 @@ const DepartmentDashboard = () => {
                                   <span className="hidden sm:inline">View Details</span>
                                   <span className="sm:hidden">View</span>
                                 </Button>
+                                {mrfEditAccess.canEdit && !isRejected && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    title={mrfEditTimeLeft ?? undefined}
+                                    onClick={() => {
+                                      setSelectedMrfForEdit(mrf);
+                                      setEditMrfOpen(true);
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    <span className="hidden sm:inline">Edit</span>
+                                    <span className="sm:hidden">Edit</span>
+                                  </Button>
+                                )}
                                 {/* Edit & Resubmit for rejected MRFs */}
-                                {(mrf.status || "").toLowerCase() === "rejected" && (
+                                {isRejected && (
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -546,6 +582,16 @@ const DepartmentDashboard = () => {
                       setSelectedLineItemFetchPath(fetchPath ?? null);
                       setLineItemDialogOpen(true);
                     }}
+                    onEditSrf={(srf) => {
+                      setSelectedSrfForEdit(srf);
+                      setEditSrfOpen(true);
+                    }}
+                    canEditSrf={(srf) => resolveRequesterEditAccess(srf, user).canEdit}
+                    editTimeRemaining={(srf) =>
+                      formatRequesterEditTimeRemaining(
+                        resolveRequesterEditAccess(srf, user).expiresAt,
+                      )
+                    }
                   />
                 )}
               </CardContent>
@@ -856,6 +902,26 @@ const DepartmentDashboard = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <RequesterEditMrfDialog
+          mrf={selectedMrfForEdit}
+          open={editMrfOpen}
+          onOpenChange={setEditMrfOpen}
+          onSaved={() => {
+            setSelectedMrfForEdit(null);
+            fetchMRFs();
+          }}
+        />
+
+        <RequesterEditSrfDialog
+          srf={selectedSrfForEdit}
+          open={editSrfOpen}
+          onOpenChange={setEditSrfOpen}
+          onSaved={() => {
+            setSelectedSrfForEdit(null);
+            fetchMySrfs();
+          }}
+        />
 
       </div>
     </DashboardLayout>

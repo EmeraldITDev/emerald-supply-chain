@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi } from "@/services/api";
 import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
-import type { TripBookingScope, TripBookingScopeRule } from "@/types/trip-request";
+import type { TripBookingScope, TripBookingScopeRule, StaffTripRequest } from "@/types/trip-request";
 import {
   DEFAULT_BOOKING_RULES,
   formatMinimumTripDateHint,
@@ -17,12 +17,29 @@ import {
 } from "@/utils/tripBookingValidation";
 
 interface TripRequestFormProps {
+  mode?: "create" | "edit";
+  /** Required when mode is edit — pre-fills the form. */
+  trip?: StaffTripRequest | null;
   onSuccess?: () => void;
   onCancel?: () => void;
   showCancel?: boolean;
 }
 
-export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: TripRequestFormProps) {
+function toDatetimeLocalValue(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function TripRequestForm({
+  mode = "create",
+  trip = null,
+  onSuccess,
+  onCancel,
+  showCancel = false,
+}: TripRequestFormProps) {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [loadingRules, setLoadingRules] = useState(true);
@@ -41,6 +58,40 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
   const [externalPassengers, setExternalPassengers] = useState<
     Array<{ name: string; email: string; phone: string }>
   >([]);
+
+  const isEdit = mode === "edit" && trip != null;
+
+  useEffect(() => {
+    if (!isEdit || !trip) return;
+    setDestination(trip.destination || "");
+    setPurpose(trip.purpose || "");
+    setOrigin(trip.origin || "HQ");
+    setDepartureAt(
+      toDatetimeLocalValue(trip.scheduledDepartureAt ?? trip.scheduled_departure_at),
+    );
+    setArrivalAt(
+      toDatetimeLocalValue(trip.scheduledArrivalAt ?? trip.scheduled_arrival_at),
+    );
+    const ids =
+      trip.passengerUserIds ??
+      trip.passenger_user_ids ??
+      (trip.passengers ?? [])
+        .map((p) => p.userId ?? p.user_id)
+        .filter((id): id is number => id != null)
+        .map(String);
+    setPassengerIds(ids.map(String));
+    setBookingScope(
+      (trip.bookingScope ?? trip.booking_scope ?? "within_state") as TripBookingScope,
+    );
+    const ext = trip.externalPassengers ?? trip.external_passengers ?? [];
+    setExternalPassengers(
+      ext.map((p) => ({
+        name: p.name || "",
+        email: p.email || "",
+        phone: p.phone || "",
+      })),
+    );
+  }, [isEdit, trip]);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,13 +121,24 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
     );
   }, [departureAt, bookingScope, rules, referenceDate]);
 
+  const originalDepartureIso = isEdit
+    ? trip!.scheduledDepartureAt ?? trip!.scheduled_departure_at
+    : null;
+  const departureUnchanged =
+    isEdit &&
+    Boolean(originalDepartureIso && departureAt) &&
+    new Date(departureAt).toISOString() === new Date(String(originalDepartureIso)).toISOString();
+  const effectiveLeadTimeCheck = departureUnchanged
+    ? { valid: true as const }
+    : leadTimeCheck;
+
   const canSubmit =
     destination.trim() &&
     purpose.trim() &&
     origin.trim() &&
     departureAt &&
     (passengerIds.length > 0 || externalPassengers.some((p) => p.name.trim() && p.email.trim())) &&
-    leadTimeCheck.valid &&
+    effectiveLeadTimeCheck.valid &&
     !submitting;
 
   const handleSubmit = async () => {
@@ -114,10 +176,10 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
       });
       return;
     }
-    if (!leadTimeCheck.valid) {
+    if (!effectiveLeadTimeCheck.valid) {
       toast({
         title: "Advance booking required",
-        description: leadTimeCheck.violationMessage,
+        description: leadTimeCheck.valid === false ? leadTimeCheck.violationMessage : undefined,
         variant: "destructive",
       });
       return;
@@ -125,7 +187,7 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
 
     setSubmitting(true);
     try {
-      const res = await tripRequestApi.create({
+      const payload = {
         destination: destination.trim(),
         purpose: purpose.trim(),
         origin: origin.trim(),
@@ -138,26 +200,37 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
           .filter((n) => !Number.isNaN(n)),
         bookingScope,
         external_passengers: validExternal.length > 0 ? validExternal : undefined,
-      });
+      };
+
+      const res = isEdit
+        ? await tripRequestApi.update(String(trip!.id), payload)
+        : await tripRequestApi.create(payload);
 
       if (res.success) {
         toast({
-          title: "Trip request submitted",
-          description: "Your request has been sent to logistics for review.",
+          title: isEdit ? "Trip request updated" : "Trip request submitted",
+          description: isEdit
+            ? "Your changes were saved. Logistics and other reviewers will see the updated trip."
+            : "Your request has been sent to logistics for review.",
         });
-        setDestination("");
-        setPurpose("");
-        setOrigin("HQ");
-        setDepartureAt("");
-        setArrivalAt("");
-        setPassengerIds([]);
-        setBookingScope("within_state");
-        setExternalPassengers([]);
+        if (!isEdit) {
+          setDestination("");
+          setPurpose("");
+          setOrigin("HQ");
+          setDepartureAt("");
+          setArrivalAt("");
+          setPassengerIds([]);
+          setBookingScope("within_state");
+          setExternalPassengers([]);
+        }
+        if (isEdit) {
+          window.dispatchEvent(new Event("app:refresh"));
+        }
         onSuccess?.();
       } else {
         toast({
-          title: "Submission failed",
-          description: res.error || "Could not create trip request",
+          title: isEdit ? "Update failed" : "Submission failed",
+          description: res.error || `Could not ${isEdit ? "update" : "create"} trip request`,
           variant: "destructive",
         });
       }
@@ -353,7 +426,7 @@ export function TripRequestForm({ onSuccess, onCancel, showCancel = false }: Tri
         )}
         <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
           {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Submit Request
+          {isEdit ? "Save changes" : "Submit Request"}
         </Button>
       </div>
     </div>

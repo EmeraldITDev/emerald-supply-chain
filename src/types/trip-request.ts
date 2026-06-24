@@ -67,6 +67,10 @@ export interface TripViewerContext {
   isInvolved?: boolean;
   canManage?: boolean;
   readOnly?: boolean;
+  canRequesterEdit?: boolean;
+  can_requester_edit?: boolean;
+  requesterEditExpiresAt?: string;
+  requester_edit_expires_at?: string;
 }
 
 export interface StaffTripRequest {
@@ -124,6 +128,10 @@ export interface StaffTripRequest {
   readOnly?: boolean;
   canManage?: boolean;
   canComment?: boolean;
+  canRequesterEdit?: boolean;
+  can_requester_edit?: boolean;
+  requesterEditExpiresAt?: string;
+  requester_edit_expires_at?: string;
 }
 
 export interface OrgTripListItem extends StaffTripRequest {}
@@ -165,4 +173,11 @@ export interface CreateStaffTripRequestData {
   scheduled_arrival_at: string;
   passenger_user_ids: number[];
   bookingScope: TripBookingScope;
+  external_passengers?: TripRequestExternalPassenger[];
 }
+
+/** Partial body for PUT /api/trip-requests/{id} (requester edit within 48h). */
+export type UpdateStaffTripRequestData = Partial<CreateStaffTripRequestData> & {
+  booking_scope?: TripBookingScope;
+  externalPassengers?: TripRequestExternalPassenger[];
+};

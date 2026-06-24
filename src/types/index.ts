@@ -74,6 +74,11 @@ export interface MRF {
   requester_id?: string; // Backend snake_case variant
   date: string;
   created_at?: string; // Backend snake_case variant
+  /** True when the designated requester may still edit (within 48h window). */
+  can_requester_edit?: boolean;
+  canRequesterEdit?: boolean;
+  requester_edit_expires_at?: string;
+  requesterEditExpiresAt?: string;
   department?: string;
   status: string; // Flexible to match backend workflow statuses
   currentStage?: 'draft' | 'submitted' | 'executive_review' | 'director_review' | 'procurement_review' | 'rfq_sent' | 'quotes_received' | 'vendor_selected' | 'final_approval' | 'po_generated' | 'completed' | 'rejected' | (string & {});
@@ -254,6 +259,10 @@ export interface SRF {
   createdAt?: string;
   updated_at?: string;
   updatedAt?: string;
+  can_requester_edit?: boolean;
+  canRequesterEdit?: boolean;
+  requester_edit_expires_at?: string;
+  requesterEditExpiresAt?: string;
   current_stage?: string;
   currentStage?: string;
   workflow_state?: string;
@@ -459,6 +468,11 @@ export interface AvailableActions {
   canUploadGRN: boolean;
   canViewGRN: boolean;
   canGenerateGRN?: boolean;
+  /** Designated requester may edit the request within 48h of submission. */
+  canRequesterEdit?: boolean;
+  can_requester_edit?: boolean;
+  requesterEditExpiresAt?: string;
+  requester_edit_expires_at?: string;
   availableActions: string[]; // List of action keys: 'view', 'edit', 'approve', 'reject', etc.
   /** When true, all mutation flags are stripped (Logistics Manager overview). */
   readOnly?: boolean;

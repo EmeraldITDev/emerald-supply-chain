@@ -3550,6 +3550,39 @@ export const tripRequestApi = {
     return res as unknown as ApiResponse<{ trip: import('@/types/logistics').TripRequest }>;
   },
 
+  /** Requester edit within 48h — PUT /api/trip-requests/{id} */
+  update: async (
+    id: string,
+    data: import('@/types/trip-request').UpdateStaffTripRequestData,
+  ): Promise<
+    ApiResponse<{
+      trip: import('@/types/trip-request').StaffTripRequest;
+    }>
+  > => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/trip-requests/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      },
+    );
+    if (res.success && res.data) {
+      const trip =
+        (res.data.trip as import('@/types/trip-request').StaffTripRequest) ??
+        (res.data as unknown as import('@/types/trip-request').StaffTripRequest);
+      return { ...res, data: { trip } };
+    }
+    if (!res.success && res.code === 'REQUESTER_EDIT_WINDOW_EXPIRED') {
+      return {
+        ...res,
+        error: res.error || 'The 48-hour edit window has closed for this trip request.',
+      };
+    }
+    return res as unknown as ApiResponse<{
+      trip: import('@/types/trip-request').StaffTripRequest;
+    }>;
+  },
+
   // Convert trip request to logistics request
   convertToLogisticsRequest: async (
     tripId: string,

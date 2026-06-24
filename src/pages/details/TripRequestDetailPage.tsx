@@ -10,12 +10,17 @@ import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepp
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Truck, ExternalLink } from "lucide-react";
+import { Truck, ExternalLink, Edit } from "lucide-react";
 import type { StaffTripRequest, TripProgressStep } from "@/types/trip-request";
 import type { Trip } from "@/types/logistics";
 import { resolveLogisticsTripId, resolveTripViewer } from "@/utils/tripViewer";
 import { getScmRole } from "@/utils/scmRole";
 import { useAuth } from "@/contexts/AuthContext";
+import { EditTripRequestDialog } from "@/components/logistics/EditTripRequestDialog";
+import {
+  formatRequesterEditTimeRemaining,
+  resolveRequesterEditAccess,
+} from "@/utils/requesterEditWindow";
 
 const FALLBACK_STEPS: TripProgressStep[] = [
   { key: "submitted", label: "Submitted", status: "in_progress", step: 1 },
@@ -33,6 +38,7 @@ export default function TripRequestDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [approveOpen, setApproveOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -82,6 +88,8 @@ export default function TripRequestDetailPage() {
   const logisticsId = resolveLogisticsTripId(trip);
   const passengers = trip?.passengers ?? [];
   const externalPassengers = trip?.externalPassengers ?? trip?.external_passengers ?? [];
+  const editAccess = trip ? resolveRequesterEditAccess(trip, user) : { canEdit: false, expiresAt: null };
+  const editTimeLeft = formatRequesterEditTimeRemaining(editAccess.expiresAt);
 
   return (
     <EntityDetailShell
@@ -118,6 +126,17 @@ export default function TripRequestDetailPage() {
               <Button size="sm" onClick={() => setApproveOpen(true)}>
                 <Truck className="mr-2 h-4 w-4" />
                 Approve &amp; assign
+              </Button>
+            )}
+            {editAccess.canEdit && (
+              <Button
+                size="sm"
+                variant="outline"
+                title={editTimeLeft ?? undefined}
+                onClick={() => setEditOpen(true)}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit request
               </Button>
             )}
             {logisticsId && (
@@ -224,6 +243,13 @@ export default function TripRequestDetailPage() {
             open={approveOpen}
             onOpenChange={setApproveOpen}
             onApproved={() => void load()}
+          />
+
+          <EditTripRequestDialog
+            trip={trip}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            onSaved={() => void load()}
           />
         </div>
       )}
