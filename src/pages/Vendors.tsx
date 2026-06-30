@@ -6,6 +6,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Users, TrendingUp, FileCheck, Plus, Star, Download, Trash2, FileText, Mail, Phone, MapPin, Building, Globe, Calendar, Loader2, Copy, Check, MessageSquare, Send, AlertTriangle, AlertCircle, RefreshCw } from "lucide-react";
 import { VENDOR_DOCUMENT_REQUIREMENTS, VENDOR_CATEGORIES } from "@/types/vendor-registration";
 import { parseVendorCategoriesApiPayload, isOthersVendorCategoryLabel, formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
+import { VendorBankDetailsSection } from "@/components/vendors/VendorBankDetailsSection";
 import { Textarea } from "@/components/ui/textarea";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1283,6 +1284,8 @@ const Vendors = () => {
                   </div>
                 </div>
               </div>
+
+              <VendorBankDetailsSection vendor={selectedVendor} />
 
               {/* Documents Section */}
               <div className="pt-4 border-t">

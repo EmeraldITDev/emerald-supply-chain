@@ -2930,6 +2930,9 @@ export const vendorAuthApi = {
     year_established?: number | string;
     number_of_employees?: string;
     annual_revenue?: string;
+    bank_name?: string;
+    account_name?: string;
+    account_number?: string;
   }): Promise<ApiResponse<Vendor>> => {
     return apiRequest<Vendor>('/vendors/auth/profile', {
       method: 'PUT',

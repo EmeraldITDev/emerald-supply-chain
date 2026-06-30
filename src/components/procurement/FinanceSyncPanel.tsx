@@ -47,9 +47,23 @@ const formatTime = (iso?: string | null) => {
   }
 };
 
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  operational_documents_updated: "Operational documents updated",
+  package_pushed: "Package pushed to Finance AP",
+  vendor_invoice_submitted: "Vendor invoice submitted",
+  payment_initiated: "Payment initiated",
+  delta_push: "Delta push",
+};
+
+const prettyEventType = (eventType?: string | null) => {
+  if (!eventType) return "event";
+  return EVENT_TYPE_LABELS[eventType] ?? eventType.replace(/_/g, " ");
+};
+
 const EventRow = ({ event }: { event?: FinanceSyncEvent | null }) => {
   if (!event) return <p className="text-xs text-muted-foreground pl-6">No events yet.</p>;
   const isOutbound = event.direction === "outbound";
+  const isDocDelta = event.eventType === "operational_documents_updated";
   return (
     <div className="pl-6 text-xs space-y-0.5">
       <div className="flex items-center gap-2 flex-wrap">
@@ -58,7 +72,10 @@ const EventRow = ({ event }: { event?: FinanceSyncEvent | null }) => {
         ) : (
           <ArrowDownLeft className="h-3.5 w-3.5 text-success" />
         )}
-        <span className="font-medium">{event.eventType ?? "event"}</span>
+        <span className="font-medium">{prettyEventType(event.eventType)}</span>
+        {isDocDelta && (
+          <Badge variant="secondary" className="text-[10px]">Finance AP notified</Badge>
+        )}
         {event.status && (
           <Badge variant="outline" className="text-[10px] capitalize">
             {prettyStatus(event.status)}

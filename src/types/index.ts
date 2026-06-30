@@ -381,6 +381,12 @@ export interface Vendor {
   /** How the vendor entered the system (`manual_po` = created via inline PO supplier). */
   onboarding_source?: 'registration' | 'invite' | 'manual_po';
   onboarding_email_sent_at?: string | null;
+  bankName?: string;
+  bank_name?: string;
+  accountName?: string;
+  account_name?: string;
+  accountNumber?: string;
+  account_number?: string;
 }
 
 /** Match returned by GET /vendors/lookup (authoritative duplicate detection). */

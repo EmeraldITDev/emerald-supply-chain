@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getDisplayId } from "@/utils/displayId";
+import { pickVendorBankDetails } from "@/utils/vendorBankDetails";
+import { VendorBankDetailsSection } from "@/components/vendors/VendorBankDetailsSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -225,6 +226,9 @@ const VendorPortal = () => {
     yearEstablished: "",
     numberOfEmployees: "",
     annualRevenue: "",
+    bankName: "",
+    accountName: "",
+    accountNumber: "",
   });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
@@ -249,6 +253,7 @@ const VendorPortal = () => {
     const v = currentVendor as any;
     const rawCategory = v?.category || "";
     const knownCategory = (VENDOR_CATEGORIES as readonly string[]).includes(rawCategory);
+    const bank = pickVendorBankDetails(v);
     setEditProfileData({
       contactPerson: v?.contact_person || v?.contactPerson || "",
       phone: v?.phone || "",
@@ -263,6 +268,9 @@ const VendorPortal = () => {
       yearEstablished: String(v?.year_established || v?.yearEstablished || ""),
       numberOfEmployees: v?.number_of_employees || v?.numberOfEmployees || "",
       annualRevenue: v?.annual_revenue || v?.annualRevenue || "",
+      bankName: bank.bankName,
+      accountName: bank.accountName,
+      accountNumber: bank.accountNumber,
     });
     setIsEditingProfile(true);
   };
@@ -284,6 +292,10 @@ const VendorPortal = () => {
     if (!has("address")) missing.push("Business address");
     if (!has("tax_id", "taxId")) missing.push("Tax information");
     if (!has("website")) missing.push("Website");
+    const bank = pickVendorBankDetails(v);
+    if (!bank.bankName) missing.push("Bank name");
+    if (!bank.accountName) missing.push("Account name");
+    if (!bank.accountNumber) missing.push("Account number");
     return missing;
   };
 
@@ -319,6 +331,9 @@ const VendorPortal = () => {
         year_established: editProfileData.yearEstablished.trim() || undefined,
         number_of_employees: editProfileData.numberOfEmployees.trim() || undefined,
         annual_revenue: editProfileData.annualRevenue.trim() || undefined,
+        bank_name: editProfileData.bankName.trim() || undefined,
+        account_name: editProfileData.accountName.trim() || undefined,
+        account_number: editProfileData.accountNumber.trim() || undefined,
       });
 
       if (response.success && response.data) {
@@ -336,6 +351,12 @@ const VendorPortal = () => {
           year_established: editProfileData.yearEstablished.trim(),
           number_of_employees: editProfileData.numberOfEmployees.trim(),
           annual_revenue: editProfileData.annualRevenue.trim(),
+          bank_name: editProfileData.bankName.trim(),
+          bankName: editProfileData.bankName.trim(),
+          account_name: editProfileData.accountName.trim(),
+          accountName: editProfileData.accountName.trim(),
+          account_number: editProfileData.accountNumber.trim(),
+          accountNumber: editProfileData.accountNumber.trim(),
           profile_completed: updated.profile_completed,
         };
         setCurrentVendor((prev: any) => ({ ...prev, ...patch, ...updated }));
@@ -2373,6 +2394,20 @@ const VendorPortal = () => {
                   </div>
                   )}
                 </div>
+
+                <VendorBankDetailsSection
+                  vendor={currentVendor as Record<string, unknown>}
+                  editing={isEditingProfile}
+                  values={{
+                    bankName: editProfileData.bankName,
+                    accountName: editProfileData.accountName,
+                    accountNumber: editProfileData.accountNumber,
+                  }}
+                  onChange={(field, value) =>
+                    setEditProfileData((prev) => ({ ...prev, [field]: value }))
+                  }
+                  maskAccount={false}
+                />
 
                 {/* Registration Documents */}
                 <div className="pt-4 border-t">

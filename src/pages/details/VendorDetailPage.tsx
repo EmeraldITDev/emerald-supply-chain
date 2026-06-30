@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { vendorApi } from "@/services/api";
 import { EntityDetailShell, DetailFields } from "./EntityDetailShell";
+import { VendorBankDetailsSection } from "@/components/vendors/VendorBankDetailsSection";
 
 export default function VendorDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
@@ -39,16 +40,19 @@ export default function VendorDetailPage() {
       notFoundLabel="Vendor not found"
     >
       {vendor && (
-        <DetailFields
-          fields={[
-            { label: "Company", value: v.company_name || v.companyName },
-            { label: "Contact", value: v.contact_person || v.contactPerson },
-            { label: "Email", value: v.email },
-            { label: "Phone", value: v.phone || v.phone_number },
-            { label: "Category", value: Array.isArray(v.categories) ? v.categories.join(", ") : v.category },
-            { label: "Country", value: v.country },
-          ]}
-        />
+        <>
+          <DetailFields
+            fields={[
+              { label: "Company", value: v.company_name || v.companyName },
+              { label: "Contact", value: v.contact_person || v.contactPerson },
+              { label: "Email", value: v.email },
+              { label: "Phone", value: v.phone || v.phone_number },
+              { label: "Category", value: Array.isArray(v.categories) ? v.categories.join(", ") : v.category },
+              { label: "Country", value: v.country },
+            ]}
+          />
+          <VendorBankDetailsSection vendor={v} />
+        </>
       )}
     </EntityDetailShell>
   );
