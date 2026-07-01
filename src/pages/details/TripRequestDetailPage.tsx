@@ -21,6 +21,7 @@ import {
   formatRequesterEditTimeRemaining,
   resolveRequesterEditAccess,
 } from "@/utils/requesterEditWindow";
+import { resolveTripBookingScopeLabel } from "@/utils/tripBookingValidation";
 
 const FALLBACK_STEPS: TripProgressStep[] = [
   { key: "submitted", label: "Submitted", status: "in_progress", step: 1 },
@@ -30,16 +31,9 @@ const FALLBACK_STEPS: TripProgressStep[] = [
 ];
 
 function bookingScopeLabel(trip: StaffTripRequest): string {
-  return (
-    trip.bookingScopeLabel ??
-    trip.booking_scope_label ??
-    (trip.bookingScope === "international" || trip.booking_scope === "international"
-      ? "International (Out of Nigeria)"
-      : trip.bookingScope === "out_of_state_local" || trip.booking_scope === "out_of_state_local"
-        ? "Out of State (Local)"
-        : trip.bookingScope === "outside_state" || trip.booking_scope === "outside_state"
-          ? "Outside State"
-          : "Within State")
+  return resolveTripBookingScopeLabel(
+    trip.bookingScope ?? trip.booking_scope,
+    trip.bookingScopeLabel ?? trip.booking_scope_label,
   );
 }
 

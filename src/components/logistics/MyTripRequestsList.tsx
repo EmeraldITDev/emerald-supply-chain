@@ -14,6 +14,7 @@ import {
   formatRequesterEditTimeRemaining,
   resolveRequesterEditAccess,
 } from "@/utils/requesterEditWindow";
+import { resolveTripBookingScopeLabel } from "@/utils/tripBookingValidation";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface MyTripRequestsListProps {
@@ -25,16 +26,9 @@ function tripLabel(t: StaffTripRequest): string {
 }
 
 function scopeLabel(t: StaffTripRequest): string {
-  return (
-    t.bookingScopeLabel ??
-    t.booking_scope_label ??
-    (t.bookingScope === "international" || t.booking_scope === "international"
-      ? "International (Out of Nigeria)"
-      : t.bookingScope === "out_of_state_local" || t.booking_scope === "out_of_state_local"
-        ? "Out of State (Local)"
-        : t.bookingScope === "outside_state" || t.booking_scope === "outside_state"
-          ? "Outside State"
-          : "Within State")
+  return resolveTripBookingScopeLabel(
+    t.bookingScope ?? t.booking_scope,
+    t.bookingScopeLabel ?? t.booking_scope_label,
   );
 }
 

@@ -32,14 +32,26 @@ const REPORT_ROLES = [
   "finance_officer",
 ];
 
+import { TableSkeleton } from "@/components/LoadingSkeleton";
+
+function defaultReportDateRange(): { from: string; to: string } {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 30);
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
+  };
+}
+
 const ProcurementReports = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const scmRole = useMemo(() => getScmRole(user), [user]);
   const canView = scmRole && REPORT_ROLES.includes(scmRole);
 
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [from, setFrom] = useState(() => defaultReportDateRange().from);
+  const [to, setTo] = useState(() => defaultReportDateRange().to);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [report, setReport] = useState<ProcurementReportData | null>(null);
@@ -75,9 +87,9 @@ const ProcurementReports = () => {
 
   useEffect(() => {
     if (canView) {
-      loadReport();
+      void loadReport();
     }
-  }, [canView]);
+  }, [canView, loadReport]);
 
   if (!canView) {
     return <Navigate to="/dashboard" replace />;
@@ -151,10 +163,15 @@ const ProcurementReports = () => {
         </Card>
 
         {loading && !initialLoadDone ? (
-          <div className="flex justify-center py-12 text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin" />
+          <TableSkeleton rows={4} />
+        ) : loading && initialLoadDone ? (
+          <div className="flex justify-center py-8 text-muted-foreground text-sm">
+            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+            Updating report…
           </div>
-        ) : totals ? (
+        ) : null}
+
+        {!loading && totals ? (
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Card>
@@ -261,7 +278,7 @@ const ProcurementReports = () => {
               </CardContent>
             </Card>
           </>
-        ) : initialLoadDone ? (
+        ) : !loading && initialLoadDone ? (
           <p className="text-center text-muted-foreground py-8">No report data available.</p>
         ) : null}
 

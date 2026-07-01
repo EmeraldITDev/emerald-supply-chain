@@ -14,6 +14,7 @@ import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepp
 import { DeleteTripDraftButton } from "./DeleteTripDraftButton";
 import { TripCommentsPanel } from "./TripCommentsPanel";
 import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
+import { resolveTripBookingScopeLabel } from "@/utils/tripBookingValidation";
 
 interface TripRequestDetailDialogProps {
   tripId: string | null;
@@ -74,16 +75,10 @@ export function TripRequestDetailDialog({
     };
   }, [open, tripId]);
 
-  const scopeLabel =
-    trip?.bookingScopeLabel ??
-    trip?.booking_scope_label ??
-    (trip?.bookingScope === "international" || trip?.booking_scope === "international"
-      ? "International (Out of Nigeria)"
-      : trip?.bookingScope === "out_of_state_local" || trip?.booking_scope === "out_of_state_local"
-        ? "Out of State (Local)"
-        : trip?.bookingScope === "outside_state" || trip?.booking_scope === "outside_state"
-          ? "Outside State"
-          : "Within State");
+  const scopeLabel = resolveTripBookingScopeLabel(
+    trip?.bookingScope ?? trip?.booking_scope,
+    trip?.bookingScopeLabel ?? trip?.booking_scope_label,
+  );
 
   const handleDeleted = () => {
     onOpenChange(false);

@@ -9,11 +9,23 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { reportsApi, type ReportsDashboardData } from "@/services/reportsApi";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { cn } from "@/lib/utils";
 
+function defaultDashboardDateRange(): { from: string; to: string } {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 30);
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
+  };
+}
+
 const Reports = () => {
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const defaults = defaultDashboardDateRange();
+  const [from, setFrom] = useState(defaults.from);
+  const [to, setTo] = useState(defaults.to);
   const [loading, setLoading] = useState(false);
   const [dashboard, setDashboard] = useState<ReportsDashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +41,9 @@ const Reports = () => {
         setDashboard(null);
         setError(res.error || "Failed to load reports dashboard");
       }
+    } catch (e: unknown) {
+      setDashboard(null);
+      setError(e instanceof Error ? e.message : "Failed to load reports dashboard");
     } finally {
       setLoading(false);
     }
@@ -102,9 +117,7 @@ const Reports = () => {
         )}
 
         {loading && !dashboard ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
+          <TableSkeleton rows={4} />
         ) : dashboard ? (
           <>
             <div className="grid gap-4 md:grid-cols-4">

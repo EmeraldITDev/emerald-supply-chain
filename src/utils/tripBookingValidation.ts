@@ -2,6 +2,13 @@ import type { TripBookingScope, TripBookingScopeRule } from '@/types/trip-reques
 
 export const DEFAULT_BOOKING_RULES: TripBookingScopeRule[] = [
   {
+    value: 'within_state',
+    label: 'Within State',
+    minimumLeadDays: 2,
+    violationMessage:
+      'Within state trips must be requested at least 2 calendar days before the travel date.',
+  },
+  {
     value: 'out_of_state_local',
     label: 'Out of State (Local)',
     minimumLeadDays: 7,
@@ -62,4 +69,16 @@ export function formatMinimumTripDateHint(d: Date): string {
     month: "short",
     day: "numeric",
   });
+}
+
+/** Client-side label when the API omits bookingScopeLabel. */
+export function resolveTripBookingScopeLabel(
+  scope?: string | null,
+  serverLabel?: string | null,
+): string {
+  if (serverLabel?.trim()) return serverLabel;
+  const rule = DEFAULT_BOOKING_RULES.find((r) => r.value === scope);
+  if (rule) return rule.label;
+  if (scope === 'outside_state') return 'Outside State';
+  return scope ? scope.replace(/_/g, ' ') : 'Trip';
 }

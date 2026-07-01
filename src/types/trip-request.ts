@@ -1,6 +1,6 @@
 /** Staff trip request API types (Jun 2026). */
 
-export type TripBookingScope = 'out_of_state_local' | 'international';
+export type TripBookingScope = 'within_state' | 'out_of_state_local' | 'international';
 
 export interface TripBookingScopeRule {
   value: TripBookingScope;
