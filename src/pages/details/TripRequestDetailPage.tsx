@@ -5,12 +5,12 @@ import { tripsApi } from "@/services/logisticsApi";
 import { EntityDetailShell, DetailFields } from "./EntityDetailShell";
 import { TripCommentsPanel } from "@/components/logistics/TripCommentsPanel";
 import { JourneyManagement } from "@/components/logistics/JourneyManagement";
-import { TripRequestApprovalDialog } from "@/components/logistics/TripRequestApprovalDialog";
+import { TripRequestWorkflowActions } from "@/components/logistics/TripRequestWorkflowActions";
 import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepper";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Truck, ExternalLink, Edit } from "lucide-react";
+import { ExternalLink, Edit } from "lucide-react";
 import type { StaffTripRequest, TripProgressStep } from "@/types/trip-request";
 import type { Trip } from "@/types/logistics";
 import { resolveLogisticsTripId, resolveTripViewer } from "@/utils/tripViewer";
@@ -24,10 +24,24 @@ import {
 
 const FALLBACK_STEPS: TripProgressStep[] = [
   { key: "submitted", label: "Submitted", status: "in_progress", step: 1 },
-  { key: "logistics_review", label: "Logistics Review", status: "pending", step: 2 },
-  { key: "confirmed", label: "Confirmed", status: "pending", step: 3 },
-  { key: "completed", label: "Completed", status: "pending", step: 4 },
+  { key: "logistics_review", label: "Logistics Manager Review", status: "pending", step: 2 },
+  { key: "director_approval", label: "Supervising Director Approval", status: "pending", step: 3 },
+  { key: "converted", label: "Logistics Request", status: "pending", step: 4 },
 ];
+
+function bookingScopeLabel(trip: StaffTripRequest): string {
+  return (
+    trip.bookingScopeLabel ??
+    trip.booking_scope_label ??
+    (trip.bookingScope === "international" || trip.booking_scope === "international"
+      ? "International (Out of Nigeria)"
+      : trip.bookingScope === "out_of_state_local" || trip.booking_scope === "out_of_state_local"
+        ? "Out of State (Local)"
+        : trip.bookingScope === "outside_state" || trip.booking_scope === "outside_state"
+          ? "Outside State"
+          : "Within State")
+  );
+}
 
 export default function TripRequestDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
@@ -37,7 +51,6 @@ export default function TripRequestDetailPage() {
   const [steps, setSteps] = useState<TripProgressStep[]>(FALLBACK_STEPS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [approveOpen, setApproveOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
   const load = async () => {
@@ -79,12 +92,12 @@ export default function TripRequestDetailPage() {
     role === "logistics_officer" ||
     role === "logistics" ||
     role === "admin";
-  const canApprove =
+  const isDirectorRole =
+    role === "supply_chain_director" || role === "supply_chain" || role === "admin";
+  const showWorkflowActions =
     !viewer.readOnly &&
-    (viewer.canManage || isLogisticsRole) &&
-    ["submitted", "pending", "trip_request", "logistics_review"].includes(
-      (trip?.status ?? "").toLowerCase(),
-    );
+    (isLogisticsRole || isDirectorRole) &&
+    (trip?.availableActions?.length ?? 0) > 0;
   const logisticsId = resolveLogisticsTripId(trip);
   const passengers = trip?.passengers ?? [];
   const externalPassengers = trip?.externalPassengers ?? trip?.external_passengers ?? [];
@@ -108,25 +121,18 @@ export default function TripRequestDetailPage() {
           {viewer.readOnly && (
             <Alert>
               <AlertDescription>
-                You are viewing this trip in read-only mode. Approve, assign, and comment actions are hidden unless you are involved in this trip or hold a logistics role.
+                You are viewing this trip in read-only mode. Workflow actions and comments are hidden unless you are involved in this trip or hold a logistics or supervising director role.
               </AlertDescription>
             </Alert>
           )}
 
           <div className="flex flex-wrap gap-2 items-center">
-            <Badge variant="outline">
-              {trip.bookingScopeLabel ??
-                trip.booking_scope_label ??
-                (trip.bookingScope === "outside_state" ? "Outside State" : "Within State")}
-            </Badge>
+            <Badge variant="outline">{bookingScopeLabel(trip)}</Badge>
             <Badge variant="secondary" className="capitalize">
-              {trip.status.replace(/_/g, " ")}
+              {(trip.workflowStage ?? trip.workflow_stage ?? trip.status).replace(/_/g, " ")}
             </Badge>
-            {canApprove && (
-              <Button size="sm" onClick={() => setApproveOpen(true)}>
-                <Truck className="mr-2 h-4 w-4" />
-                Approve &amp; assign
-              </Button>
+            {showWorkflowActions && (
+              <TripRequestWorkflowActions trip={trip} onUpdated={() => void load()} />
             )}
             {editAccess.canEdit && (
               <Button
@@ -237,13 +243,6 @@ export default function TripRequestDetailPage() {
               <JourneyManagement tripId={logisticsId} />
             </div>
           )}
-
-          <TripRequestApprovalDialog
-            request={trip}
-            open={approveOpen}
-            onOpenChange={setApproveOpen}
-            onApproved={() => void load()}
-          />
 
           <EditTripRequestDialog
             trip={trip}

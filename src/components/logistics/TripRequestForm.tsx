@@ -54,7 +54,7 @@ export function TripRequestForm({
   const [departureAt, setDepartureAt] = useState("");
   const [arrivalAt, setArrivalAt] = useState("");
   const [passengerIds, setPassengerIds] = useState<string[]>([]);
-  const [bookingScope, setBookingScope] = useState<TripBookingScope>("within_state");
+  const [bookingScope, setBookingScope] = useState<TripBookingScope>("out_of_state_local");
   const [externalPassengers, setExternalPassengers] = useState<
     Array<{ name: string; email: string; phone: string }>
   >([]);
@@ -81,7 +81,7 @@ export function TripRequestForm({
         .map(String);
     setPassengerIds(ids.map(String));
     setBookingScope(
-      (trip.bookingScope ?? trip.booking_scope ?? "within_state") as TripBookingScope,
+      (trip.bookingScope ?? trip.booking_scope ?? "out_of_state_local") as TripBookingScope,
     );
     const ext = trip.externalPassengers ?? trip.external_passengers ?? [];
     setExternalPassengers(
@@ -220,7 +220,7 @@ export function TripRequestForm({
           setDepartureAt("");
           setArrivalAt("");
           setPassengerIds([]);
-          setBookingScope("within_state");
+          setBookingScope("out_of_state_local");
           setExternalPassengers([]);
         }
         if (isEdit) {

@@ -2,18 +2,18 @@ import type { TripBookingScope, TripBookingScopeRule } from '@/types/trip-reques
 
 export const DEFAULT_BOOKING_RULES: TripBookingScopeRule[] = [
   {
-    value: 'within_state',
-    label: 'Within State',
-    minimumLeadDays: 2,
+    value: 'out_of_state_local',
+    label: 'Out of State (Local)',
+    minimumLeadDays: 7,
     violationMessage:
-      'Within state trips must be requested at least 2 calendar days before the trip date.',
+      'Out of state (local) trips must be requested at least 7 calendar days before the travel date.',
   },
   {
-    value: 'outside_state',
-    label: 'Outside State',
+    value: 'international',
+    label: 'International (Out of Nigeria)',
     minimumLeadDays: 14,
     violationMessage:
-      'Outside state trips must be requested at least 2 weeks (14 calendar days) in advance.',
+      'International trips must be requested at least 14 calendar days before the travel date.',
   },
 ];
 
@@ -24,10 +24,7 @@ function startOfCalendarDay(d: Date): Date {
 }
 
 /** Earliest allowed trip date (calendar day) for a scope. */
-export function minimumTripDate(
-  referenceDate: string,
-  minimumLeadDays: number,
-): Date {
+export function minimumTripDate(referenceDate: string, minimumLeadDays: number): Date {
   const ref = startOfCalendarDay(new Date(referenceDate));
   ref.setDate(ref.getDate() + minimumLeadDays);
   return ref;
@@ -59,10 +56,10 @@ export function validateTripBookingLeadTime(
 }
 
 export function formatMinimumTripDateHint(d: Date): string {
-  return d.toLocaleDateString('en-US', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
   });
 }

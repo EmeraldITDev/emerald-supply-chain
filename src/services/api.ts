@@ -2346,6 +2346,8 @@ export const vendorApi = {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
     if (filters?.category) params.append('category', filters.category);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.per_page) params.append('per_page', String(filters.per_page));
     if (filters?.includeInactive) params.append('include_inactive', '1');
 
     return apiRequest<Vendor[]>(`/vendors?${params.toString()}`);
@@ -3484,11 +3486,18 @@ export const tripRequestApi = {
         (raw.trip as import('@/types/trip-request').StaffTripRequest) ??
         (raw as unknown as import('@/types/trip-request').StaffTripRequest);
       const viewer = raw.viewer as import('@/types/trip-request').TripViewerContext | undefined;
+      const availableActions = (
+        (raw.availableActions as string[] | undefined) ??
+        (raw.available_actions as string[] | undefined) ??
+        trip.availableActions ??
+        (trip as { available_actions?: string[] }).available_actions
+      ) as string[] | undefined;
       return {
         ...res,
         data: {
           trip: {
             ...trip,
+            availableActions,
             viewer: viewer ?? trip.viewer,
             readOnly: Boolean(raw.readOnly ?? viewer?.readOnly ?? trip.readOnly),
             canManage: Boolean(raw.canManage ?? viewer?.canManage ?? trip.canManage),
@@ -3688,7 +3697,7 @@ export const tripRequestApi = {
         const stage = t.workflowStage ?? t.workflow_stage ?? '';
         const status = (t.status ?? '').toLowerCase();
         return (
-          ['trip_request', 'logistics_review', 'submitted', 'pending'].includes(stage) ||
+          ['trip_request', 'changes_requested', 'submitted', 'pending'].includes(stage) ||
           ['submitted', 'pending', 'pending_logistics_review'].includes(status)
         );
       });
@@ -3720,6 +3729,51 @@ export const tripRequestApi = {
     return apiRequest(`/trip-requests/${encodeURIComponent(id)}/reject`, {
       method: 'POST',
       body: JSON.stringify({ reason: reason ?? '' }),
+    });
+  },
+
+  forward: async (id: string, notes?: string) => {
+    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/forward`, {
+      method: 'POST',
+      body: JSON.stringify({ notes: notes ?? '' }),
+    });
+  },
+
+  requestChanges: async (id: string, reason: string) => {
+    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/request-changes`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  directorApprove: async (id: string) => {
+    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/director-approve`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  },
+
+  directorReject: async (id: string, reason?: string) => {
+    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/director-reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason ?? '' }),
+    });
+  },
+
+  directorReturn: async (id: string, reason: string) => {
+    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/director-return`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  convert: async (
+    id: string,
+    data: import('@/types/trip-request').TripConversionPayload,
+  ) => {
+    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/convert`, {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 

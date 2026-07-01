@@ -1,6 +1,6 @@
 /** Staff trip request API types (Jun 2026). */
 
-export type TripBookingScope = 'within_state' | 'outside_state';
+export type TripBookingScope = 'out_of_state_local' | 'international';
 
 export interface TripBookingScopeRule {
   value: TripBookingScope;
@@ -86,6 +86,7 @@ export interface StaffTripRequest {
   booking_scope_label?: string;
   workflowStage?: string;
   workflow_stage?: string;
+  availableActions?: string[];
   status: string;
   scheduled_departure_at?: string;
   scheduledDepartureAt?: string;
@@ -153,6 +154,20 @@ export interface TripConfirmAssignmentData {
   driver_user_id?: number;
   external_driver?: { name: string; phone: string; email?: string };
   notes?: string;
+}
+
+export interface TripConversionPayload {
+  fulfillment_type: 'external_vendor' | 'internal_vehicle';
+  passenger_user_ids?: number[];
+  external_passengers?: TripRequestExternalPassenger[];
+  notes?: string;
+  vendor_id?: number;
+  vehicle_type?: string;
+  estimated_vendor_cost?: number;
+  vehicle_id?: number;
+  driver_type: 'internal' | 'external';
+  driver_user_id?: number;
+  external_driver?: { name: string; phone?: string; email?: string };
 }
 
 export interface TripRequestsListResponse {

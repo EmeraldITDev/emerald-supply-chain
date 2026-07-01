@@ -13,19 +13,21 @@ import type { StaffTripRequest, TripProgressStep } from "@/types/trip-request";
 import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepper";
 import { DeleteTripDraftButton } from "./DeleteTripDraftButton";
 import { TripCommentsPanel } from "./TripCommentsPanel";
+import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
 
 interface TripRequestDetailDialogProps {
   tripId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDeleted?: () => void;
+  onUpdated?: () => void;
 }
 
 const STAFF_TRIP_STEPS_FALLBACK: TripProgressStep[] = [
   { key: "submitted", label: "Submitted", status: "in_progress", step: 1 },
-  { key: "logistics_review", label: "Logistics Review", status: "pending", step: 2 },
-  { key: "confirmed", label: "Confirmed", status: "pending", step: 3 },
-  { key: "completed", label: "Completed", status: "pending", step: 4 },
+  { key: "logistics_review", label: "Logistics Manager Review", status: "pending", step: 2 },
+  { key: "director_approval", label: "Supervising Director Approval", status: "pending", step: 3 },
+  { key: "converted", label: "Logistics Request", status: "pending", step: 4 },
 ];
 
 export function TripRequestDetailDialog({
@@ -33,6 +35,7 @@ export function TripRequestDetailDialog({
   open,
   onOpenChange,
   onDeleted,
+  onUpdated,
 }: TripRequestDetailDialogProps) {
   const [trip, setTrip] = useState<StaffTripRequest | null>(null);
   const [steps, setSteps] = useState<TripProgressStep[]>([]);
@@ -74,7 +77,13 @@ export function TripRequestDetailDialog({
   const scopeLabel =
     trip?.bookingScopeLabel ??
     trip?.booking_scope_label ??
-    (trip?.bookingScope === "outside_state" ? "Outside State" : "Within State");
+    (trip?.bookingScope === "international" || trip?.booking_scope === "international"
+      ? "International (Out of Nigeria)"
+      : trip?.bookingScope === "out_of_state_local" || trip?.booking_scope === "out_of_state_local"
+        ? "Out of State (Local)"
+        : trip?.bookingScope === "outside_state" || trip?.booking_scope === "outside_state"
+          ? "Outside State"
+          : "Within State");
 
   const handleDeleted = () => {
     onOpenChange(false);
@@ -111,6 +120,29 @@ export function TripRequestDetailDialog({
             )}
             {trip?.purpose && (
               <p className="text-sm text-muted-foreground">{trip.purpose}</p>
+            )}
+            {trip && (trip.availableActions?.length ?? 0) > 0 && (
+              <TripRequestWorkflowActions
+                trip={trip}
+                onUpdated={() => {
+                  onUpdated?.();
+                  if (!tripId) return;
+                  void (async () => {
+                    const [detailRes, progressRes] = await Promise.all([
+                      tripRequestApi.getById(tripId),
+                      tripRequestApi.getProgressTracker(tripId),
+                    ]);
+                    if (detailRes.success && detailRes.data?.trip) {
+                      setTrip(detailRes.data.trip);
+                    }
+                    const progressSteps =
+                      progressRes.data?.steps ??
+                      detailRes.data?.trip?.progress?.steps ??
+                      STAFF_TRIP_STEPS_FALLBACK;
+                    setSteps(progressSteps.length ? progressSteps : STAFF_TRIP_STEPS_FALLBACK);
+                  })();
+                }}
+              />
             )}
             <div>
               <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">

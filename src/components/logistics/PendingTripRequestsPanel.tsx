@@ -10,10 +10,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Bell, Calendar, Eye, Loader2, MapPin, RefreshCw, Truck } from "lucide-react";
+import { Bell, Calendar, Eye, Loader2, MapPin, RefreshCw } from "lucide-react";
 import { tripRequestApi } from "@/services/api";
 import { TripRequestDetailDialog } from "./TripRequestDetailDialog";
-import { TripRequestApprovalDialog } from "./TripRequestApprovalDialog";
 import type { StaffTripRequest } from "@/types/trip-request";
 
 interface PendingTripRequestsPanelProps {
@@ -31,8 +30,6 @@ export function PendingTripRequestsPanel({
   const [loading, setLoading] = useState(true);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [approveRequest, setApproveRequest] = useState<StaffTripRequest | null>(null);
-  const [approveOpen, setApproveOpen] = useState(false);
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -107,26 +104,17 @@ export function PendingTripRequestsPanel({
                         {(req.workflowStage ?? req.workflow_stage ?? req.status).replace(/_/g, " ")}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right space-x-2">
+                    <TableCell className="text-right">
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="outline"
                         onClick={() => {
                           setDetailId(String(req.id));
                           setDetailOpen(true);
                         }}
                       >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setApproveRequest(req);
-                          setApproveOpen(true);
-                        }}
-                      >
-                        <Truck className="mr-1 h-4 w-4" />
-                        Approve
+                        <Eye className="mr-1 h-4 w-4" />
+                        Review
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -142,12 +130,7 @@ export function PendingTripRequestsPanel({
         open={detailOpen}
         onOpenChange={setDetailOpen}
         onDeleted={fetchRequests}
-      />
-      <TripRequestApprovalDialog
-        request={approveRequest}
-        open={approveOpen}
-        onOpenChange={setApproveOpen}
-        onApproved={() => {
+        onUpdated={() => {
           void fetchRequests();
           onApproved?.();
         }}
