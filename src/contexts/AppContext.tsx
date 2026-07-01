@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { mrfApi, srfApi, rfqApi } from "@/services/api";
 import { normalizeQuotation } from "@/utils/normalizeQuotation";
 import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
@@ -342,12 +342,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [quotationsState, setQuotationsState] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch MRFs from API
-  const refreshMRFs = async () => {
+  /** First page only — full lists belong on paginated page views, not global bootstrap. */
+  const CONTEXT_LIST_PER_PAGE = 100;
+
+  // Fetch MRFs from API (first page for context; avoids multi-page getAll storm on load)
+  const refreshMRFs = useCallback(async () => {
     try {
-      const response = await mrfApi.getAll();
-      if (response.success && response.data) {
-        const rawData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.mrfs || [];
+      const response = await mrfApi.list({ page: 1, per_page: CONTEXT_LIST_PER_PAGE });
+      if (response.success && response.data?.items) {
+        const rawData = response.data.items;
         // Convert API MRF type to AppContext MRFRequest type
         const converted = rawData.map((mrf: MRF) => ({
           id: mrf.id,
@@ -376,12 +379,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Failed to fetch MRFs:", error);
     }
-  };
+  }, []);
 
-  // Fetch SRFs from API
-  const refreshSRFs = async () => {
+  // Fetch SRFs from API (single page, no line items — keeps bootstrap fast)
+  const refreshSRFs = useCallback(async () => {
     try {
-      const response = await srfApi.getAll();
+      const response = await srfApi.getAll({
+        page: 1,
+        per_page: CONTEXT_LIST_PER_PAGE,
+        include_line_items: false,
+      });
       if (response.success && response.data) {
         const rawData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.srfs || [];
         // Convert API SRF type to AppContext SRFRequest type
@@ -416,14 +423,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Failed to fetch SRFs:", error);
     }
-  };
+  }, []);
 
   // Fetch RFQs from API — returns the fetched array so callers can use it
-  const refreshRFQs = async () => {
+  const refreshRFQs = useCallback(async () => {
     try {
-      const response = await rfqApi.getAll();
-      if (response.success && response.data) {
-        const rawData = Array.isArray(response.data) ? response.data : (response.data as any)?.data || (response.data as any)?.rfqs || [];
+      const response = await rfqApi.list({ page: 1, per_page: CONTEXT_LIST_PER_PAGE });
+      if (response.success && response.data?.items) {
+        const rawData = response.data.items;
         // Convert API RFQ type to AppContext RFQ type
         const converted = rawData.map((rfq: any) => ({
           id: rfq.id,
@@ -444,12 +451,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Failed to fetch RFQs:", error);
     }
     return [];
-  };
+  }, []);
+
+  const QUOTATION_RFQ_CAP = 40;
 
   // Fetch Quotations from API — uses per-RFQ endpoint to avoid broken /api/quotations
-  const refreshQuotations = async (rfqList?: RFQ[]) => {
-    
-    const list = rfqList || rfqs;
+  const refreshQuotations = useCallback(async (rfqList?: RFQ[]) => {
+    const list = (rfqList ?? []).slice(0, QUOTATION_RFQ_CAP);
     if (list.length === 0) {
       setQuotationsState([]);
       return;
@@ -500,7 +508,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Failed to fetch quotations:", error);
     }
-  };
+  }, []);
 
   // Initial data fetch
   useEffect(() => {
@@ -920,7 +928,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     window.addEventListener("app:refresh", onRefresh);
     return () => window.removeEventListener("app:refresh", onRefresh);
-  }, []);
+  }, [refreshMRFs, refreshSRFs, refreshRFQs, refreshQuotations]);
 
   return (
     <AppContext.Provider

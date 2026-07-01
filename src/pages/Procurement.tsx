@@ -49,6 +49,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { ListControls } from "@/components/dashboard/ListControls";
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
 import {
   applyListControls,
   defaultListControls,
@@ -282,6 +283,7 @@ const Procurement = () => {
   const [poSearchDebounced, setPoSearchDebounced] = useState("");
   const mrfFetchSeq = useRef(0);
   const poFetchSeq = useRef(0);
+  const prevMrfSearchDebounced = useRef(mrfSearchDebounced);
 
   useEffect(() => {
     const handle = window.setTimeout(
@@ -479,11 +481,16 @@ const Procurement = () => {
   };
 
   useEffect(() => {
-    fetchMRFs();
-    void refreshProcurementRfqs();
-  }, [fetchMRFs, refreshProcurementRfqs]);
+    void fetchMRFs();
+  }, [fetchMRFs]);
 
   useEffect(() => {
+    void refreshProcurementRfqs();
+  }, [refreshProcurementRfqs]);
+
+  useEffect(() => {
+    if (prevMrfSearchDebounced.current === mrfSearchDebounced) return;
+    prevMrfSearchDebounced.current = mrfSearchDebounced;
     setMrfPage(1);
   }, [mrfSearchDebounced]);
 
@@ -2539,6 +2546,15 @@ const Procurement = () => {
 
                     {/* Results */}
                     <div className="space-y-4 mt-4">
+                      {mrfLoading && mrfRequests.length === 0 ? (
+                        <TableSkeleton rows={6} />
+                      ) : !mrfLoading && mrfRequests.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                          <p>No material request forms found</p>
+                        </div>
+                      ) : (
+                        <>
                       {filteredMRFs.map((request) => {
                         const timerColor = getApprovalTimerColor(request);
                         return (
@@ -3285,6 +3301,8 @@ const Procurement = () => {
                         page={mrfPage}
                         onPageChange={setMrfPage}
                       />
+                        </>
+                      )}
                     </div>
                   </div>
                 </CardContent>

@@ -100,7 +100,7 @@ export function extractPaginatedItems<T>(
 }
 
 const DEFAULT_FETCH_ALL_PER_PAGE = 100;
-const DEFAULT_FETCH_ALL_MAX_PAGES = 20;
+const DEFAULT_FETCH_ALL_MAX_PAGES = 5;
 
 /**
  * Walk paginated list endpoints until all pages are loaded (capped).
