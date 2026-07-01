@@ -62,3 +62,32 @@ export interface FinanceApListResponse<T> {
   from?: string;
   to?: string;
 }
+
+export interface FinanceApSyncEventRow {
+  id: number | string;
+  mrfId?: string | null;
+  mrfDisplayId?: string | null;
+  mrfTitle?: string | null;
+  direction: string;
+  eventType: string;
+  status: string;
+  httpStatus?: number | null;
+  errorMessage?: string | null;
+  processedAt?: string | null;
+  createdAt?: string | null;
+}
+
+export interface FinanceApSyncEventsReport {
+  summary: {
+    failed: number;
+    pending: number;
+    vendorSyncFailed: number;
+  };
+  events: FinanceApSyncEventRow[];
+}
+
+export interface FinanceApSyncEventsQuery {
+  limit?: number;
+  status?: string;
+  event_type?: string;
+}

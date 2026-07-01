@@ -14,6 +14,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
+import { useRfqDataRefresh } from "@/hooks/useRfqDataRefresh";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, FileText, Award, X, Filter, Loader2 } from "lucide-react";
 import { vendorApi, rfqApi, quotationApi, quotationEvaluationApi } from "@/services/api";
 import { paymentScheduleApi } from "@/services/paymentScheduleApi";
@@ -42,7 +44,8 @@ interface RFQManagementProps {
 
 export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   const { toast } = useToast();
-  const { mrfRequests, rfqs, quotations, refreshRFQs, refreshQuotations } = useApp();
+  const { mrfRequests, rfqs, quotations, refreshRFQs, refreshQuotations, loading: appLoading } = useApp();
+  useRfqDataRefresh();
   
   // Fetch vendors from API instead of context
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -790,6 +793,9 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       </div>
 
       {/* Active RFQs */}
+      {appLoading && rfqs.length === 0 ? (
+        <TableSkeleton rows={4} />
+      ) : (
       <div className="grid gap-4 md:grid-cols-2">
         {rfqs.map((rfq) => {
           const rfqQuotes = quotations.filter(q => q.rfqId === rfq.id);
@@ -905,6 +911,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
           );
         })}
       </div>
+      )}
 
       {/* Create RFQ Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>

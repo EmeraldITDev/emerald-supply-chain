@@ -2,6 +2,7 @@ import type { PaginatedResult } from '@/types/pagination';
 import {
   buildListQueryParams,
   extractPaginatedItems,
+  fetchAllListPages,
   listSortToApi,
   normalizePagination,
 } from '@/utils/paginatedListApi';
@@ -630,20 +631,25 @@ export const mrfApi = {
   },
 
   getAll: async (filters?: FilterOptions, sort?: SortOptions): Promise<ApiResponse<MRF[]>> => {
-    const listRes = await mrfApi.list({
-      page: 1,
-      per_page: filters?.search ? 25 : 100,
-      status: filters?.status,
-      search: filters?.search,
-      date_from: filters?.dateFrom,
-      date_to: filters?.dateTo,
-      sort_by: sort?.field,
-      sort_direction: sort?.direction,
-    });
-    if (listRes.success && listRes.data) {
-      return { success: true, data: listRes.data.items };
+    try {
+      const items = await fetchAllListPages<MRF>(async (page, per_page) => {
+        const listRes = await mrfApi.list({
+          page,
+          per_page,
+          status: filters?.status,
+          search: filters?.search,
+          date_from: filters?.dateFrom,
+          date_to: filters?.dateTo,
+          sort_by: sort?.field,
+          sort_direction: sort?.direction,
+        });
+        if (!listRes.success || !listRes.data) return { items: [] };
+        return { items: listRes.data.items, pagination: listRes.data.pagination };
+      });
+      return { success: true, data: items };
+    } catch {
+      return { success: false, error: 'Failed to load MRFs' };
     }
-    return listRes as unknown as ApiResponse<MRF[]>;
   },
 
   getById: async (id: string): Promise<ApiResponse<MRF>> => {
@@ -1651,11 +1657,38 @@ export const srfApi = {
 
 // RFQ API
 export const rfqApi = {
+  list: async (params?: {
+    page?: number;
+    per_page?: number;
+    status?: string;
+  }): Promise<ApiResponse<PaginatedResult<RFQ>>> => {
+    const qs = buildListQueryParams({
+      page: params?.page ?? 1,
+      per_page: params?.per_page ?? 50,
+      status: params?.status,
+    });
+    const res = await apiRequestFull(`/rfqs?${qs.toString()}`);
+    if (!res.success) {
+      return { success: false, error: res.error };
+    }
+    const { items, pagination } = extractPaginatedItems<RFQ>(res.body);
+    return {
+      success: true,
+      data: { items, pagination: pagination ?? emptyPagination(items.length) },
+    };
+  },
+
   getAll: async (filters?: FilterOptions): Promise<ApiResponse<RFQ[]>> => {
-    const params = new URLSearchParams();
-    if (filters?.status) params.append('status', filters.status);
-    
-    return apiRequest<RFQ[]>(`/rfqs?${params.toString()}`);
+    try {
+      const items = await fetchAllListPages<RFQ>(async (page, per_page) => {
+        const listRes = await rfqApi.list({ page, per_page, status: filters?.status });
+        if (!listRes.success || !listRes.data) return { items: [] };
+        return { items: listRes.data.items, pagination: listRes.data.pagination };
+      });
+      return { success: true, data: items };
+    } catch {
+      return { success: false, error: 'Failed to load RFQs' };
+    }
   },
 
   getById: async (id: string): Promise<ApiResponse<RFQ>> => {
@@ -2480,18 +2513,23 @@ export const vendorApi = {
   },
 
   getAll: async (filters?: FilterOptions): Promise<ApiResponse<Vendor[]>> => {
-    const listRes = await vendorApi.list({
-      page: 1,
-      per_page: filters?.search ? 20 : 25,
-      status: filters?.status,
-      category: filters?.category,
-      search: filters?.search,
-      includeInactive: filters?.includeInactive,
-    });
-    if (listRes.success && listRes.data) {
-      return { success: true, data: listRes.data.items };
+    try {
+      const items = await fetchAllListPages<Vendor>(async (page, per_page) => {
+        const listRes = await vendorApi.list({
+          page,
+          per_page,
+          status: filters?.status,
+          category: filters?.category,
+          search: filters?.search,
+          includeInactive: filters?.includeInactive,
+        });
+        if (!listRes.success || !listRes.data) return { items: [] };
+        return { items: listRes.data.items, pagination: listRes.data.pagination };
+      });
+      return { success: true, data: items };
+    } catch {
+      return { success: false, error: 'Failed to load vendors' };
     }
-    return listRes as unknown as ApiResponse<Vendor[]>;
   },
 
   getById: async (id: string): Promise<ApiResponse<Vendor>> => {

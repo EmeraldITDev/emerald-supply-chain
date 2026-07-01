@@ -6,6 +6,9 @@ import type {
   FinanceApOutstandingMilestoneRow,
   FinanceApReportQuery,
   FinanceApSummaryReport,
+  FinanceApSyncEventsQuery,
+  FinanceApSyncEventsReport,
+  FinanceApSyncEventRow,
 } from '@/types/finance-ap-reports';
 
 function buildQuery(params?: FinanceApReportQuery): string {
@@ -159,5 +162,51 @@ export const financeApReportsApi = {
       };
     }
     return res as ApiResponse<FinanceApCycleTimesReport>;
+  },
+
+  getSyncEvents: async (
+    params?: FinanceApSyncEventsQuery,
+  ): Promise<ApiResponse<FinanceApSyncEventsReport>> => {
+    const qs = new URLSearchParams();
+    if (params?.limit != null) qs.set('limit', String(Math.min(100, Math.max(1, params.limit))));
+    if (params?.status) qs.set('status', params.status);
+    if (params?.event_type) qs.set('event_type', params.event_type);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+
+    const res = await apiRequest<Record<string, unknown>>(
+      `/reports/finance-ap/sync-events${suffix}`,
+    );
+    if (res.success && res.data) {
+      const raw = res.data;
+      const summary = (raw.summary as Record<string, unknown>) ?? {};
+      const events = Array.isArray(raw.events) ? raw.events : [];
+      return {
+        ...res,
+        data: {
+          summary: {
+            failed: Number(summary.failed ?? 0),
+            pending: Number(summary.pending ?? 0),
+            vendorSyncFailed: Number(summary.vendorSyncFailed ?? summary.vendor_sync_failed ?? 0),
+          },
+          events: events.map((row) => {
+            const e = row as Record<string, unknown>;
+            return {
+              id: (e.id ?? '') as number | string,
+              mrfId: (e.mrfId ?? e.mrf_id ?? null) as string | null,
+              mrfDisplayId: (e.mrfDisplayId ?? e.mrf_display_id ?? null) as string | null,
+              mrfTitle: (e.mrfTitle ?? e.mrf_title ?? null) as string | null,
+              direction: String(e.direction ?? ''),
+              eventType: String(e.eventType ?? e.event_type ?? ''),
+              status: String(e.status ?? ''),
+              httpStatus: e.httpStatus != null ? Number(e.httpStatus) : e.http_status != null ? Number(e.http_status) : null,
+              errorMessage: (e.errorMessage ?? e.error_message ?? null) as string | null,
+              processedAt: (e.processedAt ?? e.processed_at ?? null) as string | null,
+              createdAt: (e.createdAt ?? e.created_at ?? null) as string | null,
+            } satisfies FinanceApSyncEventRow;
+          }),
+        },
+      };
+    }
+    return res as ApiResponse<FinanceApSyncEventsReport>;
   },
 };

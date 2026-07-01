@@ -124,7 +124,55 @@ export function normalizeFinanceDashboard(
     financeApMRFs = financeMRFs.filter((r) => r.usesFinanceAp);
   }
 
-  const stats = (data?.stats as FinanceDashboardData['stats']) ?? {};
+  const statsRaw = (data?.stats as Record<string, unknown>) ?? {};
+  const legacyRaw = (statsRaw.legacy as Record<string, unknown>) ?? {};
+  const financeApRaw = (statsRaw.financeAp as Record<string, unknown>) ?? {};
+
+  const stats: FinanceDashboardData['stats'] = {
+    totalFinanceMRFs: Number(statsRaw.totalFinanceMRFs ?? 0) || undefined,
+    pendingPayments: Number(
+      legacyRaw.pendingInternalPayment ?? statsRaw.pendingPayments ?? 0,
+    ) || undefined,
+    processedPayments: Number(statsRaw.processedPayments ?? 0) || undefined,
+    approvedPayments: Number(
+      legacyRaw.awaitingChairmanApproval ?? statsRaw.approvedPayments ?? 0,
+    ) || undefined,
+    totalPendingAmount: Number(legacyRaw.totalPendingAmount ?? statsRaw.totalPendingAmount ?? 0) || undefined,
+    totalProcessedAmount: Number(statsRaw.totalProcessedAmount ?? 0) || undefined,
+    totalApprovedAmount: Number(statsRaw.totalApprovedAmount ?? 0) || undefined,
+    legacy: {
+      pendingInternal: Number(
+        legacyRaw.pendingInternal ??
+          legacyRaw.pendingInternalPayment ??
+          statsRaw.pendingPayments ??
+          0,
+      ),
+      chairmanPayment: Number(
+        legacyRaw.chairmanPayment ??
+          legacyRaw.awaitingChairmanApproval ??
+          statsRaw.approvedPayments ??
+          0,
+      ),
+      totalPendingAmount: Number(legacyRaw.totalPendingAmount ?? 0) || undefined,
+    },
+    financeAp: {
+      handoff: Number(
+        financeApRaw.handoff ??
+          financeApRaw.financeHandoffPending ??
+          0,
+      ),
+      inReview: Number(
+        financeApRaw.inReview ??
+          financeApRaw.inReviewOrMilestonePayment ??
+          0,
+      ),
+      packagePushed: Number(
+        financeApRaw.packagePushed ??
+          financeApRaw.packagePushedCount ??
+          0,
+      ),
+    },
+  };
 
   return {
     routing,

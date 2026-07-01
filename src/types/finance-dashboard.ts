@@ -38,7 +38,7 @@ export interface FinanceDashboardData {
   stats: FinanceDashboardStats;
 }
 
-export type FinanceDashboardListKey = 'all' | 'legacy' | 'finance_ap';
+export type FinanceDashboardListKey = 'all' | 'legacy' | 'finance_ap' | 'handoff_pending';
 
 export function getMrfFromFinanceRow(row: FinanceMRFRow | Record<string, unknown>): MRF {
   const r = row as FinanceMRFRow & { quotation?: unknown; vendor?: unknown };

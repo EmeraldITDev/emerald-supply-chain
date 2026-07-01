@@ -98,3 +98,34 @@ export function extractPaginatedItems<T>(
 
   return { items: [] };
 }
+
+const DEFAULT_FETCH_ALL_PER_PAGE = 100;
+const DEFAULT_FETCH_ALL_MAX_PAGES = 20;
+
+/**
+ * Walk paginated list endpoints until all pages are loaded (capped).
+ * Use for AppContext / dropdowns that need more than the first page.
+ */
+export async function fetchAllListPages<T>(
+  fetchPage: (
+    page: number,
+    perPage: number,
+  ) => Promise<{ items: T[]; pagination?: PaginationMeta }>,
+  options?: { perPage?: number; maxPages?: number },
+): Promise<T[]> {
+  const perPage = options?.perPage ?? DEFAULT_FETCH_ALL_PER_PAGE;
+  const maxPages = options?.maxPages ?? DEFAULT_FETCH_ALL_MAX_PAGES;
+  const all: T[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  while (page <= totalPages && page <= maxPages) {
+    const { items, pagination } = await fetchPage(page, perPage);
+    all.push(...items);
+    totalPages = pagination?.total_pages ?? (items.length < perPage ? page : page + 1);
+    if (items.length === 0) break;
+    page += 1;
+  }
+
+  return all;
+}

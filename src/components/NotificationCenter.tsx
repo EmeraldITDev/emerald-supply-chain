@@ -11,12 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useNavigate } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function NotificationCenter() {
   const navigate = useNavigate();
   const {
     notifications,
     unreadCount,
+    loading,
     markAsRead,
     markAllAsRead,
     clearNotification,
@@ -91,7 +93,16 @@ export function NotificationCenter() {
         </div>
         
         <ScrollArea className="h-[400px]">
-          {notifications.length === 0 ? (
+          {loading ? (
+            <div className="space-y-3 p-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Bell className="h-12 w-12 text-muted-foreground/50 mb-2" />
               <p className="text-sm text-muted-foreground">No notifications</p>

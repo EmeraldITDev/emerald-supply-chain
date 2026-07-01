@@ -916,6 +916,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const onRefresh = () => {
       void refreshMRFs();
       void refreshSRFs();
+      void refreshRFQs().then((list) => refreshQuotations(list ?? []));
     };
     window.addEventListener("app:refresh", onRefresh);
     return () => window.removeEventListener("app:refresh", onRefresh);

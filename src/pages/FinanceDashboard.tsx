@@ -13,6 +13,8 @@ import { FilterBar } from "@/components/dashboard/FilterBar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { FinanceMRFCard } from "@/components/finance/FinanceMRFCard";
 import { FinanceApReportsSection } from "@/components/finance/FinanceApReportsSection";
+import { FinanceApSyncDashboard } from "@/components/finance/FinanceApSyncDashboard";
+import { DashboardSkeleton, TableSkeleton } from "@/components/LoadingSkeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Select,
@@ -70,6 +72,15 @@ const FinanceDashboard = () => {
     if (!dashboard) return [];
     if (listFilter === "legacy") return dashboard.legacyFinanceMRFs;
     if (listFilter === "finance_ap") return dashboard.financeApMRFs;
+    if (listFilter === "handoff_pending") {
+      return dashboard.financeApMRFs.filter((row) => {
+        const state =
+          row.workflowState ??
+          (getMrfFromFinanceRow(row).workflow_state as string | undefined) ??
+          (getMrfFromFinanceRow(row).workflowState as string | undefined);
+        return state === "finance_handoff_pending";
+      });
+    }
     return dashboard.financeMRFs;
   }, [dashboard, listFilter]);
 
@@ -141,6 +152,10 @@ const FinanceDashboard = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
+        {loading && !dashboard ? (
+          <DashboardSkeleton />
+        ) : (
+          <>
         <div>
           <h1 className="text-3xl font-bold text-foreground">Finance Dashboard</h1>
           <p className="text-muted-foreground mt-1">
@@ -170,7 +185,7 @@ const FinanceDashboard = () => {
 
         {stats && (
           <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <StatCard
                 title="Total Finance MRFs"
                 value={stats.totalFinanceMRFs ?? dashboard?.financeMRFs.length ?? 0}
@@ -200,6 +215,14 @@ const FinanceDashboard = () => {
                 description="Awaiting chairman sign-off"
                 icon={CheckCircle}
                 iconColor="text-success"
+              />
+              <StatCard
+                title="Finance AP — Handoff pending"
+                value={financeApStats?.handoff ?? 0}
+                description="Awaiting package push to Accounts Payable"
+                icon={Clock}
+                iconColor="text-warning"
+                onClick={() => setListFilter("handoff_pending")}
               />
               <StatCard
                 title="Finance AP — In pipeline"
@@ -234,6 +257,8 @@ const FinanceDashboard = () => {
           </div>
         )}
 
+        <FinanceApSyncDashboard />
+
         <FinanceApReportsSection userRole={getScmRole(user)} />
 
         <Card>
@@ -259,6 +284,9 @@ const FinanceDashboard = () => {
                 </TabsTrigger>
                 <TabsTrigger value="finance_ap">
                   Finance AP ({dashboard?.financeApMRFs.length ?? 0})
+                </TabsTrigger>
+                <TabsTrigger value="handoff_pending">
+                  Handoff pending ({financeApStats?.handoff ?? 0})
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -319,9 +347,7 @@ const FinanceDashboard = () => {
 
               <div className="space-y-3 mt-6">
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
+                  <TableSkeleton rows={3} />
                 ) : filteredRequests.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Clock className="h-16 w-16 mx-auto mb-4 opacity-30" />
@@ -344,6 +370,8 @@ const FinanceDashboard = () => {
             </div>
           </CardContent>
         </Card>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );

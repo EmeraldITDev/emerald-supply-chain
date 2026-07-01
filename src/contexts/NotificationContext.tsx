@@ -12,6 +12,7 @@ import {
 interface NotificationContextType {
   notifications: AppNotification[];
   unreadCount: number;
+  loading: boolean;
   preferences: NotificationPreferences;
   addNotification: (event: NotificationEvent, data: any) => void;
   markAsRead: (id: string) => void;
@@ -26,6 +27,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [loading, setLoading] = useState(true);
   const [preferences, setPreferences] = useState<NotificationPreferences>(
     NotificationService.getDefaultPreferences()
   );
@@ -44,7 +46,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       try {
         const response = await notificationApi.getAll({ limit: 50 });
         if (response.success && response.data && response.data.notifications) {
-          // Transform backend notifications to AppNotification format
           const transformedNotifications: AppNotification[] = response.data.notifications.map((n: any) => ({
             id: n.id,
             type: n.type || 'info',
@@ -53,7 +54,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             timestamp: n.created_at,
             read: n.read || false,
             actionUrl: n.action_url,
-            priority: 'medium' as const,
+            priority: (['low', 'medium', 'high'].includes(n.priority) ? n.priority : 'medium') as AppNotification['priority'],
             event: 'system' as NotificationEvent,
             data: {
               entity_type: n.entity_type,
@@ -73,13 +74,19 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             console.error("Failed to parse saved notifications", e);
           }
         }
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchNotifications();
     
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
+    // Poll for new notifications every 30 seconds while tab is visible
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void fetchNotifications();
+      }
+    }, 30000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -189,6 +196,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       value={{
         notifications,
         unreadCount,
+        loading,
         preferences,
         addNotification,
         markAsRead,

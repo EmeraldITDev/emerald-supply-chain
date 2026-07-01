@@ -164,6 +164,10 @@ const Procurement = () => {
     convertMRNToMRF,
     addPO,
     refreshSRFs,
+    rfqs,
+    quotations,
+    refreshRFQs,
+    refreshQuotations,
   } = useApp();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -181,12 +185,10 @@ const Procurement = () => {
     readOnly: isProcurementReadOnly,
   } = procurementAccess;
 
-  // MRF requests from backend API
+  // MRF requests from backend API (paginated on this page)
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
   const [mrfLoading, setMrfLoading] = useState(true);
   const [poGenerating, setPoGenerating] = useState(false);
-  const [rfqs, setRfqs] = useState<any[]>([]);
-  const [quotations, setQuotations] = useState<any[]>([]);
 
   const [poDialogOpen, setPODialogOpen] = useState(false);
   const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(
@@ -402,73 +404,10 @@ const Procurement = () => {
     poControls.sort,
   ]);
 
-  // Fetch RFQs for tracking which MRFs have RFQs
-  const fetchRFQs = useCallback(async () => {
-    try {
-      const response = await rfqApi.getAll();
-      if (response.success && response.data) {
-        setRfqs(response.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch RFQs:", error);
-    }
-  }, []);
-
-  // Fetch quotations for MRFs
-  const fetchQuotations = useCallback(async () => {
-    if (rfqs.length === 0) {
-      setQuotations([]);
-      return;
-    }
-
-    try {
-      // Fetch quotations for all RFQs using the RFQ quotations endpoint
-      const allQuotations: any[] = [];
-      const quotationIds = new Set<string>(); // Track unique quotations by ID
-
-      for (const rfq of rfqs) {
-        try {
-          const response = await rfqApi.getQuotations(rfq.id);
-          if (response.success && response.data && response.data.quotations) {
-            
-            // The response includes quotations with vendor info
-            response.data.quotations.forEach((item: any) => {
-            const n = normalizeQuotation(item, rfq.id);
-            if (n.id && !quotationIds.has(n.id)) {
-              quotationIds.add(n.id);
-
-              // Explicitly resolve attachments from all possible locations
-              const rawAtt = item.quotation?.attachments 
-                ?? item.attachments 
-                ?? n.attachments 
-                ?? [];
-              const resolvedAttachments = (Array.isArray(rawAtt) ? rawAtt : [rawAtt])
-                .flat(Infinity)
-                .filter((a: any) => a && typeof a === 'object' && a.url);
-
-              allQuotations.push({
-                ...n,
-                delivery_days: n.deliveryDays,
-                payment_terms: n.paymentTerms,
-                total_amount: n.price,
-                totalAmount: n.price,
-                attachments: resolvedAttachments,
-              });
-            }
-          });
-
-          }
-        } catch (error) {
-          console.error(`Failed to fetch quotations for RFQ ${getDisplayId(rfq)}:`, error);
-        }
-      }
-      setQuotations(allQuotations);
-      if (import.meta.env.DEV) {
-      }
-    } catch (error) {
-      console.error("Failed to fetch quotations:", error);
-    }
-  }, [rfqs]);
+  const refreshProcurementRfqs = useCallback(async () => {
+    const list = await refreshRFQs();
+    await refreshQuotations(list ?? []);
+  }, [refreshRFQs, refreshQuotations]);
 
   /** RFQ linked to this MRF — match any alias so RFQ rows keyed by formatted_id still resolve. */
   const getRFQForMRF = (mrf: MRF | MRFRequest | null | undefined) => {
@@ -541,8 +480,8 @@ const Procurement = () => {
 
   useEffect(() => {
     fetchMRFs();
-    fetchRFQs();
-  }, [fetchMRFs, fetchRFQs]);
+    void refreshProcurementRfqs();
+  }, [fetchMRFs, refreshProcurementRfqs]);
 
   useEffect(() => {
     setMrfPage(1);
@@ -581,36 +520,29 @@ const Procurement = () => {
     });
   }, [procurementDashboard?.kpis]);
 
-  useEffect(() => {
-    if (rfqs.length > 0) {
-      fetchQuotations();
-    }
-  }, [rfqs, fetchQuotations]);
 
   // Auto-poll procurement data every 30s while tab is visible
   useEffect(() => {
     const poll = setInterval(() => {
       if (document.visibilityState === "visible") {
         fetchMRFs();
-        fetchRFQs();
-        fetchQuotations();
+        void refreshProcurementRfqs();
         void refreshSRFs();
       }
     }, 30000);
     return () => clearInterval(poll);
-  }, [fetchMRFs, fetchRFQs, fetchQuotations, refreshSRFs]);
+  }, [fetchMRFs, refreshProcurementRfqs, refreshSRFs]);
 
   // Listen for global refresh button clicks from the header
   useEffect(() => {
     const handler = () => {
       fetchMRFs();
-      fetchRFQs();
-      fetchQuotations();
+      void refreshProcurementRfqs();
       void refreshSRFs();
     };
     window.addEventListener("app:refresh", handler);
     return () => window.removeEventListener("app:refresh", handler);
-  }, [fetchMRFs, fetchRFQs, fetchQuotations, refreshSRFs]);
+  }, [fetchMRFs, refreshProcurementRfqs, refreshSRFs]);
 
   // Helper functions for MRF field access (handles both camelCase and snake_case)
   const getMRFEstimatedCost = (mrf: MRF) =>
@@ -777,8 +709,7 @@ const Procurement = () => {
         setVendorSelectionTarget(null);
         setVendorSelectionReason("");
         await fetchMRFs();
-        await fetchRFQs();
-        await fetchQuotations();
+        await refreshProcurementRfqs();
         if (kind === "srf") await refreshSRFs();
         return;
       }
@@ -825,8 +756,7 @@ const Procurement = () => {
     vendorSelectionTarget,
     toast,
     fetchMRFs,
-    fetchRFQs,
-    fetchQuotations,
+    refreshProcurementRfqs,
     refreshSRFs,
   ]);
 
@@ -1656,11 +1586,8 @@ const Procurement = () => {
         setRfqCreateSource("mrf");
 
         await fetchMRFs();
-        await fetchRFQs();
+        await refreshProcurementRfqs();
         if (wasSrf) await refreshSRFs();
-        setTimeout(() => {
-          fetchQuotations();
-        }, 500);
       } else {
         console.error("RFQ Creation Error:", rfqResponse.error);
         toast({
