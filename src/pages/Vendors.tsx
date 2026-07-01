@@ -44,6 +44,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import type { PaginationMeta } from "@/types/pagination";
+import { VendorDirectoryExportDialog } from "@/components/vendors/VendorDirectoryExportDialog";
+import { VENDOR_DIRECTORY_EXPORT_ROLES } from "@/utils/vendorDirectoryExport";
 
 const Vendors = () => {
   const { toast } = useToast();
@@ -63,6 +65,9 @@ const Vendors = () => {
     getScmRole(user) === "executive" ||
     getScmRole(user) === "chairman" ||
     getScmRole(user) === "admin";
+  const scmRole = getScmRole(user);
+  const canExportVendorDirectory =
+    scmRole != null && (VENDOR_DIRECTORY_EXPORT_ROLES as readonly string[]).includes(scmRole);
   const [vendors, setVendors] = useState(contextVendors);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
@@ -88,6 +93,7 @@ const Vendors = () => {
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [vendorPage, setVendorPage] = useState(1);
   const [vendorPagination, setVendorPagination] = useState<PaginationMeta | null>(null);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [directorySearch, setDirectorySearch] = useState("");
   const [debouncedDirectorySearch, setDebouncedDirectorySearch] = useState("");
 
@@ -521,6 +527,12 @@ const Vendors = () => {
   }, [toast]);
 
   // Fetch vendor directory (server-side pagination)
+  const hasDirectoryFilters = debouncedDirectorySearch.trim().length > 0;
+
+  const exportFilters = {
+    search: debouncedDirectorySearch.trim() || undefined,
+  };
+
   const fetchVendors = async () => {
     setLoadingVendors(true);
     try {
@@ -1083,6 +1095,18 @@ const Vendors = () => {
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     Delete selected ({selectedDirectoryIds.length})
+                  </Button>
+                )}
+                {canExportVendorDirectory && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setExportDialogOpen(true)}
+                    className="gap-1.5"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Export
                   </Button>
                 )}
                 <Button
@@ -1804,6 +1828,15 @@ const Vendors = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {canExportVendorDirectory && (
+        <VendorDirectoryExportDialog
+          open={exportDialogOpen}
+          onOpenChange={setExportDialogOpen}
+          filters={exportFilters}
+          hasActiveFilters={hasDirectoryFilters}
+        />
+      )}
     </DashboardLayout>
   );
 };

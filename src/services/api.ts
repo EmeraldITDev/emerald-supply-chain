@@ -2536,6 +2536,80 @@ export const vendorApi = {
     return apiRequest<Vendor>(`/vendors/${id}`);
   },
 
+  exportDirectory: async (
+    format: 'pdf' | 'xlsx',
+    params: {
+      columns: string[];
+      search?: string;
+      status?: string;
+      category?: string;
+    },
+  ): Promise<ApiResponse<Blob>> => {
+    const { token, expired } = getAuthToken();
+    if (expired || !token) {
+      return { success: false, error: 'Authentication token has expired. Please log in again.' };
+    }
+
+    const qs = buildListQueryParams({
+      format,
+      columns: params.columns.join(','),
+      search: params.search,
+      status: params.status,
+      category: params.category,
+    });
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/vendors/export?${qs.toString()}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.status === 403) {
+        return { success: false, error: 'You do not have permission to export the vendor directory.' };
+      }
+      if (!response.ok) {
+        const text = await response.text();
+        try {
+          const body = JSON.parse(text) as { error?: string; message?: string };
+          return { success: false, error: body.error || body.message || `Export failed (${response.status})` };
+        } catch {
+          return { success: false, error: `Export failed (${response.status})` };
+        }
+      }
+      return { success: true, data: await response.blob() };
+    } catch (e: unknown) {
+      return { success: false, error: e instanceof Error ? e.message : 'Export failed' };
+    }
+  },
+
+  exportDirectoryRows: async (params: {
+    columns: string[];
+    search?: string;
+    status?: string;
+    category?: string;
+  }): Promise<
+    ApiResponse<{
+      headers: string[];
+      rows: string[][];
+      filterNote?: string | null;
+    }>
+  > => {
+    const qs = buildListQueryParams({
+      columns: params.columns.join(','),
+      search: params.search,
+      status: params.status,
+      category: params.category,
+    });
+    const res = await apiRequest<{
+      headers: string[];
+      rows: string[][];
+      filterNote?: string | null;
+    }>(`/vendors/export/rows?${qs.toString()}`);
+    if (res.success && res.data) {
+      return { success: true, data: res.data };
+    }
+    return { success: false, error: res.error || 'Failed to load export rows' };
+  },
+
   /**
    * Authoritative vendor duplicate lookup (email wins over name, case-insensitive).
    * Used by manual PO price comparison on blur of supplier name/email.
