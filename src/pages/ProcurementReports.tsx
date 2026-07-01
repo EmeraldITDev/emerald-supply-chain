@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,8 @@ import { Navigate } from "react-router-dom";
 import { procurementReportsApi } from "@/services/api";
 import type { ProcurementReportData } from "@/types";
 import { FinanceApReportsSection } from "@/components/finance/FinanceApReportsSection";
-import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { ProcurementReportingEngine } from "@/components/reports/ProcurementReportingEngine";
+import { getScmRole } from "@/utils/scmRole";
 
 const REPORT_ROLES = [
   "procurement_manager",
@@ -34,13 +35,18 @@ const REPORT_ROLES = [
 const ProcurementReports = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const scmRole = useMemo(() => getScmRole(user), [user]);
+  const canView = scmRole && REPORT_ROLES.includes(scmRole);
+
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [report, setReport] = useState<ProcurementReportData | null>(null);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   const loadReport = useCallback(async () => {
+    if (!canView) return;
     setLoading(true);
     try {
       const res = await procurementReportsApi.getReport(from || undefined, to || undefined);
@@ -54,18 +60,26 @@ const ProcurementReports = () => {
           variant: "destructive",
         });
       }
+    } catch (e: unknown) {
+      setReport(null);
+      toast({
+        title: "Failed to load report",
+        description: e instanceof Error ? e.message : "Request failed",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
+      setInitialLoadDone(true);
     }
-  }, [from, to, toast]);
+  }, [canView, from, to, toast]);
 
   useEffect(() => {
-    if (getScmRole(user) && REPORT_ROLES.includes(getScmRole(user))) {
+    if (canView) {
       loadReport();
     }
-  }, [getScmRole(user), loadReport]);
+  }, [canView]);
 
-  if (!getScmRole(user) || !REPORT_ROLES.includes(getScmRole(user))) {
+  if (!canView) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -80,7 +94,7 @@ const ProcurementReports = () => {
         link.download = `procurement-report-${from || "all"}-${to || "all"}.csv`;
         link.click();
         window.URL.revokeObjectURL(url);
-        toast({ title: "Export complete", description: "Procurement report CSV downloaded." });
+        toast({ title: "Export complete", description: "Procurement report CSV downloaded from server." });
       } else {
         toast({
           title: "Export failed",
@@ -136,7 +150,7 @@ const ProcurementReports = () => {
           </CardContent>
         </Card>
 
-        {loading ? (
+        {loading && !initialLoadDone ? (
           <div className="flex justify-center py-12 text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
@@ -247,11 +261,15 @@ const ProcurementReports = () => {
               </CardContent>
             </Card>
           </>
-        ) : (
+        ) : initialLoadDone ? (
           <p className="text-center text-muted-foreground py-8">No report data available.</p>
-        )}
+        ) : null}
 
-        <FinanceApReportsSection userRole={getScmRole(user)} />
+        <div id="finance-ap">
+          <FinanceApReportsSection userRole={scmRole} />
+        </div>
+
+        <ProcurementReportingEngine initialFrom={from} initialTo={to} />
       </div>
     </DashboardLayout>
   );

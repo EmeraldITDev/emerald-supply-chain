@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { financeApReportsApi } from "@/services/financeApReportsApi";
+import { fetchFinanceRoutingConfig } from "@/services/financeRoutingConfig";
 import type {
   FinanceApAdvanceDeliveryRiskRow,
   FinanceApCycleTimesReport,
@@ -31,7 +32,6 @@ import type {
   FinanceApSummaryReport,
 } from "@/types/finance-ap-reports";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { isFinanceAPRoutingConfigured } from "@/utils/financeAPRouting";
 
 const FINANCE_AP_REPORT_ROLES = new Set([
   "finance",
@@ -63,8 +63,10 @@ export const FinanceApReportsSection = ({ userRole }: FinanceApReportsSectionPro
   const [risks, setRisks] = useState<FinanceApAdvanceDeliveryRiskRow[]>([]);
   const [cycleTimes, setCycleTimes] = useState<FinanceApCycleTimesReport | null>(null);
 
+  const [routingConfigured, setRoutingConfigured] = useState<boolean | null>(null);
+  const [cutoverDate, setCutoverDate] = useState<string | null>(null);
+
   const canView = FINANCE_AP_REPORT_ROLES.has(userRole || "");
-  const routingReady = isFinanceAPRoutingConfigured();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,6 +77,10 @@ export const FinanceApReportsSection = ({ userRole }: FinanceApReportsSectionPro
       limit: 50,
     };
     try {
+      const routingConfig = await fetchFinanceRoutingConfig();
+      setRoutingConfigured(routingConfig.routingConfigured);
+      setCutoverDate(routingConfig.cutoverDate);
+
       const [sumRes, outRes, riskRes, cycleRes] = await Promise.all([
         financeApReportsApi.getSummary(params),
         financeApReportsApi.getOutstandingMilestones(params),
@@ -82,8 +88,17 @@ export const FinanceApReportsSection = ({ userRole }: FinanceApReportsSectionPro
         financeApReportsApi.getCycleTimes(params),
       ]);
 
-      if (sumRes.success && sumRes.data) setSummary(sumRes.data);
-      else if (!sumRes.success) setError(sumRes.error || "Failed to load summary");
+      if (sumRes.success && sumRes.data) {
+        setSummary(sumRes.data);
+        if (sumRes.data.routingConfigured != null) {
+          setRoutingConfigured(sumRes.data.routingConfigured);
+        }
+        if (sumRes.data.cutoverDate != null) {
+          setCutoverDate(sumRes.data.cutoverDate);
+        }
+      } else if (!sumRes.success) {
+        setError(sumRes.error || "Failed to load summary");
+      }
 
       if (outRes.success && outRes.data) setOutstanding(outRes.data.items);
       if (riskRes.success && riskRes.data) setRisks(riskRes.data.items);
@@ -96,8 +111,8 @@ export const FinanceApReportsSection = ({ userRole }: FinanceApReportsSectionPro
   }, [from, to]);
 
   useEffect(() => {
-    if (canView && routingReady) load();
-  }, [canView, routingReady, load]);
+    if (canView) load();
+  }, [canView, load]);
 
   if (!canView) return null;
 
@@ -129,13 +144,13 @@ export const FinanceApReportsSection = ({ userRole }: FinanceApReportsSectionPro
         </div>
       </div>
 
-      {!routingReady && (
+      {!routingConfigured && (
         <Alert>
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Cutover not configured</AlertTitle>
+          <AlertTitle>Cutover not configured on server</AlertTitle>
           <AlertDescription>
-            Set <code className="text-xs">VITE_FINANCE_AP_CUTOVER_DATE</code> (and server{" "}
-            <code className="text-xs">FINANCE_AP_CUTOVER_DATE</code>) to scope Finance AP reporting.
+            Set <code className="text-xs">FINANCE_AP_CUTOVER_DATE</code> in the backend environment.
+            {cutoverDate ? ` Current value: ${cutoverDate}.` : " No cutover date is active — Finance AP cohort reports will be empty."}
           </AlertDescription>
         </Alert>
       )}

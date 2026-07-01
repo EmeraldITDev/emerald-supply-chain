@@ -15,6 +15,8 @@ export interface FinanceApSummaryReport {
   rfiRate?: number;
   outstandingMilestoneBalance?: number;
   currency?: string;
+  cutoverDate?: string | null;
+  routingConfigured?: boolean;
   /** API may nest under `totals` */
   totals?: Partial<FinanceApSummaryReport>;
 }

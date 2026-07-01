@@ -20,16 +20,45 @@ function buildQuery(params?: FinanceApReportQuery): string {
 function normalizeSummary(raw: Record<string, unknown>): FinanceApSummaryReport {
   const totals = (raw.totals as Record<string, unknown>) ?? raw;
   return {
-    casesPushed: Number(totals.casesPushed ?? totals.cases_pushed ?? 0),
-    handoff: Number(totals.handoff ?? 0),
-    inReview: Number(totals.inReview ?? totals.in_review ?? 0),
-    closed: Number(totals.closed ?? 0),
+    casesPushed: Number(
+      totals.packagePushed ?? totals.casesPushed ?? totals.cases_pushed ?? totals.financeApMrfs ?? 0,
+    ),
+    handoff: Number(totals.financeHandoffPending ?? totals.handoff ?? 0),
+    inReview: Number(totals.inReviewOrPaying ?? totals.inReview ?? totals.in_review ?? 0),
+    closed: Number(totals.closedOrComplete ?? totals.closed ?? 0),
     rejectionRate: Number(totals.rejectionRate ?? totals.rejection_rate ?? 0),
     rfiRate: Number(totals.rfiRate ?? totals.rfi_rate ?? 0),
     outstandingMilestoneBalance: Number(
       totals.outstandingMilestoneBalance ?? totals.outstanding_milestone_balance ?? 0,
     ),
     currency: (totals.currency as string) ?? 'NGN',
+    cutoverDate: (raw.cutoverDate as string) ?? null,
+    routingConfigured: Boolean(raw.routingConfigured),
+  };
+}
+
+function normalizeOutstandingRow(raw: Record<string, unknown>): FinanceApOutstandingMilestoneRow {
+  return {
+    mrfId: (raw.mrfId ?? raw.mrf_id ?? '') as string | number,
+    mrfDisplayId: (raw.formattedId ?? raw.mrfDisplayId ?? raw.mrfId) as string | undefined,
+    mrfTitle: raw.mrfTitle as string | undefined,
+    milestoneId: (raw.milestoneId ?? raw.milestone_id) as string | number | undefined,
+    milestoneLabel: (raw.label ?? raw.milestoneLabel) as string | undefined,
+    amount: raw.amount as number | string | undefined,
+    percentage: raw.percentage as number | string | undefined,
+    status: raw.status as string | undefined,
+    financeApCaseId: (raw.financeApCaseId ?? raw.finance_ap_case_id) as string | null | undefined,
+  };
+}
+
+function normalizeRiskRow(raw: Record<string, unknown>): FinanceApAdvanceDeliveryRiskRow {
+  return {
+    mrfId: (raw.mrfId ?? raw.mrf_id ?? '') as string | number,
+    mrfDisplayId: (raw.formattedId ?? raw.mrfDisplayId ?? raw.mrfId) as string | undefined,
+    mrfTitle: raw.mrfTitle as string | undefined,
+    missingDocuments: (raw.missingDocuments ?? raw.missing_documents) as string[] | undefined,
+    advanceStatus: raw.advancePaid != null ? (raw.advancePaid ? 'paid' : 'pending') : undefined,
+    financeApCaseId: (raw.financeApCaseId ?? raw.finance_ap_case_id) as string | null | undefined,
   };
 }
 
@@ -71,7 +100,14 @@ export const financeApReportsApi = {
       `/reports/finance-ap/outstanding-milestones${buildQuery(params)}`,
     );
     if (res.success) {
-      return { ...res, data: normalizeList<FinanceApOutstandingMilestoneRow>(res.data) };
+      const list = normalizeList<Record<string, unknown>>(res.data);
+      return {
+        ...res,
+        data: {
+          ...list,
+          items: list.items.map((row) => normalizeOutstandingRow(row)),
+        },
+      };
     }
     return res as ApiResponse<FinanceApListResponse<FinanceApOutstandingMilestoneRow>>;
   },
@@ -83,7 +119,14 @@ export const financeApReportsApi = {
       `/reports/finance-ap/advance-delivery-risk${buildQuery(params)}`,
     );
     if (res.success) {
-      return { ...res, data: normalizeList<FinanceApAdvanceDeliveryRiskRow>(res.data) };
+      const list = normalizeList<Record<string, unknown>>(res.data);
+      return {
+        ...res,
+        data: {
+          ...list,
+          items: list.items.map((row) => normalizeRiskRow(row)),
+        },
+      };
     }
     return res as ApiResponse<FinanceApListResponse<FinanceApAdvanceDeliveryRiskRow>>;
   },
@@ -99,18 +142,18 @@ export const financeApReportsApi = {
       return {
         ...res,
         data: {
-          avgDaysPoSignedToFirstMilestonePaid: Number(
-            d.avgDaysPoSignedToFirstMilestonePaid ??
-              d.avg_days_po_signed_to_first_milestone_paid ??
-              d.poSignedToFirstPaid ??
-              0,
-          ),
-          avgDaysPoSignedToClosed: Number(
-            d.avgDaysPoSignedToClosed ??
-              d.avg_days_po_signed_to_closed ??
-              d.poSignedToClosed ??
-              0,
-          ),
+          avgDaysPoSignedToFirstMilestonePaid:
+            d.avgDaysPoSignedToFirstMilestonePaid != null
+              ? Number(d.avgDaysPoSignedToFirstMilestonePaid)
+              : d.avg_days_po_signed_to_first_milestone_paid != null
+                ? Number(d.avg_days_po_signed_to_first_milestone_paid)
+                : null,
+          avgDaysPoSignedToClosed:
+            d.avgDaysPoSignedToClosed != null
+              ? Number(d.avgDaysPoSignedToClosed)
+              : d.avg_days_po_signed_to_closed != null
+                ? Number(d.avg_days_po_signed_to_closed)
+                : null,
           sampleSize: Number(d.sampleSize ?? d.sample_size ?? 0),
         },
       };

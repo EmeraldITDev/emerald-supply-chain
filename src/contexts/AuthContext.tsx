@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { authApi } from "@/services/api";
+import { fetchFinanceRoutingConfig, clearFinanceRoutingConfigCache } from "@/services/financeRoutingConfig";
 import type { User } from "@/types";
 import { getScmRole, normalizeScmRole } from "@/utils/scmRole";
 
@@ -76,6 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Logout API error:", error);
     } finally {
       setUser(null);
+      clearFinanceRoutingConfigCache();
       localStorage.removeItem("authToken");
       localStorage.removeItem("userData");
       localStorage.removeItem("isAuthenticated");
@@ -122,6 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const updatedUser = mapAuthUserFromApi(response.data);
             setUser(updatedUser);
             storage.setItem("userData", JSON.stringify(updatedUser));
+            fetchFinanceRoutingConfig(true).catch(() => undefined);
             
             // Update token expiration if provided
             if ((response.data as any).tokenExpiresAt) {
@@ -200,6 +203,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (expiresAt) {
           storage.setItem("tokenExpiry", expiresAt);
         }
+
+        fetchFinanceRoutingConfig(true).catch(() => undefined);
 
         return { success: true };
       } else {
