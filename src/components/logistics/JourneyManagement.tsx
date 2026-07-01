@@ -85,6 +85,18 @@ const severityColors: Record<string, string> = {
   critical: "bg-destructive text-destructive-foreground",
 };
 
+function formatJourneyStatus(status?: string | null): string {
+  if (!status) return "unknown";
+  return status.replace(/_/g, " ");
+}
+
+function journeyStatusKey(status?: string | null): JourneyStatus {
+  if (status && status in statusColors) {
+    return status as JourneyStatus;
+  }
+  return "not_started";
+}
+
 export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -406,9 +418,9 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-sm">{journey.tripNumber}</span>
-                        <Badge className={cn(statusColors[journey.status], "capitalize")}>
-                          {statusIcons[journey.status]}
-                          <span className="ml-1">{journey.status.replace("_", " ")}</span>
+                        <Badge className={cn(statusColors[journeyStatusKey(journey.status)], "capitalize")}>
+                          {statusIcons[journeyStatusKey(journey.status)]}
+                          <span className="ml-1">{formatJourneyStatus(journey.status)}</span>
                         </Badge>
                         {journey.incidents && journey.incidents.length > 0 && (
                           <Badge variant="destructive">
@@ -544,9 +556,9 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
               {/* Status & Progress */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Badge className={cn(statusColors[selectedJourney.status], "capitalize")}>
-                    {statusIcons[selectedJourney.status]}
-                    <span className="ml-1">{selectedJourney.status.replace("_", " ")}</span>
+                  <Badge className={cn(statusColors[journeyStatusKey(selectedJourney.status)], "capitalize")}>
+                    {statusIcons[journeyStatusKey(selectedJourney.status)]}
+                    <span className="ml-1">{formatJourneyStatus(selectedJourney.status)}</span>
                   </Badge>
                   <span className="text-sm">{getJourneyProgress(selectedJourney)}% Complete</span>
                 </div>
@@ -602,7 +614,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                     <div>
                       <Label className="text-muted-foreground">Status</Label>
                       <p className="capitalize">
-                        {selectedJourney.linkedTrip.status.replace(/_/g, " ")}
+                        {formatJourneyStatus(selectedJourney.linkedTrip.status)}
                       </p>
                     </div>
                     <div>

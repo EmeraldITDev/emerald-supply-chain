@@ -276,19 +276,68 @@ const Procurement = () => {
   const [poListItems, setPoListItems] = useState<MRF[]>([]);
   const [poListLoading, setPoListLoading] = useState(false);
 
+  const [mrfSearchDebounced, setMrfSearchDebounced] = useState("");
+  const [poSearchDebounced, setPoSearchDebounced] = useState("");
+  const mrfFetchSeq = useRef(0);
+  const poFetchSeq = useRef(0);
+
+  useEffect(() => {
+    const handle = window.setTimeout(
+      () => setMrfSearchDebounced(mrfControls.search),
+      400,
+    );
+    return () => window.clearTimeout(handle);
+  }, [mrfControls.search]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(
+      () => setPoSearchDebounced(poControls.search),
+      400,
+    );
+    return () => window.clearTimeout(handle);
+  }, [poControls.search]);
+
+  const handleMrfControlsChange = useCallback(
+    (next: ListControlsState) => {
+      const filtersChanged =
+        next.status !== mrfControls.status ||
+        next.dateFrom !== mrfControls.dateFrom ||
+        next.dateTo !== mrfControls.dateTo ||
+        next.sort !== mrfControls.sort;
+      setMrfControls(next);
+      if (filtersChanged) setMrfPage(1);
+    },
+    [mrfControls],
+  );
+
+  const handlePoControlsChange = useCallback(
+    (next: ListControlsState) => {
+      const filtersChanged =
+        next.status !== poControls.status ||
+        next.dateFrom !== poControls.dateFrom ||
+        next.dateTo !== poControls.dateTo ||
+        next.sort !== poControls.sort;
+      setPoControls(next);
+      if (filtersChanged) setPoPage(1);
+    },
+    [poControls],
+  );
+
   // Fetch MRFs from backend API (server-side pagination)
   const fetchMRFs = useCallback(async () => {
+    const seq = ++mrfFetchSeq.current;
     setMrfLoading(true);
     try {
       const response = await mrfApi.list({
         page: mrfPage,
         per_page: 25,
-        search: mrfControls.search || undefined,
+        search: mrfSearchDebounced || undefined,
         status: mrfControls.status !== 'all' ? mrfControls.status : undefined,
         date_from: mrfControls.dateFrom || undefined,
         date_to: mrfControls.dateTo || undefined,
         sort: mrfControls.sort,
       });
+      if (seq !== mrfFetchSeq.current) return;
       if (response.success && response.data) {
         setMrfRequests(response.data.items);
         setMrfPagination(response.data.pagination);
@@ -300,29 +349,40 @@ const Procurement = () => {
         });
       }
     } catch (error) {
+      if (seq !== mrfFetchSeq.current) return;
       toast({
         title: "Error",
         description: "Failed to connect to server",
         variant: "destructive",
       });
     } finally {
-      setMrfLoading(false);
+      if (seq === mrfFetchSeq.current) setMrfLoading(false);
     }
-  }, [toast, mrfPage, mrfControls]);
+  }, [
+    toast,
+    mrfPage,
+    mrfSearchDebounced,
+    mrfControls.status,
+    mrfControls.dateFrom,
+    mrfControls.dateTo,
+    mrfControls.sort,
+  ]);
 
   const fetchPOList = useCallback(async () => {
+    const seq = ++poFetchSeq.current;
     setPoListLoading(true);
     try {
       const response = await mrfApi.list({
         page: poPage,
         per_page: 25,
         po_list: true,
-        search: poControls.search || undefined,
+        search: poSearchDebounced || undefined,
         status: poControls.status !== 'all' ? poControls.status : undefined,
         date_from: poControls.dateFrom || undefined,
         date_to: poControls.dateTo || undefined,
         sort: poControls.sort,
       });
+      if (seq !== poFetchSeq.current) return;
       if (response.success && response.data) {
         setPoListItems(response.data.items);
         setPoPagination(response.data.pagination);
@@ -331,9 +391,16 @@ const Procurement = () => {
         setPoPagination(null);
       }
     } finally {
-      setPoListLoading(false);
+      if (seq === poFetchSeq.current) setPoListLoading(false);
     }
-  }, [poPage, poControls]);
+  }, [
+    poPage,
+    poSearchDebounced,
+    poControls.status,
+    poControls.dateFrom,
+    poControls.dateTo,
+    poControls.sort,
+  ]);
 
   // Fetch RFQs for tracking which MRFs have RFQs
   const fetchRFQs = useCallback(async () => {
@@ -479,11 +546,11 @@ const Procurement = () => {
 
   useEffect(() => {
     setMrfPage(1);
-  }, [mrfControls.search, mrfControls.status, mrfControls.dateFrom, mrfControls.dateTo, mrfControls.sort]);
+  }, [mrfSearchDebounced]);
 
   useEffect(() => {
     setPoPage(1);
-  }, [poControls.search, poControls.status, poControls.dateFrom, poControls.dateTo, poControls.sort]);
+  }, [poSearchDebounced]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2538,7 +2605,7 @@ const Procurement = () => {
                   <div className="space-y-4">
                     <ListControls
                       state={mrfControls}
-                      onChange={setMrfControls}
+                      onChange={handleMrfControlsChange}
                       statusOptions={statusOptions}
                       searchPlaceholder="Search by title, ID, requester, or vendor..."
                     />
@@ -3653,7 +3720,7 @@ const Procurement = () => {
                   <div className="mb-4">
                     <ListControls
                       state={poControls}
-                      onChange={setPoControls}
+                      onChange={handlePoControlsChange}
                       statusOptions={poStatusOptions}
                       searchPlaceholder="Search by PO number, MRF ID, title, or vendor..."
                     />

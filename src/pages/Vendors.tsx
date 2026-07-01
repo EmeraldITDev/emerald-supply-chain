@@ -10,6 +10,7 @@ import { VendorBankDetailsSection } from "@/components/vendors/VendorBankDetails
 import { Textarea } from "@/components/ui/textarea";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { useAuth } from "@/contexts/AuthContext";
+import { getScmRole } from "@/utils/scmRole";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
