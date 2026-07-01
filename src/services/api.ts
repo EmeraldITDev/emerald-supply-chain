@@ -1,6 +1,12 @@
-import type { 
-  User, 
-  LoginCredentials, 
+import type { PaginatedResult } from '@/types/pagination';
+import {
+  buildListQueryParams,
+  extractPaginatedItems,
+  listSortToApi,
+  normalizePagination,
+} from '@/utils/paginatedListApi';
+import type {
+  LoginCredentials,
   AuthResponse,
   MRF,
   CreateMRFData,
@@ -16,7 +22,7 @@ import type {
   CreateVendorRegistrationData,
   ApiResponse,
   FilterOptions,
-  SortOptions
+  SortOptions,
 } from '@/types';
 import { RFQ_STANDARD_TERMS } from '@/data/rfqPoTermsTemplate';
 
@@ -361,6 +367,57 @@ export async function apiRequest<T>(
   }
 }
 
+/** Like apiRequest but returns the full parsed JSON body for paginated envelopes. */
+export async function apiRequestFull(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<{ success: boolean; body?: unknown; error?: string; status?: number }> {
+  let { token, expired } = getAuthToken();
+  if (!token) {
+    const vendorTokenResult = getVendorAuthToken();
+    token = vendorTokenResult.token;
+    expired = vendorTokenResult.expired;
+  }
+  const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/refresh');
+  if (expired && !isAuthEndpoint) {
+    return { success: false, error: 'Authentication token has expired. Please log in again.' };
+  }
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    ...options.headers,
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+    const text = await response.text();
+    if (!text) {
+      return response.ok ? { success: true, body: undefined, status: response.status } : { success: false, error: 'Empty response from server', status: response.status };
+    }
+    let body: unknown;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      return { success: false, error: 'Invalid response from server', status: response.status };
+    }
+    if (!response.ok) {
+      const errObj = body as { message?: string; error?: string };
+      return { success: false, error: errObj.message || errObj.error || 'An error occurred', status: response.status };
+    }
+    return { success: true, body, status: response.status };
+  } catch (error) {
+    return { success: false, error: classifyFetchError(error, endpoint) };
+  }
+}
+
+function emptyPagination(total = 0): import('@/types/pagination').PaginationMeta {
+  return { page: 1, per_page: 25, total, total_pages: 1, from: total ? 1 : null, to: total || null };
+}
+
 // Authentication API
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<ApiResponse<AuthResponse>> => {
@@ -533,14 +590,60 @@ function selectionJustificationBody(text?: string | null): Record<string, string
 
 // MRF API
 export const mrfApi = {
+  list: async (params?: {
+    page?: number;
+    per_page?: number;
+    status?: string;
+    search?: string;
+    date_from?: string;
+    date_to?: string;
+    workflow_state?: string;
+    has_po?: boolean;
+    po_list?: boolean;
+    sort_by?: string;
+    sort_direction?: 'asc' | 'desc';
+    sort?: import('@/utils/listFilters').ListSort;
+  }): Promise<ApiResponse<PaginatedResult<MRF>>> => {
+    const sortApi = params?.sort ? listSortToApi(params.sort) : null;
+    const qs = buildListQueryParams({
+      page: params?.page ?? 1,
+      per_page: params?.per_page ?? 25,
+      status: params?.status,
+      search: params?.search,
+      date_from: params?.date_from,
+      date_to: params?.date_to,
+      workflow_state: params?.workflow_state,
+      has_po: params?.has_po ? 1 : undefined,
+      po_list: params?.po_list ? 1 : undefined,
+      sort_by: params?.sort_by ?? sortApi?.sort_by,
+      sort_direction: params?.sort_direction ?? sortApi?.sort_direction,
+    });
+    const res = await apiRequestFull(`/mrfs?${qs.toString()}`);
+    if (!res.success) {
+      return { success: false, error: res.error };
+    }
+    const { items, pagination } = extractPaginatedItems<MRF>(res.body);
+    return {
+      success: true,
+      data: { items, pagination: pagination ?? emptyPagination(items.length) },
+    };
+  },
+
   getAll: async (filters?: FilterOptions, sort?: SortOptions): Promise<ApiResponse<MRF[]>> => {
-    const params = new URLSearchParams();
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.search) params.append('search', filters.search);
-    if (sort?.field) params.append('sortBy', sort.field);
-    if (sort?.direction) params.append('sortOrder', sort.direction);
-    
-    return apiRequest<MRF[]>(`/mrfs?${params.toString()}`);
+    const listRes = await mrfApi.list({
+      page: 1,
+      per_page: filters?.search ? 25 : 100,
+      status: filters?.status,
+      search: filters?.search,
+      date_from: filters?.dateFrom,
+      date_to: filters?.dateTo,
+      sort_by: sort?.field,
+      sort_direction: sort?.direction,
+    });
+    if (listRes.success && listRes.data) {
+      return { success: true, data: listRes.data.items };
+    }
+    return listRes as unknown as ApiResponse<MRF[]>;
   },
 
   getById: async (id: string): Promise<ApiResponse<MRF>> => {
@@ -2342,15 +2445,53 @@ export const vendorApi = {
    * (merged duplicates). Pass `{ includeInactive: true }` (`?include_inactive=1`) to
    * audit rows not yet purged by `vendors:merge-duplicates --purge-merged`.
    */
-  getAll: async (filters?: FilterOptions): Promise<ApiResponse<Vendor[]>> => {
-    const params = new URLSearchParams();
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.category) params.append('category', filters.category);
-    if (filters?.search) params.append('search', filters.search);
-    if (filters?.per_page) params.append('per_page', String(filters.per_page));
-    if (filters?.includeInactive) params.append('include_inactive', '1');
+  /**
+   * Paginated vendor directory. Prefer this over getAll() for list views.
+   */
+  list: async (params?: {
+    page?: number;
+    per_page?: number;
+    status?: string;
+    category?: string;
+    search?: string;
+    sort_by?: string;
+    sort_direction?: 'asc' | 'desc';
+    includeInactive?: boolean;
+  }): Promise<ApiResponse<PaginatedResult<Vendor>>> => {
+    const qs = buildListQueryParams({
+      page: params?.page ?? 1,
+      per_page: params?.per_page ?? 25,
+      status: params?.status,
+      category: params?.category,
+      search: params?.search,
+      sort_by: params?.sort_by ?? 'name',
+      sort_direction: params?.sort_direction ?? 'asc',
+      include_inactive: params?.includeInactive ? 1 : undefined,
+    });
+    const res = await apiRequestFull(`/vendors?${qs.toString()}`);
+    if (!res.success) {
+      return { success: false, error: res.error };
+    }
+    const { items, pagination } = extractPaginatedItems<Vendor>(res.body);
+    return {
+      success: true,
+      data: { items, pagination: pagination ?? emptyPagination(items.length) },
+    };
+  },
 
-    return apiRequest<Vendor[]>(`/vendors?${params.toString()}`);
+  getAll: async (filters?: FilterOptions): Promise<ApiResponse<Vendor[]>> => {
+    const listRes = await vendorApi.list({
+      page: 1,
+      per_page: filters?.search ? 20 : 25,
+      status: filters?.status,
+      category: filters?.category,
+      search: filters?.search,
+      includeInactive: filters?.includeInactive,
+    });
+    if (listRes.success && listRes.data) {
+      return { success: true, data: listRes.data.items };
+    }
+    return listRes as unknown as ApiResponse<Vendor[]>;
   },
 
   getById: async (id: string): Promise<ApiResponse<Vendor>> => {

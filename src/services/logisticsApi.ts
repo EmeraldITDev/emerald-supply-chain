@@ -68,7 +68,9 @@ const getApiBaseUrl = () => {
   return 'https://supply-chain-backend-hwh6.onrender.com/api';
 };
 
-const API_BASE_URL = getApiBaseUrl();
+import { API_BASE_URL, apiRequestFull } from './api';
+import type { PaginatedResult } from '@/types/pagination';
+import { buildListQueryParams, extractPaginatedItems } from '@/utils/paginatedListApi';
 
 /** Build a readable error string from Laravel / generic JSON error bodies. */
 function formatLogisticsApiError(data: unknown, status: number): string {
@@ -188,7 +190,43 @@ async function apiRequest<T>(
 // TRIPS API (Scheduling Layer)
 // ==========================================
 export const tripsApi = {
-  // Get all trips with optional filters
+  list: async (filters?: {
+    page?: number;
+    per_page?: number;
+    status?: string;
+    type?: string;
+    vendorId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+    sort_by?: string;
+    sort_direction?: 'asc' | 'desc';
+  }): Promise<ApiResponse<PaginatedResult<Trip>>> => {
+    const qs = buildListQueryParams({
+      page: filters?.page ?? 1,
+      per_page: filters?.per_page ?? 25,
+      status: filters?.status,
+      type: filters?.type,
+      vendor_id: filters?.vendorId,
+      date_from: filters?.dateFrom,
+      date_to: filters?.dateTo,
+      search: filters?.search,
+      sort_by: filters?.sort_by,
+      sort_direction: filters?.sort_direction,
+    });
+    const res = await apiRequestFull(`/trips?${qs.toString()}`);
+    if (!res.success) return { success: false, error: res.error };
+    const { items, pagination } = extractPaginatedItems<Trip>(res.body, 'trips');
+    return {
+      success: true,
+      data: {
+        items,
+        pagination: pagination ?? { page: 1, per_page: 25, total: items.length, total_pages: 1, from: 1, to: items.length },
+      },
+    };
+  },
+
+  // Get all trips with optional filters (first page; prefer list() for tables)
   getAll: async (filters?: {
     status?: string;
     type?: string;
@@ -203,7 +241,19 @@ export const tripsApi = {
       });
     }
     const query = params.toString() ? `?${params.toString()}` : '';
-    return apiRequest<Trip[]>(`/trips${query}`);
+    const listRes = await tripsApi.list({
+      page: 1,
+      per_page: 25,
+      status: filters?.status,
+      type: filters?.type,
+      vendorId: filters?.vendorId,
+      dateFrom: filters?.dateFrom,
+      dateTo: filters?.dateTo,
+    });
+    if (listRes.success && listRes.data) {
+      return { success: true, data: listRes.data.items };
+    }
+    return listRes as unknown as ApiResponse<Trip[]>;
   },
 
   // Get single trip by ID
@@ -511,7 +561,41 @@ export const materialsApi = {
 // FLEET API
 // ==========================================
 export const fleetApi = {
-  // Get all vehicles
+  list: async (filters?: {
+    page?: number;
+    per_page?: number;
+    status?: string;
+    ownership?: string;
+    vendorId?: string;
+    approvalStatus?: string;
+    search?: string;
+    sort_by?: string;
+    sort_direction?: 'asc' | 'desc';
+  }): Promise<ApiResponse<PaginatedResult<FleetVehicle>>> => {
+    const qs = buildListQueryParams({
+      page: filters?.page ?? 1,
+      per_page: filters?.per_page ?? 25,
+      status: filters?.status,
+      ownership: filters?.ownership,
+      vendor_id: filters?.vendorId,
+      approval_status: filters?.approvalStatus,
+      search: filters?.search,
+      sort_by: filters?.sort_by,
+      sort_direction: filters?.sort_direction,
+    });
+    const res = await apiRequestFull(`/fleet/vehicles?${qs.toString()}`);
+    if (!res.success) return { success: false, error: res.error };
+    const { items, pagination } = extractPaginatedItems<FleetVehicle>(res.body, 'vehicles');
+    return {
+      success: true,
+      data: {
+        items,
+        pagination: pagination ?? { page: 1, per_page: 25, total: items.length, total_pages: 1, from: 1, to: items.length },
+      },
+    };
+  },
+
+  // Get all vehicles (first page; prefer list() for tables)
   getAll: async (filters?: {
     status?: string;
     ownership?: string;
@@ -525,7 +609,18 @@ export const fleetApi = {
       });
     }
     const query = params.toString() ? `?${params.toString()}` : '';
-    return apiRequest<FleetVehicle[]>(`/fleet/vehicles${query}`);
+    const listRes = await fleetApi.list({
+      page: 1,
+      per_page: 25,
+      status: filters?.status,
+      ownership: filters?.ownership,
+      vendorId: filters?.vendorId,
+      approvalStatus: filters?.approvalStatus,
+    });
+    if (listRes.success && listRes.data) {
+      return { success: true, data: listRes.data.items };
+    }
+    return listRes as unknown as ApiResponse<FleetVehicle[]>;
   },
 
   // Get single vehicle

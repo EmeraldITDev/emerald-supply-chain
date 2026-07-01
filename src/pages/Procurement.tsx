@@ -48,6 +48,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { ListControls } from "@/components/dashboard/ListControls";
+import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import {
   applyListControls,
   defaultListControls,
@@ -268,14 +269,29 @@ const Procurement = () => {
   const [poControls, setPoControls] = useState<ListControlsState>(
     defaultListControls,
   );
+  const [mrfPage, setMrfPage] = useState(1);
+  const [mrfPagination, setMrfPagination] = useState<import('@/types/pagination').PaginationMeta | null>(null);
+  const [poPage, setPoPage] = useState(1);
+  const [poPagination, setPoPagination] = useState<import('@/types/pagination').PaginationMeta | null>(null);
+  const [poListItems, setPoListItems] = useState<MRF[]>([]);
+  const [poListLoading, setPoListLoading] = useState(false);
 
-  // Fetch MRFs from backend API
+  // Fetch MRFs from backend API (server-side pagination)
   const fetchMRFs = useCallback(async () => {
     setMrfLoading(true);
     try {
-      const response = await mrfApi.getAll();
+      const response = await mrfApi.list({
+        page: mrfPage,
+        per_page: 25,
+        search: mrfControls.search || undefined,
+        status: mrfControls.status !== 'all' ? mrfControls.status : undefined,
+        date_from: mrfControls.dateFrom || undefined,
+        date_to: mrfControls.dateTo || undefined,
+        sort: mrfControls.sort,
+      });
       if (response.success && response.data) {
-        setMrfRequests(response.data);
+        setMrfRequests(response.data.items);
+        setMrfPagination(response.data.pagination);
       } else {
         toast({
           title: "Error",
@@ -292,7 +308,32 @@ const Procurement = () => {
     } finally {
       setMrfLoading(false);
     }
-  }, [toast]);
+  }, [toast, mrfPage, mrfControls]);
+
+  const fetchPOList = useCallback(async () => {
+    setPoListLoading(true);
+    try {
+      const response = await mrfApi.list({
+        page: poPage,
+        per_page: 25,
+        po_list: true,
+        search: poControls.search || undefined,
+        status: poControls.status !== 'all' ? poControls.status : undefined,
+        date_from: poControls.dateFrom || undefined,
+        date_to: poControls.dateTo || undefined,
+        sort: poControls.sort,
+      });
+      if (response.success && response.data) {
+        setPoListItems(response.data.items);
+        setPoPagination(response.data.pagination);
+      } else {
+        setPoListItems([]);
+        setPoPagination(null);
+      }
+    } finally {
+      setPoListLoading(false);
+    }
+  }, [poPage, poControls]);
 
   // Fetch RFQs for tracking which MRFs have RFQs
   const fetchRFQs = useCallback(async () => {
@@ -435,6 +476,14 @@ const Procurement = () => {
     fetchMRFs();
     fetchRFQs();
   }, [fetchMRFs, fetchRFQs]);
+
+  useEffect(() => {
+    setMrfPage(1);
+  }, [mrfControls.search, mrfControls.status, mrfControls.dateFrom, mrfControls.dateTo, mrfControls.sort]);
+
+  useEffect(() => {
+    setPoPage(1);
+  }, [poControls.search, poControls.status, poControls.dateFrom, poControls.dateTo, poControls.sort]);
 
   useEffect(() => {
     let cancelled = false;
@@ -919,6 +968,13 @@ const Procurement = () => {
     }
   }, [tabFromQuery]);
   const [poDetailsDialogOpen, setPODetailsDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (tab === "po") {
+      void fetchPOList();
+    }
+  }, [tab, fetchPOList]);
+
   const [selectedMRFForPODetails, setSelectedMRFForPODetails] =
     useState<MRFRequest | null>(null);
 
@@ -1042,25 +1098,7 @@ const Procurement = () => {
     return true;
   };
 
-  const filteredMRFs = useMemo(() => {
-    return applyListControls<MRF>(mrfRequests, mrfControls, {
-      searchText: (mrf) =>
-        [
-          mrf.title,
-          mrf.id,
-          getDisplayId(mrf),
-          getMRFRequester(mrf),
-          (mrf as { vendor_name?: string }).vendor_name,
-          (mrf as { selectedVendorName?: string }).selectedVendorName,
-        ]
-          .filter(Boolean)
-          .join(" "),
-      date: (mrf) => getMRFDate(mrf),
-      value: (mrf) => parseFloat(getMRFEstimatedCost(mrf)) || 0,
-      matchesStatus: (mrf, status) => mrfStatusMatches(mrf, status),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mrfRequests, mrfControls]);
+  const filteredMRFs = mrfRequests;
 
   // ── SRF list controls (search / status / date-range / sort) ──────────────
   const srfStatusBucket = (srf: SRFRequest): string => {
@@ -1174,25 +1212,7 @@ const Procurement = () => {
     return "pending";
   };
 
-  const filteredPOItems = useMemo(() => {
-    return applyListControls<MRF>(poBaseItems as MRF[], poControls, {
-      searchText: (mrf) =>
-        [
-          getMRFPONumber(mrf),
-          getDisplayId(mrf),
-          mrf.title,
-          poVendorName(mrf),
-        ]
-          .filter(Boolean)
-          .join(" "),
-      date: (mrf) =>
-        getMRFDate(mrf) ||
-        (mrf as MRF & { po_draft_saved_at?: string }).po_draft_saved_at,
-      value: (mrf) => poValueOf(mrf),
-      matchesStatus: (mrf, status) => poStatusBucket(mrf) === status,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [poBaseItems, poControls]);
+  const filteredPOItems = poListItems;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -3266,6 +3286,11 @@ const Procurement = () => {
                           </div>
                         );
                       })}
+                      <ServerPaginationBar
+                        pagination={mrfPagination}
+                        page={mrfPage}
+                        onPageChange={setMrfPage}
+                      />
                     </div>
                   </div>
                 </CardContent>
@@ -3820,12 +3845,19 @@ const Procurement = () => {
                       <div className="text-center py-8 text-muted-foreground">
                         <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>
-                          {poBaseItems.length === 0
-                            ? "No purchase orders or drafts yet"
-                            : "No purchase orders match your filters"}
+                          {poListLoading
+                            ? "Loading purchase orders…"
+                            : poPagination?.total === 0
+                              ? "No purchase orders or drafts yet"
+                              : "No purchase orders match your filters"}
                         </p>
                       </div>
                     )}
+                    <ServerPaginationBar
+                      pagination={poPagination}
+                      page={poPage}
+                      onPageChange={setPoPage}
+                    />
                   </div>
                 </CardContent>
               </Card>

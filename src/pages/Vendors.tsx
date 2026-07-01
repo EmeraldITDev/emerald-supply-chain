@@ -41,7 +41,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
+import type { PaginationMeta } from "@/types/pagination";
 
 const Vendors = () => {
   const { toast } = useToast();
@@ -84,6 +85,10 @@ const Vendors = () => {
   const [selectedDirectoryIds, setSelectedDirectoryIds] = useState<string[]>([]);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [vendorPage, setVendorPage] = useState(1);
+  const [vendorPagination, setVendorPagination] = useState<PaginationMeta | null>(null);
+  const [directorySearch, setDirectorySearch] = useState("");
+  const [debouncedDirectorySearch, setDebouncedDirectorySearch] = useState("");
 
   // Admin profile-edit dialog (backfill of legacy NULL fields)
   const [editVendor, setEditVendor] = useState<{ id: number; name: string } | null>(null);
@@ -112,6 +117,15 @@ const Vendors = () => {
   const [inviteCategoryOptions, setInviteCategoryOptions] = useState<string[]>(() => [...VENDOR_CATEGORIES]);
   const [newVendorEmail, setNewVendorEmail] = useState("");
   const [isInvitingVendor, setIsInvitingVendor] = useState(false);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => setDebouncedDirectorySearch(directorySearch), 300);
+    return () => window.clearTimeout(handle);
+  }, [directorySearch]);
+
+  useEffect(() => {
+    setVendorPage(1);
+  }, [debouncedDirectorySearch]);
 
   useEffect(() => {
     if (!addVendorDialogOpen) return;
@@ -505,13 +519,17 @@ const Vendors = () => {
     fetchVendorData();
   }, [toast]);
 
-  // Fetch vendor directory (excludes Inactive merged duplicates by default)
+  // Fetch vendor directory (server-side pagination)
   const fetchVendors = async () => {
     setLoadingVendors(true);
     try {
-      const response = await vendorApi.getAll();
+      const response = await vendorApi.list({
+        page: vendorPage,
+        per_page: 25,
+        search: debouncedDirectorySearch.trim() || undefined,
+      });
       if (response.success && response.data) {
-        const transformedVendors = response.data.map((vendor: any) => ({
+        const transformedVendors = response.data.items.map((vendor: any) => ({
           id: vendor.id,
           displayId: vendor.vendor_id || `V${String(vendor.id).padStart(3, '0')}`,
           name: vendor.name || vendor.company_name,
@@ -533,10 +551,11 @@ const Vendors = () => {
           website: vendor.website ?? null,
         }));
         setVendors(transformedVendors);
+        setVendorPagination(response.data.pagination);
         setSelectedDirectoryIds((prev) =>
           prev.filter((id) => transformedVendors.some((v) => v.id === id)),
         );
-        const total = resolveTotalVendorCount(undefined, response.data);
+        const total = response.data.pagination?.total ?? transformedVendors.length;
         setDashboardStats((prev) => ({
           ...prev,
           totalVendors: total || prev.totalVendors,
@@ -561,7 +580,7 @@ const Vendors = () => {
   useEffect(() => {
     fetchVendors();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contextVendors]);
+  }, [contextVendors, vendorPage, debouncedDirectorySearch]);
 
   // Handle approval
   const handleApprove = async (registrationId: string) => {
@@ -1081,6 +1100,12 @@ const Vendors = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              <Input
+                value={directorySearch}
+                onChange={(e) => setDirectorySearch(e.target.value)}
+                placeholder="Search suppliers by name, email, or ID…"
+                className="max-w-md"
+              />
               {canDeleteVendors && vendors.length > 0 && (
                 <div className="flex items-center gap-2 pb-1 border-b">
                   <Checkbox
@@ -1144,6 +1169,11 @@ const Vendors = () => {
                   </div>
                 </div>
               ))}
+              <ServerPaginationBar
+                pagination={vendorPagination}
+                page={vendorPage}
+                onPageChange={setVendorPage}
+              />
             </div>
           </CardContent>
         </Card>

@@ -66,11 +66,13 @@ interface POGenerationDialogProps {
 
 export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave, isGenerating = false }: POGenerationDialogProps) {
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
+  const [selectedVendorLabels, setSelectedVendorLabels] = useState<Record<string, string>>({});
+  const [vendorSearch, setVendorSearch] = useState("");
+  const [vendorResults, setVendorResults] = useState<Vendor[]>([]);
   const [amount, setAmount] = useState(mrf?.estimatedCost || "");
   const [deliveryDate, setDeliveryDate] = useState<Date>();
   const [paymentTerms, setPaymentTerms] = useState("");
   const [notes, setNotes] = useState("");
-  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -82,29 +84,33 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
   const [paymentMilestones, setPaymentMilestones] = useState<PaymentMilestoneInput[]>([]);
   const [paymentMilestonesValid, setPaymentMilestonesValid] = useState(true);
 
-  // Fetch vendors when dialog opens
   useEffect(() => {
     if (open) {
-      fetchVendors();
       fetchTerms();
     }
   }, [open]);
 
-  const fetchVendors = async () => {
-    setLoadingVendors(true);
-    try {
-      const response = await vendorApi.getAll();
-      if (response.success && response.data) {
-        // Filter only active vendors
-        const activeVendors = response.data.filter(v => v.status === 'Active');
-        setVendors(activeVendors);
+  useEffect(() => {
+    if (!open) return;
+    const handle = window.setTimeout(async () => {
+      if (!vendorSearch.trim()) {
+        setVendorResults([]);
+        return;
       }
-    } catch (error) {
-      console.error('Failed to fetch vendors:', error);
-    } finally {
-      setLoadingVendors(false);
-    }
-  };
+      setLoadingVendors(true);
+      try {
+        const response = await vendorApi.list({ search: vendorSearch.trim(), per_page: 20, page: 1 });
+        if (response.success && response.data) {
+          setVendorResults(response.data.items.filter((v) => v.status === "Active"));
+        } else {
+          setVendorResults([]);
+        }
+      } finally {
+        setLoadingVendors(false);
+      }
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [vendorSearch, open]);
 
   const fetchTerms = async () => {
     setTermsLoading(true);
@@ -264,19 +270,28 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="vendors">Select Vendors/Suppliers *</Label>
+              <Input
+                value={vendorSearch}
+                onChange={(e) => setVendorSearch(e.target.value)}
+                placeholder="Search vendors by name or email (min 1 character)…"
+              />
               <div className="border rounded-lg p-4 max-h-[200px] overflow-y-auto">
                 {loadingVendors ? (
                   <div className="flex items-center justify-center p-4">
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    <span>Loading vendors...</span>
+                    <span>Searching vendors…</span>
                   </div>
-                ) : vendors.length === 0 ? (
+                ) : !vendorSearch.trim() ? (
                   <div className="p-4 text-sm text-muted-foreground text-center">
-                    No active vendors found
+                    Type to search — vendors are not loaded until you search
+                  </div>
+                ) : vendorResults.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground text-center">
+                    No active vendors match your search
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {vendors.map((v) => (
+                    {vendorResults.map((v) => (
                       <div key={v.id} className="flex items-center space-x-2 p-2 hover:bg-accent rounded-md">
                         <Checkbox
                           id={`vendor-${v.id}`}
@@ -284,8 +299,9 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
                           onCheckedChange={(checked) => {
                             if (checked) {
                               setSelectedVendorIds([...selectedVendorIds, v.id]);
+                              setSelectedVendorLabels((prev) => ({ ...prev, [v.id]: v.name }));
                             } else {
-                              setSelectedVendorIds(selectedVendorIds.filter(id => id !== v.id));
+                              setSelectedVendorIds(selectedVendorIds.filter((id) => id !== v.id));
                             }
                           }}
                         />
@@ -307,24 +323,16 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
               </div>
               {selectedVendorIds.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedVendorIds.map((vendorId) => {
-                    const vendor = vendors.find(v => v.id === vendorId);
-                    return vendor ? (
-                      <Badge key={vendorId} variant="secondary" className="flex items-center gap-1">
-                        {vendor.name}
-                        <X
-                          className="h-3 w-3 cursor-pointer"
-                          onClick={() => setSelectedVendorIds(selectedVendorIds.filter(id => id !== vendorId))}
-                        />
-                      </Badge>
-                    ) : null;
-                  })}
+                  {selectedVendorIds.map((vendorId) => (
+                    <Badge key={vendorId} variant="secondary" className="flex items-center gap-1">
+                      {selectedVendorLabels[vendorId] ?? vendorId}
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() => setSelectedVendorIds(selectedVendorIds.filter((id) => id !== vendorId))}
+                      />
+                    </Badge>
+                  ))}
                 </div>
-              )}
-              {!loadingVendors && vendors.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  No active vendors available. Please ensure vendors are registered and activated in the system.
-                </p>
               )}
             </div>
 

@@ -70,6 +70,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { fleetApi } from "@/services/logisticsApi";
+import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
+import type { PaginationMeta } from "@/types/pagination";
 import { useAuth } from "@/contexts/AuthContext";
 import type { FleetVehicle, MaintenanceRecord, FleetAlert, VehicleStatus, VehicleOwnership } from "@/types/logistics";
 import { normalizeFleetVehicle, mapFleetListDocument } from "@/utils/normalizeFleetVehicle";
@@ -114,6 +116,9 @@ export const FleetManagement = () => {
   const { user } = useAuth();
   const canInitiateSRF = !!user && ["logistics_officer", "logistics_manager", "logistics"].includes(getScmRole(user) || "");
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
+  const [vehiclePage, setVehiclePage] = useState(1);
+  const [vehiclePagination, setVehiclePagination] = useState<PaginationMeta | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [alerts, setAlerts] = useState<FleetAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -204,18 +209,22 @@ export const FleetManagement = () => {
     setLoading(true);
     try {
       const [vehiclesRes, alertsRes] = await Promise.all([
-        fleetApi.getAll({
+        fleetApi.list({
+          page: vehiclePage,
+          per_page: 25,
           status: statusFilter !== "all" ? statusFilter : undefined,
           ownership: ownershipFilter !== "all" ? ownershipFilter : undefined,
+          search: debouncedSearch.trim() || undefined,
         }),
         fleetApi.getAlerts(),
       ]);
 
       if (vehiclesRes.success && vehiclesRes.data) {
-        const vehiclesData = Array.isArray(vehiclesRes.data) ? vehiclesRes.data : [];
-        setVehicles(vehiclesData.map(normalizeFleetVehicle));
+        setVehicles(vehiclesRes.data.items.map(normalizeFleetVehicle));
+        setVehiclePagination(vehiclesRes.data.pagination);
       } else {
         setVehicles([]);
+        setVehiclePagination(null);
       }
 
       if (alertsRes.success && alertsRes.data) {
@@ -255,8 +264,17 @@ export const FleetManagement = () => {
   };
 
   useEffect(() => {
+    const handle = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => window.clearTimeout(handle);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setVehiclePage(1);
+  }, [debouncedSearch, statusFilter, ownershipFilter]);
+
+  useEffect(() => {
     fetchData();
-  }, [statusFilter, ownershipFilter]);
+  }, [statusFilter, ownershipFilter, vehiclePage, debouncedSearch]);
 
   // Sync selectedVehicle whenever vehicles array updates
   useEffect(() => {
@@ -538,15 +556,7 @@ export const FleetManagement = () => {
     setDocumentExpiry("");
   };
 
-  const filteredVehicles = vehicles.filter(vehicle => {
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      (vehicle.vehicleNumber || '').toLowerCase().includes(q) ||
-      (vehicle.plate || '').toLowerCase().includes(q) ||
-      (vehicle.name || '').toLowerCase().includes(q) ||
-      (vehicle.vendorName || '').toLowerCase().includes(q);
-    return matchesSearch;
-  });
+  const filteredVehicles = vehicles;
 
   const criticalAlerts = alerts.filter(a => a.severity === "critical" || a.severity === "high");
 
@@ -1059,6 +1069,12 @@ export const FleetManagement = () => {
                     })}
                   </TableBody>
               </Table>
+              <ServerPaginationBar
+                pagination={vehiclePagination}
+                page={vehiclePage}
+                onPageChange={setVehiclePage}
+                className="mt-4"
+              />
             </div>
           )}
         </CardContent>

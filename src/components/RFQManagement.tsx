@@ -46,43 +46,48 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   
   // Fetch vendors from API instead of context
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [loadingVendors, setLoadingVendors] = useState(true);
+  const [vendorSearch, setVendorSearch] = useState("");
+  const [loadingVendors, setLoadingVendors] = useState(false);
   const [isCreatingRFQ, setIsCreatingRFQ] = useState(false);
   const [isAwardingVendor, setIsAwardingVendor] = useState(false);
   
   useEffect(() => {
-    const fetchVendors = async () => {
+    if (!createDialogOpen) return;
+    const handle = window.setTimeout(async () => {
+      if (!vendorSearch.trim() && selectionMethod !== "all_category") {
+        setVendors([]);
+        return;
+      }
       setLoadingVendors(true);
       try {
-        const response = await vendorApi.getAll();
+        const response = await vendorApi.list({
+          search: vendorSearch.trim() || undefined,
+          category: selectionMethod === "all_category" && selectedCategory ? selectedCategory : undefined,
+          per_page: 50,
+          page: 1,
+        });
         if (response.success && response.data) {
-          const transformedVendors = response.data.map((vendor: any) => ({
+          const transformedVendors = response.data.items.map((vendor: any) => ({
             id: vendor.id,
             name: vendor.name || vendor.company_name,
-            category: vendor.category || 'Unknown',
+            category: vendor.category || "Unknown",
             categoryOther: pickCategoryOtherFromUnknown(vendor) ?? null,
-            status: vendor.status || 'Active',
-            kyc: vendor.kyc_status || 'Verified',
+            status: vendor.status || "Active",
+            kyc: vendor.kyc_status || "Verified",
             rating: vendor.rating || 0,
-            orders: vendor.total_orders || 0,
-            email: vendor.email || '',
+            orders: vendor.total_orders || vendor.totalOrders || 0,
+            email: vendor.email || "",
           }));
           setVendors(transformedVendors);
         }
       } catch (error) {
-        console.error('Failed to fetch vendors:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load vendors",
-          variant: "destructive",
-        });
+        console.error("Failed to fetch vendors:", error);
       } finally {
         setLoadingVendors(false);
       }
-    };
-    
-    fetchVendors();
-  }, [toast]);
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [createDialogOpen, vendorSearch, selectionMethod, selectedCategory]);
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);

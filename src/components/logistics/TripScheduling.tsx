@@ -65,6 +65,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { tripRequestApi } from "@/services/api";
 import { TripRequestDialog } from "./TripRequestDialog";
 import { TripWorkflowActions } from "./TripWorkflowActions";
+import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
+import type { PaginationMeta } from "@/types/pagination";
+import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
+import type { PaginationMeta } from "@/types/pagination";
 import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
 import type { Trip, TripStatus, TripType, TripPassenger, CreateTripData, BulkTripUploadResult } from "@/types/logistics";
 import { VendorJMPSubmission } from "./VendorJMPSubmission";
@@ -109,6 +113,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const { toast } = useToast();
   const { user } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [tripPage, setTripPage] = useState(1);
+  const [tripPagination, setTripPagination] = useState<PaginationMeta | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -220,20 +227,23 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     signedPoUrl: raw.signed_po_url || raw.signedPoUrl,
   });
 
-  // Fetch trips from API
+  // Fetch trips from API (server-side pagination)
   const fetchTrips = async () => {
     setLoading(true);
     try {
-      const response = await tripsApi.getAll({
+      const response = await tripsApi.list({
+        page: tripPage,
+        per_page: 25,
         status: statusFilter !== "all" ? statusFilter : undefined,
         type: typeFilter !== "all" ? typeFilter : undefined,
+        search: debouncedSearch.trim() || undefined,
       });
       if (response.success && response.data) {
-        const tripsData = Array.isArray(response.data) ? response.data : [];
-        setTrips(tripsData.map(normalizeTrip));
+        setTrips(response.data.items.map(normalizeTrip));
+        setTripPagination(response.data.pagination);
       } else {
-        // No trips available - show empty state
         setTrips([]);
+        setTripPagination(null);
       }
     } catch (error) {
       console.error("Failed to fetch trips:", error);
@@ -265,8 +275,17 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   };
 
   useEffect(() => {
+    const handle = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => window.clearTimeout(handle);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setTripPage(1);
+  }, [debouncedSearch, statusFilter, typeFilter]);
+
+  useEffect(() => {
     fetchTrips();
-  }, [statusFilter, typeFilter]);
+  }, [statusFilter, typeFilter, tripPage, debouncedSearch]);
 
   useEffect(() => {
     fetchVendors();
@@ -657,16 +676,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     setExternalDriver({ name: "", phone: "", license_number: "" });
   };
 
-  const filteredTrips = trips.filter(trip => {
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      (trip.tripNumber || '').toLowerCase().includes(q) ||
-      (trip.origin || '').toLowerCase().includes(q) ||
-      (trip.destination || '').toLowerCase().includes(q) ||
-      (trip.vendorName || '').toLowerCase().includes(q) ||
-      (trip.driverName || '').toLowerCase().includes(q);
-    return matchesSearch;
-  });
+  const filteredTrips = trips;
 
   return (
     <div className="space-y-6">
@@ -1271,6 +1281,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   ))}
                 </TableBody>
               </Table>
+              <ServerPaginationBar
+                pagination={tripPagination}
+                page={tripPage}
+                onPageChange={setTripPage}
+                className="mt-4"
+              />
             </div>
           )}
         </CardContent>
