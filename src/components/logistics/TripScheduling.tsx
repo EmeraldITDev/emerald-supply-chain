@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,7 +67,9 @@ import { TripRequestDialog } from "./TripRequestDialog";
 import { TripWorkflowActions } from "./TripWorkflowActions";
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import type { PaginationMeta } from "@/types/pagination";
-import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
+import { useTableExport } from "@/hooks/useTableExport";
+import { TableExportMenu } from "@/components/export/TableExportMenu";
+import { TRIP_EXPORT_COLUMNS, type TripExportRow } from "@/config/tableExportPresets";
 import type { PaginationMeta } from "@/types/pagination";
 import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
 import type { Trip, TripStatus, TripType, TripPassenger, CreateTripData, BulkTripUploadResult } from "@/types/logistics";
@@ -290,6 +292,48 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   useEffect(() => {
     fetchVendors();
   }, []);
+
+  const tripsHasActiveFilters =
+    statusFilter !== "all" ||
+    typeFilter !== "all" ||
+    Boolean(debouncedSearch.trim());
+
+  const fetchTripExportPage = useCallback(
+    async (page: number, perPage: number) => {
+      const response = await tripsApi.list({
+        page,
+        per_page: perPage,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        type: typeFilter !== "all" ? typeFilter : undefined,
+        search: debouncedSearch.trim() || undefined,
+      });
+      if (!response.success || !response.data) {
+        return { items: [] as TripExportRow[] };
+      }
+      const items: TripExportRow[] = response.data.items.map((raw: any) => {
+        const t = normalizeTrip(raw);
+        return {
+          id: t.id,
+          tripCode: t.tripCode || t.id,
+          type: t.type,
+          status: t.status,
+          origin: t.origin,
+          destination: t.destination,
+          departureDate: t.scheduledDepartureAt || t.departureDate,
+          workflowStage: t.workflowStage || t.workflow_stage,
+        };
+      });
+      return { items, pagination: response.data.pagination };
+    },
+    [debouncedSearch, statusFilter, typeFilter],
+  );
+
+  const tripTableExport = useTableExport({
+    filenamePrefix: "Trips",
+    columns: TRIP_EXPORT_COLUMNS,
+    fetchPage: fetchTripExportPage,
+    hasActiveFilters: tripsHasActiveFilters,
+  });
 
   const handleCreateTrip = async () => {
     if (!formData.origin || !formData.destination || !formData.scheduledDepartureAt) {
@@ -980,6 +1024,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               <Button variant="outline" size="icon" onClick={fetchTrips}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
+              <TableExportMenu export={tripTableExport} title="Export trips" />
             </div>
           </div>
         </CardContent>

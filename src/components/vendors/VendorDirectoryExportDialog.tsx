@@ -24,6 +24,8 @@ import {
   vendorDirectoryExportFilename,
   type VendorDirectoryExportColumnKey,
 } from '@/utils/vendorDirectoryExport';
+import { parseExportLimitInput, TABLE_EXPORT_DEFAULT_LIMIT, TABLE_EXPORT_MAX_ROWS } from '@/utils/tableExport';
+import { Input } from '@/components/ui/input';
 
 export type VendorDirectoryExportFilters = {
   search?: string;
@@ -52,6 +54,7 @@ export function VendorDirectoryExportDialog({
     () => loadStoredExportColumns(),
   );
   const [exporting, setExporting] = useState(false);
+  const [limitInput, setLimitInput] = useState(String(TABLE_EXPORT_DEFAULT_LIMIT));
 
   useEffect(() => {
     if (open) {
@@ -94,12 +97,16 @@ export function VendorDirectoryExportDialog({
     storeExportColumns(selectedColumns);
     setExporting(true);
 
+    const limit = parseExportLimitInput(limitInput);
+    const limitParam = limit === 'all' ? 'all' : String(limit);
+
     try {
       const params = {
         columns: selectedColumns,
         search: filters.search,
         status: filters.status,
         category: filters.category,
+        limit: limitParam,
       };
 
       if (format === 'csv') {
@@ -232,6 +239,16 @@ export function VendorDirectoryExportDialog({
             <p className="text-xs text-muted-foreground">
               {selectedColumns.length} column{selectedColumns.length === 1 ? '' : 's'} selected
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="vendor-export-limit">Number of records</Label>
+            <Input
+              id="vendor-export-limit"
+              value={limitInput}
+              onChange={(e) => setLimitInput(e.target.value)}
+              placeholder={`e.g. 50, 100, or All (max ${TABLE_EXPORT_MAX_ROWS.toLocaleString()})`}
+            />
           </div>
         </div>
 

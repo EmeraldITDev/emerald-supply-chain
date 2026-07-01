@@ -2543,6 +2543,7 @@ export const vendorApi = {
       search?: string;
       status?: string;
       category?: string;
+      limit?: string | number;
     },
   ): Promise<ApiResponse<Blob>> => {
     const { token, expired } = getAuthToken();
@@ -2556,6 +2557,7 @@ export const vendorApi = {
       search: params.search,
       status: params.status,
       category: params.category,
+      limit: params.limit,
     });
 
     try {
@@ -2586,6 +2588,7 @@ export const vendorApi = {
     search?: string;
     status?: string;
     category?: string;
+    limit?: string | number;
   }): Promise<
     ApiResponse<{
       headers: string[];
@@ -2598,6 +2601,7 @@ export const vendorApi = {
       search: params.search,
       status: params.status,
       category: params.category,
+      limit: params.limit,
     });
     const res = await apiRequest<{
       headers: string[];

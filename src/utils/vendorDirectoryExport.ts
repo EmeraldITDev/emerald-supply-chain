@@ -70,10 +70,12 @@ export function buildVendorDirectoryCsv(
     return value;
   };
 
-  return [
-    headers.map(escape).join(','),
-    ...rows.map((row) => row.map((cell) => escape(String(cell ?? ''))).join(',')),
-  ].join('\n');
+  const bom = '\uFEFF';
+  const headerLine = headers.map(escape).join(',');
+  const body = rows.map((row) =>
+    row.map((cell) => escape(String(cell ?? ''))).join(','),
+  );
+  return bom + [headerLine, ...body].join('\r\n');
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {

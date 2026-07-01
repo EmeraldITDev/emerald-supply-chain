@@ -68,6 +68,13 @@ import {
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { RFQManagement } from "@/components/RFQManagement";
+import { useTableExport } from "@/hooks/useTableExport";
+import { TableExportMenu } from "@/components/export/TableExportMenu";
+import {
+  MRF_EXPORT_COLUMNS,
+  PO_EXPORT_COLUMNS,
+  SRF_EXPORT_COLUMNS,
+} from "@/config/tableExportPresets";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { SRFDetailPanel } from "@/components/SRFDetailPanel";
 import { LineItemPnLSection } from "@/components/LineItemPnLSection";
@@ -405,6 +412,101 @@ const Procurement = () => {
     poControls.dateTo,
     poControls.sort,
   ]);
+
+  const mrfHasActiveFilters =
+    mrfControls.status !== "all" ||
+    Boolean(mrfSearchDebounced) ||
+    Boolean(mrfControls.dateFrom) ||
+    Boolean(mrfControls.dateTo);
+
+  const fetchMrfExportPage = useCallback(
+    async (page: number, perPage: number) => {
+      const response = await mrfApi.list({
+        page,
+        per_page: perPage,
+        search: mrfSearchDebounced || undefined,
+        status: mrfControls.status !== "all" ? mrfControls.status : undefined,
+        date_from: mrfControls.dateFrom || undefined,
+        date_to: mrfControls.dateTo || undefined,
+        sort: mrfControls.sort,
+      });
+      if (!response.success || !response.data) return { items: [] as MRF[] };
+      return { items: response.data.items, pagination: response.data.pagination };
+    },
+    [mrfSearchDebounced, mrfControls],
+  );
+
+  const mrfTableExport = useTableExport({
+    filenamePrefix: "MRF_List",
+    columns: MRF_EXPORT_COLUMNS,
+    fetchPage: fetchMrfExportPage,
+    hasActiveFilters: mrfHasActiveFilters,
+  });
+
+  const poHasActiveFilters =
+    poControls.status !== "all" ||
+    Boolean(poSearchDebounced) ||
+    Boolean(poControls.dateFrom) ||
+    Boolean(poControls.dateTo);
+
+  const fetchPoExportPage = useCallback(
+    async (page: number, perPage: number) => {
+      const response = await mrfApi.list({
+        page,
+        per_page: perPage,
+        po_list: true,
+        search: poSearchDebounced || undefined,
+        status: poControls.status !== "all" ? poControls.status : undefined,
+        date_from: poControls.dateFrom || undefined,
+        date_to: poControls.dateTo || undefined,
+        sort: poControls.sort,
+      });
+      if (!response.success || !response.data) return { items: [] as MRF[] };
+      return { items: response.data.items, pagination: response.data.pagination };
+    },
+    [poSearchDebounced, poControls],
+  );
+
+  const poTableExport = useTableExport({
+    filenamePrefix: "Purchase_Orders",
+    columns: PO_EXPORT_COLUMNS,
+    fetchPage: fetchPoExportPage,
+    hasActiveFilters: poHasActiveFilters,
+  });
+
+  const srfHasActiveFilters =
+    srfControls.status !== "all" ||
+    Boolean(srfControls.search) ||
+    Boolean(srfControls.dateFrom) ||
+    Boolean(srfControls.dateTo);
+
+  const fetchSrfExportPage = useCallback(
+    async (page: number, perPage: number) => {
+      const response = await srfApi.getAll({
+        page,
+        per_page: perPage,
+        search: srfControls.search || undefined,
+        status: srfControls.status !== "all" ? srfControls.status : undefined,
+        include_line_items: false,
+      });
+      const items = response.success && response.data ? response.data : [];
+      return {
+        items,
+        pagination: {
+          page,
+          total_pages: items.length < perPage ? page : page + 1,
+        },
+      };
+    },
+    [srfControls],
+  );
+
+  const srfTableExport = useTableExport({
+    filenamePrefix: "Service_Requests",
+    columns: SRF_EXPORT_COLUMNS,
+    fetchPage: fetchSrfExportPage,
+    hasActiveFilters: srfHasActiveFilters,
+  });
 
   const refreshProcurementRfqs = useCallback(async () => {
     const list = await refreshRFQs();
@@ -2537,12 +2639,17 @@ const Procurement = () => {
                     )}
 
                   <div className="space-y-4">
-                    <ListControls
-                      state={mrfControls}
-                      onChange={handleMrfControlsChange}
-                      statusOptions={statusOptions}
-                      searchPlaceholder="Search by title, ID, requester, or vendor..."
-                    />
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <ListControls
+                          state={mrfControls}
+                          onChange={handleMrfControlsChange}
+                          statusOptions={statusOptions}
+                          searchPlaceholder="Search by title, ID, requester, or vendor..."
+                        />
+                      </div>
+                      <TableExportMenu export={mrfTableExport} title="Export MRFs" />
+                    </div>
 
                     {/* Results */}
                     <div className="space-y-4 mt-4">
@@ -3451,13 +3558,16 @@ const Procurement = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-4">
-                    <ListControls
-                      state={srfControls}
-                      onChange={setSrfControls}
-                      statusOptions={srfStatusOptions}
-                      searchPlaceholder="Search by title, ID, requester, or vendor..."
-                    />
+                  <div className="mb-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <ListControls
+                        state={srfControls}
+                        onChange={setSrfControls}
+                        statusOptions={srfStatusOptions}
+                        searchPlaceholder="Search by title, ID, requester, or vendor..."
+                      />
+                    </div>
+                    <TableExportMenu export={srfTableExport} title="Export service requests" />
                   </div>
                   <div className="space-y-3">
                     {filteredSRFs.length === 0 && (
@@ -3662,13 +3772,16 @@ const Procurement = () => {
                   )}
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-4">
-                    <ListControls
-                      state={poControls}
-                      onChange={handlePoControlsChange}
-                      statusOptions={poStatusOptions}
-                      searchPlaceholder="Search by PO number, MRF ID, title, or vendor..."
-                    />
+                  <div className="mb-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <ListControls
+                        state={poControls}
+                        onChange={handlePoControlsChange}
+                        statusOptions={poStatusOptions}
+                        searchPlaceholder="Search by PO number, MRF ID, title, or vendor..."
+                      />
+                    </div>
+                    <TableExportMenu export={poTableExport} title="Export purchase orders" />
                   </div>
                   <div className="space-y-3">
                     {filteredPOItems

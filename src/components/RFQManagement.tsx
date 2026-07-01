@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { getDisplayId, getMrfApiId, findMrfByAnyLinkId } from "@/utils/displayId";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,9 @@ import type { NormalizedQuotation } from "@/utils/normalizeQuotation";
 import { normalizeAttachments } from "@/utils/attachments";
 import type { MRFRequest, RFQ, Quotation } from "@/contexts/AppContext";
 import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
+import { useTableExport } from "@/hooks/useTableExport";
+import { TableExportMenu } from "@/components/export/TableExportMenu";
+import { RFQ_EXPORT_COLUMNS } from "@/config/tableExportPresets";
 
 interface Vendor {
   id: string;
@@ -697,6 +700,33 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
 
   const categories = [...new Set(vendors.map(v => v.category))];
 
+  const fetchRfqExportPage = useCallback(async (page: number, perPage: number) => {
+    const response = await rfqApi.list({ page, per_page: perPage });
+    if (!response.success || !response.data) {
+      return { items: rfqs as RFQ[], pagination: { page: 1, total_pages: 1 } };
+    }
+    const items = response.data.items.map((rfq: any) => ({
+      id: rfq.id,
+      mrfId: rfq.mrf_id || rfq.mrfId || "",
+      mrfTitle: rfq.title || rfq.mrfTitle || "",
+      description: rfq.description,
+      quantity: String(rfq.quantity || ""),
+      estimatedCost: String(rfq.estimated_cost || rfq.estimatedCost || 0),
+      deadline: rfq.deadline,
+      status: rfq.status as "Open" | "Closed" | "Awarded",
+      createdDate: rfq.created_at || rfq.createdAt || "",
+      vendorIds: rfq.vendor_ids || rfq.vendorIds || [],
+    })) as RFQ[];
+    return { items, pagination: response.data.pagination };
+  }, [rfqs]);
+
+  const rfqTableExport = useTableExport({
+    filenamePrefix: "RFQ_List",
+    columns: RFQ_EXPORT_COLUMNS,
+    fetchPage: fetchRfqExportPage,
+    hasActiveFilters: false,
+  });
+
   const getVendorBadge = (vendor: Vendor) => {
     if (vendor.rating >= 4.5 && vendor.orders >= 20) {
       return <Badge className="bg-amber-500 text-white ml-2">Preferred</Badge>;
@@ -781,15 +811,18 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       </div>
 
       {/* Create RFQ Button */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-3">
         <div>
           <h3 className="text-lg font-semibold">RFQ Management</h3>
           <p className="text-sm text-muted-foreground">Create, dispatch, and manage quotation requests</p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Create RFQ
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <TableExportMenu export={rfqTableExport} title="Export RFQs" />
+          <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create RFQ
+          </Button>
+        </div>
       </div>
 
       {/* Active RFQs */}
