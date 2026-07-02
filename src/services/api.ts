@@ -650,6 +650,13 @@ export const mrfApi = {
     if (!res.success) {
       return { success: false, error: res.error };
     }
+    if (Array.isArray(res.body)) {
+      return {
+        success: false,
+        error:
+          'MRF list returned an invalid server response. Redeploy the backend and run pending migrations, then refresh.',
+      };
+    }
     const { items, pagination } = extractPaginatedItems<MRF>(res.body);
     return {
       success: true,

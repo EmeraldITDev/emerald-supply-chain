@@ -2024,8 +2024,10 @@ const Procurement = () => {
             "The Material Request Form has been deleted successfully",
         });
         await invalidateMrfLists(queryClient);
+        await invalidatePoLists(queryClient);
       } else {
         await invalidateMrfLists(queryClient);
+        await invalidatePoLists(queryClient);
         toast({
           title: "Error",
           description: response.error || "Failed to delete MRF",
@@ -2034,6 +2036,7 @@ const Procurement = () => {
       }
     } catch (error) {
       await invalidateMrfLists(queryClient);
+      await invalidatePoLists(queryClient);
       toast({
         title: "Error",
         description: "Failed to connect to server",

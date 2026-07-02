@@ -45,6 +45,7 @@ export function invalidateReportCaches(queryClient: QueryClient): Promise<void> 
 
 function mrfMatchesId(mrf: MRF, mrfId: string): boolean {
   const needle = mrfId.trim();
+  if (!needle) return false;
   return (
     String(mrf.id ?? '') === needle ||
     String((mrf as { mrf_id?: string }).mrf_id ?? '') === needle ||
