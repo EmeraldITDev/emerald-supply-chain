@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx';
-
 export const TABLE_EXPORT_MAX_ROWS = 10000;
 export const TABLE_EXPORT_DEFAULT_LIMIT = 100;
 
@@ -54,7 +52,12 @@ export function buildCsvContent(headers: string[], rows: string[][]): string {
   return bom + [headerLine, ...body].join('\r\n');
 }
 
-export function buildXlsxBlob(headers: string[], rows: string[][]): Blob {
+/**
+ * Build an XLSX blob. `xlsx` is ~430KB — kept out of the initial bundle by
+ * dynamic-importing it here so it's only fetched when a user actually exports.
+ */
+export async function buildXlsxBlob(headers: string[], rows: string[][]): Promise<Blob> {
+  const XLSX = await import('xlsx');
   const aoa = [headers, ...rows.map((r) => r.map((c) => c ?? ''))];
   const worksheet = XLSX.utils.aoa_to_sheet(aoa);
   const workbook = XLSX.utils.book_new();
@@ -114,16 +117,17 @@ export function parseExportLimitInput(raw: string): number | 'all' {
   return Math.min(n, TABLE_EXPORT_MAX_ROWS);
 }
 
-export function exportTableDataset(
+export async function exportTableDataset(
   filenamePrefix: string,
   format: TableExportFormat,
   headers: string[],
   rows: string[][],
-): void {
+): Promise<void> {
   if (format === 'csv') {
     const csv = buildCsvContent(headers, rows);
     downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), exportFilename(filenamePrefix, 'csv'));
     return;
   }
-  downloadBlob(buildXlsxBlob(headers, rows), exportFilename(filenamePrefix, 'xlsx'));
+  const blob = await buildXlsxBlob(headers, rows);
+  downloadBlob(blob, exportFilename(filenamePrefix, 'xlsx'));
 }
