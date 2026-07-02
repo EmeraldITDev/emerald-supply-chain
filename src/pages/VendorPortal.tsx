@@ -338,7 +338,7 @@ const VendorPortal = () => {
       });
 
       if (response.success && response.data) {
-        const updated = response.data as Record<string, unknown>;
+        const updated = response.data as unknown as Record<string, unknown>;
         const patch: Record<string, unknown> = {
           contact_person: editProfileData.contactPerson,
           contactPerson: editProfileData.contactPerson,
@@ -2394,7 +2394,7 @@ const VendorPortal = () => {
                 </div>
 
                 <VendorBankDetailsSection
-                  vendor={currentVendor as Record<string, unknown>}
+                  vendor={currentVendor as unknown as Record<string, unknown>}
                   editing={isEditingProfile}
                   values={{
                     bankName: editProfileData.bankName,

@@ -24,6 +24,7 @@ import type {
   ApiResponse,
   FilterOptions,
   SortOptions,
+  User,
 } from '@/types';
 import { RFQ_STANDARD_TERMS } from '@/data/rfqPoTermsTemplate';
 
@@ -3925,10 +3926,12 @@ export const tripRequestApi = {
       return { ...res, data: { trip } };
     }
     if (!res.success && res.code === 'REQUESTER_EDIT_WINDOW_EXPIRED') {
-      return {
+      return ({
         ...res,
         error: res.error || 'The 48-hour edit window has closed for this trip request.',
-      };
+      } as unknown) as ApiResponse<{
+        trip: import('@/types/trip-request').StaffTripRequest;
+      }>;
     }
     return res as unknown as ApiResponse<{
       trip: import('@/types/trip-request').StaffTripRequest;

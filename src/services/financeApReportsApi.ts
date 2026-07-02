@@ -207,6 +207,6 @@ export const financeApReportsApi = {
         },
       };
     }
-    return res as ApiResponse<FinanceApSyncEventsReport>;
+    return res as unknown as ApiResponse<FinanceApSyncEventsReport>;
   },
 };
