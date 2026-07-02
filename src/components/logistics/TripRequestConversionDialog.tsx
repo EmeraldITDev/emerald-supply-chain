@@ -63,14 +63,14 @@ export function TripRequestConversionDialog({
   const [submitting, setSubmitting] = useState(false);
 
   const seedPassengers = useCallback((trip: StaffTripRequest) => {
-    const ids =
+    const ids: (string | number)[] =
       trip.passengerUserIds ??
       trip.passenger_user_ids ??
       (trip.passengers ?? [])
         .map((p) => p.userId ?? p.user_id)
         .filter((id): id is number => id != null)
         .map(String);
-    setPassengerIds(ids);
+    setPassengerIds(ids.map(String));
   }, []);
 
   useEffect(() => {
@@ -91,8 +91,7 @@ export function TripRequestConversionDialog({
     const handle = window.setTimeout(async () => {
       const res = await vendorApi.getAll({
         search: vendorSearch.trim() || undefined,
-        per_page: 20,
-      });
+      } as any);
       if (res.success && res.data) {
         setVendorResults(Array.isArray(res.data) ? res.data : []);
       }
@@ -193,7 +192,10 @@ export function TripRequestConversionDialog({
 
             <div className="space-y-2">
               <Label>Passengers</Label>
-              <EligiblePassengerPicker value={passengerIds} onChange={setPassengerIds} />
+              <EligiblePassengerPicker
+                selectedPassengerIds={passengerIds}
+                onPassengersChange={setPassengerIds}
+              />
             </div>
 
             {fulfillmentType === "external_vendor" ? (
@@ -237,7 +239,7 @@ export function TripRequestConversionDialog({
                   <SelectContent>
                     {vehicles.map((v) => (
                       <SelectItem key={String(v.id)} value={String(v.id)}>
-                        {v.plateNumber ?? v.plate_number} — {v.make} {v.model}
+                        {(v as any).plateNumber ?? (v as any).plate_number ?? v.plate} — {v.make} {v.model}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -263,8 +265,8 @@ export function TripRequestConversionDialog({
               </RadioGroup>
               {driverType === "internal" ? (
                 <EligiblePassengerPicker
-                  value={driverUserId ? [driverUserId] : []}
-                  onChange={(ids) => setDriverUserId(ids[0] ?? "")}
+                  selectedPassengerIds={driverUserId ? [driverUserId] : []}
+                  onPassengersChange={(ids) => setDriverUserId(ids[0] ?? "")}
                 />
               ) : (
                 <div className="grid gap-2">
