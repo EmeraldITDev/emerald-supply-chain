@@ -337,6 +337,16 @@ const SupplyChainDashboard = () => {
 
   const scdBuckets = useMemo(() => bucketScdMrfs(mrfRequests), [mrfRequests]);
 
+  const scdBucketCounts = useMemo(
+    () => ({
+      pending: scdBuckets.pending.length,
+      approved: scdBuckets.approved.length,
+      rejected: scdBuckets.rejected.length,
+      completed: scdBuckets.completed.length,
+    }),
+    [scdBuckets],
+  );
+
   const scdExtraPendingCount =
     pendingDirectorSrfs.length + vendorRegistrations.length;
 
@@ -736,7 +746,7 @@ const SupplyChainDashboard = () => {
           <DashboardAlerts userRole="supply_chain" maxAlerts={5} />
 
           <DashboardSummaryStats
-            counts={scdBuckets}
+            counts={scdBucketCounts}
             extraPending={scdExtraPendingCount}
             extraPendingLabel={`${pendingDirectorSrfs.length} SRF${pendingDirectorSrfs.length !== 1 ? "s" : ""}, ${vendorRegistrations.length} vendor registration${vendorRegistrations.length !== 1 ? "s" : ""}`}
           />

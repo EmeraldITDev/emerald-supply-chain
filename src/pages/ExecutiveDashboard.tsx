@@ -125,6 +125,16 @@ const ExecutiveDashboard = () => {
     [mrfRequests],
   );
 
+  const executiveBucketCounts = useMemo(
+    () => ({
+      pending: executiveBuckets.pending.length,
+      approved: executiveBuckets.approved.length,
+      rejected: executiveBuckets.rejected.length,
+      completed: executiveBuckets.completed.length,
+    }),
+    [executiveBuckets],
+  );
+
   const pendingMRFs = executiveBuckets.pending;
 
   const openMrfDetails = useCallback(async (mrf: MRF) => {
@@ -185,7 +195,7 @@ const ExecutiveDashboard = () => {
 
         {/* Summary Statistics */}
         <DashboardSummaryStats
-          counts={executiveBuckets}
+          counts={executiveBucketCounts}
           extraPending={vendorRegistrations.length}
           extraPendingLabel={`${vendorRegistrations.length} vendor registration${vendorRegistrations.length !== 1 ? "s" : ""} awaiting review`}
         />

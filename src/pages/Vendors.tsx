@@ -452,11 +452,6 @@ const Vendors = () => {
     }
   };
 
-  const allDirectorySelected =
-    vendors.length > 0 && selectedDirectoryIds.length === vendors.length;
-  const someDirectorySelected =
-    selectedDirectoryIds.length > 0 && selectedDirectoryIds.length < vendors.length;
-
   // Open contact dialog with pre-filled vendor email
   const handleOpenContactDialog = () => {
     if (selectedVendor) {
@@ -571,6 +566,11 @@ const Vendors = () => {
     }));
   }, [vendorApiItems, contextVendors, loadingVendors]);
 
+  const allDirectorySelected =
+    vendors.length > 0 && selectedDirectoryIds.length === vendors.length;
+  const someDirectorySelected =
+    selectedDirectoryIds.length > 0 && selectedDirectoryIds.length < vendors.length;
+
   useEffect(() => {
     const total = vendorPagination?.total ?? vendors.length;
     if (total > 0) {
@@ -661,7 +661,7 @@ const Vendors = () => {
           setVendorRegistrations(refreshResponse.data);
         }
         // Also refresh vendors list
-        await fetchVendors(showInactiveMerged);
+        await refetchVendorDirectory();
         setKycReviewOpen(false);
         setReviewingVendor(null);
       } else {
