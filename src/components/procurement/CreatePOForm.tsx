@@ -60,6 +60,11 @@ import {
 import { EmeraldPurchaseOrderPreview } from './EmeraldPurchaseOrderPreview';
 import { buildEmeraldPoDisplayModel, coercePOTermsMode, resolveSelectedSupplier } from '@/utils/emeraldPoDocumentModel';
 import { previewPoNumber } from '@/utils/poNumber';
+import {
+  formatPoAmount,
+  normalizeCurrencyCode,
+  PO_CURRENCY_OPTIONS,
+} from '@/utils/currency';
 import { buildEmeraldPurchaseOrderPdf } from '@/utils/emeraldPOPdf';
 import { openEmeraldPurchaseOrderPdfInNewTab } from '@/utils/emeraldPoPdfActions';
 import {
@@ -110,6 +115,7 @@ interface FormState {
   ship_to_address: string;
   payment_terms: string;
   tax_rate: string;
+  currency: string;
   invoice_submission_email: string;
   invoice_submission_cc: string;
   terms_mode: POTermsMode;
@@ -124,6 +130,7 @@ const initialState = (): FormState => ({
   ship_to_address: '',
   payment_terms: '',
   tax_rate: '',
+  currency: 'NGN',
   invoice_submission_email: DEFAULT_INVOICE_TO,
   invoice_submission_cc: DEFAULT_INVOICE_CC,
   terms_mode: 'standard',
@@ -285,6 +292,7 @@ export function CreatePOForm({
       setForm((prev) => ({
         ...prev,
         ship_to_address: m.ship_to_address ?? prev.ship_to_address,
+        currency: normalizeCurrencyCode(m.currency),
         tax_rate:
           m.tax_rate === null || m.tax_rate === undefined || m.tax_rate === ''
             ? ''
@@ -499,6 +507,7 @@ export function CreatePOForm({
 
     const base: POFormPayload = {
       po_type: form.po_type,
+      currency: form.currency,
       ship_to_address: form.ship_to_address.trim() || undefined,
       tax_rate: form.tax_rate ? Number(form.tax_rate) : undefined,
       invoice_submission_email: form.invoice_submission_email.trim() || undefined,
@@ -531,6 +540,7 @@ export function CreatePOForm({
     const payload = buildPayload();
     const merged = {
       ...mrf,
+      currency: form.currency,
       ship_to_address:
         form.ship_to_address.trim() ||
         (mrf as MRF & { ship_to_address?: string }).ship_to_address,
@@ -940,6 +950,28 @@ export function CreatePOForm({
             <Label htmlFor="tax-rate">Tax Rate (%)</Label>
             <Input id="tax-rate" type="number" min="0" step="0.01" value={form.tax_rate} onChange={(e) => setForm((s) => ({ ...s, tax_rate: e.target.value }))} placeholder="e.g. 7.5" />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="po-currency">Currency</Label>
+            <Select
+              value={form.currency}
+              onValueChange={(v) => setForm((s) => ({ ...s, currency: v }))}
+              disabled={isFinalised}
+            >
+              <SelectTrigger id="po-currency">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PO_CURRENCY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              All line-item prices on this PO use the selected currency.
+            </p>
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="invoice-to">Invoice Submission Email (To)</Label>
@@ -1058,6 +1090,7 @@ export function CreatePOForm({
           vendors={vendors}
           loadingVendors={loadingVendors}
           disabled={isFinalised}
+          currency={form.currency}
           defaultSupplierModeForNewRows={isDirectProcurement ? 'manual' : 'directory'}
         />
       </section>
@@ -1087,6 +1120,8 @@ export function CreatePOForm({
               <dd>{form.payment_terms || '—'}</dd>
               <dt className="text-muted-foreground">Tax Rate</dt>
               <dd>{form.tax_rate ? `${form.tax_rate}%` : '—'}</dd>
+              <dt className="text-muted-foreground">Currency</dt>
+              <dd className="font-medium">{form.currency}</dd>
               <dt className="text-muted-foreground">Invoice To</dt>
               <dd>{form.invoice_submission_email}</dd>
               <dt className="text-muted-foreground">CC</dt>
@@ -1150,7 +1185,7 @@ export function CreatePOForm({
                                 {g.selected && ' ✓'}
                               </span>
                               <span className="tabular-nums">
-                                ₦{subtotal.toLocaleString()}
+                                {formatPoAmount(subtotal, form.currency)}
                               </span>
                             </div>
                             <ul className="mt-1 ml-3 space-y-0.5 text-muted-foreground">
@@ -1162,12 +1197,12 @@ export function CreatePOForm({
                                     <span className="truncate">
                                       • {r.item_description || '—'}{' '}
                                       <span className="text-[10px]">
-                                        ({r.quantity || 0} × ₦
-                                        {(Number(r.unit_price) || 0).toLocaleString()})
+                                        ({r.quantity || 0} ×{' '}
+                                        {formatPoAmount(Number(r.unit_price) || 0, form.currency)})
                                       </span>
                                     </span>
                                     <span className="tabular-nums">
-                                      ₦{total.toLocaleString()}
+                                      {formatPoAmount(total, form.currency)}
                                     </span>
                                   </li>
                                 );

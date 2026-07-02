@@ -24,6 +24,7 @@ import { mrfApi } from '@/services/api';
 import type { MRF } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { getMrfApiId } from '@/utils/displayId';
+import { PO_CURRENCY_OPTIONS } from '@/utils/currency';
 
 export interface ManualPOQuickStartDialogProps {
   open: boolean;
@@ -62,6 +63,7 @@ export function ManualPOQuickStartDialog({
   const [urgency, setUrgency] = useState<'Low' | 'Medium' | 'High'>('Medium');
   const [quantity, setQuantity] = useState('1');
   const [estimatedCost, setEstimatedCost] = useState('');
+  const [currency, setCurrency] = useState<'NGN' | 'USD'>('NGN');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -73,6 +75,7 @@ export function ManualPOQuickStartDialog({
       setUrgency('Medium');
       setQuantity('1');
       setEstimatedCost('');
+      setCurrency('NGN');
       setDescription('');
       setSubmitting(false);
     }
@@ -101,6 +104,7 @@ export function ManualPOQuickStartDialog({
         description: description.trim(),
         quantity: quantity.trim(),
         estimatedCost: estimatedCost.trim(),
+        currency,
         justification:
           'Manual PO created without RFQ — vendor and pricing captured directly on the purchase order.',
         contract_type: contractType,
@@ -220,18 +224,36 @@ export function ManualPOQuickStartDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="manual-po-cost">Estimated Cost (₦)</Label>
-              <Input
-                id="manual-po-cost"
-                type="number"
-                value={estimatedCost}
-                onChange={(e) => setEstimatedCost(e.target.value)}
-                placeholder="Optional"
-              />
-              <p className="text-xs text-muted-foreground">
-                Internal-only — never shown to vendors.
-              </p>
+              <Label>Currency</Label>
+              <Select value={currency} onValueChange={(v) => setCurrency(v as 'NGN' | 'USD')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  {PO_CURRENCY_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="manual-po-cost">
+              Estimated Cost ({currency === 'USD' ? '$' : '₦'})
+            </Label>
+            <Input
+              id="manual-po-cost"
+              type="number"
+              value={estimatedCost}
+              onChange={(e) => setEstimatedCost(e.target.value)}
+              placeholder="Optional"
+            />
+            <p className="text-xs text-muted-foreground">
+              Internal-only — never shown to vendors.
+            </p>
           </div>
 
           <div className="space-y-2">

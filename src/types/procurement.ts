@@ -124,6 +124,8 @@ export interface POFormPayload {
    * Director's approval queue so the SCD only ever sees the latest revision.
    */
   regenerate?: boolean;
+  /** ISO 4217 code for PO line amounts (e.g. NGN, USD). */
+  currency?: string;
 }
 
 /**

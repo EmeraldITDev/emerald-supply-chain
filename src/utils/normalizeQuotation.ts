@@ -175,9 +175,10 @@ export function formatAmount(value: number | string | null | undefined, currency
   if (value == null) return 'N/A';
   const num = typeof value === 'string' ? parseFloat(value) : value;
   if (isNaN(num)) return 'N/A';
-  return new Intl.NumberFormat('en-NG', {
+  const code = currency.toUpperCase() === 'USD' ? 'USD' : 'NGN';
+  return new Intl.NumberFormat(code === 'USD' ? 'en-US' : 'en-NG', {
     style: 'currency',
-    currency,
+    currency: code,
     minimumFractionDigits: 2,
   }).format(num);
 }

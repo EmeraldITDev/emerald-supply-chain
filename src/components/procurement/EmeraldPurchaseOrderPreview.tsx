@@ -1,9 +1,11 @@
 import { getEmeraldPoLogoPublicPath, type EmeraldPoDisplayModel } from '@/utils/emeraldPoDocumentModel';
+import { formatPoAmount } from '@/utils/currency';
 
 /**
  * On-screen / print preview matching the Emerald Purchase Order reference layout.
  */
 export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplayModel }) {
+  const fmt = (n: number) => formatPoAmount(n, model.currencyCode);
   return (
     <div className="emerald-po-preview rounded-md border border-border bg-white p-6 text-black shadow-sm print:shadow-none print:border-0">
         <div className="flex justify-between gap-6 border-b border-slate-200 pb-5">
@@ -64,11 +66,11 @@ export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplay
                 <td className="px-2 py-2 align-top">{item.description}</td>
                 <td className="px-2 py-2 text-right tabular-nums">{item.qty}</td>
                 <td className="px-2 py-2 text-right tabular-nums">
-                  {item.rate.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {fmt(item.rate)}
                 </td>
                 <td className="px-2 py-2 text-right">{item.taxLabel}</td>
                 <td className="px-2 py-2 text-right tabular-nums font-medium">
-                  {item.amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {fmt(item.amount)}
                 </td>
               </tr>
             ))}
@@ -109,7 +111,7 @@ export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplay
                       <td className="border border-slate-300 px-2 py-1">{m.label}</td>
                       <td className="border border-slate-300 px-2 py-1 text-right tabular-nums">{m.percentage}</td>
                       <td className="border border-slate-300 px-2 py-1 text-right tabular-nums">
-                        {m.amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {fmt(m.amount)}
                       </td>
                       <td className="border border-slate-300 px-2 py-1">{m.triggerLabel}</td>
                     </tr>
@@ -134,19 +136,19 @@ export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplay
             <tr>
               <td className="border border-black px-2 py-1.5 font-bold">SUBTOTAL</td>
               <td className="border border-black px-2 py-1.5 text-right tabular-nums">
-                {model.subtotal.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {fmt(model.subtotal)}
               </td>
             </tr>
             <tr>
               <td className="border border-black px-2 py-1.5 font-bold">TAX</td>
               <td className="border border-black px-2 py-1.5 text-right tabular-nums">
-                {model.taxAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {fmt(model.taxAmount)}
               </td>
             </tr>
             <tr className="bg-slate-200">
               <td className="border border-black px-2 py-1.5 font-bold">TOTAL {model.currencyCode}</td>
               <td className="border border-black px-2 py-1.5 text-right font-bold tabular-nums">
-                {model.total.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {fmt(model.total)}
               </td>
             </tr>
           </tbody>

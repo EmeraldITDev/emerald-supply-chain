@@ -226,6 +226,8 @@ export interface CreateMRFData {
   contractType?: string;
   department?: string;
   items?: LineItem[];
+  /** ISO 4217 code for estimated cost / PO amounts (e.g. NGN, USD). */
+  currency?: string;
 }
 
 // SRF (Service Requisition Form) Types

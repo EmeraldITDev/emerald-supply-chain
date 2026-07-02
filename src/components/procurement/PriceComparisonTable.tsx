@@ -17,6 +17,7 @@ import type { Vendor, VendorLookupMatch } from '@/types';
 import type { PriceComparisonRow, ManualVendor } from '@/types/procurement';
 import type { PaymentSchedule } from '@/types/payment-schedule';
 import { formatScheduleSummary } from '@/types/payment-schedule';
+import { currencySymbol, formatPoAmount } from '@/utils/currency';
 
 export interface PriceComparisonTableProps {
   value: PriceComparisonRow[];
@@ -24,6 +25,8 @@ export interface PriceComparisonTableProps {
   vendors: Vendor[];
   disabled?: boolean;
   loadingVendors?: boolean;
+  /** ISO 4217 code for unit prices and totals (NGN or USD). */
+  currency?: string;
   /** New rows from “Add Supplier” start in this mode (fast-track defaults to manual entry). */
   defaultSupplierModeForNewRows?: 'directory' | 'manual';
   /**
@@ -220,9 +223,11 @@ export function PriceComparisonTable({
   vendors,
   disabled = false,
   loadingVendors = false,
+  currency = 'NGN',
   defaultSupplierModeForNewRows = 'directory',
   paymentSchedule = null,
 }: PriceComparisonTableProps) {
+  const moneySymbol = currencySymbol(currency);
   /** Authoritative duplicate matches from GET /vendors/lookup, keyed by supplier group. */
   const [lookupMatches, setLookupMatches] = useState<
     Record<string, VendorLookupMatch | null | undefined>
@@ -694,9 +699,9 @@ export function PriceComparisonTable({
               <div className="rounded-md border bg-background/40">
                 <div className="grid grid-cols-[1fr_120px_90px_120px_40px] gap-2 px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   <span>Description *</span>
-                  <span>Unit Price (₦) *</span>
+                  <span>Unit Price ({moneySymbol}) *</span>
                   <span>Qty *</span>
-                  <span className="text-right">Total (₦)</span>
+                  <span className="text-right">Total ({moneySymbol})</span>
                   <span />
                 </div>
                 <div className="divide-y">
@@ -777,7 +782,7 @@ export function PriceComparisonTable({
                           )}
                         </div>
                         <div className="pt-2 text-right font-medium tabular-nums text-sm">
-                          {total > 0 ? `₦${total.toLocaleString()}` : '—'}
+                          {total > 0 ? formatPoAmount(total, currency) : '—'}
                         </div>
                         <div className="pt-1">
                           <Button
@@ -813,7 +818,7 @@ export function PriceComparisonTable({
                   </Button>
                   <div className="font-medium">
                     Subtotal:{' '}
-                    <span className="tabular-nums">₦{subtotal.toLocaleString()}</span>
+                    <span className="tabular-nums">{formatPoAmount(subtotal, currency)}</span>
                   </div>
                 </div>
               </div>

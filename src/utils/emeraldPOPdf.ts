@@ -1,14 +1,20 @@
 import { jsPDF } from 'jspdf';
 import { getEmeraldPoLogoPublicPath, type EmeraldPoDisplayModel } from '@/utils/emeraldPoDocumentModel';
 import { getAuthToken } from '@/services/api';
+import { currencyLocale, normalizeCurrencyCode } from '@/utils/currency';
 
 const M = 14;
 const PAGE_BOTTOM = 285;
 const COL_L = M;
 const COL_W = 182;
 
-function fmtMoney(n: number): string {
-  return n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Numeric amount for PDF cells (currency code shown on TOTAL row). */
+function fmtMoney(n: number, currencyCode: string): string {
+  const code = normalizeCurrencyCode(currencyCode);
+  return n.toLocaleString(currencyLocale(code), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function ensureY(doc: jsPDF, y: number, need: number): number {
@@ -206,9 +212,9 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
     const descLines = doc.splitTextToSize(item.description, 82);
     doc.text(descLines, tableX + 28, y + 5);
     doc.text(String(item.qty), tableX + 118, y + 5);
-    doc.text(fmtMoney(item.rate), tableX + 132, y + 5);
+    doc.text(fmtMoney(item.rate, model.currencyCode), tableX + 132, y + 5);
     doc.text(item.taxLabel, tableX + 154, y + 5);
-    doc.text(fmtMoney(item.amount), tableX + tableW - 2, y + 5, { align: 'right' });
+    doc.text(fmtMoney(item.amount, model.currencyCode), tableX + tableW - 2, y + 5, { align: 'right' });
     y += Math.max(rowH, 4 + descLines.length * 3.8);
     doc.setDrawColor(220, 220, 220);
     doc.line(tableX, y, tableX + tableW, y);
@@ -264,9 +270,9 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
   const tw = 66;
   let ty = splitY;
   const sumRows: [string, string][] = [
-    ['SUBTOTAL', fmtMoney(model.subtotal)],
-    ['TAX', fmtMoney(model.taxAmount)],
-    [`TOTAL ${model.currencyCode}`, fmtMoney(model.total)],
+    ['SUBTOTAL', fmtMoney(model.subtotal, model.currencyCode)],
+    ['TAX', fmtMoney(model.taxAmount, model.currencyCode)],
+    [`TOTAL ${model.currencyCode}`, fmtMoney(model.total, model.currencyCode)],
   ];
   doc.setFontSize(8.5);
   for (let i = 0; i < sumRows.length; i++) {
