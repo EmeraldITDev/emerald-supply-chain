@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -9,18 +10,19 @@ import {
   Clock,
   Package,
   AlertCircle,
-  Loader2,
   ChevronDown,
   Landmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mrfApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+import { queryKeys } from "@/lib/queryKeys";
+import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
 import type { PaymentSchedule } from "@/types/payment-schedule";
 import type { ProcurementDocumentsResponse } from "@/types/procurement-documents";
 import type {
   ProgressTrackerStageTimestamps,
-  ProgressTrackerViewModel,
   ProgressPhaseKey,
 } from "@/types/progress-tracker";
 
@@ -46,47 +48,42 @@ export const MRFProgressTracker = ({
   activeByType: propActiveByType,
 }: MRFProgressTrackerProps) => {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [viewModel, setViewModel] = useState<ProgressTrackerViewModel | null>(null);
   const [openPhases, setOpenPhases] = useState<Partial<Record<ProgressPhaseKey, boolean>>>({
     approval: true,
   });
 
-  useEffect(() => {
-    const fetchProgress = async () => {
-      if (!mrfId) return;
-
-      setLoading(true);
-      try {
-        const response = await mrfApi.getProgressTracker(mrfId, {
-          contractType,
-          propPaymentSchedule: propSchedule,
-          propActiveByType: propActiveByType,
-          propStageTimestamps: propTimestamps,
-        });
-        if (response.success && response.data) {
-          setViewModel(response.data);
-        } else {
-          toast({
-            title: "Error",
-            description: response.error || "Failed to load progress tracker",
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        console.error("Failed to fetch progress tracker:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load progress information",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
+  const {
+    data: viewModel,
+    isLoading: loading,
+    error: queryError,
+  } = useQuery({
+    queryKey: queryKeys.mrfs.progressTracker(mrfId),
+    queryFn: async () => {
+      const response = await mrfApi.getProgressTracker(mrfId, {
+        contractType,
+        propPaymentSchedule: propSchedule,
+        propActiveByType: propActiveByType,
+        propStageTimestamps: propTimestamps,
+      });
+      if (!response.success || !response.data) {
+        throw new Error(response.error || "Failed to load progress tracker");
       }
-    };
+      return response.data;
+    },
+    enabled: Boolean(mrfId),
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
 
-    fetchProgress();
-  }, [mrfId, contractType, propSchedule, propActiveByType, propTimestamps, toast]);
+  useEffect(() => {
+    if (queryError) {
+      toast({
+        title: "Error",
+        description:
+          queryError instanceof Error ? queryError.message : "Failed to load progress information",
+        variant: "destructive",
+      });
+    }
+  }, [queryError, toast]);
 
   useEffect(() => {
     if (viewModel && onProgressUpdate) {
@@ -129,9 +126,7 @@ export const MRFProgressTracker = ({
           </CardHeader>
         )}
         <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <TableSkeleton rows={3} />
         </CardContent>
       </Card>
     );

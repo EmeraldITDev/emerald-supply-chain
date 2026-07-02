@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +18,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
 import { vendorApi, dashboardApi } from "@/services/api";
+import { usePaginatedListQuery } from "@/hooks/usePaginatedListQuery";
+import { queryKeys } from "@/lib/queryKeys";
+import { STABLE_QUERY_OPTIONS } from "@/lib/queryOptions";
+import { invalidateVendorLists } from "@/lib/invalidateScmCache";
 import { VendorRegistration, Vendor } from "@/types";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import { resolveTotalVendorCount } from "@/utils/normalizeProcurementDashboard";
@@ -68,8 +74,7 @@ const Vendors = () => {
   const scmRole = getScmRole(user);
   const canExportVendorDirectory =
     scmRole != null && (VENDOR_DIRECTORY_EXPORT_ROLES as readonly string[]).includes(scmRole);
-  const [vendors, setVendors] = useState(contextVendors);
-  const [loadingVendors, setLoadingVendors] = useState(false);
+  const queryClient = useQueryClient();
   const [addVendorDialogOpen, setAddVendorDialogOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [vendorDetailsOpen, setVendorDetailsOpen] = useState(false);
@@ -92,7 +97,6 @@ const Vendors = () => {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [vendorPage, setVendorPage] = useState(1);
-  const [vendorPagination, setVendorPagination] = useState<PaginationMeta | null>(null);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [directorySearch, setDirectorySearch] = useState("");
   const [debouncedDirectorySearch, setDebouncedDirectorySearch] = useState("");
@@ -287,12 +291,7 @@ const Vendors = () => {
           setVendorComments(response.data.comments);
         }
         
-        // Update vendor in the list
-        setVendors((prev) =>
-          prev.map((v) =>
-            v.id === selectedVendor.id ? { ...v, rating: response.data!.rating } : v
-          )
-        );
+        await invalidateVendorLists(queryClient);
 
         setNewRating(0);
         setNewComment("");
@@ -322,15 +321,10 @@ const Vendors = () => {
   // Refresh dashboard stats
   const refreshDashboardStats = async () => {
     try {
-      const [response, vendorsRes] = await Promise.all([
-        dashboardApi.getProcurementManagerDashboard(),
-        vendorApi.getAll(),
-      ]);
+      const response = await dashboardApi.getProcurementManagerDashboard();
       if (response.success && response.data) {
         const stats = response.data.stats;
-        const vendorDirectory =
-          vendorsRes.success && Array.isArray(vendorsRes.data) ? vendorsRes.data : [];
-        const total = resolveTotalVendorCount(stats, vendorDirectory);
+        const total = resolveTotalVendorCount(stats, undefined);
         setDashboardStats({
           totalVendors: total,
           activeVendors: total,
@@ -357,14 +351,12 @@ const Vendors = () => {
           title: "Vendor Deleted",
           description: `${vendorToDelete.name} has been removed from the system.`,
         });
-        // Remove from local state
-        setVendors(prev => prev.filter(v => v.id !== vendorToDelete.id));
-        // Update stats immediately (optimistic) and refresh from server
         setDashboardStats(prev => ({
           ...prev,
           totalVendors: Math.max(0, prev.totalVendors - 1),
           activeVendors: Math.max(0, prev.activeVendors - 1),
         }));
+        await invalidateVendorLists(queryClient);
         refreshDashboardStats();
         
         setDeleteVendorDialogOpen(false);
@@ -409,13 +401,12 @@ const Vendors = () => {
       const failed = response.data?.failed ?? [];
 
       if (deleted.length > 0) {
-        const deletedIds = new Set(deleted.map((row) => row.vendorId));
-        setVendors((prev) => prev.filter((v) => !deletedIds.has(v.id)));
         setDashboardStats((prev) => ({
           ...prev,
           totalVendors: Math.max(0, prev.totalVendors - deleted.length),
           activeVendors: Math.max(0, prev.activeVendors - deleted.length),
         }));
+        await invalidateVendorLists(queryClient);
         refreshDashboardStats();
       }
 
@@ -472,59 +463,54 @@ const Vendors = () => {
   };
 
   // Fetch vendor registrations directly so both procurement and procurement managers can access them
-  useEffect(() => {
-    const fetchVendorData = async () => {
-      setLoadingRegistrations(true);
-      setLoadingStats(true);
-      try {
-        const [pendingRegsResponse, dashboardResponse, vendorsListResponse] = await Promise.all([
-          getPendingVendorRegistrations(),
-          dashboardApi.getProcurementManagerDashboard(),
-          vendorApi.getAll(),
-        ]);
+  const fetchVendorPageData = useCallback(async () => {
+    setLoadingRegistrations(true);
+    setLoadingStats(true);
+    try {
+      const [pendingRegsResponse, dashboardResponse] = await Promise.all([
+        getPendingVendorRegistrations(),
+        dashboardApi.getProcurementManagerDashboard(),
+      ]);
 
-        if (pendingRegsResponse.success && pendingRegsResponse.data) {
-          setVendorRegistrations(pendingRegsResponse.data);
-        }
-
-        const vendorDirectory =
-          vendorsListResponse.success && Array.isArray(vendorsListResponse.data)
-            ? vendorsListResponse.data
-            : [];
-
-        if (dashboardResponse.success && dashboardResponse.data) {
-          const stats = dashboardResponse.data.stats;
-          const total = resolveTotalVendorCount(stats, vendorDirectory);
-          setDashboardStats({
-            totalVendors: total,
-            activeVendors: total,
-            pendingRegistrations: stats?.pendingKYC || dashboardResponse.data.pendingRegistrations?.length || pendingRegsResponse.data?.length || 0,
-            avgRating: stats?.avgRating || 0,
-            onTimeDelivery: stats?.onTimeDelivery || 0,
-          });
-        } else {
-          const total = resolveTotalVendorCount(undefined, vendorDirectory);
-          setDashboardStats((prev) => ({
-            ...prev,
-            totalVendors: total,
-            activeVendors: total,
-            pendingRegistrations: pendingRegsResponse.data?.length || 0,
-          }));
-        }
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load vendor registrations",
-          variant: "destructive",
-        });
-      } finally {
-        setLoadingRegistrations(false);
-        setLoadingStats(false);
+      if (pendingRegsResponse.success && pendingRegsResponse.data) {
+        setVendorRegistrations(pendingRegsResponse.data);
       }
-    };
 
-    fetchVendorData();
+      if (dashboardResponse.success && dashboardResponse.data) {
+        const stats = dashboardResponse.data.stats;
+        const total = resolveTotalVendorCount(stats, undefined);
+        setDashboardStats({
+          totalVendors: total,
+          activeVendors: total,
+          pendingRegistrations:
+            stats?.pendingKYC ||
+            dashboardResponse.data.pendingRegistrations?.length ||
+            pendingRegsResponse.data?.length ||
+            0,
+          avgRating: stats?.avgRating || 0,
+          onTimeDelivery: stats?.onTimeDelivery || 0,
+        });
+      } else {
+        setDashboardStats((prev) => ({
+          ...prev,
+          pendingRegistrations: pendingRegsResponse.data?.length || 0,
+        }));
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to load vendor registrations",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingRegistrations(false);
+      setLoadingStats(false);
+    }
   }, [toast]);
+
+  useEffect(() => {
+    void fetchVendorPageData();
+  }, [fetchVendorPageData]);
 
   // Fetch vendor directory (server-side pagination)
   const hasDirectoryFilters = debouncedDirectorySearch.trim().length > 0;
@@ -533,67 +519,78 @@ const Vendors = () => {
     search: debouncedDirectorySearch.trim() || undefined,
   };
 
-  const fetchVendors = async () => {
-    setLoadingVendors(true);
-    try {
-      const response = await vendorApi.list({
-        page: vendorPage,
-        per_page: 25,
-        search: debouncedDirectorySearch.trim() || undefined,
-      });
-      if (response.success && response.data) {
-        const transformedVendors = response.data.items.map((vendor: any) => ({
-          id: vendor.id,
-          displayId: vendor.vendor_id || `V${String(vendor.id).padStart(3, '0')}`,
-          name: vendor.name || vendor.company_name,
-          category: vendor.category || 'Unknown',
-          categoryOther: pickCategoryOtherFromUnknown(vendor) ?? null,
-          status: vendor.status || 'Active',
-          kyc: vendor.kyc_status || 'Verified',
-          rating: vendor.rating || 0,
-          orders: vendor.total_orders || 0,
-          email: vendor.email || '',
-          phone: vendor.phone || '',
-          address: vendor.address || '',
-          taxId: vendor.tax_id || vendor.taxId || '',
-          contactPerson: vendor.contact_person || vendor.contactPerson || '',
-          documents: vendor.documents || [],
-          annualRevenue: vendor.annual_revenue ?? vendor.annualRevenue ?? null,
-          numberOfEmployees: vendor.number_of_employees ?? vendor.numberOfEmployees ?? null,
-          yearEstablished: vendor.year_established ?? vendor.yearEstablished ?? null,
-          website: vendor.website ?? null,
-        }));
-        setVendors(transformedVendors);
-        setVendorPagination(response.data.pagination);
-        setSelectedDirectoryIds((prev) =>
-          prev.filter((id) => transformedVendors.some((v) => v.id === id)),
-        );
-        const total = response.data.pagination?.total ?? transformedVendors.length;
-        setDashboardStats((prev) => ({
-          ...prev,
-          totalVendors: total || prev.totalVendors,
-          activeVendors: total || prev.activeVendors,
-        }));
-      }
-    } catch (error) {
-      setVendors(contextVendors);
-    } finally {
-      setLoadingVendors(false);
+  const vendorListParams = useMemo(
+    () => ({
+      page: vendorPage,
+      per_page: 25,
+      search: debouncedDirectorySearch.trim() || undefined,
+    }),
+    [vendorPage, debouncedDirectorySearch],
+  );
+
+  const {
+    items: vendorApiItems,
+    pagination: vendorPagination,
+    isLoading: loadingVendors,
+    refetch: refetchVendorDirectory,
+  } = usePaginatedListQuery({
+    queryKey: queryKeys.vendors.list(vendorListParams),
+    queryFn: () => vendorApi.list(vendorListParams),
+    ...STABLE_QUERY_OPTIONS,
+  });
+
+  const vendors = useMemo(() => {
+    if (vendorApiItems.length === 0 && contextVendors.length > 0 && loadingVendors) {
+      return contextVendors;
     }
-  };
+    return vendorApiItems.map((vendor: any) => ({
+      id: vendor.id,
+      displayId: vendor.vendor_id || `V${String(vendor.id).padStart(3, "0")}`,
+      name: vendor.name || vendor.company_name,
+      category: vendor.category || "Unknown",
+      categoryOther: pickCategoryOtherFromUnknown(vendor) ?? null,
+      status: vendor.status || "Active",
+      kyc: vendor.kyc_status || "Verified",
+      rating: vendor.rating || 0,
+      orders: vendor.total_orders || 0,
+      email: vendor.email || "",
+      phone: vendor.phone || "",
+      address: vendor.address || "",
+      taxId: vendor.tax_id || vendor.taxId || "",
+      contactPerson: vendor.contact_person || vendor.contactPerson || "",
+      documents: vendor.documents || [],
+      annualRevenue: vendor.annual_revenue ?? vendor.annualRevenue ?? null,
+      numberOfEmployees: vendor.number_of_employees ?? vendor.numberOfEmployees ?? null,
+      yearEstablished: vendor.year_established ?? vendor.yearEstablished ?? null,
+      website: vendor.website ?? null,
+    }));
+  }, [vendorApiItems, contextVendors, loadingVendors]);
+
+  useEffect(() => {
+    const total = vendorPagination?.total ?? vendors.length;
+    if (total > 0) {
+      setDashboardStats((prev) => ({
+        ...prev,
+        totalVendors: total,
+        activeVendors: total,
+      }));
+    }
+    setSelectedDirectoryIds((prev) =>
+      prev.filter((id) => vendors.some((v) => v.id === id)),
+    );
+  }, [vendorPagination?.total, vendors]);
+
+  useScmAppRefreshListener(async () => {
+    await Promise.all([fetchVendorPageData(), refetchVendorDirectory()]);
+  });
 
   const refreshVendorDirectory = async () => {
-    await Promise.all([fetchVendors(), refreshDashboardStats()]);
+    await Promise.all([refetchVendorDirectory(), refreshDashboardStats(), invalidateVendorLists(queryClient)]);
     toast({
       title: "Directory refreshed",
       description: "Loaded active and pending vendors.",
     });
   };
-
-  useEffect(() => {
-    fetchVendors();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contextVendors, vendorPage, debouncedDirectorySearch]);
 
   // Handle approval
   const handleApprove = async (registrationId: string) => {

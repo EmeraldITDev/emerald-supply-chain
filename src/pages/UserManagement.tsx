@@ -1,6 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { userApi, departmentApi } from "@/services/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { STABLE_QUERY_OPTIONS } from "@/lib/queryOptions";
+import { invalidateUserLists } from "@/lib/invalidateScmCache";
 import { useAuth } from "@/contexts/AuthContext";
 import { getScmRole, getUserScmRole, getUserScmRoleOrDefault, formatScmRoleLabel } from "@/utils/scmRole";
 import type { User } from "@/types";
@@ -41,8 +45,7 @@ import {
 const UserManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -64,39 +67,33 @@ const UserManagement = () => {
   const scmManageRoles = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain', 'chairman', 'admin'];
   const canManageUsers = scmManageRoles.includes(getScmRole(user) || '');
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const filters: { supply_chain_role?: string; search?: string } = {};
-      if (roleFilter !== "all") filters.supply_chain_role = roleFilter;
-      if (searchQuery) filters.search = searchQuery;
+  const userFilters = useMemo(() => {
+    const filters: { supply_chain_role?: string; search?: string } = {};
+    if (roleFilter !== "all") filters.supply_chain_role = roleFilter;
+    if (searchQuery) filters.search = searchQuery;
+    return filters;
+  }, [roleFilter, searchQuery]);
 
-      const response = await userApi.getAll(filters);
-      if (response.success && response.data) {
-        setUsers(response.data);
-      } else {
-        toast({
-          title: "Error",
-          description: response.error || "Failed to load users",
-          variant: "destructive",
-        });
+  const {
+    data: users = [],
+    isLoading: loading,
+    refetch: refetchUsers,
+  } = useQuery({
+    queryKey: queryKeys.users.list(userFilters),
+    queryFn: async () => {
+      const response = await userApi.getAll(userFilters);
+      if (!response.success || !response.data) {
+        throw new Error(response.error || "Failed to load users");
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to connect to server",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [searchQuery, roleFilter, toast]);
+      return response.data;
+    },
+    enabled: canManageUsers,
+    ...STABLE_QUERY_OPTIONS,
+  });
 
-  useEffect(() => {
-    if (canManageUsers) {
-      fetchUsers();
-    }
-  }, [canManageUsers, fetchUsers]);
+  const fetchUsers = useCallback(async () => {
+    await refetchUsers();
+  }, [refetchUsers]);
 
   const handleOpenDialog = (user?: User) => {
     if (user) {
@@ -181,7 +178,7 @@ const UserManagement = () => {
             });
           }
           setDialogOpen(false);
-          fetchUsers();
+          await invalidateUserLists(queryClient);
         } else {
           toast({
             title: "Error",
@@ -231,7 +228,7 @@ const UserManagement = () => {
             });
           }
           setDialogOpen(false);
-          fetchUsers();
+          await invalidateUserLists(queryClient);
         } else {
           toast({
             title: "Error",
@@ -265,7 +262,7 @@ const UserManagement = () => {
         });
         setDeleteDialogOpen(false);
         setSelectedUser(null);
-        fetchUsers();
+        await invalidateUserLists(queryClient);
       } else {
         toast({
           title: "Error",

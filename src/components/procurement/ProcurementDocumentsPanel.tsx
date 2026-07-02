@@ -41,6 +41,8 @@ interface ProcurementDocumentsPanelProps {
    * restricted to JCC and waybill only. All other document types are view-only.
    */
   restrictToLmTypes?: boolean;
+  /** When true, hide the upload form (read-only document registry). */
+  readOnly?: boolean;
 }
 
 const UPLOADABLE_TYPES: { value: ProcurementDocumentType; label: string }[] = [
@@ -78,6 +80,7 @@ export default function ProcurementDocumentsPanel({
   mrfId,
   defaultUploadType = "waybill",
   restrictToLmTypes = false,
+  readOnly = false,
 }: ProcurementDocumentsPanelProps) {
   const { toast } = useToast();
   const [data, setData] = useState<ProcurementDocumentsResponse | null>(null);
@@ -308,8 +311,9 @@ export default function ProcurementDocumentsPanel({
           </section>
         )}
 
-        {/* Upload form — hidden entirely when no types are available for this user */}
-        {(!restrictToLmTypes ||
+        {/* Upload form — hidden when read-only or when no types are available for this user */}
+        {!readOnly &&
+        (!restrictToLmTypes ||
           LM_UPLOADABLE_DOC_TYPES.some((t) =>
             UPLOADABLE_TYPES.find((u) => u.value === t),
           )) && (

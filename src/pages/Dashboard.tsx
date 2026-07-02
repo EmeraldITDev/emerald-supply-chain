@@ -1,5 +1,4 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getDisplayId } from "@/utils/displayId";
 import { Button } from "@/components/ui/button";
 import { Package, ShoppingCart, Truck, Warehouse, TrendingUp, AlertCircle, CheckCircle, Clock, Users, FileText, Activity } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -8,11 +7,12 @@ import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import EmployeeDashboard from "./EmployeeDashboard";
 import FinanceDashboard from "./FinanceDashboard";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { dashboardApi, dashboardKpiApi, mrfApi, vendorApi } from "@/services/api";
+import { dashboardApi, dashboardKpiApi } from "@/services/api";
 import type { DashboardKPIs, Vendor } from "@/types";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import { resolveTotalVendorCount } from "@/utils/normalizeProcurementDashboard";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -83,20 +83,17 @@ const Dashboard = () => {
       if (getScmRole(user) === "procurement_manager") {
         setLoading(true);
         try {
-          const [response, vendorsRes, pendingRes] = await Promise.all([
+          const [response, pendingRes] = await Promise.all([
             dashboardApi.getProcurementManagerDashboard(),
-            vendorApi.getAll(),
             getPendingVendorRegistrations(),
           ]);
 
           if (response.success && response.data) {
             setDashboardData(response.data);
-          }
-
-          if (vendorsRes.success && Array.isArray(vendorsRes.data)) {
-            setRegisteredVendors(vendorsRes.data);
-          } else {
-            setRegisteredVendors([]);
+            const stats = response.data.stats;
+            if (stats?.totalVendors) {
+              setRegisteredVendors([]);
+            }
           }
 
           setPendingRegistrationsLoading(true);
@@ -121,33 +118,26 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [getScmRole(user), toast]);
 
-  // Fetch recent activities
+  // Fetch recent activities from the dashboard endpoint (not full MRF list)
   useEffect(() => {
     const fetchRecentActivities = async () => {
       setActivitiesLoading(true);
       try {
-        // Fetch recent MRFs
-        const mrfResponse = await mrfApi.getAll();
-        if (mrfResponse.success && mrfResponse.data) {
-          const activities: any[] = [];
-          const mrfArray = Array.isArray(mrfResponse.data) ? mrfResponse.data : (mrfResponse.data as any)?.data || (mrfResponse.data as any)?.mrfs || [];
-          
-          // Add MRF activities
-          mrfArray.slice(0, 10).forEach((mrf: any) => {
-            activities.push({
-              id: mrf.id,
-              type: "MRF",
-              title: mrf.title,
-              description: `MRF ${mrf.mrf_id || mrf.id} - ${mrf.status}`,
-              status: mrf.status,
-              date: mrf.created_at || mrf.date,
-              actionUrl: `/procurement?mrf=${getDisplayId(mrf)}`,
-            });
-          });
-
-          // Sort by date (most recent first)
-          activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          setRecentActivities(activities.slice(0, 20));
+        const response = await dashboardApi.getRecentActivities(20);
+        if (response.success && response.data) {
+          const activities = response.data.map((activity) => ({
+            id: activity.id,
+            type: activity.type,
+            title: activity.title,
+            description: activity.description,
+            status: activity.status,
+            date: activity.timestamp,
+            actionUrl:
+              activity.entityType === "mrf" && activity.entityId
+                ? `/procurement?mrf=${encodeURIComponent(activity.entityId)}`
+                : "/procurement",
+          }));
+          setRecentActivities(activities);
         }
       } catch (error) {
         console.error("Failed to fetch recent activities", error);
@@ -158,28 +148,22 @@ const Dashboard = () => {
 
     if (user) {
       fetchRecentActivities();
-      // Refresh activities every 30 seconds
-      const interval = setInterval(fetchRecentActivities, 30000);
-      return () => clearInterval(interval);
     }
   }, [user]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     if (getScmRole(user) === "procurement_manager") {
       setLoading(true);
+      setActivitiesLoading(true);
       try {
-        const [response, vendorsRes, pendingRes] = await Promise.all([
+        const [response, pendingRes, activitiesRes] = await Promise.all([
           dashboardApi.getProcurementManagerDashboard(),
-          vendorApi.getAll(),
           getPendingVendorRegistrations(),
+          dashboardApi.getRecentActivities(20),
         ]);
 
         if (response.success && response.data) {
           setDashboardData(response.data);
-        }
-
-        if (vendorsRes.success && Array.isArray(vendorsRes.data)) {
-          setRegisteredVendors(vendorsRes.data);
         }
 
         setPendingRegistrationsLoading(true);
@@ -187,6 +171,22 @@ const Dashboard = () => {
           setPendingRegistrations(pendingRes.data as any);
         } else {
           setPendingRegistrations([]);
+        }
+
+        if (activitiesRes.success && activitiesRes.data) {
+          const activities = activitiesRes.data.map((activity) => ({
+            id: activity.id,
+            type: activity.type,
+            title: activity.title,
+            description: activity.description,
+            status: activity.status,
+            date: activity.timestamp,
+            actionUrl:
+              activity.entityType === "mrf" && activity.entityId
+                ? `/procurement?mrf=${encodeURIComponent(activity.entityId)}`
+                : "/procurement",
+          }));
+          setRecentActivities(activities);
         }
       } catch (error) {
         toast({
@@ -196,12 +196,13 @@ const Dashboard = () => {
         });
       } finally {
         setPendingRegistrationsLoading(false);
+        setActivitiesLoading(false);
         setLoading(false);
       }
-    } else {
-      await new Promise(resolve => setTimeout(resolve, 1000));
     }
-  };
+  }, [user, toast]);
+
+  useScmAppRefreshListener(handleRefresh);
 
   const kpiTiles = platformKpis
     ? [

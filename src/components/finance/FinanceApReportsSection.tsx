@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useQueries } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,13 +17,13 @@ import {
   BarChart3,
   CheckCircle,
   Clock,
-  Loader2,
   RefreshCw,
   AlertTriangle,
   Landmark,
   TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { canViewScmReports } from "@/utils/reportAccess";
 import { financeApReportsApi } from "@/services/financeApReportsApi";
 import { fetchFinanceRoutingConfig } from "@/services/financeRoutingConfig";
 import type {
@@ -32,6 +33,9 @@ import type {
   FinanceApSummaryReport,
 } from "@/types/finance-ap-reports";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { queryKeys } from "@/lib/queryKeys";
+import { REPORT_QUERY_OPTIONS } from "@/lib/queryOptions";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
 
 const FINANCE_AP_REPORT_ROLES = new Set([
   "finance",
@@ -41,6 +45,7 @@ const FINANCE_AP_REPORT_ROLES = new Set([
   "supply_chain_director",
   "supply_chain",
   "admin",
+  "executive",
 ]);
 
 interface FinanceApReportsSectionProps {
@@ -53,66 +58,121 @@ const formatNaira = (n: number) =>
 const formatPct = (n: number) =>
   Number.isFinite(n) ? `${(n <= 1 ? n * 100 : n).toFixed(1)}%` : "—";
 
-export const FinanceApReportsSection = ({ userRole }: FinanceApReportsSectionProps) => {
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<FinanceApSummaryReport | null>(null);
-  const [outstanding, setOutstanding] = useState<FinanceApOutstandingMilestoneRow[]>([]);
-  const [risks, setRisks] = useState<FinanceApAdvanceDeliveryRiskRow[]>([]);
-  const [cycleTimes, setCycleTimes] = useState<FinanceApCycleTimesReport | null>(null);
+function defaultFinanceApDateRange(): { from: string; to: string } {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 30);
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
+  };
+}
 
-  const [routingConfigured, setRoutingConfigured] = useState<boolean | null>(null);
-  const [cutoverDate, setCutoverDate] = useState<string | null>(null);
+export const FinanceApReportsSection = ({ userRole }: FinanceApReportsSectionProps) => {
+  const defaults = defaultFinanceApDateRange();
+  const [from, setFrom] = useState(defaults.from);
+  const [to, setTo] = useState(defaults.to);
+  const [appliedFrom, setAppliedFrom] = useState(defaults.from);
+  const [appliedTo, setAppliedTo] = useState(defaults.to);
 
   const canView = FINANCE_AP_REPORT_ROLES.has(userRole || "");
+  const reportLimit = 50;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const params = {
-      from: from || undefined,
-      to: to || undefined,
-      limit: 50,
-    };
-    try {
-      const routingConfig = await fetchFinanceRoutingConfig();
-      setRoutingConfigured(routingConfig.routingConfigured);
-      setCutoverDate(routingConfig.cutoverDate);
-
-      const [sumRes, outRes, riskRes, cycleRes] = await Promise.all([
-        financeApReportsApi.getSummary(params),
-        financeApReportsApi.getOutstandingMilestones(params),
-        financeApReportsApi.getAdvanceDeliveryRisk(params),
-        financeApReportsApi.getCycleTimes(params),
-      ]);
-
-      if (sumRes.success && sumRes.data) {
-        setSummary(sumRes.data);
-        if (sumRes.data.routingConfigured != null) {
-          setRoutingConfigured(sumRes.data.routingConfigured);
-        }
-        if (sumRes.data.cutoverDate != null) {
-          setCutoverDate(sumRes.data.cutoverDate);
-        }
-      } else if (!sumRes.success) {
-        setError(sumRes.error || "Failed to load summary");
-      }
-
-      if (outRes.success && outRes.data) setOutstanding(outRes.data.items);
-      if (riskRes.success && riskRes.data) setRisks(riskRes.data.items);
-      if (cycleRes.success && cycleRes.data) setCycleTimes(cycleRes.data);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load Finance AP reports");
-    } finally {
-      setLoading(false);
-    }
+  const applyDateRange = useCallback(() => {
+    setAppliedFrom(from);
+    setAppliedTo(to);
   }, [from, to]);
 
-  useEffect(() => {
-    if (canView) load();
-  }, [canView, load]);
+  const [
+    routingQuery,
+    summaryQuery,
+    outstandingQuery,
+    risksQuery,
+    cycleQuery,
+  ] = useQueries({
+    queries: [
+      {
+        queryKey: ["finance-routing-config"] as const,
+        queryFn: fetchFinanceRoutingConfig,
+        enabled: canView,
+        ...REPORT_QUERY_OPTIONS,
+      },
+      {
+        queryKey: queryKeys.reports.financeAp.summary(appliedFrom, appliedTo),
+        queryFn: async () => {
+          const res = await financeApReportsApi.getSummary({
+            from: appliedFrom || undefined,
+            to: appliedTo || undefined,
+          });
+          if (!res.success || !res.data) {
+            throw new Error(res.error || "Failed to load Finance AP summary");
+          }
+          return res.data;
+        },
+        enabled: canView,
+        ...REPORT_QUERY_OPTIONS,
+      },
+      {
+        queryKey: queryKeys.reports.financeAp.outstanding(appliedFrom, appliedTo, reportLimit),
+        queryFn: async () => {
+          const res = await financeApReportsApi.getOutstandingMilestones({
+            from: appliedFrom || undefined,
+            to: appliedTo || undefined,
+            limit: reportLimit,
+          });
+          if (!res.success || !res.data) {
+            throw new Error(res.error || "Failed to load outstanding milestones");
+          }
+          return res.data.items;
+        },
+        enabled: canView,
+        ...REPORT_QUERY_OPTIONS,
+      },
+      {
+        queryKey: queryKeys.reports.financeAp.advanceRisk(reportLimit),
+        queryFn: async () => {
+          const res = await financeApReportsApi.getAdvanceDeliveryRisk({ limit: reportLimit });
+          if (!res.success || !res.data) {
+            throw new Error(res.error || "Failed to load advance delivery risk");
+          }
+          return res.data.items;
+        },
+        enabled: canView,
+        ...REPORT_QUERY_OPTIONS,
+      },
+      {
+        queryKey: queryKeys.reports.financeAp.cycleTimes(appliedFrom, appliedTo),
+        queryFn: async () => {
+          const res = await financeApReportsApi.getCycleTimes({
+            from: appliedFrom || undefined,
+            to: appliedTo || undefined,
+          });
+          if (!res.success || !res.data) {
+            throw new Error(res.error || "Failed to load cycle times");
+          }
+          return res.data;
+        },
+        enabled: canView,
+        ...REPORT_QUERY_OPTIONS,
+      },
+    ],
+  });
+
+  const loading = summaryQuery.isLoading && !summaryQuery.isFetched;
+  const error =
+    summaryQuery.error instanceof Error
+      ? summaryQuery.error.message
+      : summaryQuery.error
+        ? String(summaryQuery.error)
+        : null;
+
+  const routingConfigured =
+    summaryQuery.data?.routingConfigured ?? routingQuery.data?.routingConfigured ?? null;
+  const cutoverDate = summaryQuery.data?.cutoverDate ?? routingQuery.data?.cutoverDate ?? null;
+  const summary = summaryQuery.data ?? null;
+  const outstanding = outstandingQuery.data ?? [];
+  const risks = risksQuery.data ?? [];
+  const cycleTimes = cycleQuery.data ?? null;
 
   if (!canView) return null;
 
@@ -137,9 +197,9 @@ export const FinanceApReportsSection = ({ userRole }: FinanceApReportsSectionPro
             <label className="text-xs text-muted-foreground block mb-1">To</label>
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-36" />
           </div>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={applyDateRange} disabled={loading}>
             <RefreshCw className={cn("h-4 w-4 mr-1", loading && "animate-spin")} />
-            Refresh
+            Apply
           </Button>
         </div>
       </div>
@@ -161,10 +221,8 @@ export const FinanceApReportsSection = ({ userRole }: FinanceApReportsSectionPro
         </Alert>
       )}
 
-      {loading && !summary ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+      {loading ? (
+        <TableSkeleton rows={4} />
       ) : (
         <>
           {summary && (

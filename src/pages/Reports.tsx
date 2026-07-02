@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { reportsApi, type ReportsDashboardData } from "@/services/reportsApi";
+import { queryKeys } from "@/lib/queryKeys";
+import { REPORT_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { cn } from "@/lib/utils";
 
@@ -26,31 +29,28 @@ const Reports = () => {
   const defaults = defaultDashboardDateRange();
   const [from, setFrom] = useState(defaults.from);
   const [to, setTo] = useState(defaults.to);
-  const [loading, setLoading] = useState(false);
-  const [dashboard, setDashboard] = useState<ReportsDashboardData | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadDashboard = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  const {
+    data: dashboard,
+    isLoading: loading,
+    error: queryError,
+    refetch: loadDashboard,
+  } = useQuery({
+    queryKey: queryKeys.reports.dashboard(from, to),
+    queryFn: async () => {
       const res = await reportsApi.getDashboard(from || undefined, to || undefined);
-      if (res.success && res.data) {
-        setDashboard(res.data);
-      } else {
-        setDashboard(null);
-        setError(res.error || "Failed to load reports dashboard");
+      if (!res.success || !res.data) {
+        throw new Error(res.error || "Failed to load reports dashboard");
       }
-    } catch (e: unknown) {
-      setDashboard(null);
-      setError(e instanceof Error ? e.message : "Failed to load reports dashboard");
-    } finally {
-      setLoading(false);
-    }
-  }, [from, to]);
+      return res.data;
+    },
+    ...REPORT_QUERY_OPTIONS,
+  });
 
-  useEffect(() => {
-    loadDashboard();
+  const error = queryError instanceof Error ? queryError.message : queryError ? String(queryError) : null;
+
+  const applyDateRange = useCallback(() => {
+    void loadDashboard();
   }, [loadDashboard]);
 
   const getStatusColor = (status: string) => {
@@ -108,7 +108,7 @@ const Reports = () => {
               <Label htmlFor="dash-to">To</Label>
               <Input id="dash-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
-            <Button onClick={loadDashboard} disabled={loading}>Apply</Button>
+            <Button onClick={applyDateRange} disabled={loading}>Apply</Button>
           </CardContent>
         </Card>
 

@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getDisplayId } from "@/utils/displayId";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -9,9 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertCircle, FileText, Loader2, RefreshCw, Download, Eye, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { mrfApi } from "@/services/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { MRF, VendorRegistration } from "@/types";
 import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
@@ -26,9 +30,23 @@ import { useNavigate } from "react-router-dom";
 const ExecutiveDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
+  const {
+    data: mrfRequests = [],
+    isLoading: loading,
+    refetch: fetchMRFs,
+  } = useQuery({
+    queryKey: queryKeys.dashboard.executiveMrfs(),
+    queryFn: async () => {
+      const response = await mrfApi.list({ page: 1, per_page: 100 });
+      if (!response.success || !response.data) {
+        throw new Error(response.error || "Failed to load MRFs");
+      }
+      return response.data.items;
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
+
   const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
-  const [loading, setLoading] = useState(true);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
@@ -37,24 +55,6 @@ const ExecutiveDashboard = () => {
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
 
-  // Fetch MRFs from backend API
-  const fetchMRFs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await mrfApi.getAll();
-      if (response.success && response.data) {
-        setMrfRequests(response.data);
-      } else {
-        toast.error(response.error || "Failed to load MRFs");
-      }
-    } catch (error) {
-      toast.error("Failed to connect to server");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Fetch vendor registrations using shared service
   const fetchVendorRegistrations = useCallback(async () => {
     setLoadingVendors(true);
     try {
@@ -72,9 +72,12 @@ const ExecutiveDashboard = () => {
   }, []);
 
   useEffect(() => {
-    fetchMRFs();
-    fetchVendorRegistrations();
-  }, [fetchMRFs, fetchVendorRegistrations]);
+    void fetchVendorRegistrations();
+  }, [fetchVendorRegistrations]);
+
+  useScmAppRefreshListener(async () => {
+    await Promise.all([fetchMRFs(), fetchVendorRegistrations()]);
+  });
 
   // Helper to get estimated cost (handles both snake_case and camelCase)
   const getEstimatedCost = (mrf: MRF) => {
@@ -117,32 +120,34 @@ const ExecutiveDashboard = () => {
     }
   };
 
-  // Filter MRFs awaiting executive approval
+  // Helper to detect Emerald contract type (used in All MRFs tab filters)
   const isEmeraldContract = (mrf: MRF): boolean => {
     const ct = (mrf as any).contract_type || (mrf as any).contractType || "";
     return String(ct).toLowerCase().includes("emerald");
   };
 
+  // Filter MRFs awaiting executive approval (parallel first approval or legacy executive_review)
+  const isPendingExecutiveApproval = (mrf: MRF): boolean => {
+    const status = (mrf.status || "").toLowerCase().trim();
+    const currentStage = (mrf.current_stage || mrf.currentStage || "").toLowerCase().trim();
+    const workflowState = String(
+      (mrf as any).workflowState || (mrf as any).workflow_state || ""
+    )
+      .toLowerCase()
+      .trim();
+
+    return (
+      workflowState === "parallel_first_approval" ||
+      currentStage === "parallel_first_approval" ||
+      status === "executive_review" ||
+      currentStage === "executive_review" ||
+      currentStage === "executive" ||
+      workflowState === "executive_review"
+    );
+  };
+
   const pendingMRFs = useMemo(() => {
-    return mrfRequests.filter((mrf) => {
-      const status = (mrf.status || "").toLowerCase().trim();
-      const currentStage = (mrf.current_stage || mrf.currentStage || "").toLowerCase().trim();
-      const emerald = isEmeraldContract(mrf);
-      
-      // Match backend status values
-      return (
-        emerald &&
-        (
-          status === "executive_review" ||
-          currentStage === "executive_review" ||
-          currentStage === "executive" ||
-          status === "pending" ||
-          status === "submitted" ||
-          status.includes("pending executive") ||
-          status.includes("awaiting executive")
-        )
-      );
-    });
+    return mrfRequests.filter((mrf) => isPendingExecutiveApproval(mrf));
   }, [mrfRequests]);
 
   // High value MRFs (> 1,000,000) need chairman approval
@@ -429,9 +434,8 @@ const ExecutiveDashboard = () => {
                               </div>
                             )}
 
-                            {/* Approval Actions for Emerald MRFs at executive_review */}
-                            {isEmeraldContract(mrf) && (
-                              (mrf.current_stage || mrf.currentStage || mrf.status || "").toLowerCase().includes("executive") && (
+                            {/* Approval actions for parallel / executive first approval */}
+                            {isPendingExecutiveApproval(mrf) && (
                                 <div className="space-y-3 border-t pt-3">
                                   <Label className="text-sm font-medium">Remarks</Label>
                                   <Textarea
@@ -501,7 +505,6 @@ const ExecutiveDashboard = () => {
                                     </Button>
                                   </div>
                                 </div>
-                              )
                             )}
 
                             {/* View Details Button */}

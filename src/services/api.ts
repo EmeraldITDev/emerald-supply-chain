@@ -90,6 +90,28 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 export { API_BASE_URL };
+
+const LOGOUT_BACKGROUND_MS = 4_000;
+
+/** Revoke token on server without blocking UI (used after local session is cleared). */
+function postLogoutInBackground(endpoint: string, token: string): void {
+  if (typeof window === "undefined" || !token) return;
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), LOGOUT_BACKGROUND_MS);
+
+  void fetch(`${API_BASE_URL}${endpoint}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    signal: controller.signal,
+    keepalive: true,
+  })
+    .catch(() => undefined)
+    .finally(() => window.clearTimeout(timeoutId));
+}
 export type { ApiResponse } from '@/types';
 
 // Log the API URL being used (helpful for debugging in Lovable)
@@ -432,6 +454,11 @@ export const authApi = {
     return apiRequest<void>('/auth/logout', {
       method: 'POST',
     });
+  },
+
+  /** Fire-and-forget — call after clearing local storage so logout is instant. */
+  revokeTokenInBackground: (token: string): void => {
+    postLogoutInBackground('/auth/logout', token);
   },
 
   getCurrentUser: async (): Promise<ApiResponse<User>> => {
@@ -1440,6 +1467,41 @@ export const mrfApi = {
 
 // SRF API
 export const srfApi = {
+  list: async (params?: {
+    page?: number;
+    per_page?: number;
+    status?: string;
+    search?: string;
+    date_from?: string;
+    date_to?: string;
+    sort?: import('@/utils/listFilters').ListSort;
+    include_line_items?: boolean;
+  }): Promise<ApiResponse<PaginatedResult<SRF>>> => {
+    const sortApi = params?.sort ? listSortToApi(params.sort) : null;
+    const qs = buildListQueryParams({
+      page: params?.page ?? 1,
+      per_page: params?.per_page ?? 25,
+      status: params?.status,
+      search: params?.search,
+      date_from: params?.date_from,
+      date_to: params?.date_to,
+      sort_by: sortApi?.sort_by,
+      sort_direction: sortApi?.sort_direction,
+    });
+    if (params?.include_line_items === false) {
+      qs.set('include_line_items', 'false');
+    }
+    const res = await apiRequestFull(`/srfs?${qs.toString()}`);
+    if (!res.success) {
+      return { success: false, error: res.error };
+    }
+    const { items, pagination } = extractPaginatedItems<SRF>(res.body);
+    return {
+      success: true,
+      data: { items, pagination: pagination ?? emptyPagination(items.length) },
+    };
+  },
+
   getAll: async (
     filters?: FilterOptions & import('@/types/srf-line-item').SrfListQuery,
   ): Promise<ApiResponse<SRF[]>> => {
@@ -1661,11 +1723,21 @@ export const rfqApi = {
     page?: number;
     per_page?: number;
     status?: string;
+    search?: string;
+    date_from?: string;
+    date_to?: string;
+    sort?: import('@/utils/listFilters').ListSort;
   }): Promise<ApiResponse<PaginatedResult<RFQ>>> => {
+    const sortApi = params?.sort ? listSortToApi(params.sort) : null;
     const qs = buildListQueryParams({
       page: params?.page ?? 1,
-      per_page: params?.per_page ?? 50,
+      per_page: params?.per_page ?? 25,
       status: params?.status,
+      search: params?.search,
+      date_from: params?.date_from,
+      date_to: params?.date_to,
+      sort_by: sortApi?.sort_by,
+      sort_direction: sortApi?.sort_direction,
     });
     const res = await apiRequestFull(`/rfqs?${qs.toString()}`);
     if (!res.success) {
@@ -3169,6 +3241,10 @@ export const vendorAuthApi = {
     return apiRequest<void>('/vendors/auth/logout', {
       method: 'POST',
     });
+  },
+
+  revokeTokenInBackground: (token: string): void => {
+    postLogoutInBackground('/vendors/auth/logout', token);
   },
 
   getProfile: async (): Promise<ApiResponse<Vendor>> => {

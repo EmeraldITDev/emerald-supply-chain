@@ -7,6 +7,8 @@ export function getWorkflowStageLabel(stage?: string | null): string {
   if (!s) return "N/A";
   if (s === "draft") return "Draft";
   if (s === "submitted") return "Submitted";
+  if (s === "parallel_first_approval")
+    return "Executive / Supply Chain Director (parallel)";
   if (s === "executive_review" || s === "executive")
     return "Executive approval";
   if (s === "director_review") return "Director review";

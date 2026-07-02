@@ -46,7 +46,13 @@ import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { usePaginatedListQuery } from "@/hooks/usePaginatedListQuery";
+import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
+import { queryKeys } from "@/lib/queryKeys";
+import { LIST_QUERY_OPTIONS } from "@/lib/queryOptions";
+import { invalidateMrfLists, invalidatePoLists, optimisticallyRemoveMrfFromCache } from "@/lib/invalidateScmCache";
 import { ListControls } from "@/components/dashboard/ListControls";
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
@@ -193,9 +199,9 @@ const Procurement = () => {
     readOnly: isProcurementReadOnly,
   } = procurementAccess;
 
-  // MRF requests from backend API (paginated on this page)
-  const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
-  const [mrfLoading, setMrfLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // MRF requests — cached paginated list (instant revisit within stale window)
   const [poGenerating, setPoGenerating] = useState(false);
 
   const [poDialogOpen, setPODialogOpen] = useState(false);
@@ -280,22 +286,58 @@ const Procurement = () => {
     defaultListControls,
   );
   const [mrfPage, setMrfPage] = useState(1);
-  const [mrfPagination, setMrfPagination] = useState<import('@/types/pagination').PaginationMeta | null>(null);
   const [poPage, setPoPage] = useState(1);
-  const [poPagination, setPoPagination] = useState<import('@/types/pagination').PaginationMeta | null>(null);
-  const [poListItems, setPoListItems] = useState<MRF[]>([]);
-  const [poListLoading, setPoListLoading] = useState(false);
+
+  const vendorFromState = (location.state as any)?.vendor as string | undefined;
+  const vendorFromQuery = searchParams.get("vendor") || undefined;
+  const vendorFilter = vendorFromState || vendorFromQuery || undefined;
+
+  const [tab, setTab] = useState<string>(vendorFilter ? "po" : "mrf");
 
   const [mrfSearchDebounced, setMrfSearchDebounced] = useState("");
   const [poSearchDebounced, setPoSearchDebounced] = useState("");
-  const mrfFetchSeq = useRef(0);
-  const poFetchSeq = useRef(0);
   const prevMrfSearchDebounced = useRef(mrfSearchDebounced);
+
+  const mrfListParams = useMemo(
+    () => ({
+      page: mrfPage,
+      per_page: 25,
+      search: mrfSearchDebounced || undefined,
+      status: mrfControls.status !== "all" ? mrfControls.status : undefined,
+      date_from: mrfControls.dateFrom || undefined,
+      date_to: mrfControls.dateTo || undefined,
+      sort: mrfControls.sort,
+    }),
+    [
+      mrfPage,
+      mrfSearchDebounced,
+      mrfControls.status,
+      mrfControls.dateFrom,
+      mrfControls.dateTo,
+      mrfControls.sort,
+    ],
+  );
+
+  const {
+    items: mrfRequests,
+    pagination: mrfPagination,
+    isLoading: mrfLoading,
+    refetch: refetchMrfList,
+  } = usePaginatedListQuery<MRF>({
+    queryKey: queryKeys.mrfs.list(mrfListParams),
+    queryFn: () => mrfApi.list(mrfListParams),
+    ...LIST_QUERY_OPTIONS,
+    enabled: tab === "mrf" || tab === "all-mrfs",
+  });
+
+  const fetchMRFs = useCallback(async () => {
+    await refetchMrfList();
+  }, [refetchMrfList]);
 
   useEffect(() => {
     const handle = window.setTimeout(
       () => setMrfSearchDebounced(mrfControls.search),
-      400,
+      300,
     );
     return () => window.clearTimeout(handle);
   }, [mrfControls.search]);
@@ -303,10 +345,21 @@ const Procurement = () => {
   useEffect(() => {
     const handle = window.setTimeout(
       () => setPoSearchDebounced(poControls.search),
-      400,
+      300,
     );
     return () => window.clearTimeout(handle);
   }, [poControls.search]);
+
+  const [srfSearchDebounced, setSrfSearchDebounced] = useState("");
+  const [srfPage, setSrfPage] = useState(1);
+
+  useEffect(() => {
+    const handle = window.setTimeout(
+      () => setSrfSearchDebounced(srfControls.search),
+      300,
+    );
+    return () => window.clearTimeout(handle);
+  }, [srfControls.search]);
 
   const handleMrfControlsChange = useCallback(
     (next: ListControlsState) => {
@@ -334,84 +387,49 @@ const Procurement = () => {
     [poControls],
   );
 
-  // Fetch MRFs from backend API (server-side pagination)
-  const fetchMRFs = useCallback(async () => {
-    const seq = ++mrfFetchSeq.current;
-    setMrfLoading(true);
-    try {
-      const response = await mrfApi.list({
-        page: mrfPage,
-        per_page: 25,
-        search: mrfSearchDebounced || undefined,
-        status: mrfControls.status !== 'all' ? mrfControls.status : undefined,
-        date_from: mrfControls.dateFrom || undefined,
-        date_to: mrfControls.dateTo || undefined,
-        sort: mrfControls.sort,
-      });
-      if (seq !== mrfFetchSeq.current) return;
-      if (response.success && response.data) {
-        setMrfRequests(response.data.items);
-        setMrfPagination(response.data.pagination);
-      } else {
-        toast({
-          title: "Error",
-          description: response.error || "Failed to load MRFs",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      if (seq !== mrfFetchSeq.current) return;
-      toast({
-        title: "Error",
-        description: "Failed to connect to server",
-        variant: "destructive",
-      });
-    } finally {
-      if (seq === mrfFetchSeq.current) setMrfLoading(false);
-    }
-  }, [
-    toast,
-    mrfPage,
-    mrfSearchDebounced,
-    mrfControls.status,
-    mrfControls.dateFrom,
-    mrfControls.dateTo,
-    mrfControls.sort,
-  ]);
+  const handleSrfControlsChange = useCallback(
+    (next: ListControlsState) => {
+      const filtersChanged =
+        next.status !== srfControls.status ||
+        next.dateFrom !== srfControls.dateFrom ||
+        next.dateTo !== srfControls.dateTo ||
+        next.sort !== srfControls.sort;
+      setSrfControls(next);
+      if (filtersChanged) setSrfPage(1);
+    },
+    [srfControls],
+  );
 
-  const fetchPOList = useCallback(async () => {
-    const seq = ++poFetchSeq.current;
-    setPoListLoading(true);
-    try {
-      const response = await mrfApi.list({
-        page: poPage,
-        per_page: 25,
-        po_list: true,
-        search: poSearchDebounced || undefined,
-        status: poControls.status !== 'all' ? poControls.status : undefined,
-        date_from: poControls.dateFrom || undefined,
-        date_to: poControls.dateTo || undefined,
-        sort: poControls.sort,
-      });
-      if (seq !== poFetchSeq.current) return;
-      if (response.success && response.data) {
-        setPoListItems(response.data.items);
-        setPoPagination(response.data.pagination);
-      } else {
-        setPoListItems([]);
-        setPoPagination(null);
-      }
-    } finally {
-      if (seq === poFetchSeq.current) setPoListLoading(false);
-    }
-  }, [
-    poPage,
-    poSearchDebounced,
-    poControls.status,
-    poControls.dateFrom,
-    poControls.dateTo,
-    poControls.sort,
-  ]);
+  const srfListParams = useMemo(
+    () => ({
+      page: srfPage,
+      per_page: 25,
+      search: srfSearchDebounced || undefined,
+      date_from: srfControls.dateFrom || undefined,
+      date_to: srfControls.dateTo || undefined,
+      sort: srfControls.sort,
+      include_line_items: false as const,
+    }),
+    [
+      srfPage,
+      srfSearchDebounced,
+      srfControls.dateFrom,
+      srfControls.dateTo,
+      srfControls.sort,
+    ],
+  );
+
+  const {
+    items: srfListItems,
+    pagination: srfPagination,
+    isLoading: srfListLoading,
+    refetch: refetchSrfList,
+  } = usePaginatedListQuery<import("@/types").SRF>({
+    queryKey: queryKeys.srfs.list(srfListParams),
+    queryFn: () => srfApi.list(srfListParams),
+    ...LIST_QUERY_OPTIONS,
+    enabled: tab === "srf",
+  });
 
   const mrfHasActiveFilters =
     mrfControls.status !== "all" ||
@@ -482,23 +500,24 @@ const Procurement = () => {
 
   const fetchSrfExportPage = useCallback(
     async (page: number, perPage: number) => {
-      const response = await srfApi.getAll({
+      const response = await srfApi.list({
         page,
         per_page: perPage,
-        search: srfControls.search || undefined,
+        search: srfSearchDebounced || undefined,
         status: srfControls.status !== "all" ? srfControls.status : undefined,
-        include_line_items: false,
+        date_from: srfControls.dateFrom || undefined,
+        date_to: srfControls.dateTo || undefined,
+        sort: srfControls.sort,
       });
-      const items = response.success && response.data ? response.data : [];
+      if (!response.success || !response.data) {
+        return { items: [] as import("@/types").SRF[] };
+      }
       return {
-        items,
-        pagination: {
-          page,
-          total_pages: items.length < perPage ? page : page + 1,
-        },
+        items: response.data.items,
+        pagination: response.data.pagination,
       };
     },
-    [srfControls],
+    [srfSearchDebounced, srfControls],
   );
 
   const srfTableExport = useTableExport({
@@ -583,10 +602,6 @@ const Procurement = () => {
   };
 
   useEffect(() => {
-    void fetchMRFs();
-  }, [fetchMRFs]);
-
-  useEffect(() => {
     void refreshProcurementRfqs();
   }, [refreshProcurementRfqs]);
 
@@ -628,30 +643,6 @@ const Procurement = () => {
       if (res.success && res.data?.kpis) setPlatformKpis(res.data.kpis);
     });
   }, [procurementDashboard?.kpis]);
-
-
-  // Auto-poll procurement data every 30s while tab is visible
-  useEffect(() => {
-    const poll = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        fetchMRFs();
-        void refreshProcurementRfqs();
-        void refreshSRFs();
-      }
-    }, 30000);
-    return () => clearInterval(poll);
-  }, [fetchMRFs, refreshProcurementRfqs, refreshSRFs]);
-
-  // Listen for global refresh button clicks from the header
-  useEffect(() => {
-    const handler = () => {
-      fetchMRFs();
-      void refreshProcurementRfqs();
-      void refreshSRFs();
-    };
-    window.addEventListener("app:refresh", handler);
-    return () => window.removeEventListener("app:refresh", handler);
-  }, [fetchMRFs, refreshProcurementRfqs, refreshSRFs]);
 
   // Helper functions for MRF field access (handles both camelCase and snake_case)
   const getMRFEstimatedCost = (mrf: MRF) =>
@@ -1050,14 +1041,84 @@ const Procurement = () => {
     });
   }, [mrfRequests]);
 
-  const vendorFromState = (location.state as any)?.vendor as string | undefined;
-  const vendorFromQuery = searchParams.get("vendor") || undefined;
-  const vendorFilter = vendorFromState || vendorFromQuery || undefined;
-
   const srfDeepLinkHandled = useRef<string>("");
   const mrfDeepLinkHandled = useRef<string>("");
 
-  const [tab, setTab] = useState<string>(vendorFilter ? "po" : "mrf");
+  const poListParams = useMemo(
+    () => ({
+      page: poPage,
+      per_page: 25,
+      po_list: true as const,
+      search: poSearchDebounced || undefined,
+      status: poControls.status !== "all" ? poControls.status : undefined,
+      date_from: poControls.dateFrom || undefined,
+      date_to: poControls.dateTo || undefined,
+      sort: poControls.sort,
+    }),
+    [
+      poPage,
+      poSearchDebounced,
+      poControls.status,
+      poControls.dateFrom,
+      poControls.dateTo,
+      poControls.sort,
+    ],
+  );
+
+  const {
+    items: poListItems,
+    pagination: poPagination,
+    isLoading: poListLoading,
+    refetch: refetchPoList,
+  } = usePaginatedListQuery<MRF>({
+    queryKey: queryKeys.pos.list(poListParams),
+    queryFn: () => mrfApi.list(poListParams),
+    ...LIST_QUERY_OPTIONS,
+    enabled: tab === "po",
+  });
+
+  const fetchPOList = useCallback(async () => {
+    await refetchPoList();
+  }, [refetchPoList]);
+
+  const refreshProcurementPageData = useCallback(async () => {
+    const tasks: Promise<unknown>[] = [
+      dashboardApi.getProcurementManagerDashboard().then((res) => {
+        if (res.success && res.data) {
+          setProcurementDashboard(res.data);
+          if (res.data.kpis) setPlatformKpis(res.data.kpis);
+        }
+      }),
+      dashboardKpiApi.getKpis().then((res) => {
+        if (res.success && res.data?.kpis) setPlatformKpis(res.data.kpis);
+      }),
+      refreshProcurementRfqs(),
+      refreshSRFs(),
+    ];
+    if (tab === "mrf" || tab === "all-mrfs") {
+      tasks.push(refetchMrfList());
+    }
+    if (tab === "po") {
+      tasks.push(refetchPoList());
+    }
+    if (tab === "srf") {
+      tasks.push(refetchSrfList());
+    }
+    await Promise.all(tasks);
+  }, [
+    tab,
+    refetchMrfList,
+    refetchPoList,
+    refetchSrfList,
+    refreshProcurementRfqs,
+    refreshSRFs,
+  ]);
+
+  useScmAppRefreshListener(refreshProcurementPageData);
+
+  const refreshPoListAfterSave = useCallback(async () => {
+    await Promise.all([refetchPoList(), invalidatePoLists(queryClient)]);
+  }, [refetchPoList, queryClient]);
 
   const tabFromQuery = searchParams.get("tab");
   useEffect(() => {
@@ -1075,12 +1136,6 @@ const Procurement = () => {
   }, [tabFromQuery]);
   const [poDetailsDialogOpen, setPODetailsDialogOpen] = useState(false);
 
-  useEffect(() => {
-    if (tab === "po") {
-      void fetchPOList();
-    }
-  }, [tab, fetchPOList]);
-
   const [selectedMRFForPODetails, setSelectedMRFForPODetails] =
     useState<MRFRequest | null>(null);
 
@@ -1091,7 +1146,7 @@ const Procurement = () => {
         { replace: true } as any,
       );
     }
-  }, [vendorFromState]);
+  }, [vendorFromState, vendorFromQuery, setSearchParams]);
 
   useEffect(() => {
     if (vendorFilter) {
@@ -1119,37 +1174,52 @@ const Procurement = () => {
 
   useEffect(() => {
     const mrfQ = searchParams.get("mrf");
-    if (!mrfQ || !mrfRequests.length) {
-      if (!mrfQ) mrfDeepLinkHandled.current = "";
+    if (!mrfQ) {
+      mrfDeepLinkHandled.current = "";
       return;
     }
     if (mrfDeepLinkHandled.current === mrfQ) return;
-    const found = findMrfByAnyLinkId(mrfQ, mrfRequests) as MRF | null;
-    if (!found) return;
-    mrfDeepLinkHandled.current = mrfQ;
-    setTab("mrf");
+
     let cancelled = false;
+    mrfDeepLinkHandled.current = mrfQ;
+    setMrfDetailsDialogOpen(true);
+    setLoadingFullDetails(true);
+    setMrfFullDetails(null);
+
+    const openFromRow = findMrfByAnyLinkId(mrfQ, mrfRequests) as MRF | null;
+
     (async () => {
-      setSelectedMRFForDetails(found);
-      setMrfDetailsDialogOpen(true);
-      setLoadingFullDetails(true);
       try {
-        const response = await mrfApi.getFullDetails(getMrfApiId(found));
-        if (!cancelled && response.success && response.data) {
-          setMrfFullDetails(response.data);
+        let mrf: MRF | null = openFromRow;
+        if (!mrf) {
+          const response = await mrfApi.getById(mrfQ);
+          if (!response.success || !response.data) {
+            throw new Error(response.error || "MRF not found");
+          }
+          mrf = response.data as MRF;
         }
-      } catch {
-        if (!cancelled) {
-          toast({
-            title: "Error",
-            description: "Failed to load MRF details",
-            variant: "destructive",
-          });
+        if (cancelled) return;
+        setSelectedMRFForDetails(mrf);
+        const full = await mrfApi.getFullDetails(getMrfApiId(mrf));
+        if (!cancelled && full.success && full.data) {
+          setMrfFullDetails(full.data);
         }
+      } catch (error) {
+        if (cancelled) return;
+        mrfDeepLinkHandled.current = "";
+        setMrfDetailsDialogOpen(false);
+        setSelectedMRFForDetails(null);
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error ? error.message : "Failed to load MRF details",
+          variant: "destructive",
+        });
       } finally {
         if (!cancelled) setLoadingFullDetails(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
@@ -1224,40 +1294,19 @@ const Procurement = () => {
   };
 
   const filteredSRFs = useMemo(() => {
-    return applyListControls<SRFRequest>(srfRequests, srfControls, {
-      searchText: (srf) => {
-        const vendors = getQuotationsForSRF(srf)
-          .map(
-            (q: any) =>
-              q.vendorName || q.vendor_name || "",
-          )
-          .join(" ");
-        return [
-          srf.title,
-          getDisplayId(srf),
-          getSrfRequesterDisplayName(srf),
-          (srf as { serviceType?: string }).serviceType,
-          vendors,
-        ]
-          .filter(Boolean)
-          .join(" ");
+    const rows = srfListItems as unknown as SRFRequest[];
+    if (srfControls.status === "all") return rows;
+    return applyListControls(
+      rows,
+      { ...srfControls, search: "", dateFrom: "", dateTo: "", sort: "newest" },
+      {
+        searchText: () => "",
+        date: () => "",
+        value: () => 0,
+        matchesStatus: (srf, status) => srfStatusBucket(srf) === status,
       },
-      date: (srf) =>
-        (srf as { createdAt?: string }).createdAt ||
-        (srf as { created_at?: string }).created_at ||
-        srf.date,
-      value: (srf) =>
-        parseFloat(
-          String(
-            (srf as { estimatedCost?: string }).estimatedCost ??
-              (srf as { estimated_cost?: string }).estimated_cost ??
-              0,
-          ),
-        ) || 0,
-      matchesStatus: (srf, status) => srfStatusBucket(srf) === status,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [srfRequests, srfControls]);
+    );
+  }, [srfListItems, srfControls]);
 
   // ── PO list controls (search / status / date-range / sort) ───────────────
   const poBaseItems = useMemo(
@@ -1298,10 +1347,9 @@ const Procurement = () => {
   };
 
   const poStatusBucket = (mrf: MRF): string => {
-    const isDraft =
-      !getMRFPONumber(mrf) &&
-      Boolean((mrf as MRF & { is_po_draft?: boolean }).is_po_draft);
-    if (isDraft) return "draft";
+    if (Boolean((mrf as MRF & { is_po_draft?: boolean }).is_po_draft)) {
+      return "draft";
+    }
     const raw = `${getWorkflowState(mrf)} ${String(mrf.status ?? "")} ${String(
       (mrf as { po_status?: string }).po_status ?? "",
     )}`.toLowerCase();
@@ -1928,7 +1976,7 @@ const Procurement = () => {
           title: "Draft discarded",
           description: "The saved PO draft has been removed.",
         });
-        await fetchMRFs();
+        await refreshPoListAfterSave();
       } else {
         toast({
           title: "Error",
@@ -1957,17 +2005,23 @@ const Procurement = () => {
   const confirmDeleteMRF = async () => {
     if (!mrfToDelete) return;
 
+    const deletedId = mrfToDelete;
     setIsDeleting(true);
+    optimisticallyRemoveMrfFromCache(queryClient, deletedId);
+    setDeleteDialogOpen(false);
+    setMrfToDelete(null);
+
     try {
-      const response = await mrfApi.delete(mrfToDelete);
+      const response = await mrfApi.delete(deletedId);
       if (response.success) {
         toast({
           title: "MRF Deleted",
           description:
             "The Material Request Form has been deleted successfully",
         });
-        await fetchMRFs();
+        await invalidateMrfLists(queryClient);
       } else {
+        await invalidateMrfLists(queryClient);
         toast({
           title: "Error",
           description: response.error || "Failed to delete MRF",
@@ -1975,6 +2029,7 @@ const Procurement = () => {
         });
       }
     } catch (error) {
+      await invalidateMrfLists(queryClient);
       toast({
         title: "Error",
         description: "Failed to connect to server",
@@ -1982,8 +2037,6 @@ const Procurement = () => {
       });
     } finally {
       setIsDeleting(false);
-      setDeleteDialogOpen(false);
-      setMrfToDelete(null);
     }
   };
 
@@ -2045,10 +2098,10 @@ const Procurement = () => {
       <PullToRefresh
         onRefresh={async () => {
           toast({
-            title: "Refreshing data...",
+            title: "Refreshing data…",
             description: "Please wait",
           });
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await refreshProcurementPageData();
           toast({
             title: "Data refreshed",
             description: "All data is up to date",
@@ -2219,6 +2272,7 @@ const Procurement = () => {
             {/* RFQ Management Tab */}
             <TabsContent value="rfq" className="space-y-4">
               <RFQManagement
+                enabled={tab === "rfq"}
                 onVendorSelected={(vendorId, rfqId) => {
                   // Vendor selection is now handled in RFQManagement component
                   // It automatically sends vendor to Supply Chain Director for approval
@@ -2645,7 +2699,7 @@ const Procurement = () => {
                           state={mrfControls}
                           onChange={handleMrfControlsChange}
                           statusOptions={statusOptions}
-                          searchPlaceholder="Search by title, ID, requester, or vendor..."
+                        searchPlaceholder="Search by MRF ID, formatted ID, PO number, or requester..."
                         />
                       </div>
                       <TableExportMenu export={mrfTableExport} title="Export MRFs" />
@@ -3530,6 +3584,11 @@ const Procurement = () => {
                       })}
                     </div>
                   )}
+                  <ServerPaginationBar
+                    pagination={mrfPagination}
+                    page={mrfPage}
+                    onPageChange={setMrfPage}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -3562,20 +3621,22 @@ const Procurement = () => {
                     <div className="flex-1 min-w-0">
                       <ListControls
                         state={srfControls}
-                        onChange={setSrfControls}
+                        onChange={handleSrfControlsChange}
                         statusOptions={srfStatusOptions}
-                        searchPlaceholder="Search by title, ID, requester, or vendor..."
+                        searchPlaceholder="Search by SRF ID, formatted ID, or requester..."
                       />
                     </div>
                     <TableExportMenu export={srfTableExport} title="Export service requests" />
                   </div>
                   <div className="space-y-3">
-                    {filteredSRFs.length === 0 && (
+                    {srfListLoading && filteredSRFs.length === 0 ? (
+                      <TableSkeleton rows={4} />
+                    ) : filteredSRFs.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>No service request forms match your filters</p>
                       </div>
-                    )}
+                    ) : null}
                     {filteredSRFs.map((request) => {
                       const wf = getSrfWorkflowState(request);
                       const isProcurement =
@@ -3753,6 +3814,11 @@ const Procurement = () => {
                       );
                     })}
                   </div>
+                  <ServerPaginationBar
+                    pagination={srfPagination}
+                    page={srfPage}
+                    onPageChange={setSrfPage}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -3778,7 +3844,7 @@ const Procurement = () => {
                         state={poControls}
                         onChange={handlePoControlsChange}
                         statusOptions={poStatusOptions}
-                        searchPlaceholder="Search by PO number, MRF ID, title, or vendor..."
+                        searchPlaceholder="Search by PO number, MRF ID, or requester..."
                       />
                     </div>
                     <TableExportMenu export={poTableExport} title="Export purchase orders" />
@@ -3787,11 +3853,9 @@ const Procurement = () => {
                     {filteredPOItems
                       .map((mrf) => {
                         const poNumber = getMRFPONumber(mrf as MRF);
-                        const isDraft =
-                          !poNumber &&
-                          Boolean(
-                            (mrf as MRF & { is_po_draft?: boolean }).is_po_draft,
-                          );
+                        const isDraft = Boolean(
+                          (mrf as MRF & { is_po_draft?: boolean }).is_po_draft,
+                        );
                         const draftSavedAt =
                           (mrf as MRF & { po_draft_saved_at?: string })
                             .po_draft_saved_at || null;
@@ -4035,8 +4099,13 @@ const Procurement = () => {
                 fastTrack={createPOFastTrack}
                 allowMissingRfq={createPOAllowMissingRfq}
                 initialEditMode={createPOEditMode}
-                onFinalised={() => {
+                onFinalised={async () => {
+                  await refreshPoListAfterSave();
                   void fetchMRFs();
+                }}
+                onDraftSaved={async () => {
+                  await refreshPoListAfterSave();
+                  setTab("po");
                 }}
                 onRequestClose={() => {
                   setCreatePOOpen(false);
@@ -4756,6 +4825,11 @@ const Procurement = () => {
                     (selectedMRFForDetails as { profitAndLoss?: import("@/types").ProfitAndLoss })
                       ?.profitAndLoss
                   }
+                />
+
+                <ProcurementDocumentsPanel
+                  mrfId={getMrfApiId(selectedMRFForDetails)}
+                  readOnly={getScmRole(user) === "executive"}
                 />
 
                 {/* Supporting Document */}

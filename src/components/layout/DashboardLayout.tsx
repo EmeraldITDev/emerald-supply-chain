@@ -12,7 +12,7 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
-import { useApp } from "@/contexts/AppContext";
+import { refreshScmApplicationData } from "@/lib/refreshScmData";
 import { TripRequestDialog } from "@/components/logistics/TripRequestDialog";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
@@ -24,24 +24,19 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { refreshMRFs, refreshSRFs, refreshRFQs, refreshQuotations } = useApp();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
+    toast({
+      title: "Refreshing data…",
+      description: "Syncing visible lists with the server.",
+    });
     try {
-      await Promise.all([
-        refreshMRFs(),
-        refreshSRFs(),
-        refreshRFQs(),
-        refreshQuotations(),
-        queryClient.invalidateQueries(),
-      ]);
-      // Notify page-level components (Procurement, VendorPortal) to re-fetch
-      window.dispatchEvent(new CustomEvent("app:refresh"));
+      await refreshScmApplicationData(queryClient);
       toast({
         title: "Data refreshed",
-        description: "All data has been synced with the server.",
+        description: "Visible data has been synced with the server.",
       });
     } catch {
       toast({
@@ -52,7 +47,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [queryClient, refreshMRFs, refreshSRFs, refreshRFQs, refreshQuotations]);
+  }, [queryClient]);
 
   const handleUserClick = () => {
     navigate('/settings');

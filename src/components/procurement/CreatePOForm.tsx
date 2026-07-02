@@ -82,6 +82,8 @@ export interface CreatePOFormProps {
   allowMissingRfq?: boolean;
   /** Called once the PO is finalised so the parent can close the dialog. */
   onFinalised?: (mrf: MRF) => void;
+  /** Called after a PO draft is saved so the parent can refresh the PO list. */
+  onDraftSaved?: (mrf: MRF) => void;
   /** Called whenever the user wants to close (Cancel / X). */
   onRequestClose: () => void;
   /**
@@ -186,6 +188,7 @@ export function CreatePOForm({
   fastTrack = false,
   allowMissingRfq = false,
   onFinalised,
+  onDraftSaved,
   onRequestClose,
   initialEditMode = false,
 }: CreatePOFormProps) {
@@ -644,10 +647,14 @@ export function CreatePOForm({
       const stamp = (draftRes.data?.mrf as { po_draft_saved_at?: string } | undefined)
         ?.po_draft_saved_at;
       setDraftSavedAt(stamp ?? new Date().toISOString());
+      const savedMrf = draftRes.data?.mrf
+        ? ({ ...mrf, ...draftRes.data.mrf } as MRF)
+        : mrf;
       setMrf((prev) => (prev && draftRes.data?.mrf ? { ...prev, ...draftRes.data.mrf } : prev));
       dirtyRef.current = false;
       lastManualSaveRef.current = Date.now();
       toast.success('Draft saved.');
+      if (savedMrf) onDraftSaved?.(savedMrf);
     } catch (err) {
       toast.error('Draft save failed', {
         description: err instanceof Error ? err.message : 'Unexpected error.',
@@ -655,7 +662,7 @@ export function CreatePOForm({
     } finally {
       releaseLock();
     }
-  }, [mrfId, rows, buildPayload, vendors]);
+  }, [mrfId, rows, buildPayload, vendors, mrf, onDraftSaved]);
 
   const finalisePO = useCallback(async () => {
     if (!acquireLock('finalise')) return;

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,11 +21,14 @@ import {
 } from "@/components/ui/pagination";
 import { Download, Loader2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { queryKeys } from "@/lib/queryKeys";
+import { REPORT_QUERY_OPTIONS } from "@/lib/queryOptions";
 import {
   reportsApi,
-  type PaginatedReportRecords,
   type ProcurementReportRecord,
 } from "@/services/reportsApi";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
+import { ProcurementRecordDetailSheet } from "@/components/reports/ProcurementRecordDetailSheet";
 
 interface ProcurementReportingEngineProps {
   initialFrom?: string;
@@ -36,50 +39,58 @@ export const ProcurementReportingEngine = ({
   initialFrom = "",
   initialTo = "",
 }: ProcurementReportingEngineProps) => {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
   const [department, setDepartment] = useState("");
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
-  const [data, setData] = useState<PaginatedReportRecords | null>(null);
-
-  const loadRecords = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await reportsApi.getProcurementRecords({
-        from: from || undefined,
-        to: to || undefined,
-        department: department || undefined,
-        status: status || undefined,
-        search: search || undefined,
-        page,
-        per_page: 25,
-        sort_by: "created_at",
-        sort_direction: "desc",
-      });
-      if (res.success && res.data) {
-        setData(res.data);
-      } else {
-        setData(null);
-        toast({
-          title: "Failed to load records",
-          description: res.error || "Could not fetch procurement records",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [from, to, department, status, search, page, toast]);
+  const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
-    loadRecords();
-  }, [loadRecords]);
+    const handle = window.setTimeout(() => setDebouncedSearch(search), 300);
+    return () => window.clearTimeout(handle);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  const recordsParams = useMemo(
+    () => ({
+      from: from || undefined,
+      to: to || undefined,
+      department: department || undefined,
+      status: status || undefined,
+      search: debouncedSearch || undefined,
+      page,
+      per_page: 25,
+      sort_by: "created_at",
+      sort_direction: "desc",
+    }),
+    [from, to, department, status, debouncedSearch, page],
+  );
+
+  const {
+    data,
+    isLoading: loading,
+    refetch: loadRecords,
+  } = useQuery({
+    queryKey: queryKeys.reports.procurementRecords(recordsParams),
+    queryFn: async () => {
+      const res = await reportsApi.getProcurementRecords(recordsParams);
+      if (!res.success || !res.data) {
+        throw new Error(res.error || "Could not fetch procurement records");
+      }
+      return res.data;
+    },
+    placeholderData: keepPreviousData,
+    ...REPORT_QUERY_OPTIONS,
+  });
 
   const handleExport = async (format: "csv" | "xlsx" | "pdf") => {
     setExporting(format);
@@ -109,7 +120,8 @@ export const ProcurementReportingEngine = ({
   };
 
   const openRecord = (row: ProcurementReportRecord) => {
-    navigate(row.detailPath);
+    setSelectedRecordId(row.id);
+    setDetailOpen(true);
   };
 
   const pagination = data?.pagination;
@@ -119,7 +131,7 @@ export const ProcurementReportingEngine = ({
       <CardHeader>
         <CardTitle>Procurement records</CardTitle>
         <CardDescription>
-          Server-side filters, pagination, and exports. Click a row to open the MRF.
+          Server-side filters, pagination, and exports. Click a row to open record detail.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -149,7 +161,7 @@ export const ProcurementReportingEngine = ({
                 className="pl-8"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                placeholder="MRF ID or title"
+                placeholder="MRF ID"
               />
             </div>
           </div>
@@ -175,9 +187,7 @@ export const ProcurementReportingEngine = ({
         </div>
 
         {loading && !data ? (
-          <div className="flex justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <TableSkeleton rows={6} />
         ) : !data?.items.length ? (
           <p className="text-sm text-muted-foreground text-center py-10">
             No procurement records match your filters.
@@ -252,6 +262,15 @@ export const ProcurementReportingEngine = ({
           </>
         )}
       </CardContent>
+
+      <ProcurementRecordDetailSheet
+        recordId={selectedRecordId}
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) setSelectedRecordId(null);
+        }}
+      />
     </Card>
   );
 };

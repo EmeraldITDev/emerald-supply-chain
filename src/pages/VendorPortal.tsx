@@ -15,6 +15,7 @@ import logo from "@/assets/emerald-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
 import { vendorApi, vendorAuthApi, vendorPortalApi, quotationApi } from "@/services/api";
+import { clearVendorAuthStorage, getStoredVendorAuthToken } from "@/lib/authSession";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -790,19 +791,16 @@ const VendorPortal = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await vendorAuthApi.logout();
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      localStorage.removeItem('vendorAuthToken');
-      localStorage.removeItem('vendorData');
-      setIsLoggedIn(false);
-      setCurrentVendor(null);
-      setCurrentVendorId("");
-      setEmail("");
-      setPassword("");
+  const handleLogout = () => {
+    const token = getStoredVendorAuthToken();
+    clearVendorAuthStorage();
+    setIsLoggedIn(false);
+    setCurrentVendor(null);
+    setCurrentVendorId("");
+    setEmail("");
+    setPassword("");
+    if (token) {
+      vendorAuthApi.revokeTokenInBackground(token);
     }
   };
 

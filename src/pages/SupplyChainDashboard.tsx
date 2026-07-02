@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { getDisplayId, getMrfApiId } from "@/utils/displayId";
 import { LineItemPnLSection } from "@/components/LineItemPnLSection";
@@ -46,10 +47,13 @@ import { normalizeAttachments } from "@/utils/attachments";
 import { PORejectionDialog } from "@/components/PORejectionDialog";
 import { PriceComparisonTable } from "@/components/PriceComparisonTable";
 import { getRejectionReason } from "@/utils/poHelpers";
+import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { authApi, mrfApi, vendorApi, dashboardApi, srfApi } from "@/services/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { procurementApi } from "@/services/procurementApi";
 import { buildEmeraldPoDisplayModel, coercePOTermsMode, userClausesFromStoredCustomTerms } from "@/utils/emeraldPoDocumentModel";
 import { buildEmeraldPurchaseOrderPdf } from "@/utils/emeraldPOPdf";
@@ -83,8 +87,21 @@ function readStoredUserSignatureUrl(): string | null {
 const SupplyChainDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: mrfRequests = [],
+    isLoading: loading,
+    refetch: fetchMRFs,
+  } = useQuery({
+    queryKey: queryKeys.dashboard.scdMrfs(),
+    queryFn: async () => {
+      const response = await mrfApi.list({ page: 1, per_page: 100 });
+      if (!response.success || !response.data) {
+        throw new Error(response.error || "Failed to load MRFs");
+      }
+      return response.data.items;
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedMRFForRejection, setSelectedMRFForRejection] =
     useState<MRF | null>(null);
@@ -129,26 +146,10 @@ const SupplyChainDashboard = () => {
   const fetchPendingDirectorSrfs = useCallback(async () => {
     setPendingDirectorSrfsLoading(true);
     try {
-      const [dashRes, srfRes] = await Promise.all([
-        dashboardApi.getSupplyChainDirectorDashboard(),
-        srfApi.getAll(),
-      ]);
+      const dashRes = await dashboardApi.getSupplyChainDirectorDashboard();
       const dash = dashRes.success ? (dashRes.data as Record<string, unknown>) : null;
       const fromDash = dash?.srfsAwaitingSupplyChainDirectorApproval;
-      let list: SRF[] = [];
-      if (Array.isArray(fromDash)) {
-        list = fromDash as SRF[];
-      } else if (srfRes.success && srfRes.data) {
-        const raw = Array.isArray(srfRes.data) ? srfRes.data : [];
-        list = raw.filter((s: SRF) => {
-          const st = String(
-            (s as { current_stage?: string }).current_stage ||
-              s.currentStage ||
-              "",
-          ).toLowerCase();
-          return st === "supply_chain_director_review";
-        });
-      }
+      const list: SRF[] = Array.isArray(fromDash) ? (fromDash as SRF[]) : [];
       setPendingDirectorSrfs(list);
       const stats = dash?.stats as { pendingSrfDirectorApprovals?: number } | undefined;
       setScdDashStats(stats ?? null);
@@ -167,32 +168,32 @@ const SupplyChainDashboard = () => {
   );
   const [firstApprovalDialogOpen, setFirstApprovalDialogOpen] = useState(false);
 
-  // Fetch MRFs from backend API
-  const fetchMRFs = useCallback(async () => {
-    setLoading(true);
+  const fetchVendorRegistrations = useCallback(async () => {
+    setVendorRegistrationsLoading(true);
     try {
-      const response = await mrfApi.getAll();
+      const response = await getPendingVendorRegistrations();
       if (response.success && response.data) {
-        setMrfRequests(response.data);
-      } else {
-        toast.error(response.error || "Failed to load MRFs");
+        setVendorRegistrations(response.data);
       }
-    } catch (error) {
-      toast.error("Failed to connect to server");
+    } catch {
+      // Silent fail - vendor registrations are supplementary
     } finally {
-      setLoading(false);
+      setVendorRegistrationsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchMRFs();
-  }, [fetchMRFs]);
+    void fetchVendorRegistrations();
+  }, [fetchVendorRegistrations]);
 
-  useEffect(() => {
-    const onRefresh = () => setSignaturePresenceTick((t) => t + 1);
-    window.addEventListener("app:refresh", onRefresh);
-    return () => window.removeEventListener("app:refresh", onRefresh);
-  }, []);
+  useScmAppRefreshListener(async () => {
+    setSignaturePresenceTick((t) => t + 1);
+    await Promise.all([
+      fetchMRFs(),
+      fetchPendingDirectorSrfs(),
+      fetchVendorRegistrations(),
+    ]);
+  });
 
   const hasProfileSignature = useMemo(() => {
     void signaturePresenceTick;
@@ -202,23 +203,6 @@ const SupplyChainDashboard = () => {
         (user?.id ? readCachedUserSignature(user.id) : null),
     );
   }, [user?.signature_url, user?.id, signaturePresenceTick]);
-
-  useEffect(() => {
-    const fetchVendorRegistrations = async () => {
-      setVendorRegistrationsLoading(true);
-      try {
-        const response = await getPendingVendorRegistrations();
-        if (response.success && response.data) {
-          setVendorRegistrations(response.data);
-        }
-      } catch (error) {
-        // Silent fail - vendor registrations are supplementary
-      } finally {
-        setVendorRegistrationsLoading(false);
-      }
-    };
-    fetchVendorRegistrations();
-  }, []);
 
   // Helper functions for field access
   const getEstimatedCost = (mrf: MRF) => {
@@ -296,13 +280,14 @@ const SupplyChainDashboard = () => {
     return (mrf.current_stage || mrf.currentStage || "").toLowerCase();
   };
 
-  // Non-Emerald contract: Supply Chain Director first approval
+  // Parallel first approval + legacy Supply Chain Director first approval
   const pendingFirstApprovals = useMemo(() => {
     return mrfRequests.filter((mrf) => {
-      if (isEmeraldContract(mrf)) return false;
       const stage = getCurrentStage(mrf);
       const workflowState = getWorkflowState(mrf);
       return (
+        stage === "parallel_first_approval" ||
+        workflowState === "parallel_first_approval" ||
         stage === "director_review" ||
         stage === "supply_chain_director_review" ||
         workflowState === "supply_chain_director_review"
@@ -502,8 +487,9 @@ const SupplyChainDashboard = () => {
       const pcRes = await procurementApi.getPriceComparison(mrfId);
       const rows = pcRes.success && pcRes.data ? pcRes.data : [];
 
-      const vendorsRes = await vendorApi.getAll();
-      const vendors = vendorsRes.success && Array.isArray(vendorsRes.data) ? vendorsRes.data : [];
+      const vendorsRes = await vendorApi.list({ page: 1, per_page: 100 });
+      const vendors =
+        vendorsRes.success && vendorsRes.data?.items ? vendorsRes.data.items : [];
 
       let sigDataUrl: string | null = null;
       const me = await authApi.getCurrentUser();
@@ -889,8 +875,7 @@ const SupplyChainDashboard = () => {
                       MRFs Awaiting Supply Chain Director First Approval
                     </CardTitle>
                     <CardDescription>
-                      Non-Emerald contracts move to Procurement only after this
-                      step is approved
+                      Parallel with Executive — first approval wins; then Procurement review
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -920,7 +905,7 @@ const SupplyChainDashboard = () => {
                             <CardContent className="space-y-3">
                               <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
                                 <p className="text-sm font-medium text-primary">
-                                  First Approval: Supply Chain Director
+                                  First Approval: Supply Chain Director (parallel with Executive)
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   Contract Type:{" "}

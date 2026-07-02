@@ -1,4 +1,13 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { usePaginatedListQuery } from "@/hooks/usePaginatedListQuery";
+import { queryKeys } from "@/lib/queryKeys";
+import { LIST_QUERY_OPTIONS } from "@/lib/queryOptions";
+import { ListControls } from "@/components/dashboard/ListControls";
+import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
+import {
+  defaultListControls,
+  type ListControlsState,
+} from "@/utils/listFilters";
 import { getDisplayId, getMrfApiId, findMrfByAnyLinkId } from "@/utils/displayId";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +23,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
-import { useRfqDataRefresh } from "@/hooks/useRfqDataRefresh";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { Plus, Send, Star, TrendingUp, Clock, CheckCircle, AlertCircle, Users, FileText, Award, X, Filter, Loader2 } from "lucide-react";
 import { vendorApi, rfqApi, quotationApi, quotationEvaluationApi } from "@/services/api";
@@ -43,12 +51,89 @@ interface Vendor {
 
 interface RFQManagementProps {
   onVendorSelected?: (vendorId: string, rfqId: string) => void;
+  /** When false, skip paginated list fetch (e.g. RFQ tab not active). */
+  enabled?: boolean;
 }
 
-export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
+export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagementProps) => {
   const { toast } = useToast();
-  const { mrfRequests, rfqs, quotations, refreshRFQs, refreshQuotations, loading: appLoading } = useApp();
-  useRfqDataRefresh();
+  const { mrfRequests, rfqs: contextRfqs, quotations, refreshRFQs, refreshQuotations, loading: appLoading } = useApp();
+
+  const [rfqControls, setRfqControls] = useState<ListControlsState>(defaultListControls);
+  const [rfqSearchDebounced, setRfqSearchDebounced] = useState("");
+  const [rfqPage, setRfqPage] = useState(1);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => setRfqSearchDebounced(rfqControls.search), 300);
+    return () => window.clearTimeout(handle);
+  }, [rfqControls.search]);
+
+  const rfqListParams = useMemo(
+    () => ({
+      page: rfqPage,
+      per_page: 25,
+      search: rfqSearchDebounced || undefined,
+      status: rfqControls.status !== "all" ? rfqControls.status : undefined,
+      date_from: rfqControls.dateFrom || undefined,
+      date_to: rfqControls.dateTo || undefined,
+      sort: rfqControls.sort,
+    }),
+    [
+      rfqPage,
+      rfqSearchDebounced,
+      rfqControls.status,
+      rfqControls.dateFrom,
+      rfqControls.dateTo,
+      rfqControls.sort,
+    ],
+  );
+
+  const {
+    items: rfqListItems,
+    pagination: rfqPagination,
+    isLoading: rfqListLoading,
+    refetch: refetchRfqList,
+  } = usePaginatedListQuery({
+    queryKey: queryKeys.rfqs.list(rfqListParams),
+    queryFn: () => rfqApi.list(rfqListParams),
+    ...LIST_QUERY_OPTIONS,
+    enabled,
+  });
+
+  const rfqs = useMemo(
+    () =>
+      rfqListItems.map((rfq: any) => ({
+        id: rfq.id,
+        mrfId: rfq.mrf_id || rfq.mrfId || "",
+        mrfTitle: rfq.title || rfq.mrfTitle || "",
+        description: rfq.description,
+        quantity: String(rfq.quantity || ""),
+        estimatedCost: String(rfq.estimated_cost || rfq.estimatedCost || 0),
+        deadline: rfq.deadline,
+        status: rfq.status as "Open" | "Closed" | "Awarded",
+        createdDate: rfq.created_at || rfq.createdAt || "",
+        vendorIds: rfq.vendor_ids || rfq.vendorIds || [],
+        quotationsCount: rfq.quotations_count ?? rfq.quotationsCount ?? 0,
+        vendorsCount: rfq.vendors_count ?? rfq.vendorsCount ?? rfq.vendorIds?.length ?? 0,
+      })) as (RFQ & { quotationsCount?: number; vendorsCount?: number })[],
+    [rfqListItems],
+  );
+
+  const handleRfqControlsChange = useCallback((next: ListControlsState) => {
+    const filtersChanged =
+      next.status !== rfqControls.status ||
+      next.dateFrom !== rfqControls.dateFrom ||
+      next.dateTo !== rfqControls.dateTo ||
+      next.sort !== rfqControls.sort;
+    setRfqControls(next);
+    if (filtersChanged) setRfqPage(1);
+  }, [rfqControls]);
+
+  const refreshRfqModuleData = useCallback(async () => {
+    await refetchRfqList();
+    const list = await refreshRFQs();
+    await refreshQuotations(list ?? []);
+  }, [refetchRfqList, refreshRFQs, refreshQuotations]);
   
   // Fetch vendors from API instead of context
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -213,12 +298,14 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
 
   // Get approved MRFs that don't have an active RFQ
   const eligibleMRFs = useMemo(() => {
-    const rfqMrfIds = rfqs.map(r => r.mrfId);
+    const rfqMrfIds = new Set(
+      [...contextRfqs, ...rfqs].map((r) => r.mrfId).filter(Boolean),
+    );
     return mrfRequests.filter(m => 
       (m.status.includes('Approved') || m.currentStage === 'procurement') &&
-      !rfqMrfIds.includes(m.id)
+      !rfqMrfIds.has(m.id)
     );
-  }, [mrfRequests, rfqs]);
+  }, [mrfRequests, rfqs, contextRfqs]);
 
   // Get active vendors sorted by performance
   const activeVendors = useMemo(() => {
@@ -529,7 +616,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
     setSupportingDocuments([]);
     
     // Refresh RFQs after creation
-    await refreshRFQs();
+    await refreshRfqModuleData();
     window.dispatchEvent(new CustomEvent("app:refresh"));
       } else {
         toast({
@@ -701,9 +788,17 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
   const categories = [...new Set(vendors.map(v => v.category))];
 
   const fetchRfqExportPage = useCallback(async (page: number, perPage: number) => {
-    const response = await rfqApi.list({ page, per_page: perPage });
+    const response = await rfqApi.list({
+      page,
+      per_page: perPage,
+      search: rfqSearchDebounced || undefined,
+      status: rfqControls.status !== "all" ? rfqControls.status : undefined,
+      date_from: rfqControls.dateFrom || undefined,
+      date_to: rfqControls.dateTo || undefined,
+      sort: rfqControls.sort,
+    });
     if (!response.success || !response.data) {
-      return { items: rfqs as RFQ[], pagination: { page: 1, total_pages: 1 } };
+      return { items: [] as RFQ[], pagination: { page: 1, total_pages: 1 } };
     }
     const items = response.data.items.map((rfq: any) => ({
       id: rfq.id,
@@ -718,13 +813,26 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
       vendorIds: rfq.vendor_ids || rfq.vendorIds || [],
     })) as RFQ[];
     return { items, pagination: response.data.pagination };
-  }, [rfqs]);
+  }, [rfqSearchDebounced, rfqControls]);
+
+  const rfqHasActiveFilters =
+    rfqControls.status !== "all" ||
+    Boolean(rfqSearchDebounced) ||
+    Boolean(rfqControls.dateFrom) ||
+    Boolean(rfqControls.dateTo);
+
+  const rfqStatusOptions = [
+    { label: "All statuses", value: "all" },
+    { label: "Open", value: "Open" },
+    { label: "Closed", value: "Closed" },
+    { label: "Awarded", value: "Awarded" },
+  ];
 
   const rfqTableExport = useTableExport({
     filenamePrefix: "RFQ_List",
     columns: RFQ_EXPORT_COLUMNS,
     fetchPage: fetchRfqExportPage,
-    hasActiveFilters: false,
+    hasActiveFilters: rfqHasActiveFilters,
   });
 
   const getVendorBadge = (vendor: Vendor) => {
@@ -825,14 +933,29 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
         </div>
       </div>
 
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <ListControls
+            state={rfqControls}
+            onChange={handleRfqControlsChange}
+            statusOptions={rfqStatusOptions}
+            searchPlaceholder="Search by RFQ ID, MRF ID, or formatted ID..."
+          />
+        </div>
+      </div>
+
       {/* Active RFQs */}
-      {appLoading && rfqs.length === 0 ? (
+      {rfqListLoading && rfqs.length === 0 ? (
         <TableSkeleton rows={4} />
       ) : (
+      <>
       <div className="grid gap-4 md:grid-cols-2">
         {rfqs.map((rfq) => {
-          const rfqQuotes = quotations.filter(q => q.rfqId === rfq.id);
-          const pendingQuotes = rfqQuotes.filter(q => q.status === 'Pending').length;
+          const rfqQuotesCount =
+            (rfq as { quotationsCount?: number }).quotationsCount ??
+            quotations.filter((q) => q.rfqId === rfq.id).length;
+          const vendorCount =
+            (rfq as { vendorsCount?: number }).vendorsCount ?? rfq.vendorIds.length;
           
           return (
             <Card key={rfq.id} className="hover:shadow-md transition-shadow">
@@ -865,11 +988,11 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Vendors Invited</p>
-                    <p className="font-semibold">{rfq.vendorIds.length}</p>
+                    <p className="font-semibold">{vendorCount}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Quotes Received</p>
-                    <p className="font-semibold">{rfqQuotes.length}</p>
+                    <p className="font-semibold">{rfqQuotesCount}</p>
                   </div>
                 </div>
 
@@ -926,7 +1049,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                     <FileText className="h-4 w-4 mr-2" />
                     View Details
                   </Button>
-                {pendingQuotes > 0 && rfq.status === 'Open' && (
+                {rfqQuotesCount > 0 && rfq.status === 'Open' && (
                   <Button 
                       className="flex-1" 
                     onClick={() => {
@@ -935,7 +1058,7 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
                     }}
                   >
                     <TrendingUp className="h-4 w-4 mr-2" />
-                      Compare {pendingQuotes}
+                      Compare {rfqQuotesCount}
                   </Button>
                 )}
                 </div>
@@ -944,6 +1067,12 @@ export const RFQManagement = ({ onVendorSelected }: RFQManagementProps) => {
           );
         })}
       </div>
+      <ServerPaginationBar
+        pagination={rfqPagination}
+        page={rfqPage}
+        onPageChange={setRfqPage}
+      />
+      </>
       )}
 
       {/* Create RFQ Dialog */}

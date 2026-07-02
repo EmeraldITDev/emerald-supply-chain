@@ -1,12 +1,14 @@
 import { QueryClient } from "@tanstack/react-query";
+import { LIST_QUERY_OPTIONS } from "@/lib/queryOptions";
 
-/** Shared React Query defaults — reduce redundant refetches for stable reference data. */
+/** Shared React Query defaults — lists use LIST preset; override per query as needed. */
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60_000,
-      gcTime: 5 * 60_000,
+      staleTime: LIST_QUERY_OPTIONS.staleTime,
+      gcTime: LIST_QUERY_OPTIONS.gcTime,
       refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
       retry: 1,
     },
     mutations: {
@@ -15,8 +17,5 @@ export const queryClient = new QueryClient({
   },
 });
 
-/** Longer cache for rarely-changing config (finance routing, vendor categories, templates). */
-export const STABLE_QUERY_OPTIONS = {
-  staleTime: 10 * 60_000,
-  gcTime: 30 * 60_000,
-} as const;
+/** Re-export stable preset for config endpoints (finance routing, categories, templates). */
+export { STABLE_QUERY_OPTIONS } from "@/lib/queryOptions";

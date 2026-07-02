@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getDisplayId } from "@/utils/displayId";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -8,37 +9,32 @@ import { Badge } from "@/components/ui/badge";
 
 import { FileText, DollarSign, Loader2, RefreshCw, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { mrfApi } from "@/services/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import type { MRF } from "@/types";
 import { mrfUsesFinanceAp } from "@/utils/financeAPRouting";
 
 const ChairmanDashboard = () => {
   const { user } = useAuth();
-  const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Fetch MRFs from backend API
-  const fetchMRFs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await mrfApi.getAll();
-      if (response.success && response.data) {
-        setMrfRequests(response.data);
-      } else {
-        toast.error(response.error || "Failed to load MRFs");
+  const {
+    data: mrfRequests = [],
+    isLoading: loading,
+    refetch: fetchMRFs,
+  } = useQuery({
+    queryKey: queryKeys.dashboard.chairmanMrfs(),
+    queryFn: async () => {
+      const response = await mrfApi.list({ page: 1, per_page: 100 });
+      if (!response.success || !response.data) {
+        throw new Error(response.error || "Failed to load MRFs");
       }
-    } catch (error) {
-      toast.error("Failed to connect to server");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMRFs();
-  }, [fetchMRFs]);
+      return response.data.items;
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
 
   // Helper functions for field access
   const getEstimatedCost = (mrf: MRF) => {
@@ -78,6 +74,10 @@ const ChairmanDashboard = () => {
       );
     });
   }, [mrfRequests]);
+
+  useScmAppRefreshListener(async () => {
+    await fetchMRFs();
+  });
 
   // Calculate total value
   const totalValue = useMemo(() => {

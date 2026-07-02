@@ -343,7 +343,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   /** First page only — full lists belong on paginated page views, not global bootstrap. */
-  const CONTEXT_LIST_PER_PAGE = 100;
+  const CONTEXT_LIST_PER_PAGE = 25;
 
   // Fetch MRFs from API (first page for context; avoids multi-page getAll storm on load)
   const refreshMRFs = useCallback(async () => {
@@ -453,7 +453,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return [];
   }, []);
 
-  const QUOTATION_RFQ_CAP = 40;
+  const QUOTATION_RFQ_CAP = 10;
 
   // Fetch Quotations from API — uses per-RFQ endpoint to avoid broken /api/quotations
   const refreshQuotations = useCallback(async (rfqList?: RFQ[]) => {
@@ -521,14 +521,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (regularToken || !vendorToken) {
       const fetchAllData = async () => {
         setLoading(true);
-        // Fetch MRFs, SRFs, and RFQs in parallel
-        const [, , rfqList] = await Promise.all([
-          refreshMRFs(),
-          refreshSRFs(),
-          refreshRFQs(),
-        ]);
-        // Quotations depend on RFQ list being available
-        await refreshQuotations(rfqList || []);
+        // Fetch MRFs, SRFs, and RFQs in parallel — quotations load on RFQ views only.
+        await Promise.all([refreshMRFs(), refreshSRFs(), refreshRFQs()]);
         setLoading(false);
       };
       

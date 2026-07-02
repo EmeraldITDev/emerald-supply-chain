@@ -102,16 +102,9 @@ const DepartmentDashboard = () => {
   const fetchMRFs = useCallback(async () => {
     setMrfLoading(true);
     try {
-      const response = await mrfApi.getAll();
+      const response = await mrfApi.list({ page: 1, per_page: 50 });
       if (response.success && response.data) {
-        // Filter to show only user's own MRFs
-        const userMRFs = response.data.filter((mrf: MRF) => 
-          mrf.requester === user?.name || 
-          mrf.requester === user?.email ||
-          mrf.requester_name === user?.name ||
-          mrf.requester_name === user?.email
-        );
-        setMrfRequests(userMRFs);
+        setMrfRequests(response.data.items);
       }
     } catch (error) {
       console.error("Failed to fetch MRFs:", error);

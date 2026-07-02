@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { authApi } from "@/services/api";
-import { fetchFinanceRoutingConfig, clearFinanceRoutingConfigCache } from "@/services/financeRoutingConfig";
+import { fetchFinanceRoutingConfig } from "@/services/financeRoutingConfig";
+import {
+  clearStaffAuthStorage,
+  getStoredStaffAuthToken,
+} from "@/lib/authSession";
 import type { User } from "@/types";
 import { getScmRole, normalizeScmRole } from "@/utils/scmRole";
 
@@ -68,23 +72,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const logout = useCallback(async (): Promise<void> => {
-    try {
-      // Call logout API
-      await authApi.logout();
-    } catch (error) {
-      // Continue with logout even if API call fails
-      console.error("Logout API error:", error);
-    } finally {
-      setUser(null);
-      clearFinanceRoutingConfigCache();
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userData");
-      localStorage.removeItem("isAuthenticated");
-      localStorage.removeItem("tokenExpiry");
-      sessionStorage.removeItem("authToken");
-      sessionStorage.removeItem("userData");
+  const logout = useCallback((): Promise<void> => {
+    const token = getStoredStaffAuthToken();
+    setUser(null);
+    clearStaffAuthStorage();
+    if (token) {
+      authApi.revokeTokenInBackground(token);
     }
+    return Promise.resolve();
   }, []);
 
   useEffect(() => {

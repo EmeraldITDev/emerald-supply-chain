@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,20 +18,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { procurementReportsApi } from "@/services/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { REPORT_QUERY_OPTIONS } from "@/lib/queryOptions";
 import type { ProcurementReportData } from "@/types";
 import { FinanceApReportsSection } from "@/components/finance/FinanceApReportsSection";
 import { ProcurementReportingEngine } from "@/components/reports/ProcurementReportingEngine";
 import { getScmRole } from "@/utils/scmRole";
-
-const REPORT_ROLES = [
-  "procurement_manager",
-  "procurement",
-  "supply_chain_director",
-  "supply_chain",
-  "admin",
-  "finance",
-  "finance_officer",
-];
+import { canViewScmReports } from "@/utils/reportAccess";
 
 import { TableSkeleton } from "@/components/LoadingSkeleton";
 
@@ -48,48 +42,29 @@ const ProcurementReports = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const scmRole = useMemo(() => getScmRole(user), [user]);
-  const canView = scmRole && REPORT_ROLES.includes(scmRole);
+  const canView = canViewScmReports(scmRole);
 
   const [from, setFrom] = useState(() => defaultReportDateRange().from);
   const [to, setTo] = useState(() => defaultReportDateRange().to);
-  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [report, setReport] = useState<ProcurementReportData | null>(null);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
-  const loadReport = useCallback(async () => {
-    if (!canView) return;
-    setLoading(true);
-    try {
+  const {
+    data: report,
+    isLoading: loading,
+    isFetched: initialLoadDone,
+    refetch: loadReport,
+  } = useQuery({
+    queryKey: queryKeys.reports.procurement(from, to),
+    queryFn: async () => {
       const res = await procurementReportsApi.getReport(from || undefined, to || undefined);
-      if (res.success && res.data) {
-        setReport(res.data);
-      } else {
-        setReport(null);
-        toast({
-          title: "Failed to load report",
-          description: res.error || "Could not fetch procurement report",
-          variant: "destructive",
-        });
+      if (!res.success || !res.data) {
+        throw new Error(res.error || "Could not fetch procurement report");
       }
-    } catch (e: unknown) {
-      setReport(null);
-      toast({
-        title: "Failed to load report",
-        description: e instanceof Error ? e.message : "Request failed",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-      setInitialLoadDone(true);
-    }
-  }, [canView, from, to, toast]);
-
-  useEffect(() => {
-    if (canView) {
-      void loadReport();
-    }
-  }, [canView, loadReport]);
+      return res.data;
+    },
+    enabled: Boolean(canView),
+    ...REPORT_QUERY_OPTIONS,
+  });
 
   if (!canView) {
     return <Navigate to="/dashboard" replace />;

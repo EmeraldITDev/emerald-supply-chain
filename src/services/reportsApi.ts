@@ -51,6 +51,7 @@ export interface ProcurementReportRecord {
   createdAt?: string | null;
   poSignedAt?: string | null;
   detailPath: string;
+  mrfLinkId?: string;
 }
 
 export interface PaginatedReportRecords {

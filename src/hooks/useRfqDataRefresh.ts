@@ -1,11 +1,10 @@
 import { useCallback, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
 
-const RFQ_POLL_MS = 30_000;
-
 /**
  * Keeps RFQs and quotations in AppContext fresh while a view is mounted.
- * Listens for the global header refresh (`app:refresh`) and polls when the tab is visible.
+ * Refreshes on mount and when the global header refresh (`app:refresh`) fires.
+ * Polling was removed — it caused redundant API storms across the app.
  */
 export function useRfqDataRefresh(enabled = true) {
   const { refreshRFQs, refreshQuotations } = useApp();
@@ -24,16 +23,9 @@ export function useRfqDataRefresh(enabled = true) {
       void refresh();
     };
 
-    const poll = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        void refresh();
-      }
-    }, RFQ_POLL_MS);
-
     window.addEventListener('app:refresh', onAppRefresh);
 
     return () => {
-      window.clearInterval(poll);
       window.removeEventListener('app:refresh', onAppRefresh);
     };
   }, [enabled, refresh]);

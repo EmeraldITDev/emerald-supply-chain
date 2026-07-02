@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Search, FileText, Package, Users, Truck, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -10,13 +10,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
-import {
-  searchApi,
-  GlobalSearchResult,
-  mrfApi,
-  srfApi,
-  vendorApi,
-} from "@/services/api";
+import { searchApi, GlobalSearchResult } from "@/services/api";
 import { getDisplayId } from "@/utils/displayId";
 
 type SearchItem = GlobalSearchResult & {
@@ -46,103 +40,7 @@ export function GlobalSearch() {
   const [errored, setErrored] = useState(false);
   const navigate = useNavigate();
 
-  // Local index, prefetched once when the palette opens so search works even if
-  // the backend /search endpoint is missing or partial.
-  const localIndexRef = useRef<SearchItem[] | null>(null);
-  const indexLoadingRef = useRef(false);
-
-  const buildLocalIndex = useCallback(async () => {
-    if (localIndexRef.current || indexLoadingRef.current) return;
-    indexLoadingRef.current = true;
-    try {
-      const [mrfRes, srfRes, vendorRes] = await Promise.all([
-        mrfApi.getAll().catch(() => null),
-        srfApi.getAll().catch(() => null),
-        vendorApi.getAll().catch(() => null),
-      ]);
-
-      const index: SearchItem[] = [];
-
-      const mrfs = mrfRes?.success && Array.isArray(mrfRes.data) ? mrfRes.data : [];
-      for (const m of mrfs as Array<Record<string, unknown>>) {
-        const vendor = String(
-          m.vendor_name ?? m.vendorName ?? m.selectedVendorName ?? "",
-        );
-        const requester = String(m.requester_name ?? m.requester ?? "");
-        index.push({
-          id: String(m.id ?? ""),
-          formatted_id: m.formatted_id as string | undefined,
-          formattedId: m.formattedId as string | undefined,
-          legacy_id: m.legacy_id as string | undefined,
-          title: String(m.title ?? "Untitled MRF"),
-          type: "mrf",
-          _keywords: `${vendor} ${requester}`,
-        });
-        // Derive a PO entry when the MRF has a PO number.
-        const poNumber = String(m.po_number ?? m.poNumber ?? "");
-        if (poNumber) {
-          index.push({
-            id: String(m.id ?? ""),
-            formatted_id: poNumber,
-            title: `${poNumber} — ${String(m.title ?? "")}`.trim(),
-            type: "po",
-            _keywords: `${vendor} ${requester} ${poNumber}`,
-          });
-        }
-      }
-
-      const srfs = srfRes?.success && Array.isArray(srfRes.data) ? srfRes.data : [];
-      for (const s of srfs as Array<Record<string, unknown>>) {
-        const requester = String(s.requester_name ?? s.requester ?? "");
-        index.push({
-          id: String(s.id ?? ""),
-          formatted_id: s.formatted_id as string | undefined,
-          formattedId: s.formattedId as string | undefined,
-          legacy_id: s.legacy_id as string | undefined,
-          title: String(s.title ?? "Untitled SRF"),
-          type: "srf",
-          _keywords: requester,
-        });
-      }
-
-      const vendors =
-        vendorRes?.success && Array.isArray(vendorRes.data) ? vendorRes.data : [];
-      for (const v of vendors as Array<Record<string, unknown>>) {
-        index.push({
-          id: String(v.id ?? ""),
-          formatted_id: v.formatted_id as string | undefined,
-          title: String(v.name ?? v.vendor_name ?? "Vendor"),
-          type: "vendor",
-          _keywords: String(v.email ?? v.contact_email ?? v.category ?? ""),
-        });
-      }
-
-      localIndexRef.current = index;
-    } finally {
-      indexLoadingRef.current = false;
-    }
-  }, []);
-
-  const searchLocalIndex = useCallback((q: string): SearchItem[] => {
-    const idx = localIndexRef.current;
-    if (!idx) return [];
-    const needle = q.toLowerCase();
-    return idx
-      .filter((it) => {
-        const hay = `${it.title} ${getDisplayId(it)} ${it.formatted_id ?? ""} ${
-          it._keywords ?? ""
-        }`.toLowerCase();
-        return hay.includes(needle);
-      })
-      .slice(0, 40);
-  }, []);
-
-  // Prefetch the local index as soon as the palette opens.
-  useEffect(() => {
-    if (open) void buildLocalIndex();
-  }, [open, buildLocalIndex]);
-
-  // Debounced search: backend first, then merge with local index results.
+  // Debounced server-side search only — no full-dataset prefetch.
   useEffect(() => {
     if (!searchQuery.trim()) {
       setResults([]);
@@ -153,30 +51,24 @@ export function GlobalSearch() {
     const t = setTimeout(async () => {
       setLoading(true);
       setErrored(false);
-      let backend: SearchItem[] = [];
-      let backendFailed = false;
       try {
         const res = await searchApi.global(q);
         if (res.success && Array.isArray(res.data)) {
-          backend = res.data as SearchItem[];
+          setResults(dedupe(res.data as SearchItem[]));
+          setErrored(false);
         } else {
-          backendFailed = true;
+          setResults([]);
+          setErrored(true);
         }
       } catch {
-        backendFailed = true;
+        setResults([]);
+        setErrored(true);
+      } finally {
+        setLoading(false);
       }
-
-      // Always also search the local index so results are resilient.
-      await buildLocalIndex();
-      const local = searchLocalIndex(q);
-
-      const merged = dedupe([...backend, ...local]);
-      setResults(merged);
-      setErrored(backendFailed && merged.length === 0);
-      setLoading(false);
-    }, 250);
+    }, 300);
     return () => clearTimeout(t);
-  }, [searchQuery, buildLocalIndex, searchLocalIndex]);
+  }, [searchQuery]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -254,8 +146,7 @@ export function GlobalSearch() {
         </kbd>
       </Button>
 
-      {/* shouldFilter={false}: we already filter server-side + via the local
-          index, so cmdk's built-in filtering must not hide our results. */}
+      {/* shouldFilter={false}: results are filtered server-side. */}
       <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
         <CommandInput
           placeholder="Search MRFs, SRFs, POs, vendors..."
