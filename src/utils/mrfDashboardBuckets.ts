@@ -25,7 +25,7 @@ export function getFirstApprovalRole(mrf: MRF): string {
 }
 
 export function getMrfSortDate(mrf: MRF): number {
-  const raw = mrf.created_at || mrf.createdAt || mrf.date || "";
+  const raw = mrf.created_at || (mrf as any).createdAt || (mrf as any).date || "";
   const t = Date.parse(String(raw));
   return Number.isNaN(t) ? 0 : t;
 }

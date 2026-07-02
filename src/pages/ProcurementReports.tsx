@@ -130,7 +130,7 @@ const ProcurementReports = () => {
               <Label htmlFor="to">To</Label>
               <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
-            <Button onClick={loadReport} disabled={loading}>
+            <Button onClick={() => { void loadReport(); }} disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Apply
             </Button>

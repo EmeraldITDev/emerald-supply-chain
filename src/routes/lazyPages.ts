@@ -2,7 +2,11 @@ import { lazy } from "react";
 import { safeLazyImport } from "@/utils/safeLazyImport";
 
 /** Route-level code splitting — heavy dashboards and modules load on demand. */
-const lazyPage = <T,>(loader: () => Promise<T>) => lazy(() => safeLazyImport(loader));
+const lazyPage = <T extends { default: React.ComponentType<any> }>(
+  loader: () => Promise<T>,
+) => lazy(() => safeLazyImport(loader));
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type React from "react";
 
 export const Dashboard = lazyPage(() => import("@/pages/Dashboard"));
 export const DepartmentDashboard = lazyPage(() => import("@/pages/DepartmentDashboard"));

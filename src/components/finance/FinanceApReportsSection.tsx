@@ -93,7 +93,7 @@ export const FinanceApReportsSection = ({ userRole }: FinanceApReportsSectionPro
     queries: [
       {
         queryKey: ["finance-routing-config"] as const,
-        queryFn: fetchFinanceRoutingConfig,
+        queryFn: () => fetchFinanceRoutingConfig(),
         enabled: canView,
         ...REPORT_QUERY_OPTIONS,
       },

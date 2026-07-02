@@ -732,7 +732,7 @@ const SupplyChainDashboard = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchMRFs}
+              onClick={() => { void fetchMRFs(); }}
               disabled={loading}
             >
               <RefreshCw

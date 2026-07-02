@@ -70,7 +70,6 @@ import type { PaginationMeta } from "@/types/pagination";
 import { useTableExport } from "@/hooks/useTableExport";
 import { TableExportMenu } from "@/components/export/TableExportMenu";
 import { TRIP_EXPORT_COLUMNS, type TripExportRow } from "@/config/tableExportPresets";
-import type { PaginationMeta } from "@/types/pagination";
 import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
 import type { Trip, TripStatus, TripType, TripPassenger, CreateTripData, BulkTripUploadResult } from "@/types/logistics";
 import { VendorJMPSubmission } from "./VendorJMPSubmission";
@@ -314,12 +313,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         const t = normalizeTrip(raw);
         return {
           id: t.id,
-          tripCode: t.tripCode || t.id,
+          tripCode: (t as any).tripCode || t.id,
           type: t.type,
           status: t.status,
           origin: t.origin,
           destination: t.destination,
-          departureDate: t.scheduledDepartureAt || t.departureDate,
+          departureDate: (t as any).scheduledDepartureAt || (t as any).departureDate,
           workflowStage: t.workflowStage || t.workflow_stage,
         };
       });

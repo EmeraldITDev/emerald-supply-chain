@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
 import { vendorApi, vendorAuthApi, vendorPortalApi, quotationApi } from "@/services/api";
 import { clearVendorAuthStorage, getStoredVendorAuthToken } from "@/lib/authSession";
+import { getDisplayId } from "@/utils/displayId";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -301,7 +302,7 @@ const VendorPortal = () => {
   };
 
   const isProfileIncomplete = (() => {
-    const v = currentVendor as Record<string, unknown> | null;
+    const v = currentVendor as unknown as Record<string, unknown> | null;
     if (!v) return false;
     if (v.profile_completed === true) return false;
     if (v.profile_completed === false) {
@@ -313,7 +314,7 @@ const VendorPortal = () => {
   })();
 
   const isManualPoOnboarding =
-    (currentVendor as Record<string, unknown> | null)?.onboarding_source === "manual_po";
+    (currentVendor as unknown as Record<string, unknown> | null)?.onboarding_source === "manual_po";
 
   const handleSaveProfile = async () => {
     setIsSavingProfile(true);
@@ -338,7 +339,7 @@ const VendorPortal = () => {
       });
 
       if (response.success && response.data) {
-        const updated = response.data as Record<string, unknown>;
+        const updated = response.data as unknown as Record<string, unknown>;
         const patch: Record<string, unknown> = {
           contact_person: editProfileData.contactPerson,
           contactPerson: editProfileData.contactPerson,
@@ -2394,7 +2395,7 @@ const VendorPortal = () => {
                 </div>
 
                 <VendorBankDetailsSection
-                  vendor={currentVendor as Record<string, unknown>}
+                  vendor={currentVendor as unknown as Record<string, unknown>}
                   editing={isEditingProfile}
                   values={{
                     bankName: editProfileData.bankName,

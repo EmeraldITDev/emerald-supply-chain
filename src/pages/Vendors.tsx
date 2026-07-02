@@ -333,7 +333,7 @@ const Vendors = () => {
         setDashboardStats({
           totalVendors: total,
           activeVendors: total,
-          pendingRegistrations: stats?.pendingKYC || response.data.pendingRegistrations?.length || 0,
+          pendingRegistrations: stats?.pendingKYC || (response.data.pendingRegistrations as unknown as unknown[] | undefined)?.length || 0,
           avgRating: stats?.avgRating || 0,
           onTimeDelivery: stats?.onTimeDelivery || 0,
         });
@@ -484,8 +484,8 @@ const Vendors = () => {
           activeVendors: total,
           pendingRegistrations:
             stats?.pendingKYC ||
-            dashboardResponse.data.pendingRegistrations?.length ||
-            pendingRegsResponse.data?.length ||
+            (dashboardResponse.data.pendingRegistrations as unknown as unknown[] | undefined)?.length ||
+            (pendingRegsResponse.data as unknown as unknown[] | undefined)?.length ||
             0,
           avgRating: stats?.avgRating || 0,
           onTimeDelivery: stats?.onTimeDelivery || 0,

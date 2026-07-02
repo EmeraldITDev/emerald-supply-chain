@@ -561,8 +561,8 @@ const Procurement = () => {
       const rfqQuotations = quotations.filter(
         (q) =>
           q.rfqId === rfq.id ||
-          q.rfq_id === rfq.id ||
-          String(q.rfq_id) === String(rfq.id) ||
+          (q as any).rfq_id === rfq.id ||
+          String((q as any).rfq_id) === String(rfq.id) ||
           q.rfqId === rfq.id,
       );
       mrfQuotations.push(...rfqQuotations);
@@ -595,8 +595,8 @@ const Procurement = () => {
       const qs = quotations.filter(
         (q) =>
           q.rfqId === rfq.id ||
-          q.rfq_id === rfq.id ||
-          String(q.rfq_id) === String(rfq.id),
+          (q as any).rfq_id === rfq.id ||
+          String((q as any).rfq_id) === String(rfq.id),
       );
       out.push(...qs);
     });
@@ -2976,7 +2976,7 @@ const Procurement = () => {
                                                     0,
                                                 );
                                                 const budgetRaw =
-                                                  rfq?.estimatedBudget ??
+                                                  (rfq as any)?.estimatedBudget ??
                                                   (rfq as any)?.estimated_budget ??
                                                   (rfq as any)?.estimatedCost ??
                                                   (rfq as any)?.estimated_cost ??
@@ -3162,7 +3162,7 @@ const Procurement = () => {
                                                       setVendorSelectionTarget({
                                                         kind: "mrf",
                                                         request: request as unknown as MRFRequest,
-                                                        rfq,
+                                                        rfq: rfq as any,
                                                         quotation,
                                                       });
                                                       setVendorSelectionReason("");
@@ -3829,7 +3829,7 @@ const Procurement = () => {
                                               setVendorSelectionTarget({
                                                 kind: "srf",
                                                 request,
-                                                rfq,
+                                                rfq: rfq as any,
                                                 quotation,
                                               });
                                               setVendorSelectionReason("");

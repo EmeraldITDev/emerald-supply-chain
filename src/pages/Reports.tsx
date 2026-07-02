@@ -88,7 +88,7 @@ const Reports = () => {
             <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
             <p className="text-muted-foreground mt-2">Live metrics from the database — no static placeholders</p>
           </div>
-          <Button variant="outline" onClick={loadDashboard} disabled={loading}>
+          <Button variant="outline" onClick={() => { void loadDashboard(); }} disabled={loading}>
             <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
             Refresh
           </Button>

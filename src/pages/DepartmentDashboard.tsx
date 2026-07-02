@@ -909,7 +909,7 @@ const DepartmentDashboard = () => {
         />
 
         <RequesterEditSrfDialog
-          srf={selectedSrfForEdit}
+          srf={selectedSrfForEdit as unknown as import("@/types").SRF | null}
           open={editSrfOpen}
           onOpenChange={setEditSrfOpen}
           onSaved={() => {

@@ -653,3 +653,6 @@ export interface DashboardKPIs {
   totalSrfsApproved: number;
   priceComparisonCount: number;
 }
+
+// Re-export pagination helpers so consumers can `import { PaginatedResult } from "@/types"`.
+export * from './pagination';

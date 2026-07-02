@@ -265,7 +265,8 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {
-                  if (item.subItems) {
+                  const withSub = item as typeof item & { subItems?: { title: string; url: string }[] };
+                  if (withSub.subItems) {
                     return (
                       <Collapsible key={item.title} asChild defaultOpen={false}>
                         <SidebarMenuItem>
@@ -278,7 +279,7 @@ export function AppSidebar() {
                           </CollapsibleTrigger>
                           <CollapsibleContent>
                             <SidebarMenuSub>
-                              {item.subItems.map((subItem) => (
+                              {withSub.subItems.map((subItem) => (
                                 <SidebarMenuSubItem key={subItem.url}>
                                   <SidebarMenuSubButton asChild>
                                     <NavLink to={subItem.url} end>
