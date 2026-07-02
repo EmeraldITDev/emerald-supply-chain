@@ -828,3 +828,36 @@ On `POST /api/trip-requests/{id}/comments` and `POST /api/trips/{id}/comments`:
 3. Read-only banner shown; **Create PO** and vendor registration review hidden.
 4. MRF detail opens; `available-actions` shows no mutation buttons (download PO still works when file exists).
 5. Workflow mutations return **403** if attempted via API.
+
+---
+
+## Batch 6 — Performance audit & fixes (perf primitives)
+
+**Scope:** Findings + reusable primitives. No behavior changes to business modules — those are wired in a follow-up as we touch each page.
+
+### Findings
+- Vite build is healthy — heavy libs (`xlsx` 429KB, `pdf` 560KB) are already emitted as separate chunks; the remaining wins are keeping them off the initial critical path (async import) and virtualizing large tables.
+- Code-splitting is in place via `src/routes/lazyPages.ts` — no route regressions to introduce.
+- No `react-window`/`react-virtual` usage anywhere; large tables in Procurement / Vendors / SupplyChainDashboard render full DOM.
+- Default `QueryClient` was missing `placeholderData: keepPreviousData`, so every background refetch flashed skeletons.
+- No shared optimistic-mutation helper; delete/discard flows all wait on refetch.
+
+### Shipped
+| File | Change |
+|------|--------|
+| `src/lib/queryClient.ts` | Global `placeholderData: keepPreviousData`; retry now skips 4xx |
+| `src/components/ui/VirtualizedTable.tsx` | New — `VirtualizedTable` + `VirtualizedList` using `@tanstack/react-virtual`, auto-off below threshold, sticky `<thead>`, shadcn-compatible markup |
+| `src/lib/optimisticMutation.ts` | New — `optimisticListRemove` / `optimisticListUpdate` / `optimisticListInsert` with cancel + snapshot + rollback |
+| `src/components/ui/PendingButton.tsx` | New — `<PendingButton isPending>` wrapper that swaps the leading icon for a spinner, disables, sets `aria-busy` |
+| `src/utils/tableExport.ts` | `buildXlsxBlob` / `exportTableDataset` now async; `xlsx` moved from static to dynamic import so it doesn't ship on the critical path |
+| `src/hooks/useTableExport.ts` | Awaits the newly async export |
+| `package.json` | Added `@tanstack/react-virtual@^3` |
+
+### Backend asks
+None blocking. Future-facing: add `X-Total-Count` to any still-unbounded list endpoints so virtualization + windowed pagination can degrade gracefully.
+
+### Adoption notes (for follow-up wiring)
+1. Any list rendering more than ~50 rows should switch its `<Table>` body to `<VirtualizedTable>` — same `<tr>/<td>` markup, drop-in.
+2. Every `useMutation` for CRUD should use one of the three helpers in `optimisticMutation.ts` inside `onMutate` and roll back in `onError`.
+3. Every button that triggers a mutation should switch from `<Button>` + manual spinner to `<PendingButton isPending={mutation.isPending}>`.
+4. When adding a new heavy dependency (>50KB), prefer `const mod = await import('...')` inside the async action, mirroring the pattern in `tableExport.ts`.
