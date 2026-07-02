@@ -24,8 +24,13 @@ import { OneDriveLink } from "@/components/OneDriveLink";
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { formatMRFDate } from "@/utils/dateUtils";
 import { useNavigate } from "react-router-dom";
+import {
+  bucketExecutiveMrfs,
+  isExecutivePendingApproval,
+} from "@/utils/mrfDashboardBuckets";
+import { DashboardSummaryStats } from "@/components/dashboard/DashboardSummaryStats";
+import { DashboardMrfHistoryList } from "@/components/dashboard/DashboardMrfHistoryList";
 
 const ExecutiveDashboard = () => {
   const { user } = useAuth();
@@ -89,11 +94,6 @@ const ExecutiveDashboard = () => {
     return mrf.requester_name || mrf.requester || "Unknown";
   };
 
-  // Helper to get date
-  const getDate = (mrf: MRF) => {
-    return mrf.created_at || mrf.date || "";
-  };
-
   // Helper to get PFI/Supporting Document URL
   const getPFIUrl = (mrf: MRF) => {
     // Check all possible document URL fields
@@ -120,35 +120,28 @@ const ExecutiveDashboard = () => {
     }
   };
 
-  // Helper to detect Emerald contract type (used in All MRFs tab filters)
-  const isEmeraldContract = (mrf: MRF): boolean => {
-    const ct = (mrf as any).contract_type || (mrf as any).contractType || "";
-    return String(ct).toLowerCase().includes("emerald");
-  };
+  const executiveBuckets = useMemo(
+    () => bucketExecutiveMrfs(mrfRequests),
+    [mrfRequests],
+  );
 
-  // Filter MRFs awaiting executive approval (parallel first approval or legacy executive_review)
-  const isPendingExecutiveApproval = (mrf: MRF): boolean => {
-    const status = (mrf.status || "").toLowerCase().trim();
-    const currentStage = (mrf.current_stage || mrf.currentStage || "").toLowerCase().trim();
-    const workflowState = String(
-      (mrf as any).workflowState || (mrf as any).workflow_state || ""
-    )
-      .toLowerCase()
-      .trim();
+  const pendingMRFs = executiveBuckets.pending;
 
-    return (
-      workflowState === "parallel_first_approval" ||
-      currentStage === "parallel_first_approval" ||
-      status === "executive_review" ||
-      currentStage === "executive_review" ||
-      currentStage === "executive" ||
-      workflowState === "executive_review"
-    );
-  };
-
-  const pendingMRFs = useMemo(() => {
-    return mrfRequests.filter((mrf) => isPendingExecutiveApproval(mrf));
-  }, [mrfRequests]);
+  const openMrfDetails = useCallback(async (mrf: MRF) => {
+    setSelectedMRFForDetails(mrf);
+    setMrfDetailsDialogOpen(true);
+    setLoadingFullDetails(true);
+    try {
+      const response = await mrfApi.getFullDetails(mrf.id);
+      if (response.success && response.data) {
+        setMrfFullDetails(response.data);
+      }
+    } catch {
+      toast.error("Failed to load MRF details");
+    } finally {
+      setLoadingFullDetails(false);
+    }
+  }, []);
 
   // High value MRFs (> 1,000,000) need chairman approval
   const highValueMRFs = useMemo(() => {
@@ -190,69 +183,52 @@ const ExecutiveDashboard = () => {
         {/* Dashboard Alerts */}
         <DashboardAlerts userRole="executive" maxAlerts={5} />
 
-        {/* Summary Cards */}
-        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-xs sm:text-sm font-medium">Pending Approval</CardTitle>
-              <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold">
-                {pendingMRFs.length + vendorRegistrations.length}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {pendingMRFs.length} MRF{pendingMRFs.length !== 1 ? 's' : ''}, {vendorRegistrations.length} Vendor{vendorRegistrations.length !== 1 ? 's' : ''}
-              </p>
-            </CardContent>
-          </Card>
+        {/* Summary Statistics */}
+        <DashboardSummaryStats
+          counts={executiveBuckets}
+          extraPending={vendorRegistrations.length}
+          extraPendingLabel={`${vendorRegistrations.length} vendor registration${vendorRegistrations.length !== 1 ? "s" : ""} awaiting review`}
+        />
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-xs sm:text-sm font-medium">High Value</CardTitle>
-              <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{highValueMRFs.length}</div>
-              <p className="text-xs text-muted-foreground">&gt; ₦1M</p>
-            </CardContent>
-          </Card>
+        {highValueMRFs.length > 0 && (
+          <div className="rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-warning shrink-0" />
+            <span>
+              {highValueMRFs.length} pending MRF{highValueMRFs.length !== 1 ? "s" : ""} over ₦1M
+              (total ₦{totalValue.toLocaleString()})
+            </span>
+          </div>
+        )}
 
-          <Card className="col-span-2 lg:col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-xs sm:text-sm font-medium">Total Value</CardTitle>
-              <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold">
-                ₦{totalValue.toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground">Pending requests</p>
-            </CardContent>
-          </Card>
-        </div>
-
-
-
-        {/* MRF List with Tabs */}
+        {/* MRF sections */}
         <Tabs defaultValue="pending" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex flex-wrap h-auto gap-1">
             <TabsTrigger value="pending">
-              Pending Approval
+              Pending
               {(pendingMRFs.length > 0 || vendorRegistrations.length > 0) && (
                 <Badge variant="destructive" className="ml-2 text-xs">
                   {pendingMRFs.length + vendorRegistrations.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="all">All Requests ({mrfRequests.length})</TabsTrigger>
+            <TabsTrigger value="approved">
+              Approved ({executiveBuckets.approved.length})
+            </TabsTrigger>
+            <TabsTrigger value="rejected">
+              Rejected ({executiveBuckets.rejected.length})
+            </TabsTrigger>
+            <TabsTrigger value="completed">
+              Completed ({executiveBuckets.completed.length})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending">
             <Card>
               <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-base sm:text-lg">Pending Approval</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">View MRFs and vendor registrations</CardDescription>
+                <CardTitle className="text-base sm:text-lg">Pending Approvals</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Oldest submissions first — MRFs and vendor registrations awaiting your action
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 {loading || loadingVendors ? (
@@ -435,7 +411,7 @@ const ExecutiveDashboard = () => {
                             )}
 
                             {/* Approval actions for parallel / executive first approval */}
-                            {isPendingExecutiveApproval(mrf) && (
+                            {isExecutivePendingApproval(mrf) && (
                                 <div className="space-y-3 border-t pt-3">
                                   <Label className="text-sm font-medium">Remarks</Label>
                                   <Textarea
@@ -507,26 +483,11 @@ const ExecutiveDashboard = () => {
                                 </div>
                             )}
 
-                            {/* View Details Button */}
                             <div className="flex gap-2 pt-2">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={async () => {
-                                  setSelectedMRFForDetails(mrf);
-                                  setMrfDetailsDialogOpen(true);
-                                  setLoadingFullDetails(true);
-                                  try {
-                                    const response = await mrfApi.getFullDetails(mrf.id);
-                                    if (response.success && response.data) {
-                                      setMrfFullDetails(response.data);
-                                    }
-                                  } catch (error) {
-                                    toast.error("Failed to load MRF details");
-                                  } finally {
-                                    setLoadingFullDetails(false);
-                                  }
-                                }}
+                                onClick={() => void openMrfDetails(mrf)}
                               >
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
@@ -543,103 +504,80 @@ const ExecutiveDashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="all">
+          <TabsContent value="approved">
             <Card>
               <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-base sm:text-lg">All Material Requisition Forms</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">View all MRFs including approved, processed, and completed</CardDescription>
+                <CardTitle className="text-base sm:text-lg">Approved Requests</CardTitle>
+                <CardDescription>MRFs you approved — newest first</CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
-                <Tabs defaultValue="all-sub" className="space-y-4">
-                  <TabsList>
-                    <TabsTrigger value="all-sub">All ({mrfRequests.length})</TabsTrigger>
-                    <TabsTrigger value="emerald">
-                      Emerald ({mrfRequests.filter(m => isEmeraldContract(m)).length})
-                    </TabsTrigger>
-                    <TabsTrigger value="non-emerald">
-                      Non-Emerald ({mrfRequests.filter(m => !isEmeraldContract(m)).length})
-                    </TabsTrigger>
-                  </TabsList>
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <DashboardMrfHistoryList
+                    mrfs={executiveBuckets.approved}
+                    variant="approved"
+                    role="executive"
+                    getRequesterName={getRequesterName}
+                    getEstimatedCost={getEstimatedCost}
+                    onViewDetails={(mrf) => void openMrfDetails(mrf)}
+                    emptyMessage="No MRFs approved by Executive yet"
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                  {["all-sub", "emerald", "non-emerald"].map((subTab) => (
-                    <TabsContent key={subTab} value={subTab}>
-                      {loading ? (
-                        <div className="flex items-center justify-center py-12">
-                          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                        </div>
-                      ) : (() => {
-                        const filtered = subTab === "all-sub"
-                          ? mrfRequests
-                          : subTab === "emerald"
-                            ? mrfRequests.filter(m => isEmeraldContract(m))
-                            : mrfRequests.filter(m => !isEmeraldContract(m));
-                        
-                        return filtered.length === 0 ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                            <p>No MRFs found</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3 sm:space-y-4">
-                            {filtered.map((mrf) => {
-                              const estimatedCost = getEstimatedCost(mrf);
-                              return (
-                                <Card key={mrf.id} className="hover:shadow-md transition-shadow">
-                                  <CardContent className="p-4">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                      <div className="flex-1 min-w-0">
-                                        <h3 className="font-semibold truncate">{mrf.title}</h3>
-                                        <p className="text-sm text-muted-foreground">
-                                          {getDisplayId(mrf)} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
-                                        </p>
-                                        <div className="flex flex-wrap items-center gap-2 mt-1">
-                                          <span className="text-xs text-muted-foreground">
-                                            {formatMRFDate(getDate(mrf))}
-                                          </span>
-                                          <span className="text-xs font-medium">
-                                            {estimatedCost > 0 ? `₦${estimatedCost.toLocaleString()}` : '-'}
-                                          </span>
-                                          <span className="text-xs text-muted-foreground">
-                                            Contract: {((mrf as any).contract_type || (mrf as any).contractType) || "N/A"}
-                                          </span>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <Badge>{mrf.status}</Badge>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={async () => {
-                                            setSelectedMRFForDetails(mrf);
-                                            setMrfDetailsDialogOpen(true);
-                                            setLoadingFullDetails(true);
-                                            try {
-                                              const response = await mrfApi.getFullDetails(mrf.id);
-                                              if (response.success && response.data) {
-                                                setMrfFullDetails(response.data);
-                                              }
-                                            } catch (error) {
-                                              toast.error("Failed to load MRF details");
-                                            } finally {
-                                              setLoadingFullDetails(false);
-                                            }
-                                          }}
-                                        >
-                                          <Eye className="h-4 w-4 mr-1" />
-                                          View Details
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
-                    </TabsContent>
-                  ))}
-                </Tabs>
+          <TabsContent value="rejected">
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Rejected Requests</CardTitle>
+                <CardDescription>MRFs rejected by Executive with reason</CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <DashboardMrfHistoryList
+                    mrfs={executiveBuckets.rejected}
+                    variant="rejected"
+                    role="executive"
+                    getRequesterName={getRequesterName}
+                    getEstimatedCost={getEstimatedCost}
+                    onViewDetails={(mrf) => void openMrfDetails(mrf)}
+                    emptyMessage="No rejected MRFs"
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="completed">
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Recently Completed</CardTitle>
+                <CardDescription>MRFs that reached final completion</CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <DashboardMrfHistoryList
+                    mrfs={executiveBuckets.completed}
+                    variant="completed"
+                    role="executive"
+                    getRequesterName={getRequesterName}
+                    getEstimatedCost={getEstimatedCost}
+                    onViewDetails={(mrf) => void openMrfDetails(mrf)}
+                    emptyMessage="No completed MRFs in the current list"
+                  />
+                )}
               </CardContent>
             </Card>
           </TabsContent>

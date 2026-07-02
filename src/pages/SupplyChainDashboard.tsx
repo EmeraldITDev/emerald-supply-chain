@@ -68,6 +68,11 @@ import { SupplyChainVendorApprovalButtons } from "@/components/SupplyChainVendor
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { MRFApprovalDialog } from "@/components/MRFApprovalDialog";
 import { SRFDirectorApprovalDialog } from "@/components/SRFDirectorApprovalDialog";
+import {
+  bucketScdMrfs,
+} from "@/utils/mrfDashboardBuckets";
+import { DashboardSummaryStats } from "@/components/dashboard/DashboardSummaryStats";
+import { DashboardMrfHistoryList } from "@/components/dashboard/DashboardMrfHistoryList";
 
 function readStoredUserSignatureUrl(): string | null {
   try {
@@ -329,6 +334,27 @@ const SupplyChainDashboard = () => {
       );
     });
   }, [mrfRequests]);
+
+  const scdBuckets = useMemo(() => bucketScdMrfs(mrfRequests), [mrfRequests]);
+
+  const scdExtraPendingCount =
+    pendingDirectorSrfs.length + vendorRegistrations.length;
+
+  const openMrfDetails = useCallback(async (mrf: MRF) => {
+    setSelectedMRFForDetails(mrf);
+    setMrfDetailsDialogOpen(true);
+    setLoadingFullDetails(true);
+    try {
+      const response = await mrfApi.getFullDetails(mrf.id);
+      if (response.success && response.data) {
+        setMrfFullDetails(response.data);
+      }
+    } catch {
+      toast.error("Failed to load MRF details");
+    } finally {
+      setLoadingFullDetails(false);
+    }
+  }, []);
 
   const handleFirstApprovalApprove = async (remarks: string) => {
     const target = mrfForFirstApproval;
@@ -709,16 +735,52 @@ const SupplyChainDashboard = () => {
           {/* Dashboard Alerts */}
           <DashboardAlerts userRole="supply_chain" maxAlerts={5} />
 
-          {/* Tabs: Action Items vs All Requests */}
-          <Tabs defaultValue="action-items" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="action-items">Action Items</TabsTrigger>
-              <TabsTrigger value="all-requests">All Requests</TabsTrigger>
+          <DashboardSummaryStats
+            counts={scdBuckets}
+            extraPending={scdExtraPendingCount}
+            extraPendingLabel={`${pendingDirectorSrfs.length} SRF${pendingDirectorSrfs.length !== 1 ? "s" : ""}, ${vendorRegistrations.length} vendor registration${vendorRegistrations.length !== 1 ? "s" : ""}`}
+          />
+
+          <Tabs defaultValue="pending" className="space-y-4">
+            <TabsList className="flex flex-wrap h-auto gap-1">
+              <TabsTrigger value="pending">
+                Pending
+                {(scdBuckets.pending.length + scdExtraPendingCount) > 0 && (
+                  <Badge variant="destructive" className="ml-2 text-xs">
+                    {scdBuckets.pending.length + scdExtraPendingCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="approved">
+                Approved ({scdBuckets.approved.length})
+              </TabsTrigger>
+              <TabsTrigger value="rejected">
+                Rejected ({scdBuckets.rejected.length})
+              </TabsTrigger>
+              <TabsTrigger value="completed">
+                Completed ({scdBuckets.completed.length})
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="action-items" className="space-y-6">
-              {/* Summary Cards */}
-              <div className="grid gap-4 md:grid-cols-3">
+            <TabsContent value="pending" className="space-y-6">
+              {/* Action breakdown */}
+              <div className="grid gap-4 md:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      First Approvals
+                    </CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {pendingFirstApprovals.length}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Parallel with Executive
+                    </p>
+                  </CardContent>
+                </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
@@ -748,7 +810,7 @@ const SupplyChainDashboard = () => {
                       {pendingPOs.length}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      POs awaiting review and signature
+                      Awaiting signature
                     </p>
                   </CardContent>
                 </Card>
@@ -756,7 +818,7 @@ const SupplyChainDashboard = () => {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                      SRFs Pending Director
+                      SRFs Pending
                     </CardTitle>
                     <FileText className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
@@ -766,7 +828,7 @@ const SupplyChainDashboard = () => {
                         pendingDirectorSrfs.length}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Awaiting supply chain review
+                      Director review
                     </p>
                   </CardContent>
                 </Card>
@@ -1469,159 +1531,86 @@ const SupplyChainDashboard = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="all-requests" className="space-y-4">
+            <TabsContent value="approved" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>All MRF Requests</CardTitle>
+                  <CardTitle>Approved Requests</CardTitle>
                   <CardDescription>
-                    View all material request forms across all stages
+                    MRFs approved by Supply Chain Director — newest first
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs defaultValue="all-sub" className="space-y-4">
-                    <TabsList>
-                      <TabsTrigger value="all-sub">
-                        All ({mrfRequests.length})
-                      </TabsTrigger>
-                      <TabsTrigger value="emerald">
-                        Emerald (
-                        {mrfRequests.filter((m) => isEmeraldContract(m)).length}
-                        )
-                      </TabsTrigger>
-                      <TabsTrigger value="non-emerald">
-                        Non-Emerald (
-                        {
-                          mrfRequests.filter((m) => !isEmeraldContract(m))
-                            .length
-                        }
-                        )
-                      </TabsTrigger>
-                    </TabsList>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <DashboardMrfHistoryList
+                      mrfs={scdBuckets.approved}
+                      variant="approved"
+                      role="supply_chain_director"
+                      getRequesterName={getRequesterName}
+                      getEstimatedCost={getEstimatedCost}
+                      onViewDetails={(mrf) => void openMrfDetails(mrf)}
+                      emptyMessage="No MRFs approved by Supply Chain Director yet"
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                    {["all-sub", "emerald", "non-emerald"].map((subTab) => (
-                      <TabsContent key={subTab} value={subTab}>
-                        {loading ? (
-                          <div className="flex items-center justify-center py-12">
-                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                          </div>
-                        ) : (
-                          (() => {
-                            const filtered =
-                              subTab === "all-sub"
-                                ? mrfRequests
-                                : subTab === "emerald"
-                                  ? mrfRequests.filter((m) =>
-                                      isEmeraldContract(m),
-                                    )
-                                  : mrfRequests.filter(
-                                      (m) => !isEmeraldContract(m),
-                                    );
+            <TabsContent value="rejected" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Rejected Requests</CardTitle>
+                  <CardDescription>
+                    MRFs rejected by Supply Chain Director with reason
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <DashboardMrfHistoryList
+                      mrfs={scdBuckets.rejected}
+                      variant="rejected"
+                      role="supply_chain_director"
+                      getRequesterName={getRequesterName}
+                      getEstimatedCost={getEstimatedCost}
+                      onViewDetails={(mrf) => void openMrfDetails(mrf)}
+                      emptyMessage="No rejected MRFs"
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                            return filtered.length === 0 ? (
-                              <div className="text-center py-8 text-muted-foreground">
-                                <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                                <p>No MRF requests found</p>
-                              </div>
-                            ) : (
-                              <div className="space-y-3">
-                                {filtered.map((mrf) => {
-                                  const estimatedCost = getEstimatedCost(mrf);
-                                  const stage = getCurrentStage(mrf);
-                                  const workflowState = getWorkflowState(mrf);
-                                  return (
-                                    <Card
-                                      key={mrf.id}
-                                      className="hover:shadow-md transition-shadow"
-                                    >
-                                      <CardContent className="p-4">
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                          <div className="flex-1 min-w-0">
-                                            <h3 className="font-semibold truncate">
-                                              {mrf.title}
-                                            </h3>
-                                            <p className="text-sm text-muted-foreground">
-                                              {getDisplayId(mrf)} • {getRequesterName(mrf)}{" "}
-                                              • {mrf.department || "N/A"}
-                                            </p>
-                                            <div className="flex flex-wrap items-center gap-2 mt-1">
-                                              <span className="text-xs text-muted-foreground">
-                                                Contract:{" "}
-                                                {getMRFContractType(mrf) ||
-                                                  "N/A"}
-                                              </span>
-                                              <span className="text-xs font-medium">
-                                                {estimatedCost > 0
-                                                  ? `₦${estimatedCost.toLocaleString()}`
-                                                  : "-"}
-                                              </span>
-                                            </div>
-                                          </div>
-                                          <div className="flex items-center gap-2 flex-wrap">
-                                            <Badge>{mrf.status}</Badge>
-                                            {mrf.last_action_by_role ===
-                                              "supply_chain_director" &&
-                                              stage === "procurement_review" &&
-                                              !isEmeraldContract(mrf) && (
-                                                <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-300">
-                                                  SCD Approved
-                                                </Badge>
-                                              )}
-                                            {mrf.last_action_by_role ===
-                                              "executive" &&
-                                              workflowState === "rejected" && (
-                                                <Badge
-                                                  variant="destructive"
-                                                  className="flex items-center gap-1"
-                                                >
-                                                  <XCircle className="h-3 w-3" />
-                                                  Executive Rejected
-                                                </Badge>
-                                              )}
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={async () => {
-                                                setSelectedMRFForDetails(mrf);
-                                                setMrfDetailsDialogOpen(true);
-                                                setLoadingFullDetails(true);
-                                                try {
-                                                  const response =
-                                                    await mrfApi.getFullDetails(
-                                                      mrf.id,
-                                                    );
-                                                  if (
-                                                    response.success &&
-                                                    response.data
-                                                  ) {
-                                                    setMrfFullDetails(
-                                                      response.data,
-                                                    );
-                                                  }
-                                                } catch {
-                                                  toast.error(
-                                                    "Failed to load MRF details",
-                                                  );
-                                                } finally {
-                                                  setLoadingFullDetails(false);
-                                                }
-                                              }}
-                                            >
-                                              <Eye className="h-4 w-4 mr-1" />
-                                              View Details
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      </CardContent>
-                                    </Card>
-                                  );
-                                })}
-                              </div>
-                            );
-                          })()
-                        )}
-                      </TabsContent>
-                    ))}
-                  </Tabs>
+            <TabsContent value="completed" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recently Completed</CardTitle>
+                  <CardDescription>
+                    MRFs that reached final completion
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <DashboardMrfHistoryList
+                      mrfs={scdBuckets.completed}
+                      variant="completed"
+                      role="supply_chain_director"
+                      getRequesterName={getRequesterName}
+                      getEstimatedCost={getEstimatedCost}
+                      onViewDetails={(mrf) => void openMrfDetails(mrf)}
+                      emptyMessage="No completed MRFs in the current list"
+                    />
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
