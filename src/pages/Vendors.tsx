@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { lazy, Suspense, useState, useEffect, useMemo, useCallback } from "react";
 import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,8 +50,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import type { PaginationMeta } from "@/types/pagination";
-import { VendorDirectoryExportDialog } from "@/components/vendors/VendorDirectoryExportDialog";
 import { VENDOR_DIRECTORY_EXPORT_ROLES } from "@/utils/vendorDirectoryExport";
+
+const VendorDirectoryExportDialog = lazy(() =>
+  import("@/components/vendors/VendorDirectoryExportDialog").then((module) => ({
+    default: module.VendorDirectoryExportDialog,
+  })),
+);
 
 const Vendors = () => {
   const { toast } = useToast();
@@ -1827,12 +1832,14 @@ const Vendors = () => {
       </AlertDialog>
 
       {canExportVendorDirectory && (
-        <VendorDirectoryExportDialog
-          open={exportDialogOpen}
-          onOpenChange={setExportDialogOpen}
-          filters={exportFilters}
-          hasActiveFilters={hasDirectoryFilters}
-        />
+        <Suspense fallback={null}>
+          <VendorDirectoryExportDialog
+            open={exportDialogOpen}
+            onOpenChange={setExportDialogOpen}
+            filters={exportFilters}
+            hasActiveFilters={hasDirectoryFilters}
+          />
+        </Suspense>
       )}
     </DashboardLayout>
   );

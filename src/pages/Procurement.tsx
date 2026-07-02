@@ -322,6 +322,8 @@ const Procurement = () => {
     items: mrfRequests,
     pagination: mrfPagination,
     isLoading: mrfLoading,
+    isError: mrfListError,
+    error: mrfListErrorDetails,
     refetch: refetchMrfList,
   } = usePaginatedListQuery<MRF>({
     queryKey: queryKeys.mrfs.list(mrfListParams),
@@ -1069,6 +1071,8 @@ const Procurement = () => {
     items: poListItems,
     pagination: poPagination,
     isLoading: poListLoading,
+    isError: poListError,
+    error: poListErrorDetails,
     refetch: refetchPoList,
   } = usePaginatedListQuery<MRF>({
     queryKey: queryKeys.pos.list(poListParams),
@@ -2707,9 +2711,24 @@ const Procurement = () => {
 
                     {/* Results */}
                     <div className="space-y-4 mt-4">
+                      {mrfListError && (
+                        <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-medium text-destructive">Failed to load material request forms.</p>
+                              <p className="text-muted-foreground">
+                                {mrfListErrorDetails?.message || "The server returned an error while loading this list."}
+                              </p>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => void refetchMrfList()}>
+                              Retry
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                       {mrfLoading && mrfRequests.length === 0 ? (
                         <TableSkeleton rows={6} />
-                      ) : !mrfLoading && mrfRequests.length === 0 ? (
+                      ) : !mrfLoading && !mrfListError && mrfRequests.length === 0 ? (
                         <div className="text-center py-12 text-muted-foreground">
                           <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
                           <p>No material request forms found</p>
@@ -3480,7 +3499,21 @@ const Procurement = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {mrfLoading ? (
+                  {mrfListError ? (
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-4 text-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-destructive">Failed to load MRFs.</p>
+                          <p className="text-muted-foreground">
+                            {mrfListErrorDetails?.message || "The server returned an error while loading this list."}
+                          </p>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => void refetchMrfList()}>
+                          Retry
+                        </Button>
+                      </div>
+                    </div>
+                  ) : mrfLoading ? (
                     <div className="flex items-center justify-center py-12">
                       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     </div>
@@ -4033,13 +4066,25 @@ const Procurement = () => {
                     {filteredPOItems.length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>
-                          {poListLoading
-                            ? "Loading purchase orders…"
-                            : poPagination?.total === 0
-                              ? "No purchase orders or drafts yet"
-                              : "No purchase orders match your filters"}
-                        </p>
+                        {poListError ? (
+                          <div className="space-y-3">
+                            <p className="text-destructive">Failed to load purchase orders.</p>
+                            <p className="text-sm text-muted-foreground">
+                              {poListErrorDetails?.message || "The server returned an error while loading this list."}
+                            </p>
+                            <Button variant="outline" size="sm" onClick={() => void refetchPoList()}>
+                              Retry
+                            </Button>
+                          </div>
+                        ) : (
+                          <p>
+                            {poListLoading
+                              ? "Loading purchase orders…"
+                              : poPagination?.total === 0
+                                ? "No purchase orders or drafts yet"
+                                : "No purchase orders match your filters"}
+                          </p>
+                        )}
                       </div>
                     )}
                     <ServerPaginationBar
