@@ -180,7 +180,7 @@ export const ProcurementReportingEngine = ({
             {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
             PDF
           </Button>
-          <Button variant="secondary" size="sm" onClick={loadRecords} disabled={loading}>
+          <Button variant="secondary" size="sm" onClick={() => { void loadRecords(); }} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
             Refresh
           </Button>

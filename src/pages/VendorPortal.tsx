@@ -301,7 +301,7 @@ const VendorPortal = () => {
   };
 
   const isProfileIncomplete = (() => {
-    const v = currentVendor as Record<string, unknown> | null;
+    const v = currentVendor as unknown as Record<string, unknown> | null;
     if (!v) return false;
     if (v.profile_completed === true) return false;
     if (v.profile_completed === false) {
@@ -313,7 +313,7 @@ const VendorPortal = () => {
   })();
 
   const isManualPoOnboarding =
-    (currentVendor as Record<string, unknown> | null)?.onboarding_source === "manual_po";
+    (currentVendor as unknown as Record<string, unknown> | null)?.onboarding_source === "manual_po";
 
   const handleSaveProfile = async () => {
     setIsSavingProfile(true);

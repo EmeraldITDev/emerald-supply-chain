@@ -29,7 +29,7 @@ export const MRF_EXPORT_COLUMNS: TableExportColumn<MRF>[] = [
   {
     key: 'created_at',
     label: 'Created',
-    value: (m) => String(m.created_at || m.createdAt || m.date || ''),
+    value: (m) => String(m.created_at || (m as any).createdAt || (m as any).date || ''),
   },
 ];
 
@@ -51,7 +51,7 @@ export const PO_EXPORT_COLUMNS: TableExportColumn<MRF>[] = [
   {
     key: 'created_at',
     label: 'Created',
-    value: (m) => String(m.created_at || m.createdAt || ''),
+    value: (m) => String(m.created_at || (m as any).createdAt || ''),
   },
 ];
 

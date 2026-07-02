@@ -328,8 +328,8 @@ interface AppContextType {
   // Refresh functions to reload data from API
   refreshMRFs: () => Promise<void>;
   refreshSRFs: () => Promise<void>;
-  refreshRFQs: () => Promise<void>;
-  refreshQuotations: () => Promise<void>;
+  refreshRFQs: () => Promise<RFQ[]>;
+  refreshQuotations: (rfqList?: RFQ[]) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
