@@ -55,7 +55,7 @@ export function useTableExport<T>({
         return;
       }
       const { headers, rows } = rowsFromColumns(items, columns);
-      exportTableDataset(filenamePrefix, format, headers, rows);
+      await exportTableDataset(filenamePrefix, format, headers, rows);
       toast({
         title: 'Export complete',
         description: `Downloaded ${items.length} row(s) as ${format.toUpperCase()}.`,
