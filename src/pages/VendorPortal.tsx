@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
 import { vendorApi, vendorAuthApi, vendorPortalApi, quotationApi } from "@/services/api";
 import { clearVendorAuthStorage, getStoredVendorAuthToken } from "@/lib/authSession";
+import { getDisplayId } from "@/utils/displayId";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ThemeToggle";

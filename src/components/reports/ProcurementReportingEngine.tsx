@@ -70,7 +70,7 @@ export const ProcurementReportingEngine = ({
       page,
       per_page: 25,
       sort_by: "created_at",
-      sort_direction: "desc",
+      sort_direction: "desc" as const,
     }),
     [from, to, department, status, debouncedSearch, page],
   );
