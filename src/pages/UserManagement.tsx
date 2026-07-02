@@ -32,6 +32,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Edit, Trash2, Search } from "lucide-react";
 import {
+  SCM_USER_DEPARTMENTS,
+  normalizeScmUserDepartment,
+} from "@/constants/scmDepartments";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -102,7 +106,7 @@ const UserManagement = () => {
         name: user.name,
         email: user.email,
         supply_chain_role: getUserScmRoleOrDefault(user),
-        department: user.department || "",
+        department: normalizeScmUserDepartment(user.department),
         password: "",
         is_admin: user.is_admin || false,
         can_manage_users: user.can_manage_users || false,
@@ -588,12 +592,23 @@ const UserManagement = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="department">Department</Label>
-                <Input
-                  id="department"
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  placeholder="Enter department"
-                />
+                <Select
+                  value={formData.department || undefined}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, department: value })
+                  }
+                >
+                  <SelectTrigger id="department">
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SCM_USER_DEPARTMENTS.map((dept) => (
+                      <SelectItem key={dept} value={dept}>
+                        {dept}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               {!selectedUser && (
                 <div className="space-y-2">
