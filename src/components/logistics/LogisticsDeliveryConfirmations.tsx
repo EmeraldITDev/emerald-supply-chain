@@ -66,7 +66,7 @@ export function LogisticsDeliveryConfirmations({ isActive = true, onRefresh }: P
       ]);
       let nextMrfs: AnyMrf[] = [];
       if (mrfRes.success && mrfRes.data?.items) {
-        nextMrfs = mrfRes.data.items as AnyMrf[];
+        nextMrfs = mrfRes.data.items as unknown as AnyMrf[];
         setMrfs(nextMrfs);
       }
       if (tripsRes.success && tripsRes.data?.items) {
