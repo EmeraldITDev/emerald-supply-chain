@@ -37,7 +37,7 @@ export default function AllTripsPage() {
       const res = await tripRequestApi.listAll({
         q: search.trim() || undefined,
         status: statusFilter === "all" ? undefined : statusFilter,
-        limit: 100,
+        limit: 50,
       });
       if (res.success && res.data?.trips) {
         setTrips(res.data.trips);

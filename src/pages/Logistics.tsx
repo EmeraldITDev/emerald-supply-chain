@@ -95,20 +95,18 @@ const Logistics = () => {
     try {
       const [statsRes, tripsRes, vehiclesRes] = await Promise.all([
         logisticsDashboardApi.getStats(),
-        tripsApi.getAll(),
-        fleetApi.getAll(),
+        tripsApi.list({ page: 1, per_page: 5 }),
+        fleetApi.list({ page: 1, per_page: 10 }),
       ]);
 
       if (statsRes.success && statsRes.data) {
         setStats(statsRes.data);
       }
-      if (tripsRes.success && tripsRes.data) {
-        const tripsData = Array.isArray(tripsRes.data) ? tripsRes.data : [];
-        setRecentTrips(tripsData.slice(0, 5));
+      if (tripsRes.success && tripsRes.data?.items) {
+        setRecentTrips(tripsRes.data.items.slice(0, 5));
       }
-      if (vehiclesRes.success && vehiclesRes.data) {
-        const vehiclesData = Array.isArray(vehiclesRes.data) ? vehiclesRes.data : [];
-        setVehicles(vehiclesData);
+      if (vehiclesRes.success && vehiclesRes.data?.items) {
+        setVehicles(vehiclesRes.data.items);
       }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);

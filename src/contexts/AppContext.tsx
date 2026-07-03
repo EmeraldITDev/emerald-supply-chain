@@ -463,18 +463,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     try {
-      const allQuotations: Quotation[] = [];
-      const seenIds = new Set<string>();
-
-      for (const rfq of list) {
-        try {
-          const response = await rfqApi.getQuotations(rfq.id);
-          if (response.success && response.data?.quotations) {
+      const quotationBatches = await Promise.all(
+        list.map(async (rfq) => {
+          try {
+            const response = await rfqApi.getQuotations(rfq.id);
+            if (!response.success || !response.data?.quotations) {
+              return [] as Quotation[];
+            }
+            const batch: Quotation[] = [];
             for (const item of response.data.quotations) {
               const n = normalizeQuotation(item, rfq.id);
-              if (n.id && !seenIds.has(n.id)) {
-                seenIds.add(n.id);
-                allQuotations.push({
+              if (n.id) {
+                batch.push({
                   id: n.id,
                   rfqId: n.rfqId,
                   vendorId: n.vendorId,
@@ -499,9 +499,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 } as any);
               }
             }
+            return batch;
+          } catch (error) {
+            console.error(`Failed to fetch quotations for RFQ ${rfq.id}:`, error);
+            return [] as Quotation[];
           }
-        } catch (error) {
-          console.error(`Failed to fetch quotations for RFQ ${rfq.id}:`, error);
+        }),
+      );
+
+      const seenIds = new Set<string>();
+      const allQuotations: Quotation[] = [];
+      for (const batch of quotationBatches) {
+        for (const quotation of batch) {
+          if (quotation.id && !seenIds.has(quotation.id)) {
+            seenIds.add(quotation.id);
+            allQuotations.push(quotation);
+          }
         }
       }
       setQuotationsState(allQuotations);
