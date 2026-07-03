@@ -258,7 +258,7 @@ export async function apiRequest<T>(
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetchWithColdStartRetry(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
     });
