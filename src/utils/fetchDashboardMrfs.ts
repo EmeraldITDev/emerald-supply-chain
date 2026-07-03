@@ -6,7 +6,7 @@ export type DashboardApprovalRole = 'executive' | 'scd' | 'chairman';
 const DASHBOARD_PER_PAGE = 50;
 
 function mrfKey(mrf: MRF): string {
-  return String(mrf.id ?? mrf.mrf_id ?? '');
+  return String(mrf.id ?? (mrf as { mrf_id?: string }).mrf_id ?? '');
 }
 
 function mergeMrfsById(...lists: MRF[][]): MRF[] {
