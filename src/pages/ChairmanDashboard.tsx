@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
-import { mrfApi } from "@/services/api";
+import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
 import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import type { MRF } from "@/types";
@@ -26,13 +26,7 @@ const ChairmanDashboard = () => {
     refetch: fetchMRFs,
   } = useQuery({
     queryKey: queryKeys.dashboard.chairmanMrfs(),
-    queryFn: async () => {
-      const response = await mrfApi.list({ page: 1, per_page: 100 });
-      if (!response.success || !response.data) {
-        throw new Error(response.error || "Failed to load MRFs");
-      }
-      return response.data.items;
-    },
+    queryFn: async () => fetchDashboardMrfs("chairman"),
     ...WORKFLOW_QUERY_OPTIONS,
   });
 

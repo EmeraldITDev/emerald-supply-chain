@@ -125,20 +125,33 @@ export default function GRNCompletionDialog({
     // (selected supplier + line items), and the vendor directory.
     (async () => {
       try {
-        const [fullRes, pcRes, vendorsRes] = await Promise.all([
+        const [fullRes, pcRes] = await Promise.all([
           mrfApi.getById(mrfPathId),
           procurementApi.getPriceComparison(mrfPathId),
-          vendorApi.getAll(),
         ]);
         if (cancelled) return;
         if (fullRes.success && fullRes.data) {
           setEnrichedMrf((prev) => ({ ...prev, ...fullRes.data }));
         }
-        if (pcRes.success && Array.isArray(pcRes.data)) {
-          setPriceComparisonRows(pcRes.data);
+        const rows = pcRes.success && Array.isArray(pcRes.data) ? pcRes.data : [];
+        if (rows.length > 0) {
+          setPriceComparisonRows(rows);
         }
-        if (vendorsRes.success && Array.isArray(vendorsRes.data)) {
-          setVendors(vendorsRes.data);
+        const selectedRow = rows.find(
+          (r) => (r as { is_selected?: boolean; isSelected?: boolean }).is_selected
+            || (r as { is_selected?: boolean; isSelected?: boolean }).isSelected,
+        );
+        const vendorId =
+          (selectedRow as { vendor_id?: string | number } | undefined)?.vendor_id
+          ?? (fullRes.data as { selected_vendor_id?: string | number; selectedVendorId?: string | number } | undefined)
+            ?.selected_vendor_id
+          ?? (fullRes.data as { selected_vendor_id?: string | number; selectedVendorId?: string | number } | undefined)
+            ?.selectedVendorId;
+        if (vendorId) {
+          const vendorsRes = await vendorApi.getById(String(vendorId));
+          if (!cancelled && vendorsRes.success && vendorsRes.data) {
+            setVendors([vendorsRes.data]);
+          }
         }
       } catch {
         // Non-fatal — local preview still renders header/comment fields.

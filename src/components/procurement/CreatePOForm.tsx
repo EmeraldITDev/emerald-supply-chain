@@ -334,11 +334,11 @@ export function CreatePOForm({
     let cancelled = false;
     setLoadingVendors(true);
     vendorApi
-      .getAll()
-      .then((res: ApiResponse<Vendor[]>) => {
+      .list({ page: 1, per_page: 100, status: "Active" })
+      .then((res) => {
         if (cancelled) return;
-        if (res.success && Array.isArray(res.data)) {
-          setVendors(res.data.filter((v) => v.status === 'Active' || v.status === 'Pending'));
+        if (res.success && res.data?.items) {
+          setVendors(res.data.items.filter((v) => v.status === "Active" || v.status === "Pending"));
         }
       })
       .finally(() => !cancelled && setLoadingVendors(false));

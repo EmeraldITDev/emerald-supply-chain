@@ -99,7 +99,7 @@ export function extractPaginatedItems<T>(
   return { items: [] };
 }
 
-const DEFAULT_FETCH_ALL_PER_PAGE = 100;
+const DEFAULT_FETCH_ALL_PER_PAGE = 50;
 const DEFAULT_FETCH_ALL_MAX_PAGES = 2;
 
 /**

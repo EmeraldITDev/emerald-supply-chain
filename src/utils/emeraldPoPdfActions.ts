@@ -63,9 +63,24 @@ async function buildEmeraldModelForMrf(
   const pcRes = await procurementApi.getPriceComparison(mrfId);
   const rows = pcRes.success && pcRes.data ? pcRes.data : [];
 
-  const vendorsRes = await vendorApi.getAll();
-  const vendors =
-    vendorsRes.success && Array.isArray(vendorsRes.data) ? vendorsRes.data : [];
+  const selectedRow = rows.find(
+    (r) => (r as { is_selected?: boolean; isSelected?: boolean }).is_selected
+      || (r as { is_selected?: boolean; isSelected?: boolean }).isSelected,
+  );
+  const vendorId =
+    (selectedRow as { vendor_id?: string | number } | undefined)?.vendor_id
+    ?? (fullMrf as { selected_vendor_id?: string | number; selectedVendorId?: string | number })
+      .selected_vendor_id
+    ?? (fullMrf as { selected_vendor_id?: string | number; selectedVendorId?: string | number })
+      .selectedVendorId;
+
+  const vendors: import('@/types').Vendor[] = [];
+  if (vendorId) {
+    const vendorsRes = await vendorApi.getById(String(vendorId));
+    if (vendorsRes.success && vendorsRes.data) {
+      vendors.push(vendorsRes.data);
+    }
+  }
 
   const poType = String(
     (fullMrf as { po_type?: string }).po_type || 'goods',

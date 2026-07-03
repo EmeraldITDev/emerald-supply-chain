@@ -89,11 +89,13 @@ export function TripRequestConversionDialog({
   useEffect(() => {
     if (!open || fulfillmentType !== "external_vendor") return;
     const handle = window.setTimeout(async () => {
-      const res = await vendorApi.getAll({
+      const res = await vendorApi.list({
+        page: 1,
+        per_page: 25,
         search: vendorSearch.trim() || undefined,
-      } as any);
-      if (res.success && res.data) {
-        setVendorResults(Array.isArray(res.data) ? res.data : []);
+      });
+      if (res.success && res.data?.items) {
+        setVendorResults(res.data.items);
       }
     }, 300);
     return () => window.clearTimeout(handle);

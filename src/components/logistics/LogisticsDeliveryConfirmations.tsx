@@ -39,15 +39,6 @@ type DetailItem =
   | { kind: "mrf"; id: string | number; poNumber?: string; category?: string }
   | { kind: "trip"; trip: Trip };
 
-function normalizeMrfs(data: unknown): AnyMrf[] {
-  if (!data) return [];
-  if (Array.isArray(data)) return data as AnyMrf[];
-  const wrapped = data as { data?: unknown; mrfs?: unknown };
-  if (Array.isArray(wrapped.data)) return wrapped.data as AnyMrf[];
-  if (Array.isArray(wrapped.mrfs)) return wrapped.mrfs as AnyMrf[];
-  return [];
-}
-
 /**
  * "Pending Delivery Confirmations" panel on the Logistics Overview.
  * Fetches its own MRF + trip data on mount (same pattern as PendingTripRequestsPanel)
@@ -70,16 +61,18 @@ export function LogisticsDeliveryConfirmations({ isActive = true, onRefresh }: P
     setLoading(true);
     try {
       const [mrfRes, tripsRes] = await Promise.all([
-        mrfApi.getAll(),
-        tripsApi.getAll(),
+        mrfApi.list({ po_list: true, page: 1, per_page: 50 }),
+        tripsApi.list({ page: 1, per_page: 50 }),
       ]);
       let nextMrfs: AnyMrf[] = [];
-      if (mrfRes.success) {
-        nextMrfs = normalizeMrfs(mrfRes.data);
+      if (mrfRes.success && mrfRes.data?.items) {
+        nextMrfs = mrfRes.data.items as AnyMrf[];
         setMrfs(nextMrfs);
       }
-      if (tripsRes.success && tripsRes.data) {
-        setTrips(Array.isArray(tripsRes.data) ? tripsRes.data : []);
+      if (tripsRes.success && tripsRes.data?.items) {
+        setTrips(tripsRes.data.items);
+      } else if (tripsRes.success && Array.isArray(tripsRes.data)) {
+        setTrips(tripsRes.data);
       }
 
       const candidates = nextMrfs.filter(mrfHasPoWithoutGrn);

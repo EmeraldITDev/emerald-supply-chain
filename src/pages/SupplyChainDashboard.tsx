@@ -52,6 +52,7 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { authApi, mrfApi, vendorApi, dashboardApi, srfApi } from "@/services/api";
+import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
 import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { procurementApi } from "@/services/procurementApi";
@@ -98,13 +99,7 @@ const SupplyChainDashboard = () => {
     refetch: fetchMRFs,
   } = useQuery({
     queryKey: queryKeys.dashboard.scdMrfs(),
-    queryFn: async () => {
-      const response = await mrfApi.list({ page: 1, per_page: 100 });
-      if (!response.success || !response.data) {
-        throw new Error(response.error || "Failed to load MRFs");
-      }
-      return response.data.items;
-    },
+    queryFn: async () => fetchDashboardMrfs("scd"),
     ...WORKFLOW_QUERY_OPTIONS,
   });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -523,9 +518,26 @@ const SupplyChainDashboard = () => {
       const pcRes = await procurementApi.getPriceComparison(mrfId);
       const rows = pcRes.success && pcRes.data ? pcRes.data : [];
 
-      const vendorsRes = await vendorApi.list({ page: 1, per_page: 100 });
-      const vendors =
-        vendorsRes.success && vendorsRes.data?.items ? vendorsRes.data.items : [];
+      const selectedRow = rows.find(
+        (r) => (r as { is_selected?: boolean; isSelected?: boolean }).is_selected
+          || (r as { is_selected?: boolean; isSelected?: boolean }).isSelected,
+      );
+      const vendorId =
+        (selectedRow as { vendor_id?: string | number } | undefined)?.vendor_id
+        ?? (fullMrf as { selected_vendor_id?: string | number; selectedVendorId?: string | number })
+          .selected_vendor_id
+        ?? (fullMrf as { selected_vendor_id?: string | number; selectedVendorId?: string | number })
+          .selectedVendorId;
+
+      let vendors: import("@/types").Vendor[] = [];
+      if (vendorId) {
+        const vRes = await vendorApi.getById(String(vendorId));
+        if (vRes.success && vRes.data) vendors = [vRes.data];
+      } else {
+        const vendorsRes = await vendorApi.list({ page: 1, per_page: 25 });
+        vendors =
+          vendorsRes.success && vendorsRes.data?.items ? vendorsRes.data.items : [];
+      }
 
       let sigDataUrl: string | null = null;
       const me = await authApi.getCurrentUser();

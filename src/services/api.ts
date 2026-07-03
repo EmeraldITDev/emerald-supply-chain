@@ -627,6 +627,8 @@ export const mrfApi = {
     date_from?: string;
     date_to?: string;
     workflow_state?: string;
+    workflow_states?: string;
+    pending_for_role?: 'executive' | 'scd' | 'chairman';
     has_po?: boolean;
     po_list?: boolean;
     sort_by?: string;
@@ -642,6 +644,8 @@ export const mrfApi = {
       date_from: params?.date_from,
       date_to: params?.date_to,
       workflow_state: params?.workflow_state,
+      workflow_states: params?.workflow_states,
+      pending_for_role: params?.pending_for_role,
       has_po: params?.has_po ? 1 : undefined,
       po_list: params?.po_list ? 1 : undefined,
       sort_by: params?.sort_by ?? sortApi?.sort_by,
@@ -2318,14 +2322,43 @@ export const vendorPortalApi = {
 
   // ===== Phase 4: Finance AP vendor invoice portal =====
   // List MRFs where the authenticated vendor is the selected vendor.
-  listFinanceApMrfs: async (): Promise<ApiResponse<{ mrfs: Array<{
-    mrfId: string;
-    title: string;
-    workflowState: string;
-    vendorInvoiceGate: { canSubmit: boolean; gateType?: string | null; reason?: string | null };
-    invoiceSubmitted: boolean;
-  }> }>> => {
-    return vendorApiRequest('/vendor-portal/mrfs');
+  listFinanceApMrfs: async (params?: {
+    page?: number;
+    per_page?: number;
+  }): Promise<ApiResponse<{
+    mrfs: Array<{
+      mrfId: string;
+      title: string;
+      workflowState: string;
+      vendorInvoiceGate: { canSubmit: boolean; gateType?: string | null; reason?: string | null };
+      invoiceSubmitted: boolean;
+    }>;
+    pagination?: import('@/types/pagination').PaginationMeta;
+  }>> => {
+    const qs = buildListQueryParams({
+      page: params?.page ?? 1,
+      per_page: params?.per_page ?? 25,
+    });
+    const res = await vendorApiRequest<{
+      mrfs: Array<{
+        mrfId: string;
+        title: string;
+        workflowState: string;
+        vendorInvoiceGate: { canSubmit: boolean; gateType?: string | null; reason?: string | null };
+        invoiceSubmitted: boolean;
+      }>;
+      pagination?: import('@/types/pagination').PaginationMeta;
+    }>(`/vendor-portal/mrfs?${qs.toString()}`);
+    if (!res.success || !res.data) {
+      return { success: false, error: res.error };
+    }
+    return {
+      success: true,
+      data: {
+        mrfs: Array.isArray(res.data.mrfs) ? res.data.mrfs : [],
+        pagination: res.data.pagination,
+      },
+    };
   },
 
   // Per-MRF invoice submission status.
