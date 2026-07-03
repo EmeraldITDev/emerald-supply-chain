@@ -13,8 +13,10 @@ export const STABLE_QUERY_OPTIONS = {
 } as const;
 
 export const LIST_QUERY_OPTIONS = {
-  staleTime: 2 * 60_000,
-  gcTime: 10 * 60_000,
+  // Longer cache keeps tab switches / navigations instant and avoids
+  // hammering the (cold-start prone) backend on every mount.
+  staleTime: 5 * 60_000,
+  gcTime: 30 * 60_000,
 } as const;
 
 export const REPORT_QUERY_OPTIONS = {
