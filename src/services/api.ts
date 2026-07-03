@@ -92,6 +92,46 @@ const getApiBaseUrl = () => {
 const API_BASE_URL = getApiBaseUrl();
 export { API_BASE_URL };
 
+/**
+ * Retry fetch on cold-start network failures (Render free tier can nap ~30-50s).
+ * TypeError from fetch = network/DNS/CORS reject. HTTP errors bubble through
+ * to the caller for normal handling. GET/HEAD only — never retry mutations.
+ */
+async function fetchWithColdStartRetry(
+  url: string,
+  init: RequestInit,
+  maxAttempts = 4,
+): Promise<Response> {
+  const method = (init.method || 'GET').toUpperCase();
+  const isIdempotent = method === 'GET' || method === 'HEAD';
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      lastErr = err;
+      // Only retry idempotent reads on real network failures.
+      if (!isIdempotent || !(err instanceof TypeError) || attempt === maxAttempts) {
+        throw err;
+      }
+      // Backoff: 1s, 3s, 6s (~10s total). Covers most Render cold starts.
+      const delay = attempt === 1 ? 1000 : attempt === 2 ? 3000 : 6000;
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+}
+
+/** Kick the backend awake early so it warms up while the user is on /auth. */
+export function warmupBackend(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    void fetch(`${API_BASE_URL}/health`, { method: 'GET', mode: 'cors' }).catch(() => undefined);
+  } catch {
+    /* ignore */
+  }
+}
+
 const LOGOUT_BACKGROUND_MS = 4_000;
 
 /** Revoke token on server without blocking UI (used after local session is cleared). */
@@ -258,7 +298,7 @@ export async function apiRequest<T>(
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetchWithColdStartRetry(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
     });
@@ -417,7 +457,7 @@ export async function apiRequestFull(
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+    const response = await fetchWithColdStartRetry(`${API_BASE_URL}${endpoint}`, { ...options, headers });
     const text = await response.text();
     if (!text) {
       return response.ok ? { success: true, body: undefined, status: response.status } : { success: false, error: 'Empty response from server', status: response.status };
