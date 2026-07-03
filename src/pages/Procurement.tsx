@@ -532,10 +532,10 @@ const Procurement = () => {
   const refreshProcurementRfqs = useCallback(async () => {
     const list =
       tab === "rfq"
-        ? ((await refreshRFQs()) ?? rfqsState)
-        : rfqsState;
+        ? ((await refreshRFQs()) ?? rfqs)
+        : rfqs;
     await refreshQuotations((list ?? []).slice(0, 10));
-  }, [refreshQuotations, refreshRFQs, rfqsState, tab]);
+  }, [refreshQuotations, refreshRFQs, rfqs, tab]);
 
   /** RFQ linked to this MRF — match any alias so RFQ rows keyed by formatted_id still resolve. */
   const getRFQForMRF = (mrf: MRF | MRFRequest | null | undefined) => {
