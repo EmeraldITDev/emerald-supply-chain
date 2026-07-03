@@ -457,7 +457,7 @@ export async function apiRequestFull(
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+    const response = await fetchWithColdStartRetry(`${API_BASE_URL}${endpoint}`, { ...options, headers });
     const text = await response.text();
     if (!text) {
       return response.ok ? { success: true, body: undefined, status: response.status } : { success: false, error: 'Empty response from server', status: response.status };
