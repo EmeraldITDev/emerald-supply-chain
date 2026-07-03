@@ -28,6 +28,8 @@ import {
   resolveRequesterEditAccess,
 } from "@/utils/requesterEditWindow";
 import { useAuth } from "@/contexts/AuthContext";
+import { AttachmentList } from "@/components/attachments/AttachmentList";
+import { MultiFileDropzone } from "@/components/attachments/MultiFileDropzone";
 
 interface RequesterEditSrfDialogProps {
   srf: SRF | null;
@@ -45,6 +47,7 @@ export function RequesterEditSrfDialog({
   const { user } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -69,6 +72,7 @@ export function RequesterEditSrfDialog({
       estimated_cost: String(srf.estimated_cost ?? srf.estimatedCost ?? ""),
       justification: srf.justification || "",
     });
+    setAttachmentFiles([]);
   };
 
   return (
@@ -166,6 +170,18 @@ export function RequesterEditSrfDialog({
                 }
               />
             </div>
+            <div className="space-y-2 border-t pt-4">
+              <AttachmentList
+                attachments={srf?.attachments ?? srf?.documents}
+                title="Existing Documents"
+              />
+              <MultiFileDropzone
+                files={attachmentFiles}
+                onFilesChange={setAttachmentFiles}
+                disabled={saving}
+                label="Add supporting documents"
+              />
+            </div>
           </div>
         )}
 
@@ -179,7 +195,7 @@ export function RequesterEditSrfDialog({
               if (!srf) return;
               setSaving(true);
               try {
-                const res = await srfApi.update(srf.id, {
+                const payload = {
                   title: form.title,
                   description: form.description,
                   service_type: form.service_type,
@@ -187,7 +203,18 @@ export function RequesterEditSrfDialog({
                   duration: form.duration,
                   estimated_cost: form.estimated_cost || null,
                   justification: form.justification,
-                });
+                };
+                let res;
+                if (attachmentFiles.length > 0) {
+                  const formData = new FormData();
+                  Object.entries(payload).forEach(([key, value]) => {
+                    if (value !== null) formData.append(key, String(value));
+                  });
+                  attachmentFiles.forEach((file) => formData.append("attachments[]", file, file.name));
+                  res = await srfApi.updateWithAttachments(srf.id, formData);
+                } else {
+                  res = await srfApi.update(srf.id, payload);
+                }
                 if (res.success) {
                   toast({
                     title: "SRF updated",

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { ArrowLeft, AlertCircle, Loader2, Upload, FileText, X, Cloud, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, AlertCircle, Loader2, Cloud, Plus, Trash2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { type MRFRequest } from "@/contexts/AppContext";
@@ -16,6 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { mrfApi } from "@/services/api";
 import type { LineItem } from "@/types";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { MultiFileDropzone } from "@/components/attachments/MultiFileDropzone";
 
 const NewMRF = () => {
   const navigate = useNavigate();
@@ -69,8 +70,7 @@ const NewMRF = () => {
     contractType: "",
     department: "",
   });
-  const [pfiFile, setPfiFile] = useState<File | null>(null);
-  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [invoiceOneDriveUrl, setInvoiceOneDriveUrl] = useState<string>("");
   const [contractTypes, setContractTypes] = useState<Array<{ value: string; label: string }>>([]);
   const [allowFreeText, setAllowFreeText] = useState(true);
@@ -177,7 +177,26 @@ const NewMRF = () => {
         updatePayload.estimatedCost = formData.estimatedCost && formData.estimatedCost.trim() !== '' 
           ? formData.estimatedCost 
           : '0';
-        const response = await mrfApi.update(rejectedMRF.id, updatePayload);
+        let response;
+        if (attachmentFiles.length > 0 || invoiceOneDriveUrl) {
+          const formDataObj = new FormData();
+          Object.entries(updatePayload).forEach(([key, value]) => {
+            if (value === undefined || value === null) return;
+            formDataObj.append(
+              key,
+              Array.isArray(value) || typeof value === "object"
+                ? JSON.stringify(value)
+                : String(value),
+            );
+          });
+          attachmentFiles.forEach((file) => formDataObj.append("attachments[]", file, file.name));
+          if (invoiceOneDriveUrl) {
+            formDataObj.append("onedrive_link", invoiceOneDriveUrl);
+          }
+          response = await mrfApi.updateWithAttachments(rejectedMRF.id, formDataObj);
+        } else {
+          response = await mrfApi.update(rejectedMRF.id, updatePayload);
+        }
       
         if (response.success) {
       toast({
@@ -238,7 +257,7 @@ const NewMRF = () => {
         
         // Create FormData if PFI or invoice file is provided
         let response;
-        if (pfiFile || invoiceFile || invoiceOneDriveUrl) {
+        if (attachmentFiles.length > 0 || invoiceOneDriveUrl) {
           const formDataObj = new FormData();
           Object.entries(payload).forEach(([key, value]) => {
             if (value === undefined || value === null) return;
@@ -249,12 +268,7 @@ const NewMRF = () => {
               formDataObj.append(key, String(value));
             }
           });
-          if (pfiFile) {
-            formDataObj.append('pfi', pfiFile);
-          }
-          if (invoiceFile) {
-            formDataObj.append('attachment', invoiceFile);
-          }
+          attachmentFiles.forEach((file) => formDataObj.append("attachments[]", file, file.name));
           if (invoiceOneDriveUrl) {
             formDataObj.append('onedrive_link', invoiceOneDriveUrl);
           }
@@ -688,77 +702,28 @@ const NewMRF = () => {
 
               {/* Supporting Document Upload Section */}
               <div className="space-y-3 pt-4 border-t">
-                <Label className="text-base font-semibold">Supporting Document (Optional)</Label>
+                <Label className="text-base font-semibold">Supporting Documents (Optional)</Label>
                 <p className="text-sm text-muted-foreground">
-                  Upload specifications or supporting documents for this material request from your computer or provide a OneDrive link
+                  Upload quotes, specifications, diagrams, or spreadsheets for this material request.
                 </p>
-                
-                {/* Local File Upload */}
-                <div className="space-y-2">
-                  <Label htmlFor="supporting-doc-file">Upload from Computer</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="supporting-doc-file"
-                      type="file"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.size > 10 * 1024 * 1024) {
-                            toast({
-                              title: "File Too Large",
-                              description: "Maximum file size is 10MB",
-                              variant: "destructive",
-                            });
-                            return;
-                          }
-                          setInvoiceFile(file);
-                          setInvoiceOneDriveUrl(""); // Clear OneDrive URL if file is selected
-                        }
-                      }}
-                      className="flex-1"
-                    />
-                    {invoiceFile && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setInvoiceFile(null);
-                          const input = document.getElementById("supporting-doc-file") as HTMLInputElement;
-                          if (input) input.value = "";
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  {invoiceFile && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <FileText className="h-4 w-4" />
-                      <span>{invoiceFile.name}</span>
-                      <span className="text-xs">({(invoiceFile.size / 1024).toFixed(1)} KB)</span>
-                    </div>
-                  )}
-                </div>
+
+                <MultiFileDropzone
+                  files={attachmentFiles}
+                  onFilesChange={setAttachmentFiles}
+                  disabled={isSubmitting}
+                  label="Upload supporting documents"
+                />
 
                 {/* OneDrive URL Input */}
                 <div className="space-y-2">
-                  <Label htmlFor="supporting-doc-onedrive">Or provide OneDrive link</Label>
+                  <Label htmlFor="supporting-doc-onedrive">Optional OneDrive link</Label>
                   <div className="flex gap-2">
                     <Input
                       id="supporting-doc-onedrive"
                       type="url"
                       placeholder="https://onedrive.live.com/..."
                       value={invoiceOneDriveUrl}
-                      onChange={(e) => {
-                        setInvoiceOneDriveUrl(e.target.value);
-                        if (e.target.value) {
-                          setInvoiceFile(null); // Clear file if OneDrive URL is provided
-                          const input = document.getElementById("supporting-doc-file") as HTMLInputElement;
-                          if (input) input.value = "";
-                        }
-                      }}
+                      onChange={(e) => setInvoiceOneDriveUrl(e.target.value)}
                       className="flex-1"
                     />
                     {invoiceOneDriveUrl && (

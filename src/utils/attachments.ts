@@ -7,6 +7,8 @@
 export interface NormalizedAttachment {
   url: string;
   name: string;
+  sizeBytes?: number | null;
+  mimeType?: string | null;
 }
 
 export function normalizeAttachment(
@@ -22,8 +24,15 @@ export function normalizeAttachment(
   }
 
   if (typeof att === "object") {
-    const a = att as Record<string, any>;
-    const url = a.url || a.file_url || a.fileUrl || a.path || "";
+    const a = att as Record<string, unknown>;
+    const url =
+      stringValue(a.downloadUrl) ||
+      stringValue(a.download_url) ||
+      stringValue(a.url) ||
+      stringValue(a.file_url) ||
+      stringValue(a.fileUrl) ||
+      stringValue(a.path) ||
+      "";
     if (!url) return null;
     // Always prefer the original uploaded filename. Never derive from the
     // hashed storage URL — that exposes opaque storage paths to the user.
@@ -40,7 +49,19 @@ export function normalizeAttachment(
       typeof rawName === "string" && rawName.trim()
         ? rawName
         : `Document ${index + 1}`;
-    return { url, name };
+    const rawSize = a.sizeBytes ?? a.size_bytes ?? a.size ?? null;
+    const sizeBytes =
+      typeof rawSize === "number"
+        ? rawSize
+        : typeof rawSize === "string" && rawSize.trim() !== ""
+          ? Number(rawSize)
+          : null;
+    return {
+      url,
+      name,
+      sizeBytes: Number.isFinite(sizeBytes as number) ? (sizeBytes as number) : null,
+      mimeType: stringValue(a.mimeType) || stringValue(a.mime_type) || null,
+    };
   }
 
   return null;
@@ -52,7 +73,7 @@ export function normalizeAttachments(
   if (!attachments) return [];
 
   // Defensively parse if the backend returned a JSON string instead of an array.
-  let raw: any = attachments;
+  let raw: unknown = attachments;
   if (typeof raw === "string") {
     try {
       raw = JSON.parse(raw);
@@ -62,7 +83,7 @@ export function normalizeAttachments(
   }
   if (!Array.isArray(raw)) raw = [raw];
 
-  const flat = (raw as any[]).flat(Infinity).filter(Boolean);
+  const flat = (raw as unknown[]).flat(Infinity).filter(Boolean);
   const normalized = flat
     .map((a, i) => normalizeAttachment(a, i))
     .filter((a): a is NormalizedAttachment => a !== null);
@@ -77,4 +98,8 @@ export function normalizeAttachments(
     unique.push(att);
   }
   return unique;
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
 }

@@ -8,6 +8,7 @@ import { formatMRFDate } from "@/utils/dateUtils";
 import { getSrfStatusBadgeClass } from "@/utils/srfStatusBadge";
 import type { SRFRequest } from "@/contexts/AppContext";
 import type { SRF } from "@/types";
+import { AttachmentList } from "@/components/attachments/AttachmentList";
 
 function detailToTrackerSrf(detail: SRFRequest): SRF {
   const u = String(detail.urgency || "medium").toLowerCase();
@@ -55,6 +56,10 @@ export function SRFDetailPanel({
     detail.createdAt ||
     (detail as { created_at?: string }).created_at ||
     detail.date;
+  const attachmentSource = detail as SRFRequest & {
+    attachments?: unknown;
+    documents?: unknown;
+  };
 
   const st = String(detail.status || "").trim();
   const normalized = st.toLowerCase();
@@ -130,6 +135,12 @@ export function SRFDetailPanel({
         <div className="col-span-2">
           <Label className="text-muted-foreground">Duration</Label>
           <p className="font-medium text-sm">{detail.duration || "Not specified"}</p>
+        </div>
+        <div className="col-span-2">
+          <AttachmentList
+            attachments={attachmentSource.attachments ?? attachmentSource.documents}
+            empty="No documents attached."
+          />
         </div>
       </div>
 

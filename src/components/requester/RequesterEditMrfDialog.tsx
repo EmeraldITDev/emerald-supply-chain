@@ -21,6 +21,8 @@ import {
   resolveRequesterEditAccess,
 } from "@/utils/requesterEditWindow";
 import { useAuth } from "@/contexts/AuthContext";
+import { AttachmentList } from "@/components/attachments/AttachmentList";
+import { MultiFileDropzone } from "@/components/attachments/MultiFileDropzone";
 
 interface RequesterEditMrfDialogProps {
   mrf: MRF | null;
@@ -38,6 +40,7 @@ export function RequesterEditMrfDialog({
   const { user } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -60,6 +63,7 @@ export function RequesterEditMrfDialog({
       justification: mrf.justification || "",
       category: mrf.category || "",
     });
+    setAttachmentFiles([]);
   };
 
   return (
@@ -140,6 +144,18 @@ export function RequesterEditMrfDialog({
                 }
               />
             </div>
+            <div className="space-y-2 border-t pt-4">
+              <AttachmentList
+                attachments={mrf?.attachments ?? mrf?.documents}
+                title="Existing Documents"
+              />
+              <MultiFileDropzone
+                files={attachmentFiles}
+                onFilesChange={setAttachmentFiles}
+                disabled={saving}
+                label="Add supporting documents"
+              />
+            </div>
           </div>
         )}
 
@@ -153,14 +169,23 @@ export function RequesterEditMrfDialog({
               if (!mrf) return;
               setSaving(true);
               try {
-                const res = await mrfApi.update(mrf.id, {
+                const payload = {
                   title: form.title,
                   description: form.description,
                   quantity: form.quantity,
                   estimated_cost: form.estimated_cost,
                   justification: form.justification,
                   category: form.category,
-                });
+                };
+                let res;
+                if (attachmentFiles.length > 0) {
+                  const formData = new FormData();
+                  Object.entries(payload).forEach(([key, value]) => formData.append(key, String(value)));
+                  attachmentFiles.forEach((file) => formData.append("attachments[]", file, file.name));
+                  res = await mrfApi.updateWithAttachments(mrf.id, formData);
+                } else {
+                  res = await mrfApi.update(mrf.id, payload);
+                }
                 if (res.success) {
                   toast({
                     title: "MRF updated",

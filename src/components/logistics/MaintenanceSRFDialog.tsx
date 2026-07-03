@@ -19,10 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Upload, FileText } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { srfApi } from "@/services/api";
 import type { FleetVehicle, MaintenanceSchedule } from "@/types/logistics";
+import { MultiFileDropzone } from "@/components/attachments/MultiFileDropzone";
 
 interface Props {
   open: boolean;
@@ -41,7 +42,7 @@ export const MaintenanceSRFDialog = ({
 }: Props) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [invoiceOneDriveUrl, setInvoiceOneDriveUrl] = useState("");
 
   const [formData, setFormData] = useState({
@@ -119,7 +120,7 @@ export const MaintenanceSRFDialog = ({
       const finalDescription = `${formData.description}\n\n${buildVehicleContext()}`;
 
       let response;
-      if (invoiceFile || invoiceOneDriveUrl) {
+      if (attachmentFiles.length > 0 || invoiceOneDriveUrl) {
         const formDataObj = new FormData();
         formDataObj.append("title", formData.title);
         formDataObj.append("description", finalDescription);
@@ -132,9 +133,7 @@ export const MaintenanceSRFDialog = ({
         formDataObj.append("duration", formData.duration.trim());
         formDataObj.append("vehicle_id", vehicle.id);
         formDataObj.append("vehicle_plate", vehicle.plate || "");
-        if (invoiceFile) {
-          formDataObj.append("invoice", invoiceFile);
-        }
+        attachmentFiles.forEach((file) => formDataObj.append("attachments[]", file, file.name));
         if (invoiceOneDriveUrl) {
           formDataObj.append("invoice_onedrive_url", invoiceOneDriveUrl);
         }
@@ -218,7 +217,7 @@ export const MaintenanceSRFDialog = ({
         estimatedCost: "",
         duration: "",
       });
-      setInvoiceFile(null);
+      setAttachmentFiles([]);
       setInvoiceOneDriveUrl("");
       onOpenChange(false);
     }
@@ -361,20 +360,14 @@ export const MaintenanceSRFDialog = ({
           </div>
 
           <div className="rounded-lg border p-3 space-y-2">
-            <h4 className="text-sm font-semibold">Invoice / Quotation (Optional)</h4>
+            <h4 className="text-sm font-semibold">Invoices / Quotations (Optional)</h4>
+            <MultiFileDropzone
+              files={attachmentFiles}
+              onFilesChange={setAttachmentFiles}
+              disabled={loading}
+              label="Upload maintenance documents"
+            />
             <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="invoiceFile" className="text-xs">
-                  Upload File (PDF / Image)
-                </Label>
-                <Input
-                  id="invoiceFile"
-                  type="file"
-                  accept="application/pdf,image/*"
-                  onChange={(e) => setInvoiceFile(e.target.files?.[0] || null)}
-                  disabled={loading}
-                />
-              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="invoiceUrl" className="text-xs">
                   OneDrive URL
@@ -388,12 +381,6 @@ export const MaintenanceSRFDialog = ({
                 />
               </div>
             </div>
-            {invoiceFile && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <FileText className="h-3 w-3" />
-                {invoiceFile.name}
-              </div>
-            )}
           </div>
         </div>
 

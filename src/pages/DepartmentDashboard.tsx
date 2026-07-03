@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RequesterEditMrfDialog } from "@/components/requester/RequesterEditMrfDialog";
 import { RequesterEditSrfDialog } from "@/components/requester/RequesterEditSrfDialog";
+import { AttachmentList } from "@/components/attachments/AttachmentList";
 import {
   formatRequesterEditTimeRemaining,
   resolveRequesterEditAccess,
@@ -746,6 +747,23 @@ const DepartmentDashboard = () => {
                   mrfId={selectedMRFForDetails.id}
                   contractType={(selectedMRFForDetails as any).contract_type || (selectedMRFForDetails as any).contractType}
                 />
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Attached Documents</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <AttachmentList
+                      attachments={
+                        (mrfFullDetails?.mrf as any)?.attachments ??
+                        (mrfFullDetails?.mrf as any)?.documents ??
+                        (selectedMRFForDetails as any).attachments ??
+                        (selectedMRFForDetails as any).documents
+                      }
+                      empty="No documents attached."
+                    />
+                  </CardContent>
+                </Card>
 
                 {/* Timeline/History from full details */}
                 {mrfFullDetails?.timeline && mrfFullDetails.timeline.length > 0 && (

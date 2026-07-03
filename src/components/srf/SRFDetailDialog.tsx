@@ -19,6 +19,7 @@ import { getDisplayId } from "@/utils/displayId";
 import { getSrfStatusBadgeClass, getSrfStatusLabel } from "@/utils/srfStatusBadge";
 import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepper";
 import type { SrfProgressStep } from "@/types/srf-line-item";
+import { AttachmentList } from "@/components/attachments/AttachmentList";
 
 interface SRFDetailDialogProps {
   srfId: string | null;
@@ -65,6 +66,9 @@ export function SRFDetailDialog({
   const lineItems = detail ? lineItemsFromSrf(detail) : [];
   const srfProgress: SrfProgressStep[] =
     detail?.progress ?? detail?.steps ?? [];
+  const attachmentSource = detail as
+    | (SrfDetailPayload & { attachments?: unknown; documents?: unknown })
+    | null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,6 +98,11 @@ export function SRFDetailDialog({
             {detail.description && (
               <p className="text-sm text-muted-foreground">{detail.description}</p>
             )}
+
+            <AttachmentList
+              attachments={attachmentSource?.attachments ?? attachmentSource?.documents}
+              empty="No documents attached."
+            />
 
             {srfProgress.length > 0 && (
               <div>

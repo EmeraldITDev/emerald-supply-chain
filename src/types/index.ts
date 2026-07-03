@@ -162,6 +162,8 @@ export interface MRF {
   attachment_share_url?: string;
   attachmentName?: string;
   attachment_name?: string;
+  attachments?: RequestAttachment[];
+  documents?: RequestAttachment[];
   onedriveLink?: string;
   onedrive_link?: string;
   // Line items with budget breakdown
@@ -204,6 +206,28 @@ export interface ProfitAndLoss {
     totalLoss: number;
     lineCount: number;
   };
+}
+
+export interface RequestAttachment {
+  id?: number | string | null;
+  collection?: string;
+  fileName?: string;
+  file_name?: string;
+  storedName?: string;
+  stored_name?: string;
+  mimeType?: string | null;
+  mime_type?: string | null;
+  size?: number | null;
+  sizeBytes?: number | null;
+  size_bytes?: number | null;
+  url?: string;
+  downloadUrl?: string;
+  download_url?: string;
+  path?: string;
+  uploadedBy?: { id?: number | string; name?: string; email?: string } | null;
+  uploaded_by?: number | string | null;
+  createdAt?: string | null;
+  created_at?: string | null;
 }
 
 export interface ContractTypeResponse {
@@ -274,6 +298,8 @@ export interface SRF {
   items?: LineItem[];
   profitAndLoss?: ProfitAndLoss;
   routedReason?: 'custom_contract_type' | 'standard_contract_type' | 'logistics_exception';
+  attachments?: RequestAttachment[];
+  documents?: RequestAttachment[];
 }
 
 export interface CreateSRFData {
@@ -518,7 +544,7 @@ export interface ApiResponse<T> {
   /** Machine-readable error code from API (e.g. FINANCE_AP_ROUTED) */
   code?: string;
   status?: number;
-  raw?: any;
+  raw?: unknown;
 }
 
 export interface PaginatedResponse<T> {

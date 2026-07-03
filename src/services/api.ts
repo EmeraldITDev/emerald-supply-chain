@@ -286,11 +286,15 @@ export async function apiRequest<T>(
     };
   }
   
+  const isFormData = options.body instanceof FormData;
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     'Accept': 'application/json',
     ...options.headers,
   };
+
+  if (!isFormData && !options.headers?.['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   // Always include Authorization header with Bearer token if available
   if (token) {
@@ -883,6 +887,14 @@ export const mrfApi = {
     return apiRequest<MRF>(`/mrfs/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  },
+
+  updateWithAttachments: async (id: string, formData: FormData): Promise<ApiResponse<MRF>> => {
+    formData.set('_method', 'PUT');
+    return apiRequest<MRF>(`/mrfs/${encodeURIComponent(id)}`, {
+      method: 'POST',
+      body: formData,
     });
   },
 
@@ -1701,6 +1713,14 @@ export const srfApi = {
     return apiRequest<SRF>(`/srfs/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  },
+
+  updateWithAttachments: async (id: string, formData: FormData): Promise<ApiResponse<SRF>> => {
+    formData.set('_method', 'PUT');
+    return apiRequest<SRF>(`/srfs/${encodeURIComponent(id)}`, {
+      method: 'POST',
+      body: formData,
     });
   },
 

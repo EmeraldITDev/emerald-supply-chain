@@ -84,6 +84,7 @@ import {
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { SRFDetailPanel } from "@/components/SRFDetailPanel";
 import { LineItemPnLSection } from "@/components/LineItemPnLSection";
+import { AttachmentList } from "@/components/attachments/AttachmentList";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import ProcurementDocumentsPanel from "@/components/procurement/ProcurementDocumentsPanel";
@@ -4920,21 +4921,28 @@ const Procurement = () => {
                   </div>
                 )}
 
-                {(selectedMRFForDetails.attachmentUrl || selectedMRFForDetails.attachment_url || selectedMRFForDetails.attachmentShareUrl || selectedMRFForDetails.attachment_share_url) && (
-                  <div className="mt-3">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Supporting Document</p>
-                    <a
-                      href={selectedMRFForDetails.attachmentShareUrl || selectedMRFForDetails.attachment_share_url || selectedMRFForDetails.attachmentUrl || selectedMRFForDetails.attachment_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
-                      className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                    >
-                      <FileText className="h-4 w-4" />
-                      {selectedMRFForDetails.attachmentName || selectedMRFForDetails.attachment_name || 'Download Attachment'}
-                    </a>
-                  </div>
-                )}
+                <AttachmentList
+                  attachments={
+                    (mrfFullDetails?.mrf as any)?.attachments ??
+                    (mrfFullDetails?.mrf as any)?.documents ??
+                    selectedMRFForDetails.attachments ??
+                    selectedMRFForDetails.documents ??
+                    [
+                      {
+                        downloadUrl:
+                          selectedMRFForDetails.attachmentShareUrl ||
+                          selectedMRFForDetails.attachment_share_url ||
+                          selectedMRFForDetails.attachmentUrl ||
+                          selectedMRFForDetails.attachment_url,
+                        fileName:
+                          selectedMRFForDetails.attachmentName ||
+                          selectedMRFForDetails.attachment_name ||
+                          "Supporting Document",
+                      },
+                    ]
+                  }
+                  empty="No documents attached."
+                />
 
                 {/* Executive Approval Section - Highlighted in Green */}
                 {(() => {
