@@ -1576,8 +1576,9 @@ export const srfApi = {
     if (filters?.per_page != null) params.append('per_page', String(filters.per_page));
     if (filters?.page != null) params.append('page', String(filters.page));
     const includeItems = filters?.include_line_items ?? filters?.includeLineItems;
-    if (includeItems === false) params.append('include_line_items', 'false');
-    else params.append('include_line_items', 'true');
+    // Default to false — line-item payloads are heavy and only needed on detail views.
+    if (includeItems === true) params.append('include_line_items', 'true');
+    else params.append('include_line_items', 'false');
 
     const res = await apiRequest<unknown>(`/srfs?${params.toString()}`);
     if (res.success) {
