@@ -604,12 +604,21 @@ export const grnApi = {
 
 // User Management API — SCM writes supply_chain_role only (never hris_role)
 export const userApi = {
-  getAll: async (filters?: { supply_chain_role?: string; role?: string; search?: string }): Promise<ApiResponse<User[]>> => {
+  getAll: async (filters?: {
+    supply_chain_role?: string;
+    role?: string;
+    search?: string;
+    page?: number;
+    per_page?: number;
+  }): Promise<ApiResponse<User[]>> => {
     const params = new URLSearchParams();
     if (filters?.supply_chain_role) params.append('supply_chain_role', filters.supply_chain_role);
     else if (filters?.role) params.append('role', filters.role);
     if (filters?.search) params.append('search', filters.search);
-    
+    // Always bound requests — user directories should never pull unpaginated dumps.
+    params.append('page', String(filters?.page ?? 1));
+    params.append('per_page', String(filters?.per_page ?? 25));
+
     return apiRequest<User[]>(`/users?${params.toString()}`);
   },
 
