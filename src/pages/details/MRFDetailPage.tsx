@@ -33,6 +33,8 @@ export default function MRFDetailPage() {
         mrf_number?: string;
         documents?: unknown;
         attachments?: unknown;
+        requesterName?: string;
+        createdAt?: string;
       })
     | null;
   return (
