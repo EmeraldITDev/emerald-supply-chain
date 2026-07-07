@@ -3984,8 +3984,8 @@ export const tripRequestApi = {
       return { ...res, data: { trip } };
     }
     if (!res.success && res.code === 'BOOKING_LEAD_TIME_VIOLATION') {
-      const raw = res.raw ?? {};
-      const errors = raw.errors ?? {};
+      const raw = (res.raw ?? {}) as { errors?: Record<string, unknown> };
+      const errors = (raw.errors ?? {}) as Record<string, unknown>;
       const minDates = errors.minimum_trip_date ?? errors.minimumTripDate;
       const msg =
         (Array.isArray(errors.bookingScope) ? errors.bookingScope[0] : null) ??
