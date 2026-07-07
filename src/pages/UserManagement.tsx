@@ -52,6 +52,8 @@ const UserManagement = () => {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 25;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -72,10 +74,18 @@ const UserManagement = () => {
   const canManageUsers = scmManageRoles.includes(getScmRole(user) || '');
 
   const userFilters = useMemo(() => {
-    const filters: { supply_chain_role?: string; search?: string } = {};
+    const filters: { supply_chain_role?: string; search?: string; page: number; per_page: number } = {
+      page,
+      per_page: PER_PAGE,
+    };
     if (roleFilter !== "all") filters.supply_chain_role = roleFilter;
     if (searchQuery) filters.search = searchQuery;
     return filters;
+  }, [roleFilter, searchQuery, page]);
+
+  // Reset to first page whenever filters change.
+  useEffect(() => {
+    setPage(1);
   }, [roleFilter, searchQuery]);
 
   const {
@@ -431,6 +441,33 @@ const UserManagement = () => {
               </div>
             )}
           </div>
+
+          {/* Pagination controls — server-side bounded at 25 per page. */}
+          {!loading && users.length > 0 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-sm text-muted-foreground">
+                Page {page} · Showing up to {PER_PAGE} users
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={users.length < PER_PAGE}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
