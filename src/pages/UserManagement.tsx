@@ -52,6 +52,8 @@ const UserManagement = () => {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 25;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -72,10 +74,18 @@ const UserManagement = () => {
   const canManageUsers = scmManageRoles.includes(getScmRole(user) || '');
 
   const userFilters = useMemo(() => {
-    const filters: { supply_chain_role?: string; search?: string } = {};
+    const filters: { supply_chain_role?: string; search?: string; page: number; per_page: number } = {
+      page,
+      per_page: PER_PAGE,
+    };
     if (roleFilter !== "all") filters.supply_chain_role = roleFilter;
     if (searchQuery) filters.search = searchQuery;
     return filters;
+  }, [roleFilter, searchQuery, page]);
+
+  // Reset to first page whenever filters change.
+  useEffect(() => {
+    setPage(1);
   }, [roleFilter, searchQuery]);
 
   const {
