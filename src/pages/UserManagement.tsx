@@ -441,6 +441,33 @@ const UserManagement = () => {
               </div>
             )}
           </div>
+
+          {/* Pagination controls — server-side bounded at 25 per page. */}
+          {!loading && users.length > 0 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-sm text-muted-foreground">
+                Page {page} · Showing up to {PER_PAGE} users
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={users.length < PER_PAGE}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
