@@ -121,7 +121,8 @@ const DepartmentDashboard = () => {
   const fetchMySrfs = useCallback(async () => {
     setSrfLoading(true);
     try {
-      const res = await srfApi.getAll({ include_line_items: true, limit: 50 });
+      // Directory view: never request line items — fetched on demand from the detail dialog.
+      const res = await srfApi.getAll({ include_line_items: false, limit: 50 });
       if (res.success && res.data) {
         const own = res.data.filter((srf) => {
           const rn = getSrfRequesterDisplayName(srf as Parameters<typeof getSrfRequesterDisplayName>[0]);
