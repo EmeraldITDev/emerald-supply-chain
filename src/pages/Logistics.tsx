@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApp } from "@/contexts/AppContext";
 import { logisticsDashboardApi, tripsApi, fleetApi } from "@/services/logisticsApi";
+import { tripRequestApi } from "@/services/api";
 import type { LogisticsDashboardStats, Trip as LogisticsTrip, FleetVehicle } from "@/types/logistics";
 
 // Import new modular logistics components
@@ -93,18 +94,50 @@ const Logistics = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [statsRes, tripsRes, vehiclesRes] = await Promise.all([
+      const [statsRes, tripsRes, vehiclesRes, requestsRes] = await Promise.all([
         logisticsDashboardApi.getStats(),
         tripsApi.list({ page: 1, per_page: 5 }),
         fleetApi.list({ page: 1, per_page: 10 }),
+        tripRequestApi.listAll({ per_page: 10 }).catch(() => null),
       ]);
 
       if (statsRes.success && statsRes.data) {
         setStats(statsRes.data);
       }
-      if (tripsRes.success && tripsRes.data?.items) {
-        setRecentTrips(tripsRes.data.items.slice(0, 5));
+      // Merge scheduled trips with staff trip requests (all lifecycle states)
+      // so the Recent Trips widget reflects the global trip directory.
+      const scheduled: LogisticsTrip[] = tripsRes.success && tripsRes.data?.items
+        ? tripsRes.data.items
+        : [];
+      const scheduledIds = new Set(
+        scheduled.flatMap((t: any) => [String(t.id), String(t.trip_code ?? t.tripNumber ?? "")]),
+      );
+      const requestRows: LogisticsTrip[] = [];
+      if (requestsRes && requestsRes.success && requestsRes.data?.trips) {
+        for (const r of requestsRes.data.trips) {
+          const linkedTripId =
+            r.logisticsTripId ?? r.logistics_trip_id ?? r.tripId ?? r.trip_id;
+          const code = r.tripCode ?? r.trip_code ?? "";
+          if (linkedTripId && scheduledIds.has(String(linkedTripId))) continue;
+          if (code && scheduledIds.has(code)) continue;
+          requestRows.push({
+            id: r.id as any,
+            tripNumber: code || `TRQ-${r.id}`,
+            origin: r.origin ?? "",
+            destination: r.destination ?? "",
+            driverName: r.driverName ?? r.driver_name ?? "",
+            status: (r.status || "pending_approval") as any,
+          } as LogisticsTrip);
+        }
       }
+      const merged = [...scheduled, ...requestRows]
+        .sort((a: any, b: any) => {
+          const da = new Date(a.scheduled_departure_at ?? a.scheduledDepartureAt ?? a.created_at ?? a.createdAt ?? 0).getTime();
+          const db = new Date(b.scheduled_departure_at ?? b.scheduledDepartureAt ?? b.created_at ?? b.createdAt ?? 0).getTime();
+          return db - da;
+        })
+        .slice(0, 5);
+      setRecentTrips(merged);
       if (vehiclesRes.success && vehiclesRes.data?.items) {
         setVehicles(vehiclesRes.data.items);
       }
