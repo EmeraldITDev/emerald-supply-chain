@@ -3476,18 +3476,34 @@ const Procurement = () => {
                                 {/* Download PO if available */}
                                 {getMRFPOUrl(request as MRF) && (
                                   <>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-xs"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDownloadPO(request as MRF);
-                                      }}
-                                    >
-                                      <Download className="h-3 w-3 mr-1" />
-                                      Download PO
-                                    </Button>
+                                    {(() => {
+                                      const dlKey = poDownloadKey(request as MRF);
+                                      const isDl = downloadingPOIds.has(dlKey);
+                                      return (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-xs"
+                                          disabled={isDl}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadPO(request as MRF);
+                                          }}
+                                        >
+                                          {isDl ? (
+                                            <>
+                                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                              Downloading…
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Download className="h-3 w-3 mr-1" />
+                                              Download PO
+                                            </>
+                                          )}
+                                        </Button>
+                                      );
+                                    })()}
                                     {/* Delete PO button - only for procurement managers */}
                                     {(getScmRole(user) === "procurement_manager" ||
                                       getScmRole(user) === "procurement") && (
