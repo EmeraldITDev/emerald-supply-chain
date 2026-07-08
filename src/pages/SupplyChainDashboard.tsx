@@ -133,11 +133,7 @@ const SupplyChainDashboard = () => {
     if (mrfFullDetails?.selectedQuotation) {
     }
   }, [mrfFullDetails]);
-  const [vendorRegistrations, setVendorRegistrations] = useState<
-    VendorRegistration[]
-  >([]);
-  const [vendorRegistrationsLoading, setVendorRegistrationsLoading] =
-    useState(true);
+  // (vendor registrations state replaced by useQuery below)
 
   const [approvingTripId, setApprovingTripId] = useState<string | null>(null);
   const [pendingFilter, setPendingFilter] = useState<
@@ -191,23 +187,23 @@ const SupplyChainDashboard = () => {
   );
   const [firstApprovalDialogOpen, setFirstApprovalDialogOpen] = useState(false);
 
-  const fetchVendorRegistrations = useCallback(async () => {
-    setVendorRegistrationsLoading(true);
-    try {
+  const {
+    data: vendorRegistrations = [],
+    isLoading: vendorRegistrationsLoading,
+    refetch: refetchVendorRegistrations,
+  } = useQuery<VendorRegistration[]>({
+    queryKey: queryKeys.dashboard.pendingVendorRegistrations(),
+    queryFn: async () => {
       const response = await getPendingVendorRegistrations();
-      if (response.success && response.data) {
-        setVendorRegistrations(response.data);
-      }
-    } catch {
-      // Silent fail - vendor registrations are supplementary
-    } finally {
-      setVendorRegistrationsLoading(false);
-    }
-  }, []);
+      return response.success && response.data ? response.data : [];
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
 
-  useEffect(() => {
-    void fetchVendorRegistrations();
-  }, [fetchVendorRegistrations]);
+  const fetchVendorRegistrations = useCallback(
+    () => refetchVendorRegistrations().then(() => undefined),
+    [refetchVendorRegistrations],
+  );
 
   useScmAppRefreshListener(async () => {
     setSignaturePresenceTick((t) => t + 1);
