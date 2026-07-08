@@ -1822,7 +1822,30 @@ const Procurement = () => {
     fetchMRFs();
   };
 
+  /**
+   * Stable key we use to track "is this row's PO downloading?" — matches
+   * whatever the row was rendered from (formatted id or numeric id).
+   */
+  const poDownloadKey = (mrf: MRF): string =>
+    String(
+      (mrf as MRF & { formatted_id?: string }).formatted_id ||
+        mrf.id ||
+        getMrfApiId(mrf) ||
+        '',
+    );
+
   const handleDownloadPO = async (mrf: MRF) => {
+    const key = poDownloadKey(mrf);
+    // Prevent duplicate clicks while a download is in flight for this row.
+    if (key && downloadingPOIds.has(key)) return;
+    if (key) {
+      setDownloadingPOIds((prev) => {
+        const next = new Set(prev);
+        next.add(key);
+        return next;
+      });
+    }
+    try {
     // Check for signed PO first (preferred), then unsigned PO
     const signedPOUrl =
       mrf.signed_po_url ||
@@ -1929,6 +1952,16 @@ const Procurement = () => {
           description:
             "Unable to download PO document. Please try again later.",
           variant: "destructive",
+        });
+      }
+    }
+    } finally {
+      if (key) {
+        setDownloadingPOIds((prev) => {
+          if (!prev.has(key)) return prev;
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
         });
       }
     }
