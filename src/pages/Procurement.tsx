@@ -204,6 +204,15 @@ const Procurement = () => {
 
   // MRF requests — cached paginated list (instant revisit within stale window)
   const [poGenerating, setPoGenerating] = useState(false);
+  /**
+   * Tracks which MRFs have an in-flight "Download PO" request so we can
+   * disable the individual button, swap its label for "Downloading…" and
+   * show a spinner. Keyed by MRF id / formatted id (whichever the row
+   * exposes).
+   */
+  const [downloadingPOIds, setDownloadingPOIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const [poDialogOpen, setPODialogOpen] = useState(false);
   const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(
@@ -1813,7 +1822,30 @@ const Procurement = () => {
     fetchMRFs();
   };
 
+  /**
+   * Stable key we use to track "is this row's PO downloading?" — matches
+   * whatever the row was rendered from (formatted id or numeric id).
+   */
+  const poDownloadKey = (mrf: MRF): string =>
+    String(
+      (mrf as MRF & { formatted_id?: string }).formatted_id ||
+        mrf.id ||
+        getMrfApiId(mrf) ||
+        '',
+    );
+
   const handleDownloadPO = async (mrf: MRF) => {
+    const key = poDownloadKey(mrf);
+    // Prevent duplicate clicks while a download is in flight for this row.
+    if (key && downloadingPOIds.has(key)) return;
+    if (key) {
+      setDownloadingPOIds((prev) => {
+        const next = new Set(prev);
+        next.add(key);
+        return next;
+      });
+    }
+    try {
     // Check for signed PO first (preferred), then unsigned PO
     const signedPOUrl =
       mrf.signed_po_url ||
@@ -1920,6 +1952,16 @@ const Procurement = () => {
           description:
             "Unable to download PO document. Please try again later.",
           variant: "destructive",
+        });
+      }
+    }
+    } finally {
+      if (key) {
+        setDownloadingPOIds((prev) => {
+          if (!prev.has(key)) return prev;
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
         });
       }
     }
@@ -3434,18 +3476,34 @@ const Procurement = () => {
                                 {/* Download PO if available */}
                                 {getMRFPOUrl(request as MRF) && (
                                   <>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-xs"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDownloadPO(request as MRF);
-                                      }}
-                                    >
-                                      <Download className="h-3 w-3 mr-1" />
-                                      Download PO
-                                    </Button>
+                                    {(() => {
+                                      const dlKey = poDownloadKey(request as MRF);
+                                      const isDl = downloadingPOIds.has(dlKey);
+                                      return (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-xs"
+                                          disabled={isDl}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadPO(request as MRF);
+                                          }}
+                                        >
+                                          {isDl ? (
+                                            <>
+                                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                              Downloading…
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Download className="h-3 w-3 mr-1" />
+                                              Download PO
+                                            </>
+                                          )}
+                                        </Button>
+                                      );
+                                    })()}
                                     {/* Delete PO button - only for procurement managers */}
                                     {(getScmRole(user) === "procurement_manager" ||
                                       getScmRole(user) === "procurement") && (
@@ -4030,16 +4088,32 @@ const Procurement = () => {
                                 View Details
                               </Button>
                               {unsignedPOUrl && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    handleDownloadPO(mrf as MRF);
-                                  }}
-                                >
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Download PO
-                                </Button>
+                                (() => {
+                                  const dlKey = poDownloadKey(mrf as MRF);
+                                  const isDl = downloadingPOIds.has(dlKey);
+                                  return (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={isDl}
+                                      onClick={() => {
+                                        handleDownloadPO(mrf as MRF);
+                                      }}
+                                    >
+                                      {isDl ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Downloading…
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Download className="h-4 w-4 mr-2" />
+                                          Download PO
+                                        </>
+                                      )}
+                                    </Button>
+                                  );
+                                })()
                               )}
                               {poNumber && !isDraft && (
                                 <Button
@@ -4477,16 +4551,31 @@ const Procurement = () => {
                   <div className="border-t pt-4">
                     <h3 className="font-semibold mb-3">PO Document</h3>
                     <div className="flex gap-2">
-                      <Button
-                        onClick={() => {
-                          handleDownloadPO(
-                            selectedMRFForPODetails as unknown as MRF,
-                          );
-                        }}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Download Purchase Order
-                      </Button>
+                      {(() => {
+                        const target = selectedMRFForPODetails as unknown as MRF;
+                        const dlKey = poDownloadKey(target);
+                        const isDl = downloadingPOIds.has(dlKey);
+                        return (
+                          <Button
+                            disabled={isDl}
+                            onClick={() => {
+                              handleDownloadPO(target);
+                            }}
+                          >
+                            {isDl ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Downloading…
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-4 w-4 mr-2" />
+                                Download Purchase Order
+                              </>
+                            )}
+                          </Button>
+                        );
+                      })()}
                       <Button
                         variant="destructive"
                         onClick={() => {

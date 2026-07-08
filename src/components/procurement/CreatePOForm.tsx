@@ -232,6 +232,14 @@ export function CreatePOForm({
   const [savingMode, setSavingMode] = useState<'draft' | 'finalise' | 'auto' | null>(null);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   /**
+   * Autosave runs in the background and must NEVER block user input or
+   * disable the manual save / generate buttons. It's tracked separately so
+   * the "Save as Draft" / "Generate & Route" buttons stay enabled while it
+   * flushes.
+   */
+  const isAutoSavingRef = useRef(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  /**
    * Field-level errors returned by the backend on a 422 Unprocessable Entity
    * response. Keyed by backend field name so we can attach a red border and
    * inline error message to the specific input that failed. Cleared on the
@@ -335,25 +343,40 @@ export function CreatePOForm({
   }, [hydrate]);
 
   // -------------------------------------------------------------------------
-  // Vendors — default GET /vendors excludes Inactive (merged duplicates).
-  // Directory picker only needs Active + Pending.
+  // Vendors — deferred lazy fetch.
+  //
+  // Previously this eagerly pulled 100 vendors on mount and competed for
+  // bandwidth with the MRF + price-comparison hydration, making the modal
+  // sit on skeleton loaders. We now defer the pull until AFTER hydration
+  // completes, and only pull a small page (25). The Directory dropdown in
+  // the price comparison table also refetches on user search input.
   // -------------------------------------------------------------------------
   useEffect(() => {
+    if (hydrating) return;
     let cancelled = false;
-    setLoadingVendors(true);
-    vendorApi
-      .list({ page: 1, per_page: 100, status: "Active" })
-      .then((res) => {
-        if (cancelled) return;
-        if (res.success && res.data?.items) {
-          setVendors(res.data.items.filter((v) => v.status === "Active" || v.status === "Pending"));
-        }
-      })
-      .finally(() => !cancelled && setLoadingVendors(false));
+    // Kick off in the next tick so the form paints first.
+    const handle = window.setTimeout(() => {
+      if (cancelled) return;
+      setLoadingVendors(true);
+      vendorApi
+        .list({ page: 1, per_page: 25, status: 'Active' })
+        .then((res) => {
+          if (cancelled) return;
+          if (res.success && res.data?.items) {
+            setVendors(
+              res.data.items.filter(
+                (v) => v.status === 'Active' || v.status === 'Pending',
+              ),
+            );
+          }
+        })
+        .finally(() => !cancelled && setLoadingVendors(false));
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(handle);
     };
-  }, []);
+  }, [hydrating]);
 
   // -------------------------------------------------------------------------
   // T&C template (refetch on po_type change)
@@ -391,7 +414,22 @@ export function CreatePOForm({
   const isDraft =
     Boolean((mrf as MRF & { is_po_draft?: boolean })?.is_po_draft) ||
     !mrf?.po_number;
-  const isFinalisedRaw = Boolean(finalisedMrf?.po_number || mrf?.po_number);
+  /**
+   * A PO is only truly "locked" once it has been SIGNED by the SCD.
+   * Before that (draft, awaiting signature, rejected) the PM must still be
+   * able to edit every field — including the payment schedule — so we key
+   * off the signed URL / workflow_state instead of the mere presence of a
+   * PO number.
+   */
+  const signedLocked = (() => {
+    const source = finalisedMrf || mrf;
+    if (!source) return false;
+    const s = source as MRF & { workflow_state?: string; workflowState?: string; signed_po_url?: string; signedPOUrl?: string };
+    if (s.signed_po_url || s.signedPOUrl) return true;
+    const wf = String(s.workflow_state ?? s.workflowState ?? s.status ?? '').toLowerCase();
+    return wf === 'po_signed' || wf === 'signed' || wf === 'completed';
+  })();
+  const isFinalisedRaw = signedLocked;
   const isFinalised = isFinalisedRaw && !editingFinalised;
 
   const ccBlocked =
@@ -752,6 +790,12 @@ export function CreatePOForm({
         // the SCD never sees two pending versions of the same PO.
         ...(isRegen ? { regenerate: true } : {}),
       };
+      // Backend locks the payment schedule after PO generation; sending
+      // `payment_milestones` on a regenerate causes a hard rejection
+      // ("Payment schedule is locked after PO generation"). Strip it.
+      if (isRegen && 'payment_milestones' in payload) {
+        delete (payload as { payment_milestones?: unknown }).payment_milestones;
+      }
       const finalRes = await procurementApi.finalisePO(mrfId, payload);
       if (!finalRes.success || !finalRes.data?.mrf) {
         if (finalRes.fieldErrors) {
@@ -827,19 +871,28 @@ export function CreatePOForm({
     if (hydrating || isFinalised) return;
     if (!dirtyRef.current) return;
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    // Task 3 — strict 1500ms debounce so keystrokes never block the UI.
     debounceRef.current = window.setTimeout(() => {
-      if (isSavingRef.current) return;
+      if (isSavingRef.current || isAutoSavingRef.current) return;
       if (Date.now() - lastManualSaveRef.current < 5000) return;
       // Gate: autosave when PC is valid (prevents 422 spam).
       const pcInvalid = validatePriceComparison(rows, vendors).length > 0;
       if (pcInvalid) return;
-      // Run as auto save (uses same draft path).
+      // Autosave uses its OWN lock so it never disables the manual buttons
+      // or the input fields the user is typing into.
       void (async () => {
-        if (!acquireLock('auto')) return;
+        isAutoSavingRef.current = true;
+        setIsAutoSaving(true);
         try {
           const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
           if (!pcRes.success) return;
-          const draftRes = await procurementApi.savePODraft(mrfId, buildPayload());
+          const autoPayload = buildPayload();
+          // Payment schedule is locked once a PO exists on the backend —
+          // an autosave must never trip that lock (would spam error toasts).
+          if (editingFinalised && 'payment_milestones' in autoPayload) {
+            delete (autoPayload as { payment_milestones?: unknown }).payment_milestones;
+          }
+          const draftRes = await procurementApi.savePODraft(mrfId, autoPayload);
           if (draftRes.success) {
             const stamp = (draftRes.data?.mrf as { po_draft_saved_at?: string } | undefined)
               ?.po_draft_saved_at;
@@ -849,14 +902,15 @@ export function CreatePOForm({
         } catch {
           // swallow autosave failures
         } finally {
-          releaseLock();
+          isAutoSavingRef.current = false;
+          setIsAutoSaving(false);
         }
       })();
-    }, 3000);
+    }, 1500);
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [form, rows, vendors, hydrating, isFinalised, mrfId, buildPayload]);
+  }, [form, rows, vendors, hydrating, isFinalised, mrfId, buildPayload, editingFinalised]);
 
   // -------------------------------------------------------------------------
   // Render — loading skeleton
@@ -1478,10 +1532,16 @@ export function CreatePOForm({
           {isSaving && (
             <span className="inline-flex items-center gap-1">
               <Loader2 className="h-3 w-3 animate-spin" />
-              {savingMode === 'auto' ? 'Autosaving…' : savingMode === 'finalise' ? 'Generating PO…' : 'Saving draft…'}
+              {savingMode === 'finalise' ? 'Generating PO…' : 'Saving draft…'}
             </span>
           )}
-          {!isSaving && draftSavedAt && (
+          {!isSaving && isAutoSaving && (
+            <span className="inline-flex items-center gap-1 opacity-75">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Autosaving in background…
+            </span>
+          )}
+          {!isSaving && !isAutoSaving && draftSavedAt && (
             <span>Saved {formatDistanceToNow(new Date(draftSavedAt), { addSuffix: true })}</span>
           )}
         </div>
