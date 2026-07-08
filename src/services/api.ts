@@ -687,6 +687,8 @@ export const mrfApi = {
     sort_by?: string;
     sort_direction?: 'asc' | 'desc';
     sort?: import('@/utils/listFilters').ListSort;
+    /** Backend lightweight dropdown mode: returns max 20 minimal rows and skips heavy joins. */
+    dropdown?: boolean;
   }): Promise<ApiResponse<PaginatedResult<MRF>>> => {
     const sortApi = params?.sort ? listSortToApi(params.sort) : null;
     const qs = buildListQueryParams({
@@ -703,6 +705,7 @@ export const mrfApi = {
       po_list: params?.po_list ? 1 : undefined,
       sort_by: params?.sort_by ?? sortApi?.sort_by,
       sort_direction: params?.sort_direction ?? sortApi?.sort_direction,
+      dropdown: params?.dropdown ? 1 : undefined,
     });
     const res = await apiRequestFull(`/mrfs?${qs.toString()}`);
     if (!res.success) {
