@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils';
 import { vendorApi } from '@/services/api';
 import { procurementApi, type GeneratePOResponse, type ResolvedVendorEntry } from '@/services/procurementApi';
 import { describeBackendError } from '@/utils/poStatus';
+import { pollForGeneratedPO, isPoReady } from '@/utils/pollPoGeneration';
 import type { ApiResponse, MRF, Vendor } from '@/types';
 import type {
   POFormPayload,
@@ -763,10 +764,24 @@ export function CreatePOForm({
       }
       const newMrf = finalRes.data.mrf;
       const gen = finalRes.data as GeneratePOResponse;
+      let resolvedMrf = newMrf;
+      // Backend may 202-accept and defer PDF generation to a queue worker.
+      // Poll GET /api/mrfs/{id} until unsigned_po_url / workflow_state show up.
+      if (!isPoReady(resolvedMrf)) {
+        const polled = await pollForGeneratedPO(mrfId);
+        if (polled) {
+          resolvedMrf = polled;
+        } else {
+          toast.warning('PO generation is still processing', {
+            description:
+              'The backend accepted the request but the PDF is not ready yet. Refresh in a moment to see the unsigned PO.',
+          });
+        }
+      }
       const wf = String(
         (newMrf as MRF & { workflow_state?: string }).workflow_state ||
           (newMrf as MRF & { workflowState?: string }).workflowState ||
-          newMrf.status ||
+          resolvedMrf.status ||
           '',
       ).toLowerCase();
       const fastTrackedSuccess = Boolean(
@@ -775,9 +790,9 @@ export function CreatePOForm({
           wf === 'awaiting_scd_signature',
       );
       setFinalisedFastTracked(fastTrackedSuccess);
-      setFinalisedMrf(newMrf);
+      setFinalisedMrf(resolvedMrf);
       setEditingFinalised(false);
-      const poNumber = newMrf.po_number || newMrf.poNumber || '—';
+      const poNumber = resolvedMrf.po_number || resolvedMrf.poNumber || '—';
       const resolved =
         gen.resolvedVendors ?? gen.resolved_vendors ?? [];
       const vendorSummary = formatResolvedVendorsSummary(resolved);
@@ -794,7 +809,7 @@ export function CreatePOForm({
             : baseDescription,
         },
       );
-      onFinalised?.(newMrf);
+      onFinalised?.(resolvedMrf);
     } catch (err) {
       toast.error('PO generation failed', {
         description: err instanceof Error ? err.message : 'Unexpected error.',
