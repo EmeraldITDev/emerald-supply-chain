@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { getDisplayId, getMrfApiId } from "@/utils/displayId";
 import { LineItemPnLSection } from "@/components/LineItemPnLSection";
@@ -58,6 +58,7 @@ import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { authApi, mrfApi, vendorApi, dashboardApi, srfApi, tripRequestApi } from "@/services/api";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { procurementApi } from "@/services/procurementApi";
