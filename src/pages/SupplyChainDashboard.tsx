@@ -28,6 +28,11 @@ import {
   RefreshCw,
   Eye,
   XCircle,
+  Users,
+  Truck,
+  ClipboardList,
+  ShoppingCart,
+  Building2,
 } from "lucide-react";
 import {
   Dialog,
@@ -142,6 +147,10 @@ const SupplyChainDashboard = () => {
   const [scdDashStats, setScdDashStats] = useState<{
     pendingSrfDirectorApprovals?: number;
   } | null>(null);
+  const [scdDashRaw, setScdDashRaw] = useState<Record<string, unknown> | null>(null);
+  const [pendingFilter, setPendingFilter] = useState<
+    "all" | "vendors" | "mrf" | "trips" | "srfs" | "pos"
+  >("all");
   const [srfForDirectorApproval, setSrfForDirectorApproval] =
     useState<SRF | null>(null);
   const [srfDirectorApprovalOpen, setSrfDirectorApprovalOpen] =
@@ -152,6 +161,7 @@ const SupplyChainDashboard = () => {
     try {
       const dashRes = await dashboardApi.getSupplyChainDirectorDashboard();
       const dash = dashRes.success ? (dashRes.data as Record<string, unknown>) : null;
+      setScdDashRaw(dash);
       const fromDash = dash?.srfsAwaitingSupplyChainDirectorApproval;
       const list: SRF[] = Array.isArray(fromDash) ? (fromDash as SRF[]) : [];
       setPendingDirectorSrfs(list);
@@ -164,6 +174,7 @@ const SupplyChainDashboard = () => {
     } catch {
       setPendingDirectorSrfs([]);
       setPendingTripApprovals([]);
+      setScdDashRaw(null);
     } finally {
       setPendingDirectorSrfsLoading(false);
     }
@@ -794,78 +805,136 @@ const SupplyChainDashboard = () => {
             </TabsList>
 
             <TabsContent value="pending" className="space-y-6">
-              {/* Action breakdown */}
-              <div className="grid gap-4 md:grid-cols-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      First Approvals
-                    </CardTitle>
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {pendingFirstApprovals.length}
+              {(() => { return null; })()}
+              {/* Pending action breakdown — 5 clickable summary cards bound to backend payload keys */}
+              {(() => {
+                const readCount = (key: string, fallback: number): number => {
+                  const raw = scdDashRaw as Record<string, unknown> | null;
+                  const stats = (raw?.stats as Record<string, unknown> | undefined) ?? undefined;
+                  const candidates = [raw?.[key], stats?.[key]];
+                  for (const v of candidates) {
+                    if (typeof v === "number") return v;
+                    if (Array.isArray(v)) return v.length;
+                  }
+                  return fallback;
+                };
+                const cards: Array<{
+                  key: "vendors" | "mrf" | "trips" | "srfs" | "pos";
+                  label: string;
+                  count: number;
+                  icon: typeof Users;
+                }> = [
+                  {
+                    key: "vendors",
+                    label: "Vendor Registrations",
+                    count: readCount("pending_vendor_registrations", vendorRegistrations.length),
+                    icon: Building2,
+                  },
+                  {
+                    key: "mrf",
+                    label: "MRF First Approvals",
+                    count: readCount("pending_mrf_scd_first_approval", pendingFirstApprovals.length),
+                    icon: FileText,
+                  },
+                  {
+                    key: "trips",
+                    label: "Trip Approvals",
+                    count: readCount("pending_trip_approvals", pendingTripApprovals.length),
+                    icon: Truck,
+                  },
+                  {
+                    key: "srfs",
+                    label: "Service Requests (SRFs)",
+                    count: readCount(
+                      "pending_srf_scd_approval",
+                      scdDashStats?.pendingSrfDirectorApprovals ?? pendingDirectorSrfs.length,
+                    ),
+                    icon: ClipboardList,
+                  },
+                  {
+                    key: "pos",
+                    label: "Purchase Orders",
+                    count: readCount("pending_purchase_orders", pendingPOs.length),
+                    icon: ShoppingCart,
+                  },
+                ];
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <p className="text-sm text-muted-foreground">
+                        Click a card to filter items awaiting your action.
+                      </p>
+                      {pendingFilter !== "all" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPendingFilter("all")}
+                        >
+                          Show all
+                        </Button>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Parallel with Executive
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Vendor Selections
-                    </CardTitle>
-                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {pendingVendorApprovals.length}
+                    <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+                      {cards.map(({ key, label, count, icon: Icon }) => {
+                        const active = pendingFilter === key;
+                        const empty = count === 0;
+                        return (
+                          <Card
+                            key={key}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() =>
+                              setPendingFilter(active ? "all" : key)
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setPendingFilter(active ? "all" : key);
+                              }
+                            }}
+                            className={`cursor-pointer transition-all hover:shadow-md ${
+                              active
+                                ? "ring-2 ring-primary border-primary"
+                                : ""
+                            }`}
+                          >
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3">
+                              <CardTitle className="text-xs sm:text-sm font-medium">
+                                {label}
+                              </CardTitle>
+                              <Icon
+                                className={`h-4 w-4 ${empty ? "text-success" : "text-muted-foreground"}`}
+                              />
+                            </CardHeader>
+                            <CardContent className="p-3 pt-0">
+                              <div
+                                className={`text-2xl font-bold ${empty ? "text-success" : ""}`}
+                              >
+                                {empty ? (
+                                  <span className="inline-flex items-center gap-1">
+                                    <CheckCircle className="h-5 w-5" />
+                                    0
+                                  </span>
+                                ) : (
+                                  count
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {empty
+                                  ? "0 awaiting approval"
+                                  : `${count} awaiting approval`}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Awaiting approval
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Pending POs
-                    </CardTitle>
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {pendingPOs.length}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Awaiting signature
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      SRFs Pending
-                    </CardTitle>
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {scdDashStats?.pendingSrfDirectorApprovals ??
-                        pendingDirectorSrfs.length}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Director review
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                );
+              })()}
 
               {/* Vendor Registrations Section */}
+              {(pendingFilter === "all" || pendingFilter === "vendors") && (
               <VendorRegistrationsList
                 maxItems={3}
                 showTabs={false}
@@ -873,8 +942,10 @@ const SupplyChainDashboard = () => {
                 externalRegistrations={vendorRegistrations}
                 externalLoading={vendorRegistrationsLoading}
               />
+              )}
 
-              {!pendingDirectorSrfsLoading &&
+              {(pendingFilter === "all" || pendingFilter === "srfs") &&
+                !pendingDirectorSrfsLoading &&
                 pendingDirectorSrfs.length > 0 && (
                   <Card>
                     <CardHeader>
@@ -960,7 +1031,8 @@ const SupplyChainDashboard = () => {
                   </Card>
                 )}
 
-              {pendingTripApprovals.length > 0 && (
+              {(pendingFilter === "all" || pendingFilter === "trips") &&
+                pendingTripApprovals.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Pending Trip Approvals</CardTitle>
@@ -1052,7 +1124,8 @@ const SupplyChainDashboard = () => {
               )}
 
               {/* Non-Emerald First Approvals (Supply Chain Director approves MRF first) */}
-              {pendingFirstApprovals.length > 0 && (
+              {(pendingFilter === "all" || pendingFilter === "mrf") &&
+                pendingFirstApprovals.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle>
@@ -1120,7 +1193,8 @@ const SupplyChainDashboard = () => {
               )}
 
               {/* Vendor Selections Pending Approval */}
-              {pendingVendorApprovals.length > 0 && (
+              {(pendingFilter === "all" || pendingFilter === "pos") &&
+                pendingVendorApprovals.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Vendor Selections Pending Approval</CardTitle>
@@ -1435,6 +1509,7 @@ const SupplyChainDashboard = () => {
                 </Card>
               )}
 
+              {(pendingFilter === "all" || pendingFilter === "pos") && (
               <Card>
                 <CardHeader>
                   <CardTitle>Purchase Orders</CardTitle>
@@ -1651,6 +1726,7 @@ const SupplyChainDashboard = () => {
                   )}
                 </CardContent>
               </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="approved" className="space-y-4">

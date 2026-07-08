@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
-import { mrfApi } from "@/services/api";
+import { mrfApi, dashboardApi } from "@/services/api";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
 import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
@@ -54,6 +54,7 @@ const ExecutiveDashboard = () => {
   const [approvalRemarks, setApprovalRemarks] = useState<Record<string, string>>({});
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+  const [execDashRaw, setExecDashRaw] = useState<Record<string, unknown> | null>(null);
 
   const fetchVendorRegistrations = useCallback(async () => {
     setLoadingVendors(true);
@@ -75,8 +76,21 @@ const ExecutiveDashboard = () => {
     void fetchVendorRegistrations();
   }, [fetchVendorRegistrations]);
 
+  const fetchExecDash = useCallback(async () => {
+    try {
+      const res = await dashboardApi.getExecutiveDashboard();
+      setExecDashRaw(res.success && res.data ? (res.data as Record<string, unknown>) : null);
+    } catch {
+      setExecDashRaw(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchExecDash();
+  }, [fetchExecDash]);
+
   useScmAppRefreshListener(async () => {
-    await Promise.all([fetchMRFs(), fetchVendorRegistrations()]);
+    await Promise.all([fetchMRFs(), fetchVendorRegistrations(), fetchExecDash()]);
   });
 
   // Helper to get estimated cost (handles both snake_case and camelCase)
@@ -228,6 +242,50 @@ const ExecutiveDashboard = () => {
           </TabsList>
 
           <TabsContent value="pending">
+            {(() => {
+              const raw = execDashRaw;
+              const stats = (raw?.stats as Record<string, unknown> | undefined) ?? undefined;
+              const v =
+                raw?.["pending_mrf_executive_first_approval"] ??
+                stats?.["pending_mrf_executive_first_approval"];
+              const count =
+                typeof v === "number"
+                  ? v
+                  : Array.isArray(v)
+                    ? v.length
+                    : pendingMRFs.length;
+              const empty = count === 0;
+              return (
+                <Card
+                  className={`mb-4 border-l-4 ${empty ? "border-l-success bg-success/5" : "border-l-warning bg-warning/5"}`}
+                >
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                          {empty ? (
+                            <CheckCircle className="h-5 w-5 text-success" />
+                          ) : (
+                            <AlertCircle className="h-5 w-5 text-warning" />
+                          )}
+                          MRF First Approvals
+                        </CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">
+                          {empty
+                            ? "0 awaiting approval — you're all caught up"
+                            : "Requisitions blocked awaiting your signature"}
+                        </CardDescription>
+                      </div>
+                      <div
+                        className={`text-3xl sm:text-4xl font-bold ${empty ? "text-success" : "text-warning"}`}
+                      >
+                        {count}
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              );
+            })()}
             <Card>
               <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="text-base sm:text-lg">Pending Approvals</CardTitle>
