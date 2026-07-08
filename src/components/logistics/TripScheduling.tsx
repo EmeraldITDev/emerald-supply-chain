@@ -232,18 +232,69 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const fetchTrips = async () => {
     setLoading(true);
     try {
-      const response = await tripsApi.list({
-        page: tripPage,
-        per_page: 25,
-        status: statusFilter !== "all" ? statusFilter : undefined,
-        type: typeFilter !== "all" ? typeFilter : undefined,
-        search: debouncedSearch.trim() || undefined,
-      });
-      if (response.success && response.data) {
-        setTrips(response.data.items.map(normalizeTrip));
-        setTripPagination(response.data.pagination);
+      // Global Trip Directory — merge scheduled trips with staff trip requests
+      // that have not yet been converted, so all lifecycle states are visible.
+      const [tripsRes, requestsRes] = await Promise.all([
+        tripsApi.list({
+          page: tripPage,
+          per_page: 25,
+          status: statusFilter !== "all" ? statusFilter : undefined,
+          type: typeFilter !== "all" ? typeFilter : undefined,
+          search: debouncedSearch.trim() || undefined,
+        }),
+        // Only merge on first page when no filters — avoids duplicate/inconsistent paging.
+        tripPage === 1 && statusFilter === "all" && typeFilter === "all"
+          ? tripRequestApi.listAll({ per_page: 25 }).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+
+      const scheduled = tripsRes.success && tripsRes.data
+        ? tripsRes.data.items.map(normalizeTrip)
+        : [];
+      const scheduledIds = new Set(
+        scheduled
+          .map((t) => String(t.id))
+          .concat(scheduled.map((t) => t.tripNumber ?? "")),
+      );
+
+      const requestOnly: Trip[] = [];
+      if (requestsRes && requestsRes.success && requestsRes.data?.trips) {
+        for (const r of requestsRes.data.trips) {
+          const linkedTripId =
+            r.logisticsTripId ?? r.logistics_trip_id ?? r.tripId ?? r.trip_id;
+          const code = r.tripCode ?? r.trip_code ?? "";
+          if (linkedTripId && scheduledIds.has(String(linkedTripId))) continue;
+          if (code && scheduledIds.has(code)) continue;
+          requestOnly.push(
+            normalizeTrip({
+              id: r.id,
+              trip_code: code || `TRQ-${r.id}`,
+              trip_type: "personnel",
+              status: r.status || "pending_approval",
+              origin: r.origin,
+              destination: r.destination,
+              scheduled_departure_at: r.scheduledDepartureAt ?? r.scheduled_departure_at,
+              scheduled_arrival_at: r.scheduledArrivalAt ?? r.scheduled_arrival_at,
+              purpose: r.purpose,
+              priority: "normal",
+              workflow_stage: r.workflowStage ?? r.workflow_stage,
+              created_at: r.createdAt ?? r.created_at,
+              passengers: r.passengers ?? [],
+            }),
+          );
+        }
+      }
+
+      if (tripsRes.success && tripsRes.data) {
+        setTrips([...scheduled, ...requestOnly]);
+        const pag = tripsRes.data.pagination;
+        setTripPagination(
+          pag
+            ? { ...pag, total: (pag.total ?? scheduled.length) + requestOnly.length }
+            : null,
+        );
       } else {
-        setTrips([]);
+        setTrips(requestOnly);
         setTripPagination(null);
       }
     } catch (error) {
