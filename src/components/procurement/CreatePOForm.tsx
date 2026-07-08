@@ -1436,6 +1436,25 @@ export function CreatePOForm({
         </div>
       )}
 
+      {/* Server-side (422) field errors — shows any errors that could not be
+          mapped to a specific input above so the PM still sees the message. */}
+      {Object.keys(serverFieldErrors).length > 0 && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-1.5">
+          <div className="flex items-center gap-2 font-medium text-destructive">
+            <AlertCircle className="h-3.5 w-3.5" />
+            The server rejected {Object.keys(serverFieldErrors).length} field
+            {Object.keys(serverFieldErrors).length === 1 ? '' : 's'} — fix the highlighted inputs below.
+          </div>
+          <ul className="list-disc pl-5 text-muted-foreground space-y-0.5">
+            {Object.entries(serverFieldErrors).map(([field, msg]) => (
+              <li key={field}>
+                <span className="font-medium text-foreground">{field}</span>: {msg}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       </div>
 
       {/* Footer actions — fixed below scroll area so fields are never covered */}
