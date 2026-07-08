@@ -600,11 +600,13 @@ const Logistics = () => {
                 </Card>
 
                 {/* Pending trip requests for Logistics Manager */}
-                <PendingTripRequestsPanel
-                  isActive={activeTab === "overview"}
-                  onApproved={fetchDashboardData}
-                  compact
-                />
+                <div className="lg:col-span-2">
+                  <PendingTripRequestsPanel
+                    isActive={activeTab === "overview"}
+                    onApproved={fetchDashboardData}
+                    compact
+                  />
+                </div>
 
                 {/* Delivery confirmations (GRN + JCC) */}
                 <LogisticsDeliveryConfirmations
