@@ -1031,7 +1031,8 @@ const SupplyChainDashboard = () => {
                   </Card>
                 )}
 
-              {pendingTripApprovals.length > 0 && (
+              {(pendingFilter === "all" || pendingFilter === "trips") &&
+                pendingTripApprovals.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Pending Trip Approvals</CardTitle>
@@ -1123,7 +1124,8 @@ const SupplyChainDashboard = () => {
               )}
 
               {/* Non-Emerald First Approvals (Supply Chain Director approves MRF first) */}
-              {pendingFirstApprovals.length > 0 && (
+              {(pendingFilter === "all" || pendingFilter === "mrf") &&
+                pendingFirstApprovals.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle>
