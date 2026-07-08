@@ -89,10 +89,18 @@ export function TripRequestConversionDialog({
   useEffect(() => {
     if (!open || fulfillmentType !== "external_vendor") return;
     const handle = window.setTimeout(async () => {
+      const search = vendorSearch.trim();
+      // Only hit the backend once the user has typed — dropdown mode returns
+      // a lightweight {id,name} list capped at 20.
+      if (!search) {
+        setVendorResults([]);
+        return;
+      }
       const res = await vendorApi.list({
         page: 1,
-        per_page: 25,
-        search: vendorSearch.trim() || undefined,
+        per_page: 20,
+        search,
+        dropdown: true,
       });
       if (res.success && res.data?.items) {
         setVendorResults(res.data.items);

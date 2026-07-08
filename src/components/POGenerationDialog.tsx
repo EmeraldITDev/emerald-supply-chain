@@ -99,7 +99,7 @@ export function POGenerationDialog({ open, onOpenChange, mrf, onGenerate, onSave
       }
       setLoadingVendors(true);
       try {
-        const response = await vendorApi.list({ search: vendorSearch.trim(), per_page: 20, page: 1 });
+        const response = await vendorApi.list({ search: vendorSearch.trim(), per_page: 20, page: 1, dropdown: true });
         if (response.success && response.data) {
           setVendorResults(response.data.items.filter((v) => v.status === "Active"));
         } else {
