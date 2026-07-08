@@ -136,6 +136,31 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [jccOpen, setJccOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [selectedTripRequest, setSelectedTripRequest] = useState<StaffTripRequest | null>(null);
+
+  // When a trip request row (TRQ-*) is opened in the details dialog, fetch the
+  // underlying StaffTripRequest so trip-request workflow buttons (Forward,
+  // Request changes, Reject) can render.
+  useEffect(() => {
+    if (!viewDialogOpen || !selectedTrip) {
+      setSelectedTripRequest(null);
+      return;
+    }
+    const code = selectedTrip.tripNumber ?? "";
+    if (!code.startsWith("TRQ-")) {
+      setSelectedTripRequest(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const res = await tripRequestApi.getById(String(selectedTrip.id));
+      if (!cancelled && res.success && res.data?.trip) {
+        setSelectedTripRequest(res.data.trip);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewDialogOpen, selectedTrip]);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   // 8a — external driver toggle + fields (shared by create + edit dialogs)
   const [useExternalDriver, setUseExternalDriver] = useState(false);
