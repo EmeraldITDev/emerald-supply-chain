@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { getDisplayId } from "@/utils/displayId";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -37,7 +37,6 @@ import { TableSkeleton } from "@/components/LoadingSkeleton";
 const ExecutiveDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const {
     data: mrfRequests = [],
     isLoading: loading,
