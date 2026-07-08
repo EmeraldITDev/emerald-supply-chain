@@ -871,19 +871,28 @@ export function CreatePOForm({
     if (hydrating || isFinalised) return;
     if (!dirtyRef.current) return;
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    // Task 3 — strict 1500ms debounce so keystrokes never block the UI.
     debounceRef.current = window.setTimeout(() => {
-      if (isSavingRef.current) return;
+      if (isSavingRef.current || isAutoSavingRef.current) return;
       if (Date.now() - lastManualSaveRef.current < 5000) return;
       // Gate: autosave when PC is valid (prevents 422 spam).
       const pcInvalid = validatePriceComparison(rows, vendors).length > 0;
       if (pcInvalid) return;
-      // Run as auto save (uses same draft path).
+      // Autosave uses its OWN lock so it never disables the manual buttons
+      // or the input fields the user is typing into.
       void (async () => {
-        if (!acquireLock('auto')) return;
+        isAutoSavingRef.current = true;
+        setIsAutoSaving(true);
         try {
           const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
           if (!pcRes.success) return;
-          const draftRes = await procurementApi.savePODraft(mrfId, buildPayload());
+          const autoPayload = buildPayload();
+          // Payment schedule is locked once a PO exists on the backend —
+          // an autosave must never trip that lock (would spam error toasts).
+          if (editingFinalised && 'payment_milestones' in autoPayload) {
+            delete (autoPayload as { payment_milestones?: unknown }).payment_milestones;
+          }
+          const draftRes = await procurementApi.savePODraft(mrfId, autoPayload);
           if (draftRes.success) {
             const stamp = (draftRes.data?.mrf as { po_draft_saved_at?: string } | undefined)
               ?.po_draft_saved_at;
@@ -893,14 +902,15 @@ export function CreatePOForm({
         } catch {
           // swallow autosave failures
         } finally {
-          releaseLock();
+          isAutoSavingRef.current = false;
+          setIsAutoSaving(false);
         }
       })();
-    }, 3000);
+    }, 1500);
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [form, rows, vendors, hydrating, isFinalised, mrfId, buildPayload]);
+  }, [form, rows, vendors, hydrating, isFinalised, mrfId, buildPayload, editingFinalised]);
 
   // -------------------------------------------------------------------------
   // Render — loading skeleton
