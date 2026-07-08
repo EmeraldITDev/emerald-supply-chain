@@ -1509,6 +1509,7 @@ const SupplyChainDashboard = () => {
                 </Card>
               )}
 
+              {(pendingFilter === "all" || pendingFilter === "pos") && (
               <Card>
                 <CardHeader>
                   <CardTitle>Purchase Orders</CardTitle>
@@ -1725,6 +1726,7 @@ const SupplyChainDashboard = () => {
                   )}
                 </CardContent>
               </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="approved" className="space-y-4">
