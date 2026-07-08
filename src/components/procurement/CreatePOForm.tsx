@@ -509,7 +509,11 @@ export function CreatePOForm({
       po_type: form.po_type,
       currency: form.currency,
       ship_to_address: form.ship_to_address.trim() || undefined,
-      tax_rate: form.tax_rate ? Number(form.tax_rate) : undefined,
+      // Allow explicit 0 — do NOT rely on truthiness (0 and "0" would be dropped).
+      tax_rate:
+        form.tax_rate.trim() === '' || Number.isNaN(Number(form.tax_rate))
+          ? undefined
+          : Number(form.tax_rate),
       invoice_submission_email: form.invoice_submission_email.trim() || undefined,
       invoice_submission_cc: form.invoice_submission_cc.trim() || undefined,
       terms_mode: form.terms_mode,
@@ -596,9 +600,13 @@ export function CreatePOForm({
         mrf?.poNumber ||
         mrfId;
       a.href = url;
-      a.download = `PO-${num}-emerald-layout.pdf`;
+      a.download = `PO-${num}.pdf`;
+      // Attach + remove is required by Firefox/Safari; without it the browser
+      // just navigates to the blob: URL instead of saving the file.
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       toast.success('PDF downloaded');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not build PDF');
