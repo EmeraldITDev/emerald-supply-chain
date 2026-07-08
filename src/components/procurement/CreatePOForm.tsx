@@ -686,6 +686,7 @@ export function CreatePOForm({
 
   const saveDraft = useCallback(async () => {
     if (!acquireLock('draft')) return;
+    setServerFieldErrors({});
     try {
       const pcInvalid = validatePriceComparison(rows, vendors).length > 0;
       if (!pcInvalid) {
@@ -699,6 +700,9 @@ export function CreatePOForm({
       // (b) Save PO draft regardless
       const draftRes = await procurementApi.savePODraft(mrfId, buildPayload());
       if (!draftRes.success) {
+        if (draftRes.fieldErrors) {
+          setServerFieldErrors(flattenFieldErrors(draftRes.fieldErrors));
+        }
         toast.error('Draft save failed', {
           description: draftRes.error || 'Please try again.',
         });
@@ -726,9 +730,13 @@ export function CreatePOForm({
 
   const finalisePO = useCallback(async () => {
     if (!acquireLock('finalise')) return;
+    setServerFieldErrors({});
     try {
       const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
       if (!pcRes.success) {
+        if (pcRes.fieldErrors) {
+          setServerFieldErrors(flattenFieldErrors(pcRes.fieldErrors));
+        }
         toast.error('Could not save price comparison', {
           description: pcRes.error || 'Fix the errors and try again.',
         });
@@ -745,6 +753,9 @@ export function CreatePOForm({
       };
       const finalRes = await procurementApi.finalisePO(mrfId, payload);
       if (!finalRes.success || !finalRes.data?.mrf) {
+        if (finalRes.fieldErrors) {
+          setServerFieldErrors(flattenFieldErrors(finalRes.fieldErrors));
+        }
         toast.error('PO generation failed', {
           description: describeBackendError(finalRes.raw, finalRes.error || 'Please try again.'),
         });
