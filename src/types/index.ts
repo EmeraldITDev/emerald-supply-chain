@@ -545,6 +545,12 @@ export interface ApiResponse<T> {
   code?: string;
   status?: number;
   raw?: unknown;
+  /**
+   * Field-level validation errors from a 422 Unprocessable Entity response.
+   * Keys are backend field names; values are the error string (or array of
+   * strings) so callers can highlight the exact input that failed.
+   */
+  fieldErrors?: Record<string, string | string[]>;
 }
 
 export interface PaginatedResponse<T> {
