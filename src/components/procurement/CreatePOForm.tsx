@@ -391,7 +391,22 @@ export function CreatePOForm({
   const isDraft =
     Boolean((mrf as MRF & { is_po_draft?: boolean })?.is_po_draft) ||
     !mrf?.po_number;
-  const isFinalisedRaw = Boolean(finalisedMrf?.po_number || mrf?.po_number);
+  /**
+   * A PO is only truly "locked" once it has been SIGNED by the SCD.
+   * Before that (draft, awaiting signature, rejected) the PM must still be
+   * able to edit every field — including the payment schedule — so we key
+   * off the signed URL / workflow_state instead of the mere presence of a
+   * PO number.
+   */
+  const signedLocked = (() => {
+    const source = finalisedMrf || mrf;
+    if (!source) return false;
+    const s = source as MRF & { workflow_state?: string; workflowState?: string; signed_po_url?: string; signedPOUrl?: string };
+    if (s.signed_po_url || s.signedPOUrl) return true;
+    const wf = String(s.workflow_state ?? s.workflowState ?? s.status ?? '').toLowerCase();
+    return wf === 'po_signed' || wf === 'signed' || wf === 'completed';
+  })();
+  const isFinalisedRaw = signedLocked;
   const isFinalised = isFinalisedRaw && !editingFinalised;
 
   const ccBlocked =
