@@ -993,13 +993,11 @@ const SupplyChainDashboard = () => {
                           (t.workflowStageLabel as string | undefined) ??
                           "Pending Director Approval";
                         return (
-                          <button
+                          <div
                             key={tid}
-                            type="button"
-                            onClick={() => navigate(`/trip-requests/${encodeURIComponent(tid)}`)}
-                            className="w-full text-left flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4 hover:bg-accent transition-colors"
+                            className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4 hover:bg-accent/40 transition-colors"
                           >
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="font-semibold truncate">
                                 {code} — {dest}
                               </p>
@@ -1009,10 +1007,42 @@ const SupplyChainDashboard = () => {
                                 {dep ? ` • Departs ${formatMRFDate(dep)}` : ""}
                               </p>
                             </div>
-                            <Badge variant="secondary" className="shrink-0">
-                              {stageLabel}
-                            </Badge>
-                          </button>
+                            <div className="flex flex-wrap items-center gap-2 shrink-0">
+                              <Badge variant="secondary">{stageLabel}</Badge>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  navigate(`/trip-requests/${encodeURIComponent(tid)}`)
+                                }
+                              >
+                                View
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={approvingTripId === tid}
+                                onClick={async () => {
+                                  setApprovingTripId(tid);
+                                  const res = await tripRequestApi.directorApprove(tid);
+                                  if (res.success) {
+                                    toast.success("Trip request approved");
+                                    setPendingTripApprovals((prev) =>
+                                      prev.filter(
+                                        (p) => String((p.id as string | number | undefined) ?? "") !== tid,
+                                      ),
+                                    );
+                                    void fetchPendingDirectorSrfs();
+                                    window.dispatchEvent(new CustomEvent("app:refresh"));
+                                  } else {
+                                    toast.error(res.error || "Failed to approve trip");
+                                  }
+                                  setApprovingTripId(null);
+                                }}
+                              >
+                                {approvingTripId === tid ? "Approving…" : "Approve"}
+                              </Button>
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
