@@ -1532,10 +1532,16 @@ export function CreatePOForm({
           {isSaving && (
             <span className="inline-flex items-center gap-1">
               <Loader2 className="h-3 w-3 animate-spin" />
-              {savingMode === 'auto' ? 'Autosaving…' : savingMode === 'finalise' ? 'Generating PO…' : 'Saving draft…'}
+              {savingMode === 'finalise' ? 'Generating PO…' : 'Saving draft…'}
             </span>
           )}
-          {!isSaving && draftSavedAt && (
+          {!isSaving && isAutoSaving && (
+            <span className="inline-flex items-center gap-1 opacity-75">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Autosaving in background…
+            </span>
+          )}
+          {!isSaving && !isAutoSaving && draftSavedAt && (
             <span>Saved {formatDistanceToNow(new Date(draftSavedAt), { addSuffix: true })}</span>
           )}
         </div>
