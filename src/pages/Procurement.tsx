@@ -117,10 +117,7 @@ import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
 import { normalizeAttachments } from "@/utils/attachments";
 import { isPORevisionRequired, getRejectionReason } from "@/utils/poHelpers";
-import {
-  downloadEmeraldPurchaseOrderForMrf,
-  openEmeraldPurchaseOrderForMrf,
-} from "@/utils/emeraldPoPdfActions";
+import { downloadEmeraldPurchaseOrderForMrf } from "@/utils/emeraldPoPdfActions";
 import {
   Select,
   SelectContent,
