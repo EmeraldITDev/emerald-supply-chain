@@ -244,7 +244,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         }),
         // Only merge on first page when no filters — avoids duplicate/inconsistent paging.
         tripPage === 1 && statusFilter === "all" && typeFilter === "all"
-          ? tripRequestApi.listOrgTrips({ per_page: 25 }).catch(() => null)
+          ? tripRequestApi.listAll({ per_page: 25 }).catch(() => null)
           : Promise.resolve(null),
       ]);
 
