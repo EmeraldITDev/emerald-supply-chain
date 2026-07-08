@@ -572,9 +572,7 @@ const ExecutiveDashboard = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
+                  <TableSkeleton rows={3} />
                 ) : (
                   <DashboardMrfHistoryList
                     mrfs={executiveBuckets.approved}
@@ -598,9 +596,7 @@ const ExecutiveDashboard = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
+                  <TableSkeleton rows={3} />
                 ) : (
                   <DashboardMrfHistoryList
                     mrfs={executiveBuckets.rejected}
@@ -624,9 +620,7 @@ const ExecutiveDashboard = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
+                  <TableSkeleton rows={3} />
                 ) : (
                   <DashboardMrfHistoryList
                     mrfs={executiveBuckets.completed}
