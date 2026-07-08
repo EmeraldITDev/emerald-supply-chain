@@ -16,6 +16,7 @@ import type { StaffTripRequest } from "@/types/trip-request";
 import { TripRequestConversionDialog } from "./TripRequestConversionDialog";
 import { getScmRole } from "@/utils/scmRole";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface TripRequestWorkflowActionsProps {
   trip: StaffTripRequest;
@@ -25,6 +26,7 @@ interface TripRequestWorkflowActionsProps {
 export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkflowActionsProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const role = getScmRole(user);
   const actions = trip.availableActions ?? [];
   const [busy, setBusy] = useState(false);
@@ -43,6 +45,10 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
       const res = await fn();
       if (res.success) {
         toast({ title: successMsg });
+        // Invalidate trip + dashboard queries so widgets update instantly
+        void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        void queryClient.invalidateQueries({ queryKey: ["trips"] });
+        void queryClient.invalidateQueries({ queryKey: ["trip-requests"] });
         onUpdated?.();
       } else {
         toast({ title: "Action failed", description: res.error, variant: "destructive" });
