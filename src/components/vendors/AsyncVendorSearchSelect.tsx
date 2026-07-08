@@ -44,6 +44,7 @@ export function AsyncVendorSearchSelect({
           search: search.trim(),
           per_page: 20,
           page: 1,
+          dropdown: true,
         });
         if (res.success && res.data) {
           setResults(res.data.items);
