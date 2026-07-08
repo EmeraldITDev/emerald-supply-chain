@@ -353,13 +353,21 @@ export function CreatePOForm({
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (hydrating) return;
+    // Fast-track / no-RFQ POs capture suppliers manually in the price
+    // comparison sheet, so we don't need to preload the vendor directory at
+    // all. AsyncVendorSearchSelect handles on-demand lookups via
+    // GET /api/vendors?dropdown=1&search=… when the user types.
+    if (isDirectProcurement) {
+      setVendors([]);
+      return;
+    }
     let cancelled = false;
     // Kick off in the next tick so the form paints first.
     const handle = window.setTimeout(() => {
       if (cancelled) return;
       setLoadingVendors(true);
       vendorApi
-        .list({ page: 1, per_page: 25, status: 'Active' })
+        .list({ page: 1, per_page: 20, status: 'Active', dropdown: true })
         .then((res) => {
           if (cancelled) return;
           if (res.success && res.data?.items) {
@@ -376,7 +384,7 @@ export function CreatePOForm({
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [hydrating]);
+  }, [hydrating, isDirectProcurement]);
 
   // -------------------------------------------------------------------------
   // T&C template (refetch on po_type change)
