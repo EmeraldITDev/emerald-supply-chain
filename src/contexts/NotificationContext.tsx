@@ -28,6 +28,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [serverUnreadCount, setServerUnreadCount] = useState<number | null>(null);
   const [preferences, setPreferences] = useState<NotificationPreferences>(
     NotificationService.getDefaultPreferences()
   );
@@ -45,14 +46,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     const fetchNotifications = async () => {
       try {
         const response = await notificationApi.getAll({ limit: 50 });
-        if (response.success && response.data && response.data.notifications) {
+        if (response.success && response.data && Array.isArray(response.data.notifications)) {
           const transformedNotifications: AppNotification[] = response.data.notifications.map((n: any) => ({
-            id: n.id,
+            id: String(n.id),
             type: n.type || 'info',
             title: n.title,
             message: n.message,
             timestamp: n.created_at,
-            read: n.read || false,
+            read: Boolean(n.is_read ?? n.read ?? false),
             actionUrl: n.action_url,
             priority: (['low', 'medium', 'high'].includes(n.priority) ? n.priority : 'medium') as AppNotification['priority'],
             event: 'system' as NotificationEvent,
@@ -62,6 +63,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             },
           }));
           setNotifications(transformedNotifications);
+          setServerUnreadCount(Number(response.data.unread_count ?? 0));
         }
       } catch (error) {
         console.error("Failed to fetch notifications from backend", error);
@@ -120,6 +122,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    setServerUnreadCount((prev) => (prev != null && prev > 0 ? prev - 1 : prev));
     
     // Update backend
     try {
@@ -132,6 +135,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const markAllAsRead = async () => {
     // Optimistically update UI
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setServerUnreadCount(0);
     
     // Update backend
     try {
@@ -166,7 +170,8 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     NotificationService.savePreferences(updated);
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const localUnread = notifications.filter((n) => !n.read).length;
+  const unreadCount = serverUnreadCount != null ? serverUnreadCount : localUnread;
 
   const playNotificationSound = () => {
     // Simple notification sound using Web Audio API
