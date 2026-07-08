@@ -49,6 +49,8 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
         void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         void queryClient.invalidateQueries({ queryKey: ["trips"] });
         void queryClient.invalidateQueries({ queryKey: ["trip-requests"] });
+        // Refresh legacy local-state dashboards (SCD, Logistics) that listen for app:refresh
+        window.dispatchEvent(new CustomEvent("app:refresh"));
         onUpdated?.();
       } else {
         toast({ title: "Action failed", description: res.error, variant: "destructive" });
