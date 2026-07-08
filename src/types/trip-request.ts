@@ -2,6 +2,8 @@
 
 export type TripBookingScope = 'within_state' | 'out_of_state_local' | 'international';
 
+export type InternationalTransportMode = 'flight' | 'road';
+
 export interface TripBookingScopeRule {
   value: TripBookingScope;
   label: string;
@@ -84,6 +86,8 @@ export interface StaffTripRequest {
   booking_scope?: TripBookingScope;
   bookingScopeLabel?: string;
   booking_scope_label?: string;
+  international_transport_mode?: InternationalTransportMode | null;
+  internationalTransportMode?: InternationalTransportMode | null;
   workflowStage?: string;
   workflow_stage?: string;
   availableActions?: string[];
@@ -189,6 +193,7 @@ export interface CreateStaffTripRequestData {
   passenger_user_ids: number[];
   bookingScope: TripBookingScope;
   external_passengers?: TripRequestExternalPassenger[];
+  international_transport_mode?: InternationalTransportMode | null;
 }
 
 /** Partial body for PUT /api/trip-requests/{id} (requester edit within 48h). */
