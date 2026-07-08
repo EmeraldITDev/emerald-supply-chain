@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getDisplayId } from "@/utils/displayId";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -32,10 +32,12 @@ import {
 } from "@/utils/mrfDashboardBuckets";
 import { DashboardSummaryStats } from "@/components/dashboard/DashboardSummaryStats";
 import { DashboardMrfHistoryList } from "@/components/dashboard/DashboardMrfHistoryList";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
 
 const ExecutiveDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {
     data: mrfRequests = [],
     isLoading: loading,
@@ -46,51 +48,48 @@ const ExecutiveDashboard = () => {
     ...WORKFLOW_QUERY_OPTIONS,
   });
 
-  const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
-  const [loadingVendors, setLoadingVendors] = useState(false);
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [approvalRemarks, setApprovalRemarks] = useState<Record<string, string>>({});
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
-  const [execDashRaw, setExecDashRaw] = useState<Record<string, unknown> | null>(null);
 
-  const fetchVendorRegistrations = useCallback(async () => {
-    setLoadingVendors(true);
-    try {
+  // Parallel React Queries: fired concurrently on mount, cached across
+  // navigations, and deduped app-wide. No manual `Promise.all` needed —
+  // React Query starts all three in parallel automatically.
+  const {
+    data: vendorRegistrations = [],
+    isLoading: loadingVendors,
+    refetch: refetchVendorRegistrations,
+  } = useQuery<VendorRegistration[]>({
+    queryKey: queryKeys.dashboard.pendingVendorRegistrations(),
+    queryFn: async () => {
       const response = await getPendingVendorRegistrations();
-      if (response.success && response.data) {
-        setVendorRegistrations(response.data);
-      } else {
-        console.error('Failed to load vendor registrations:', response.error);
-      }
-    } catch (error) {
-      console.error('Failed to connect to server for vendor registrations');
-    } finally {
-      setLoadingVendors(false);
-    }
-  }, []);
+      if (!response.success || !response.data) return [];
+      return response.data;
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
 
-  useEffect(() => {
-    void fetchVendorRegistrations();
-  }, [fetchVendorRegistrations]);
-
-  const fetchExecDash = useCallback(async () => {
-    try {
+  const { data: execDashRaw = null, refetch: refetchExecDash } = useQuery<
+    Record<string, unknown> | null
+  >({
+    queryKey: queryKeys.dashboard.executiveRaw(),
+    queryFn: async () => {
       const res = await dashboardApi.getExecutiveDashboard();
-      setExecDashRaw(res.success && res.data ? (res.data as Record<string, unknown>) : null);
-    } catch {
-      setExecDashRaw(null);
-    }
-  }, []);
+      return res.success && res.data ? (res.data as Record<string, unknown>) : null;
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
 
-  useEffect(() => {
-    void fetchExecDash();
-  }, [fetchExecDash]);
+  const fetchVendorRegistrations = useCallback(
+    () => refetchVendorRegistrations().then(() => undefined),
+    [refetchVendorRegistrations],
+  );
 
   useScmAppRefreshListener(async () => {
-    await Promise.all([fetchMRFs(), fetchVendorRegistrations(), fetchExecDash()]);
+    await Promise.all([fetchMRFs(), refetchVendorRegistrations(), refetchExecDash()]);
   });
 
   // Helper to get estimated cost (handles both snake_case and camelCase)
