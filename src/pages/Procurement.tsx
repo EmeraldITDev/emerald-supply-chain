@@ -204,6 +204,15 @@ const Procurement = () => {
 
   // MRF requests — cached paginated list (instant revisit within stale window)
   const [poGenerating, setPoGenerating] = useState(false);
+  /**
+   * Tracks which MRFs have an in-flight "Download PO" request so we can
+   * disable the individual button, swap its label for "Downloading…" and
+   * show a spinner. Keyed by MRF id / formatted id (whichever the row
+   * exposes).
+   */
+  const [downloadingPOIds, setDownloadingPOIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const [poDialogOpen, setPODialogOpen] = useState(false);
   const [selectedMRFForPO, setSelectedMRFForPO] = useState<MRFRequest | null>(
