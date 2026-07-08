@@ -2682,6 +2682,8 @@ export const vendorApi = {
     sort_by?: string;
     sort_direction?: 'asc' | 'desc';
     includeInactive?: boolean;
+    /** Backend lightweight dropdown mode: returns max 20 {id,name} rows. */
+    dropdown?: boolean;
   }): Promise<ApiResponse<PaginatedResult<Vendor>>> => {
     const qs = buildListQueryParams({
       page: params?.page ?? 1,
@@ -2692,6 +2694,7 @@ export const vendorApi = {
       sort_by: params?.sort_by ?? 'name',
       sort_direction: params?.sort_direction ?? 'asc',
       include_inactive: params?.includeInactive ? 1 : undefined,
+      dropdown: params?.dropdown ? 1 : undefined,
     });
     const res = await apiRequestFull(`/vendors?${qs.toString()}`);
     if (!res.success) {
