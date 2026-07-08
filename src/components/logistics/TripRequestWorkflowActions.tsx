@@ -37,7 +37,35 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
   const isLm =
     role === "logistics_manager" || role === "logistics_officer" || role === "logistics" || role === "admin";
   const isDirector =
-    role === "supply_chain_director" || role === "supply_chain" || role === "admin";
+    role === "supply_chain_director" ||
+    role === "supply_chain" ||
+    role === "supervising_director" ||
+    role === "director" ||
+    role === "admin";
+
+  const stage = String(
+    trip.workflowStage ?? trip.workflow_stage ?? trip.status ?? "",
+  )
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+  const isPendingDirector =
+    stage.includes("director") &&
+    (stage.includes("pending") || stage.includes("forward") || stage.includes("review")) ||
+    stage === "forwarded" ||
+    stage === "pending_director_approval";
+
+  // Debug: verify what role/status the frontend is seeing
+  if (typeof window !== "undefined") {
+    // eslint-disable-next-line no-console
+    console.debug("[TripRequestWorkflowActions]", {
+      role,
+      status: trip.status,
+      workflowStage: trip.workflowStage ?? trip.workflow_stage,
+      availableActions: actions,
+      isDirector,
+      isPendingDirector,
+    });
+  }
 
   const run = async (fn: () => Promise<{ success: boolean; error?: string }>, successMsg: string) => {
     setBusy(true);
@@ -66,9 +94,14 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
   const showReject = isLm && actions.includes("reject");
   const showChanges = isLm && actions.includes("request_changes");
   const showConvert = isLm && actions.includes("convert");
-  const showDirectorApprove = isDirector && actions.includes("director_approve");
-  const showDirectorReject = isDirector && actions.includes("director_reject");
-  const showDirectorReturn = isDirector && actions.includes("director_return");
+  // Fall back to status-derived visibility when the backend omits availableActions
+  // for director-stage trips (common when status="pending_director_approval").
+  const showDirectorApprove =
+    isDirector && (actions.includes("director_approve") || isPendingDirector);
+  const showDirectorReject =
+    isDirector && (actions.includes("director_reject") || isPendingDirector);
+  const showDirectorReturn =
+    isDirector && (actions.includes("director_return") || isPendingDirector);
 
   if (
     !showForward &&
