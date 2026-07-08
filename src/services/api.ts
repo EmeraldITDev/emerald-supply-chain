@@ -3487,7 +3487,7 @@ export const notificationApi = {
 
   markAsRead: async (id: string): Promise<ApiResponse<void>> => {
     return apiRequest<void>(`/notifications/${id}/read`, {
-      method: 'PUT',
+      method: 'POST',
     });
   },
 
