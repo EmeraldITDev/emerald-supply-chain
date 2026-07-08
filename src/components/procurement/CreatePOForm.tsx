@@ -999,17 +999,50 @@ export function CreatePOForm({
 
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="ship-to">Ship-to / Delivery Address *</Label>
-            <Input id="ship-to" value={form.ship_to_address} onChange={(e) => setForm((s) => ({ ...s, ship_to_address: e.target.value }))} placeholder="e.g. Lekki HQ, Lagos" />
+            <Input
+              id="ship-to"
+              value={form.ship_to_address}
+              onChange={(e) => patchForm({ ship_to_address: e.target.value })}
+              placeholder="e.g. Lekki HQ, Lagos"
+              aria-invalid={Boolean(serverFieldErrors.ship_to_address)}
+              className={cn(serverFieldErrors.ship_to_address && 'border-destructive focus-visible:ring-destructive')}
+            />
+            {serverFieldErrors.ship_to_address && (
+              <p className="text-xs text-destructive">{serverFieldErrors.ship_to_address}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="payment-terms">Payment Terms *</Label>
-            <Input id="payment-terms" value={form.payment_terms} onChange={(e) => setForm((s) => ({ ...s, payment_terms: e.target.value }))} placeholder="e.g. Net 30 Days" />
+            <Input
+              id="payment-terms"
+              value={form.payment_terms}
+              onChange={(e) => patchForm({ payment_terms: e.target.value })}
+              placeholder="e.g. Net 30 Days"
+              aria-invalid={Boolean(serverFieldErrors.payment_terms)}
+              className={cn(serverFieldErrors.payment_terms && 'border-destructive focus-visible:ring-destructive')}
+            />
+            {serverFieldErrors.payment_terms && (
+              <p className="text-xs text-destructive">{serverFieldErrors.payment_terms}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="tax-rate">Tax Rate (%)</Label>
-            <Input id="tax-rate" type="number" min="0" step="0.01" value={form.tax_rate} onChange={(e) => setForm((s) => ({ ...s, tax_rate: e.target.value }))} placeholder="e.g. 7.5" />
+            <Input
+              id="tax-rate"
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.tax_rate}
+              onChange={(e) => patchForm({ tax_rate: e.target.value })}
+              placeholder="e.g. 7.5 (enter 0 for no tax)"
+              aria-invalid={Boolean(serverFieldErrors.tax_rate)}
+              className={cn(serverFieldErrors.tax_rate && 'border-destructive focus-visible:ring-destructive')}
+            />
+            {serverFieldErrors.tax_rate && (
+              <p className="text-xs text-destructive">{serverFieldErrors.tax_rate}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="po-currency">Currency</Label>
