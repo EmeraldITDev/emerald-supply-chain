@@ -4551,16 +4551,31 @@ const Procurement = () => {
                   <div className="border-t pt-4">
                     <h3 className="font-semibold mb-3">PO Document</h3>
                     <div className="flex gap-2">
-                      <Button
-                        onClick={() => {
-                          handleDownloadPO(
-                            selectedMRFForPODetails as unknown as MRF,
-                          );
-                        }}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Download Purchase Order
-                      </Button>
+                      {(() => {
+                        const target = selectedMRFForPODetails as unknown as MRF;
+                        const dlKey = poDownloadKey(target);
+                        const isDl = downloadingPOIds.has(dlKey);
+                        return (
+                          <Button
+                            disabled={isDl}
+                            onClick={() => {
+                              handleDownloadPO(target);
+                            }}
+                          >
+                            {isDl ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Downloading…
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-4 w-4 mr-2" />
+                                Download Purchase Order
+                              </>
+                            )}
+                          </Button>
+                        );
+                      })()}
                       <Button
                         variant="destructive"
                         onClick={() => {
