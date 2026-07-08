@@ -60,8 +60,8 @@ export function PendingTripRequestsPanel({
           No pending trip requests — new submissions will appear here for review.
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <Table>
+        <div className="w-full min-w-0 overflow-x-auto rounded-md border border-border/40">
+          <Table className="min-w-[720px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Reference</TableHead>
@@ -138,7 +138,7 @@ export function PendingTripRequestsPanel({
     </>
   );
 
-  if (compact) return <div>{content}</div>;
+  if (compact) return <div className="w-full min-w-0">{content}</div>;
 
   return (
     <Card>
