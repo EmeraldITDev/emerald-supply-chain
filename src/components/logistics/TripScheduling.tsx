@@ -1593,6 +1593,20 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   setViewDialogOpen(false);
                 }}
               />
+              {selectedTripRequest && (selectedTripRequest.availableActions?.length ?? 0) > 0 && (
+                <div className="rounded-lg border p-4 bg-muted/30">
+                  <p className="text-sm font-medium mb-3">Trip request actions</p>
+                  <TripRequestWorkflowActions
+                    trip={selectedTripRequest}
+                    onUpdated={() => {
+                      fetchTrips();
+                      void tripRequestApi.getById(String(selectedTrip.id)).then((r) => {
+                        if (r.success && r.data?.trip) setSelectedTripRequest(r.data.trip);
+                      });
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
