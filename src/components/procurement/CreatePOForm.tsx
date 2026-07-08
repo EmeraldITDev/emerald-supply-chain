@@ -1500,8 +1500,17 @@ export function CreatePOForm({
             onClick={() => void saveDraft()}
             disabled={isSaving || !hasAnyInput || isFinalised}
           >
-            <Save className="h-3.5 w-3.5 mr-1" />
-            Save as Draft
+            {isSaving && savingMode === 'draft' ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                Processing…
+              </>
+            ) : (
+              <>
+                <Save className="h-3.5 w-3.5 mr-1" />
+                Save as Draft
+              </>
+            )}
           </Button>
           <Button
             onClick={() => void finalisePO()}
@@ -1514,12 +1523,21 @@ export function CreatePOForm({
                 : undefined
             }
           >
-            <Send className="h-3.5 w-3.5 mr-1" />
-            {editingFinalised
-              ? 'Regenerate & replace SCD queue'
-              : fastTrack
-                ? 'Generate & route to SCD (fast-track)'
-                : 'Generate & Route for Approval'}
+            {isSaving && savingMode === 'finalise' ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                Processing…
+              </>
+            ) : (
+              <>
+                <Send className="h-3.5 w-3.5 mr-1" />
+                {editingFinalised
+                  ? 'Regenerate & replace SCD queue'
+                  : fastTrack
+                    ? 'Generate & route to SCD (fast-track)'
+                    : 'Generate & Route for Approval'}
+              </>
+            )}
           </Button>
         </div>
       </div>
