@@ -135,6 +135,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const [jccOpen, setJccOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [selectedTripRequest, setSelectedTripRequest] = useState<StaffTripRequest | null>(null);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   // 8a — external driver toggle + fields (shared by create + edit dialogs)
   const [useExternalDriver, setUseExternalDriver] = useState(false);
