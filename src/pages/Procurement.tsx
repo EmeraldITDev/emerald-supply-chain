@@ -117,7 +117,10 @@ import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
 import { normalizeAttachments } from "@/utils/attachments";
 import { isPORevisionRequired, getRejectionReason } from "@/utils/poHelpers";
-import { openEmeraldPurchaseOrderForMrf } from "@/utils/emeraldPoPdfActions";
+import {
+  downloadEmeraldPurchaseOrderForMrf,
+  openEmeraldPurchaseOrderForMrf,
+} from "@/utils/emeraldPoPdfActions";
 import {
   Select,
   SelectContent,
@@ -1830,11 +1833,14 @@ const Procurement = () => {
 
     const hasGeneratedPo = Boolean(mrf.po_number || mrf.poNumber);
     if (!signedPOUrl && hasGeneratedPo) {
-      const emerald = await openEmeraldPurchaseOrderForMrf(mrf);
+      const poNum = mrf.po_number || mrf.poNumber || "purchase-order";
+      const emerald = await downloadEmeraldPurchaseOrderForMrf(mrf, {
+        fileName: `PO-${poNum}.pdf`,
+      });
       if (emerald.ok) {
         toast({
-          title: "Opening PO",
-          description: "Emerald layout PDF opened in a new tab.",
+          title: "Download started",
+          description: `PO-${poNum}.pdf is downloading to your device.`,
         });
         return;
       }
