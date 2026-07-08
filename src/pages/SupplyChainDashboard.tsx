@@ -1758,9 +1758,7 @@ const SupplyChainDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
+                    <TableSkeleton rows={3} />
                   ) : (
                     <DashboardMrfHistoryList
                       mrfs={scdBuckets.approved}
@@ -1786,9 +1784,7 @@ const SupplyChainDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
+                    <TableSkeleton rows={3} />
                   ) : (
                     <DashboardMrfHistoryList
                       mrfs={scdBuckets.rejected}
@@ -1814,9 +1810,7 @@ const SupplyChainDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
+                    <TableSkeleton rows={3} />
                   ) : (
                     <DashboardMrfHistoryList
                       mrfs={scdBuckets.completed}
