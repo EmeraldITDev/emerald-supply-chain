@@ -3414,6 +3414,10 @@ export const dashboardApi = {
     return apiRequest<any>('/dashboard/supply-chain-director');
   },
 
+  getExecutiveDashboard: async (): Promise<ApiResponse<any>> => {
+    return apiRequest<any>('/dashboard/executive');
+  },
+
   getVendorDashboard: async (): Promise<ApiResponse<any>> => {
     return apiRequest<any>('/dashboard/vendor');
   },
