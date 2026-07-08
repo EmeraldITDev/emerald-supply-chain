@@ -87,11 +87,34 @@ export default function TripRequestDetailPage() {
     role === "logistics" ||
     role === "admin";
   const isDirectorRole =
-    role === "supply_chain_director" || role === "supply_chain" || role === "admin";
+    role === "supply_chain_director" ||
+    role === "supply_chain" ||
+    role === "supervising_director" ||
+    role === "director" ||
+    role === "admin";
+  const stageStr = String(
+    trip?.workflowStage ?? trip?.workflow_stage ?? trip?.status ?? "",
+  ).toLowerCase();
+  const isDirectorStage = stageStr.includes("director") || stageStr === "forwarded";
   const showWorkflowActions =
-    !viewer.readOnly &&
+    !!trip &&
     (isLogisticsRole || isDirectorRole) &&
-    (trip?.availableActions?.length ?? 0) > 0;
+    ((trip.availableActions?.length ?? 0) > 0 || (isDirectorRole && isDirectorStage));
+
+  // Debug log to verify the role/status strings coming through
+  if (trip && typeof window !== "undefined") {
+    // eslint-disable-next-line no-console
+    console.debug("[TripRequestDetailPage]", {
+      role,
+      status: trip.status,
+      workflowStage: trip.workflowStage ?? trip.workflow_stage,
+      availableActions: trip.availableActions,
+      isDirectorRole,
+      isDirectorStage,
+      showWorkflowActions,
+      readOnly: viewer.readOnly,
+    });
+  }
   const logisticsId = resolveLogisticsTripId(trip);
   const passengers = trip?.passengers ?? [];
   const externalPassengers = trip?.externalPassengers ?? trip?.external_passengers ?? [];
