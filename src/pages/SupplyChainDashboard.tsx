@@ -99,6 +99,7 @@ function readStoredUserSignatureUrl(): string | null {
 const SupplyChainDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {
     data: mrfRequests = [],
     isLoading: loading,
@@ -138,17 +139,7 @@ const SupplyChainDashboard = () => {
   const [vendorRegistrationsLoading, setVendorRegistrationsLoading] =
     useState(true);
 
-  const [pendingDirectorSrfs, setPendingDirectorSrfs] = useState<SRF[]>([]);
-  const [pendingDirectorSrfsLoading, setPendingDirectorSrfsLoading] =
-    useState(true);
-  const [pendingTripApprovals, setPendingTripApprovals] = useState<
-    Array<Record<string, unknown>>
-  >([]);
   const [approvingTripId, setApprovingTripId] = useState<string | null>(null);
-  const [scdDashStats, setScdDashStats] = useState<{
-    pendingSrfDirectorApprovals?: number;
-  } | null>(null);
-  const [scdDashRaw, setScdDashRaw] = useState<Record<string, unknown> | null>(null);
   const [pendingFilter, setPendingFilter] = useState<
     "all" | "vendors" | "mrf" | "trips" | "srfs" | "pos"
   >("all");
@@ -157,33 +148,44 @@ const SupplyChainDashboard = () => {
   const [srfDirectorApprovalOpen, setSrfDirectorApprovalOpen] =
     useState(false);
 
-  const fetchPendingDirectorSrfs = useCallback(async () => {
-    setPendingDirectorSrfsLoading(true);
-    try {
-      const dashRes = await dashboardApi.getSupplyChainDirectorDashboard();
-      const dash = dashRes.success ? (dashRes.data as Record<string, unknown>) : null;
-      setScdDashRaw(dash);
-      const fromDash = dash?.srfsAwaitingSupplyChainDirectorApproval;
-      const list: SRF[] = Array.isArray(fromDash) ? (fromDash as SRF[]) : [];
-      setPendingDirectorSrfs(list);
-      const stats = dash?.stats as { pendingSrfDirectorApprovals?: number } | undefined;
-      setScdDashStats(stats ?? null);
-      const trips =
-        (dash?.pendingTripApprovals as unknown) ??
-        (dash?.pending_trip_approvals as unknown);
-      setPendingTripApprovals(Array.isArray(trips) ? (trips as Array<Record<string, unknown>>) : []);
-    } catch {
-      setPendingDirectorSrfs([]);
-      setPendingTripApprovals([]);
-      setScdDashRaw(null);
-    } finally {
-      setPendingDirectorSrfsLoading(false);
-    }
-  }, []);
+  // Single React Query owns the entire SCD dashboard payload; the derived
+  // slices below (SRFs, trips, stats) are memoized reads, no extra requests.
+  const {
+    data: scdDashRaw = null,
+    isLoading: pendingDirectorSrfsLoading,
+    refetch: refetchScdDash,
+  } = useQuery<Record<string, unknown> | null>({
+    queryKey: queryKeys.dashboard.supplyChainDirectorRaw(),
+    queryFn: async () => {
+      const res = await dashboardApi.getSupplyChainDirectorDashboard();
+      return res.success ? (res.data as Record<string, unknown>) : null;
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
 
-  useEffect(() => {
-    void fetchPendingDirectorSrfs();
-  }, [fetchPendingDirectorSrfs]);
+  const pendingDirectorSrfs = useMemo<SRF[]>(() => {
+    const list = scdDashRaw?.srfsAwaitingSupplyChainDirectorApproval;
+    return Array.isArray(list) ? (list as SRF[]) : [];
+  }, [scdDashRaw]);
+
+  const pendingTripApprovals = useMemo<Array<Record<string, unknown>>>(() => {
+    const trips =
+      (scdDashRaw?.pendingTripApprovals as unknown) ??
+      (scdDashRaw?.pending_trip_approvals as unknown);
+    return Array.isArray(trips) ? (trips as Array<Record<string, unknown>>) : [];
+  }, [scdDashRaw]);
+
+  const scdDashStats = useMemo(
+    () =>
+      (scdDashRaw?.stats as { pendingSrfDirectorApprovals?: number } | undefined) ??
+      null,
+    [scdDashRaw],
+  );
+
+  const fetchPendingDirectorSrfs = useCallback(
+    () => refetchScdDash().then(() => undefined),
+    [refetchScdDash],
+  );
   const [mrfForFirstApproval, setMrfForFirstApproval] = useState<MRF | null>(
     null,
   );
