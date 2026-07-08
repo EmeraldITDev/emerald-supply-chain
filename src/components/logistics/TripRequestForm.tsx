@@ -4,12 +4,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi } from "@/services/api";
 import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
-import type { TripBookingScope, TripBookingScopeRule, StaffTripRequest } from "@/types/trip-request";
+import type {
+  TripBookingScope,
+  TripBookingScopeRule,
+  StaffTripRequest,
+  InternationalTransportMode,
+} from "@/types/trip-request";
 import {
   DEFAULT_BOOKING_RULES,
   formatMinimumTripDateHint,
@@ -55,6 +67,8 @@ export function TripRequestForm({
   const [arrivalAt, setArrivalAt] = useState("");
   const [passengerIds, setPassengerIds] = useState<string[]>([]);
   const [bookingScope, setBookingScope] = useState<TripBookingScope>("out_of_state_local");
+  const [internationalTransportMode, setInternationalTransportMode] =
+    useState<InternationalTransportMode | null>(null);
   const [externalPassengers, setExternalPassengers] = useState<
     Array<{ name: string; email: string; phone: string }>
   >([]);
@@ -83,6 +97,11 @@ export function TripRequestForm({
     setBookingScope(
       (trip.bookingScope ?? trip.booking_scope ?? "out_of_state_local") as TripBookingScope,
     );
+    setInternationalTransportMode(
+      (trip.internationalTransportMode ?? trip.international_transport_mode ?? null) as
+        | InternationalTransportMode
+        | null,
+    );
     const ext = trip.externalPassengers ?? trip.external_passengers ?? [];
     setExternalPassengers(
       ext.map((p) => ({
@@ -92,6 +111,12 @@ export function TripRequestForm({
       })),
     );
   }, [isEdit, trip]);
+
+  useEffect(() => {
+    if (bookingScope !== "international" && internationalTransportMode !== null) {
+      setInternationalTransportMode(null);
+    }
+  }, [bookingScope, internationalTransportMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,6 +225,8 @@ export function TripRequestForm({
           .filter((n) => !Number.isNaN(n)),
         bookingScope,
         external_passengers: validExternal.length > 0 ? validExternal : undefined,
+        international_transport_mode:
+          bookingScope === "international" ? internationalTransportMode : null,
       };
 
       const res = isEdit
@@ -221,6 +248,7 @@ export function TripRequestForm({
           setArrivalAt("");
           setPassengerIds([]);
           setBookingScope("out_of_state_local");
+          setInternationalTransportMode(null);
           setExternalPassengers([]);
         }
         if (isEdit) {
@@ -270,6 +298,29 @@ export function TripRequestForm({
           </RadioGroup>
         )}
       </div>
+
+      {bookingScope === "international" && (
+        <div className="space-y-2">
+          <Label>Transport Mode</Label>
+          <Select
+            value={internationalTransportMode ?? ""}
+            onValueChange={(v) =>
+              setInternationalTransportMode((v || null) as InternationalTransportMode | null)
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select transport mode (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="flight">By Flight</SelectItem>
+              <SelectItem value="road">By Road</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Optional — how passengers will travel internationally.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label>Origin *</Label>

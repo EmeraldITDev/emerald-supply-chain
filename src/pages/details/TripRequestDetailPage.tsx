@@ -159,6 +159,18 @@ export default function TripRequestDetailPage() {
               { label: "Origin", value: trip.origin },
               { label: "Destination", value: trip.destination },
               { label: "Purpose", value: trip.purpose },
+              ...(trip.internationalTransportMode ?? trip.international_transport_mode
+                ? [
+                    {
+                      label: "Transport Mode",
+                      value:
+                        (trip.internationalTransportMode ?? trip.international_transport_mode) ===
+                        "flight"
+                          ? "By Flight"
+                          : "By Road",
+                    },
+                  ]
+                : []),
               {
                 label: "Departure",
                 value: trip.scheduledDepartureAt ?? trip.scheduled_departure_at
