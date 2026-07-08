@@ -959,6 +959,67 @@ const SupplyChainDashboard = () => {
                   </Card>
                 )}
 
+              {pendingTripApprovals.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Pending Trip Approvals</CardTitle>
+                    <CardDescription>
+                      Staff trip requests awaiting Supervising Director approval. Click a row to review and act.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {pendingTripApprovals.map((t) => {
+                        const tid = String(
+                          (t.id as string | number | undefined) ?? "",
+                        );
+                        const code =
+                          (t.tripCode as string | undefined) ??
+                          (t.trip_code as string | undefined) ??
+                          tid;
+                        const dest = (t.destination as string | undefined) ?? "—";
+                        const requester =
+                          (t.requesterName as string | undefined) ??
+                          (t.requester_name as string | undefined) ??
+                          "Unknown";
+                        const dept =
+                          (t.requesterDepartment as string | undefined) ??
+                          (t.requester_department as string | undefined) ??
+                          "";
+                        const dep =
+                          (t.scheduledDepartureAt as string | undefined) ??
+                          (t.scheduled_departure_at as string | undefined);
+                        const stageLabel =
+                          (t.workflowStageLabel as string | undefined) ??
+                          "Pending Director Approval";
+                        return (
+                          <button
+                            key={tid}
+                            type="button"
+                            onClick={() => navigate(`/trip-requests/${encodeURIComponent(tid)}`)}
+                            className="w-full text-left flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4 hover:bg-accent transition-colors"
+                          >
+                            <div className="min-w-0">
+                              <p className="font-semibold truncate">
+                                {code} — {dest}
+                              </p>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {requester}
+                                {dept ? ` • ${dept}` : ""}
+                                {dep ? ` • Departs ${formatMRFDate(dep)}` : ""}
+                              </p>
+                            </div>
+                            <Badge variant="secondary" className="shrink-0">
+                              {stageLabel}
+                            </Badge>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Non-Emerald First Approvals (Supply Chain Director approves MRF first) */}
               {pendingFirstApprovals.length > 0 && (
                 <Card>
