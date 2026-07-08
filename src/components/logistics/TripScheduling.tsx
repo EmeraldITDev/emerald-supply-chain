@@ -65,6 +65,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { tripRequestApi } from "@/services/api";
 import { TripRequestDialog } from "./TripRequestDialog";
 import { TripWorkflowActions } from "./TripWorkflowActions";
+import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
+import type { StaffTripRequest } from "@/types/trip-request";
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import type { PaginationMeta } from "@/types/pagination";
 import { useTableExport } from "@/hooks/useTableExport";
