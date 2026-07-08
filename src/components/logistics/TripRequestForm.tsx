@@ -299,6 +299,29 @@ export function TripRequestForm({
         )}
       </div>
 
+      {bookingScope === "international" && (
+        <div className="space-y-2">
+          <Label>Transport Mode</Label>
+          <Select
+            value={internationalTransportMode ?? ""}
+            onValueChange={(v) =>
+              setInternationalTransportMode((v || null) as InternationalTransportMode | null)
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select transport mode (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="flight">By Flight</SelectItem>
+              <SelectItem value="road">By Road</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Optional — how passengers will travel internationally.
+          </p>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label>Origin *</Label>
         <Input value={origin} onChange={(e) => setOrigin(e.target.value)} />
