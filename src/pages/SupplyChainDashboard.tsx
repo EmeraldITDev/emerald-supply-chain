@@ -147,6 +147,10 @@ const SupplyChainDashboard = () => {
   const [scdDashStats, setScdDashStats] = useState<{
     pendingSrfDirectorApprovals?: number;
   } | null>(null);
+  const [scdDashRaw, setScdDashRaw] = useState<Record<string, unknown> | null>(null);
+  const [pendingFilter, setPendingFilter] = useState<
+    "all" | "vendors" | "mrf" | "trips" | "srfs" | "pos"
+  >("all");
   const [srfForDirectorApproval, setSrfForDirectorApproval] =
     useState<SRF | null>(null);
   const [srfDirectorApprovalOpen, setSrfDirectorApprovalOpen] =
@@ -157,6 +161,7 @@ const SupplyChainDashboard = () => {
     try {
       const dashRes = await dashboardApi.getSupplyChainDirectorDashboard();
       const dash = dashRes.success ? (dashRes.data as Record<string, unknown>) : null;
+      setScdDashRaw(dash);
       const fromDash = dash?.srfsAwaitingSupplyChainDirectorApproval;
       const list: SRF[] = Array.isArray(fromDash) ? (fromDash as SRF[]) : [];
       setPendingDirectorSrfs(list);
@@ -169,6 +174,7 @@ const SupplyChainDashboard = () => {
     } catch {
       setPendingDirectorSrfs([]);
       setPendingTripApprovals([]);
+      setScdDashRaw(null);
     } finally {
       setPendingDirectorSrfsLoading(false);
     }
