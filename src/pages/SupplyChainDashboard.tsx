@@ -1102,11 +1102,31 @@ const SupplyChainDashboard = () => {
                                   const res = await tripRequestApi.directorApprove(tid);
                                   if (res.success) {
                                     toast.success("Trip request approved");
-                                    setPendingTripApprovals((prev) =>
-                                      prev.filter(
-                                        (p) => String((p.id as string | number | undefined) ?? "") !== tid,
-                                      ),
-                                    );
+                                     // Optimistically drop the row from the cached
+                                     // SCD dashboard payload — avoids a full refetch flicker.
+                                     queryClient.setQueryData<Record<string, unknown> | null>(
+                                       queryKeys.dashboard.supplyChainDirectorRaw(),
+                                       (prev) => {
+                                         if (!prev) return prev;
+                                         const filterList = (v: unknown) =>
+                                           Array.isArray(v)
+                                             ? v.filter(
+                                                 (p) =>
+                                                   String(
+                                                     ((p as Record<string, unknown>).id as
+                                                       | string
+                                                       | number
+                                                       | undefined) ?? "",
+                                                   ) !== tid,
+                                               )
+                                             : v;
+                                         return {
+                                           ...prev,
+                                           pendingTripApprovals: filterList(prev.pendingTripApprovals),
+                                           pending_trip_approvals: filterList(prev.pending_trip_approvals),
+                                         };
+                                       },
+                                     );
                                     void fetchPendingDirectorSrfs();
                                     window.dispatchEvent(new CustomEvent("app:refresh"));
                                   } else {
