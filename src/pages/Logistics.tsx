@@ -422,8 +422,8 @@ const Logistics = () => {
             </TabsList>
 
             {/* Overview Tab */}
-            <TabsContent value="overview" className="space-y-6">
-              <div className="grid gap-6 lg:grid-cols-2">
+            <TabsContent value="overview" className="space-y-6 w-full min-w-0">
+              <div className="grid gap-6 lg:grid-cols-2 w-full min-w-0 [&>*]:min-w-0">
                 {/* Recent Trips */}
                 <Card>
                   <CardHeader>
