@@ -1538,9 +1538,7 @@ const SupplyChainDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
+                    <TableSkeleton rows={3} />
                   ) : pendingPOs.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
