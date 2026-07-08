@@ -601,6 +601,7 @@ const Logistics = () => {
 
                 {/* Pending trip requests for Logistics Manager */}
                 <PendingTripRequestsPanel
+                  className="lg:col-span-2"
                   isActive={activeTab === "overview"}
                   onApproved={fetchDashboardData}
                   compact
