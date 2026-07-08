@@ -4088,16 +4088,32 @@ const Procurement = () => {
                                 View Details
                               </Button>
                               {unsignedPOUrl && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    handleDownloadPO(mrf as MRF);
-                                  }}
-                                >
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Download PO
-                                </Button>
+                                (() => {
+                                  const dlKey = poDownloadKey(mrf as MRF);
+                                  const isDl = downloadingPOIds.has(dlKey);
+                                  return (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={isDl}
+                                      onClick={() => {
+                                        handleDownloadPO(mrf as MRF);
+                                      }}
+                                    >
+                                      {isDl ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Downloading…
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Download className="h-4 w-4 mr-2" />
+                                          Download PO
+                                        </>
+                                      )}
+                                    </Button>
+                                  );
+                                })()
                               )}
                               {poNumber && !isDraft && (
                                 <Button
