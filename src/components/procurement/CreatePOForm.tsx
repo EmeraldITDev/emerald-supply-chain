@@ -1069,15 +1069,35 @@ export function CreatePOForm({
 
           <div className="space-y-2">
             <Label htmlFor="invoice-to">Invoice Submission Email (To)</Label>
-            <Input id="invoice-to" type="email" value={form.invoice_submission_email} onChange={(e) => setForm((s) => ({ ...s, invoice_submission_email: e.target.value }))} aria-invalid={toInvalid} />
+            <Input
+              id="invoice-to"
+              type="email"
+              value={form.invoice_submission_email}
+              onChange={(e) => patchForm({ invoice_submission_email: e.target.value })}
+              aria-invalid={toInvalid || Boolean(serverFieldErrors.invoice_submission_email)}
+              className={cn((toInvalid || serverFieldErrors.invoice_submission_email) && 'border-destructive focus-visible:ring-destructive')}
+            />
             {toInvalid && <p className="text-xs text-destructive">Enter a valid email address.</p>}
+            {!toInvalid && serverFieldErrors.invoice_submission_email && (
+              <p className="text-xs text-destructive">{serverFieldErrors.invoice_submission_email}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="invoice-cc">CC Email *</Label>
-            <Input id="invoice-cc" type="email" value={form.invoice_submission_cc} onChange={(e) => setForm((s) => ({ ...s, invoice_submission_cc: e.target.value }))} aria-invalid={ccBlocked || ccInvalid} />
+            <Input
+              id="invoice-cc"
+              type="email"
+              value={form.invoice_submission_cc}
+              onChange={(e) => patchForm({ invoice_submission_cc: e.target.value })}
+              aria-invalid={ccBlocked || ccInvalid || Boolean(serverFieldErrors.invoice_submission_cc)}
+              className={cn((ccBlocked || ccInvalid || serverFieldErrors.invoice_submission_cc) && 'border-destructive focus-visible:ring-destructive')}
+            />
             {ccBlocked && <p className="text-xs text-destructive">This email address is not allowed in the CC field.</p>}
             {ccInvalid && !ccBlocked && <p className="text-xs text-destructive">Enter a valid email address.</p>}
+            {!ccBlocked && !ccInvalid && serverFieldErrors.invoice_submission_cc && (
+              <p className="text-xs text-destructive">{serverFieldErrors.invoice_submission_cc}</p>
+            )}
           </div>
         </div>
 
