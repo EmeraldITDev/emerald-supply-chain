@@ -15,6 +15,27 @@ import { DeleteTripDraftButton } from "./DeleteTripDraftButton";
 import { TripCommentsPanel } from "./TripCommentsPanel";
 import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
 import { resolveTripBookingScopeLabel } from "@/utils/tripBookingValidation";
+import { Separator } from "@/components/ui/separator";
+import { CalendarClock, MapPin, Plane, Car, Users } from "lucide-react";
+import type { ReactNode } from "react";
+
+function formatDateTime(value?: string | null): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString();
+}
+
+function DetailRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <span className="text-sm">{value || "—"}</span>
+    </div>
+  );
+}
 
 interface TripRequestDetailDialogProps {
   tripId: string | null;
@@ -80,6 +101,18 @@ export function TripRequestDetailDialog({
     trip?.bookingScopeLabel ?? trip?.booking_scope_label,
   );
 
+  const transportMode =
+    trip?.internationalTransportMode ?? trip?.international_transport_mode;
+  const transportModeLabel =
+    transportMode === "flight"
+      ? "By Flight"
+      : transportMode === "road"
+        ? "By Road"
+        : null;
+  const passengers = trip?.passengers ?? [];
+  const externalPassengers = trip?.externalPassengers ?? trip?.external_passengers ?? [];
+  const totalPassengers = passengers.length + externalPassengers.length;
+
   const handleDeleted = () => {
     onOpenChange(false);
     onDeleted?.();
@@ -87,7 +120,7 @@ export function TripRequestDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{trip?.destination ?? "Trip request"}</DialogTitle>
           <DialogDescription>
@@ -109,12 +142,110 @@ export function TripRequestDetailDialog({
                     {trip.status}
                     {trip.isDraft ? " · draft" : ""}
                   </Badge>
+                  {transportModeLabel && (
+                    <Badge variant="outline" className="gap-1">
+                      {transportMode === "flight" ? (
+                        <Plane className="h-3 w-3" />
+                      ) : (
+                        <Car className="h-3 w-3" />
+                      )}
+                      {transportModeLabel}
+                    </Badge>
+                  )}
                 </div>
                 <DeleteTripDraftButton trip={trip} onDeleted={handleDeleted} variant="destructive" />
               </div>
             )}
-            {trip?.purpose && (
-              <p className="text-sm text-muted-foreground">{trip.purpose}</p>
+            {trip && (
+              <div className="rounded-md border border-border/50 bg-muted/20 p-3 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <DetailRow
+                    label="Origin"
+                    value={
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        {trip.origin ?? "—"}
+                      </span>
+                    }
+                  />
+                  <DetailRow
+                    label="Destination"
+                    value={
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        {trip.destination ?? "—"}
+                      </span>
+                    }
+                  />
+                  <DetailRow
+                    label="Departure"
+                    value={
+                      <span className="flex items-center gap-1">
+                        <CalendarClock className="h-3 w-3 text-muted-foreground" />
+                        {formatDateTime(trip.scheduledDepartureAt ?? trip.scheduled_departure_at)}
+                      </span>
+                    }
+                  />
+                  <DetailRow
+                    label="Return"
+                    value={
+                      <span className="flex items-center gap-1">
+                        <CalendarClock className="h-3 w-3 text-muted-foreground" />
+                        {formatDateTime(trip.scheduledArrivalAt ?? trip.scheduled_arrival_at)}
+                      </span>
+                    }
+                  />
+                  <DetailRow
+                    label="Requester"
+                    value={trip.requesterName ?? trip.requester_name}
+                  />
+                  <DetailRow
+                    label="Department"
+                    value={trip.requesterDepartment ?? trip.requester_department}
+                  />
+                  <DetailRow
+                    label="Total Passengers"
+                    value={
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3 text-muted-foreground" />
+                        {totalPassengers}
+                      </span>
+                    }
+                  />
+                  {transportModeLabel && (
+                    <DetailRow label="Transport Mode" value={transportModeLabel} />
+                  )}
+                </div>
+                {trip.purpose && (
+                  <>
+                    <Separator />
+                    <DetailRow label="Purpose" value={trip.purpose} />
+                  </>
+                )}
+                {(passengers.length > 0 || externalPassengers.length > 0) && (
+                  <>
+                    <Separator />
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
+                        Passengers
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {passengers.map((p, i) => (
+                          <Badge key={p.id ?? `p-${i}`} variant="secondary" className="font-normal">
+                            {p.name}
+                            {p.department ? ` · ${p.department}` : ""}
+                          </Badge>
+                        ))}
+                        {externalPassengers.map((p, i) => (
+                          <Badge key={`ext-${i}`} variant="outline" className="font-normal">
+                            {p.name} (external)
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
             {trip && (trip.availableActions?.length ?? 0) > 0 && (
               <TripRequestWorkflowActions
