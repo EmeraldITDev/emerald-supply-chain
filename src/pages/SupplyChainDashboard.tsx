@@ -53,7 +53,6 @@ import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { authApi, mrfApi, vendorApi, dashboardApi, srfApi, tripRequestApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, Eye } from "lucide-react";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
 import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
