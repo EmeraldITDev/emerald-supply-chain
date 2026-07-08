@@ -32,6 +32,7 @@ import {
 } from "@/utils/mrfDashboardBuckets";
 import { DashboardSummaryStats } from "@/components/dashboard/DashboardSummaryStats";
 import { DashboardMrfHistoryList } from "@/components/dashboard/DashboardMrfHistoryList";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
 
 const ExecutiveDashboard = () => {
   const { user } = useAuth();
@@ -46,51 +47,48 @@ const ExecutiveDashboard = () => {
     ...WORKFLOW_QUERY_OPTIONS,
   });
 
-  const [vendorRegistrations, setVendorRegistrations] = useState<VendorRegistration[]>([]);
-  const [loadingVendors, setLoadingVendors] = useState(false);
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
   const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [approvalRemarks, setApprovalRemarks] = useState<Record<string, string>>({});
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
-  const [execDashRaw, setExecDashRaw] = useState<Record<string, unknown> | null>(null);
 
-  const fetchVendorRegistrations = useCallback(async () => {
-    setLoadingVendors(true);
-    try {
+  // Parallel React Queries: fired concurrently on mount, cached across
+  // navigations, and deduped app-wide. No manual `Promise.all` needed —
+  // React Query starts all three in parallel automatically.
+  const {
+    data: vendorRegistrations = [],
+    isLoading: loadingVendors,
+    refetch: refetchVendorRegistrations,
+  } = useQuery<VendorRegistration[]>({
+    queryKey: queryKeys.dashboard.pendingVendorRegistrations(),
+    queryFn: async () => {
       const response = await getPendingVendorRegistrations();
-      if (response.success && response.data) {
-        setVendorRegistrations(response.data);
-      } else {
-        console.error('Failed to load vendor registrations:', response.error);
-      }
-    } catch (error) {
-      console.error('Failed to connect to server for vendor registrations');
-    } finally {
-      setLoadingVendors(false);
-    }
-  }, []);
+      if (!response.success || !response.data) return [];
+      return response.data;
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
 
-  useEffect(() => {
-    void fetchVendorRegistrations();
-  }, [fetchVendorRegistrations]);
-
-  const fetchExecDash = useCallback(async () => {
-    try {
+  const { data: execDashRaw = null, refetch: refetchExecDash } = useQuery<
+    Record<string, unknown> | null
+  >({
+    queryKey: queryKeys.dashboard.executiveRaw(),
+    queryFn: async () => {
       const res = await dashboardApi.getExecutiveDashboard();
-      setExecDashRaw(res.success && res.data ? (res.data as Record<string, unknown>) : null);
-    } catch {
-      setExecDashRaw(null);
-    }
-  }, []);
+      return res.success && res.data ? (res.data as Record<string, unknown>) : null;
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
 
-  useEffect(() => {
-    void fetchExecDash();
-  }, [fetchExecDash]);
+  const fetchVendorRegistrations = useCallback(
+    () => refetchVendorRegistrations().then(() => undefined),
+    [refetchVendorRegistrations],
+  );
 
   useScmAppRefreshListener(async () => {
-    await Promise.all([fetchMRFs(), fetchVendorRegistrations(), fetchExecDash()]);
+    await Promise.all([fetchMRFs(), refetchVendorRegistrations(), refetchExecDash()]);
   });
 
   // Helper to get estimated cost (handles both snake_case and camelCase)
@@ -295,9 +293,7 @@ const ExecutiveDashboard = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 {loading || loadingVendors ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
+                  <TableSkeleton rows={4} />
                 ) : pendingMRFs.length === 0 && vendorRegistrations.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
@@ -575,9 +571,7 @@ const ExecutiveDashboard = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
+                  <TableSkeleton rows={3} />
                 ) : (
                   <DashboardMrfHistoryList
                     mrfs={executiveBuckets.approved}
@@ -601,9 +595,7 @@ const ExecutiveDashboard = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
+                  <TableSkeleton rows={3} />
                 ) : (
                   <DashboardMrfHistoryList
                     mrfs={executiveBuckets.rejected}
@@ -627,9 +619,7 @@ const ExecutiveDashboard = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0">
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
+                  <TableSkeleton rows={3} />
                 ) : (
                   <DashboardMrfHistoryList
                     mrfs={executiveBuckets.completed}

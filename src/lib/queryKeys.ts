@@ -52,11 +52,14 @@ export const queryKeys = {
     all: ['dashboard'] as const,
     procurementManager: () => ['dashboard', 'procurement-manager'] as const,
     supplyChainDirector: () => ['dashboard', 'supply-chain-director'] as const,
+    supplyChainDirectorRaw: () => ['dashboard', 'supply-chain-director', 'raw'] as const,
+    executiveRaw: () => ['dashboard', 'executive', 'raw'] as const,
     recentActivities: (limit: number) => ['dashboard', 'recent-activities', limit] as const,
     executiveMrfs: () => ['dashboard', 'executive', 'mrfs'] as const,
     chairmanMrfs: () => ['dashboard', 'chairman', 'mrfs'] as const,
     scdMrfs: () => ['dashboard', 'scd', 'mrfs'] as const,
     departmentMrfs: (userId: string | number | undefined) =>
       ['dashboard', 'department', 'mrfs', userId] as const,
+    pendingVendorRegistrations: () => ['dashboard', 'pending-vendor-registrations'] as const,
   },
 } as const;

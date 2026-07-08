@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { getDisplayId, getMrfApiId } from "@/utils/displayId";
 import { LineItemPnLSection } from "@/components/LineItemPnLSection";
@@ -58,6 +58,7 @@ import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { authApi, mrfApi, vendorApi, dashboardApi, srfApi, tripRequestApi } from "@/services/api";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { procurementApi } from "@/services/procurementApi";
@@ -98,6 +99,7 @@ function readStoredUserSignatureUrl(): string | null {
 const SupplyChainDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {
     data: mrfRequests = [],
     isLoading: loading,
@@ -131,23 +133,9 @@ const SupplyChainDashboard = () => {
     if (mrfFullDetails?.selectedQuotation) {
     }
   }, [mrfFullDetails]);
-  const [vendorRegistrations, setVendorRegistrations] = useState<
-    VendorRegistration[]
-  >([]);
-  const [vendorRegistrationsLoading, setVendorRegistrationsLoading] =
-    useState(true);
+  // (vendor registrations state replaced by useQuery below)
 
-  const [pendingDirectorSrfs, setPendingDirectorSrfs] = useState<SRF[]>([]);
-  const [pendingDirectorSrfsLoading, setPendingDirectorSrfsLoading] =
-    useState(true);
-  const [pendingTripApprovals, setPendingTripApprovals] = useState<
-    Array<Record<string, unknown>>
-  >([]);
   const [approvingTripId, setApprovingTripId] = useState<string | null>(null);
-  const [scdDashStats, setScdDashStats] = useState<{
-    pendingSrfDirectorApprovals?: number;
-  } | null>(null);
-  const [scdDashRaw, setScdDashRaw] = useState<Record<string, unknown> | null>(null);
   const [pendingFilter, setPendingFilter] = useState<
     "all" | "vendors" | "mrf" | "trips" | "srfs" | "pos"
   >("all");
@@ -156,55 +144,66 @@ const SupplyChainDashboard = () => {
   const [srfDirectorApprovalOpen, setSrfDirectorApprovalOpen] =
     useState(false);
 
-  const fetchPendingDirectorSrfs = useCallback(async () => {
-    setPendingDirectorSrfsLoading(true);
-    try {
-      const dashRes = await dashboardApi.getSupplyChainDirectorDashboard();
-      const dash = dashRes.success ? (dashRes.data as Record<string, unknown>) : null;
-      setScdDashRaw(dash);
-      const fromDash = dash?.srfsAwaitingSupplyChainDirectorApproval;
-      const list: SRF[] = Array.isArray(fromDash) ? (fromDash as SRF[]) : [];
-      setPendingDirectorSrfs(list);
-      const stats = dash?.stats as { pendingSrfDirectorApprovals?: number } | undefined;
-      setScdDashStats(stats ?? null);
-      const trips =
-        (dash?.pendingTripApprovals as unknown) ??
-        (dash?.pending_trip_approvals as unknown);
-      setPendingTripApprovals(Array.isArray(trips) ? (trips as Array<Record<string, unknown>>) : []);
-    } catch {
-      setPendingDirectorSrfs([]);
-      setPendingTripApprovals([]);
-      setScdDashRaw(null);
-    } finally {
-      setPendingDirectorSrfsLoading(false);
-    }
-  }, []);
+  // Single React Query owns the entire SCD dashboard payload; the derived
+  // slices below (SRFs, trips, stats) are memoized reads, no extra requests.
+  const {
+    data: scdDashRaw = null,
+    isLoading: pendingDirectorSrfsLoading,
+    refetch: refetchScdDash,
+  } = useQuery<Record<string, unknown> | null>({
+    queryKey: queryKeys.dashboard.supplyChainDirectorRaw(),
+    queryFn: async () => {
+      const res = await dashboardApi.getSupplyChainDirectorDashboard();
+      return res.success ? (res.data as Record<string, unknown>) : null;
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
 
-  useEffect(() => {
-    void fetchPendingDirectorSrfs();
-  }, [fetchPendingDirectorSrfs]);
+  const pendingDirectorSrfs = useMemo<SRF[]>(() => {
+    const list = scdDashRaw?.srfsAwaitingSupplyChainDirectorApproval;
+    return Array.isArray(list) ? (list as SRF[]) : [];
+  }, [scdDashRaw]);
+
+  const pendingTripApprovals = useMemo<Array<Record<string, unknown>>>(() => {
+    const trips =
+      (scdDashRaw?.pendingTripApprovals as unknown) ??
+      (scdDashRaw?.pending_trip_approvals as unknown);
+    return Array.isArray(trips) ? (trips as Array<Record<string, unknown>>) : [];
+  }, [scdDashRaw]);
+
+  const scdDashStats = useMemo(
+    () =>
+      (scdDashRaw?.stats as { pendingSrfDirectorApprovals?: number } | undefined) ??
+      null,
+    [scdDashRaw],
+  );
+
+  const fetchPendingDirectorSrfs = useCallback(
+    () => refetchScdDash().then(() => undefined),
+    [refetchScdDash],
+  );
   const [mrfForFirstApproval, setMrfForFirstApproval] = useState<MRF | null>(
     null,
   );
   const [firstApprovalDialogOpen, setFirstApprovalDialogOpen] = useState(false);
 
-  const fetchVendorRegistrations = useCallback(async () => {
-    setVendorRegistrationsLoading(true);
-    try {
+  const {
+    data: vendorRegistrations = [],
+    isLoading: vendorRegistrationsLoading,
+    refetch: refetchVendorRegistrations,
+  } = useQuery<VendorRegistration[]>({
+    queryKey: queryKeys.dashboard.pendingVendorRegistrations(),
+    queryFn: async () => {
       const response = await getPendingVendorRegistrations();
-      if (response.success && response.data) {
-        setVendorRegistrations(response.data);
-      }
-    } catch {
-      // Silent fail - vendor registrations are supplementary
-    } finally {
-      setVendorRegistrationsLoading(false);
-    }
-  }, []);
+      return response.success && response.data ? response.data : [];
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
 
-  useEffect(() => {
-    void fetchVendorRegistrations();
-  }, [fetchVendorRegistrations]);
+  const fetchVendorRegistrations = useCallback(
+    () => refetchVendorRegistrations().then(() => undefined),
+    [refetchVendorRegistrations],
+  );
 
   useScmAppRefreshListener(async () => {
     setSignaturePresenceTick((t) => t + 1);
@@ -1099,11 +1098,31 @@ const SupplyChainDashboard = () => {
                                   const res = await tripRequestApi.directorApprove(tid);
                                   if (res.success) {
                                     toast.success("Trip request approved");
-                                    setPendingTripApprovals((prev) =>
-                                      prev.filter(
-                                        (p) => String((p.id as string | number | undefined) ?? "") !== tid,
-                                      ),
-                                    );
+                                     // Optimistically drop the row from the cached
+                                     // SCD dashboard payload — avoids a full refetch flicker.
+                                     queryClient.setQueryData<Record<string, unknown> | null>(
+                                       queryKeys.dashboard.supplyChainDirectorRaw(),
+                                       (prev) => {
+                                         if (!prev) return prev;
+                                         const filterList = (v: unknown) =>
+                                           Array.isArray(v)
+                                             ? v.filter(
+                                                 (p) =>
+                                                   String(
+                                                     ((p as Record<string, unknown>).id as
+                                                       | string
+                                                       | number
+                                                       | undefined) ?? "",
+                                                   ) !== tid,
+                                               )
+                                             : v;
+                                         return {
+                                           ...prev,
+                                           pendingTripApprovals: filterList(prev.pendingTripApprovals),
+                                           pending_trip_approvals: filterList(prev.pending_trip_approvals),
+                                         };
+                                       },
+                                     );
                                     void fetchPendingDirectorSrfs();
                                     window.dispatchEvent(new CustomEvent("app:refresh"));
                                   } else {
@@ -1519,9 +1538,7 @@ const SupplyChainDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
+                    <TableSkeleton rows={3} />
                   ) : pendingPOs.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
@@ -1739,9 +1756,7 @@ const SupplyChainDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
+                    <TableSkeleton rows={3} />
                   ) : (
                     <DashboardMrfHistoryList
                       mrfs={scdBuckets.approved}
@@ -1767,9 +1782,7 @@ const SupplyChainDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
+                    <TableSkeleton rows={3} />
                   ) : (
                     <DashboardMrfHistoryList
                       mrfs={scdBuckets.rejected}
@@ -1795,9 +1808,7 @@ const SupplyChainDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   {loading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
+                    <TableSkeleton rows={3} />
                   ) : (
                     <DashboardMrfHistoryList
                       mrfs={scdBuckets.completed}
