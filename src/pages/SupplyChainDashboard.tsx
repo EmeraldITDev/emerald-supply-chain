@@ -135,6 +135,9 @@ const SupplyChainDashboard = () => {
   const [pendingDirectorSrfs, setPendingDirectorSrfs] = useState<SRF[]>([]);
   const [pendingDirectorSrfsLoading, setPendingDirectorSrfsLoading] =
     useState(true);
+  const [pendingTripApprovals, setPendingTripApprovals] = useState<
+    Array<Record<string, unknown>>
+  >([]);
   const [scdDashStats, setScdDashStats] = useState<{
     pendingSrfDirectorApprovals?: number;
   } | null>(null);
@@ -153,8 +156,13 @@ const SupplyChainDashboard = () => {
       setPendingDirectorSrfs(list);
       const stats = dash?.stats as { pendingSrfDirectorApprovals?: number } | undefined;
       setScdDashStats(stats ?? null);
+      const trips =
+        (dash?.pendingTripApprovals as unknown) ??
+        (dash?.pending_trip_approvals as unknown);
+      setPendingTripApprovals(Array.isArray(trips) ? (trips as Array<Record<string, unknown>>) : []);
     } catch {
       setPendingDirectorSrfs([]);
+      setPendingTripApprovals([]);
     } finally {
       setPendingDirectorSrfsLoading(false);
     }
