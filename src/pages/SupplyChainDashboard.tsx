@@ -138,6 +138,7 @@ const SupplyChainDashboard = () => {
   const [pendingTripApprovals, setPendingTripApprovals] = useState<
     Array<Record<string, unknown>>
   >([]);
+  const [approvingTripId, setApprovingTripId] = useState<string | null>(null);
   const [scdDashStats, setScdDashStats] = useState<{
     pendingSrfDirectorApprovals?: number;
   } | null>(null);
