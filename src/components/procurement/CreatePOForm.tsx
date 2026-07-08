@@ -232,6 +232,14 @@ export function CreatePOForm({
   const [savingMode, setSavingMode] = useState<'draft' | 'finalise' | 'auto' | null>(null);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   /**
+   * Autosave runs in the background and must NEVER block user input or
+   * disable the manual save / generate buttons. It's tracked separately so
+   * the "Save as Draft" / "Generate & Route" buttons stay enabled while it
+   * flushes.
+   */
+  const isAutoSavingRef = useRef(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  /**
    * Field-level errors returned by the backend on a 422 Unprocessable Entity
    * response. Keyed by backend field name so we can attach a red border and
    * inline error message to the specific input that failed. Cleared on the
@@ -335,25 +343,40 @@ export function CreatePOForm({
   }, [hydrate]);
 
   // -------------------------------------------------------------------------
-  // Vendors — default GET /vendors excludes Inactive (merged duplicates).
-  // Directory picker only needs Active + Pending.
+  // Vendors — deferred lazy fetch.
+  //
+  // Previously this eagerly pulled 100 vendors on mount and competed for
+  // bandwidth with the MRF + price-comparison hydration, making the modal
+  // sit on skeleton loaders. We now defer the pull until AFTER hydration
+  // completes, and only pull a small page (25). The Directory dropdown in
+  // the price comparison table also refetches on user search input.
   // -------------------------------------------------------------------------
   useEffect(() => {
+    if (hydrating) return;
     let cancelled = false;
-    setLoadingVendors(true);
-    vendorApi
-      .list({ page: 1, per_page: 100, status: "Active" })
-      .then((res) => {
-        if (cancelled) return;
-        if (res.success && res.data?.items) {
-          setVendors(res.data.items.filter((v) => v.status === "Active" || v.status === "Pending"));
-        }
-      })
-      .finally(() => !cancelled && setLoadingVendors(false));
+    // Kick off in the next tick so the form paints first.
+    const handle = window.setTimeout(() => {
+      if (cancelled) return;
+      setLoadingVendors(true);
+      vendorApi
+        .list({ page: 1, per_page: 25, status: 'Active' })
+        .then((res) => {
+          if (cancelled) return;
+          if (res.success && res.data?.items) {
+            setVendors(
+              res.data.items.filter(
+                (v) => v.status === 'Active' || v.status === 'Pending',
+              ),
+            );
+          }
+        })
+        .finally(() => !cancelled && setLoadingVendors(false));
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(handle);
     };
-  }, []);
+  }, [hydrating]);
 
   // -------------------------------------------------------------------------
   // T&C template (refetch on po_type change)
@@ -767,6 +790,12 @@ export function CreatePOForm({
         // the SCD never sees two pending versions of the same PO.
         ...(isRegen ? { regenerate: true } : {}),
       };
+      // Backend locks the payment schedule after PO generation; sending
+      // `payment_milestones` on a regenerate causes a hard rejection
+      // ("Payment schedule is locked after PO generation"). Strip it.
+      if (isRegen && 'payment_milestones' in payload) {
+        delete (payload as { payment_milestones?: unknown }).payment_milestones;
+      }
       const finalRes = await procurementApi.finalisePO(mrfId, payload);
       if (!finalRes.success || !finalRes.data?.mrf) {
         if (finalRes.fieldErrors) {
