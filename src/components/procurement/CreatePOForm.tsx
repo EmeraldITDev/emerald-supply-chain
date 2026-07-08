@@ -230,6 +230,13 @@ export function CreatePOForm({
   const [isSaving, setIsSaving] = useState(false);
   const [savingMode, setSavingMode] = useState<'draft' | 'finalise' | 'auto' | null>(null);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  /**
+   * Field-level errors returned by the backend on a 422 Unprocessable Entity
+   * response. Keyed by backend field name so we can attach a red border and
+   * inline error message to the specific input that failed. Cleared on the
+   * next save attempt or as the user edits the field.
+   */
+  const [serverFieldErrors, setServerFieldErrors] = useState<Record<string, string>>({});
   const lastManualSaveRef = useRef<number>(0);
   const dirtyRef = useRef(false);
   const debounceRef = useRef<number | null>(null);
