@@ -230,6 +230,13 @@ export function CreatePOForm({
   const [isSaving, setIsSaving] = useState(false);
   const [savingMode, setSavingMode] = useState<'draft' | 'finalise' | 'auto' | null>(null);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  /**
+   * Field-level errors returned by the backend on a 422 Unprocessable Entity
+   * response. Keyed by backend field name so we can attach a red border and
+   * inline error message to the specific input that failed. Cleared on the
+   * next save attempt or as the user edits the field.
+   */
+  const [serverFieldErrors, setServerFieldErrors] = useState<Record<string, string>>({});
   const lastManualSaveRef = useRef<number>(0);
   const dirtyRef = useRef(false);
   const debounceRef = useRef<number | null>(null);
@@ -509,7 +516,11 @@ export function CreatePOForm({
       po_type: form.po_type,
       currency: form.currency,
       ship_to_address: form.ship_to_address.trim() || undefined,
-      tax_rate: form.tax_rate ? Number(form.tax_rate) : undefined,
+      // Allow explicit 0 — do NOT rely on truthiness (0 and "0" would be dropped).
+      tax_rate:
+        form.tax_rate.trim() === '' || Number.isNaN(Number(form.tax_rate))
+          ? undefined
+          : Number(form.tax_rate),
       invoice_submission_email: form.invoice_submission_email.trim() || undefined,
       invoice_submission_cc: form.invoice_submission_cc.trim() || undefined,
       terms_mode: form.terms_mode,
@@ -596,9 +607,13 @@ export function CreatePOForm({
         mrf?.poNumber ||
         mrfId;
       a.href = url;
-      a.download = `PO-${num}-emerald-layout.pdf`;
+      a.download = `PO-${num}.pdf`;
+      // Attach + remove is required by Firefox/Safari; without it the browser
+      // just navigates to the blob: URL instead of saving the file.
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       toast.success('PDF downloaded');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not build PDF');
@@ -634,8 +649,44 @@ export function CreatePOForm({
     setSavingMode(null);
   };
 
+  /**
+   * Normalise the `fieldErrors` bag from an ApiResponse (backend 422) into a
+   * flat `{ field: message }` map that the form can bind to. Values arriving
+   * as arrays are joined with " · " so a single input can surface every
+   * violation the backend reported.
+   */
+  const flattenFieldErrors = (
+    src: Record<string, string | string[]> | undefined,
+  ): Record<string, string> => {
+    if (!src) return {};
+    const out: Record<string, string> = {};
+    Object.entries(src).forEach(([k, v]) => {
+      out[k] = Array.isArray(v) ? v.join(' · ') : String(v);
+    });
+    return out;
+  };
+
+  /** Clear an individual server error the moment the user edits that field. */
+  const clearServerFieldError = useCallback((name: string) => {
+    setServerFieldErrors((prev) => {
+      if (!prev[name]) return prev;
+      const { [name]: _dropped, ...rest } = prev;
+      void _dropped;
+      return rest;
+    });
+  }, []);
+
+  const patchForm = useCallback(
+    (patch: Partial<FormState>) => {
+      setForm((s) => ({ ...s, ...patch }));
+      Object.keys(patch).forEach((k) => clearServerFieldError(k));
+    },
+    [clearServerFieldError],
+  );
+
   const saveDraft = useCallback(async () => {
     if (!acquireLock('draft')) return;
+    setServerFieldErrors({});
     try {
       const pcInvalid = validatePriceComparison(rows, vendors).length > 0;
       if (!pcInvalid) {
@@ -649,6 +700,9 @@ export function CreatePOForm({
       // (b) Save PO draft regardless
       const draftRes = await procurementApi.savePODraft(mrfId, buildPayload());
       if (!draftRes.success) {
+        if (draftRes.fieldErrors) {
+          setServerFieldErrors(flattenFieldErrors(draftRes.fieldErrors));
+        }
         toast.error('Draft save failed', {
           description: draftRes.error || 'Please try again.',
         });
@@ -676,9 +730,13 @@ export function CreatePOForm({
 
   const finalisePO = useCallback(async () => {
     if (!acquireLock('finalise')) return;
+    setServerFieldErrors({});
     try {
       const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
       if (!pcRes.success) {
+        if (pcRes.fieldErrors) {
+          setServerFieldErrors(flattenFieldErrors(pcRes.fieldErrors));
+        }
         toast.error('Could not save price comparison', {
           description: pcRes.error || 'Fix the errors and try again.',
         });
@@ -695,6 +753,9 @@ export function CreatePOForm({
       };
       const finalRes = await procurementApi.finalisePO(mrfId, payload);
       if (!finalRes.success || !finalRes.data?.mrf) {
+        if (finalRes.fieldErrors) {
+          setServerFieldErrors(flattenFieldErrors(finalRes.fieldErrors));
+        }
         toast.error('PO generation failed', {
           description: describeBackendError(finalRes.raw, finalRes.error || 'Please try again.'),
         });
@@ -938,17 +999,50 @@ export function CreatePOForm({
 
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="ship-to">Ship-to / Delivery Address *</Label>
-            <Input id="ship-to" value={form.ship_to_address} onChange={(e) => setForm((s) => ({ ...s, ship_to_address: e.target.value }))} placeholder="e.g. Lekki HQ, Lagos" />
+            <Input
+              id="ship-to"
+              value={form.ship_to_address}
+              onChange={(e) => patchForm({ ship_to_address: e.target.value })}
+              placeholder="e.g. Lekki HQ, Lagos"
+              aria-invalid={Boolean(serverFieldErrors.ship_to_address)}
+              className={cn(serverFieldErrors.ship_to_address && 'border-destructive focus-visible:ring-destructive')}
+            />
+            {serverFieldErrors.ship_to_address && (
+              <p className="text-xs text-destructive">{serverFieldErrors.ship_to_address}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="payment-terms">Payment Terms *</Label>
-            <Input id="payment-terms" value={form.payment_terms} onChange={(e) => setForm((s) => ({ ...s, payment_terms: e.target.value }))} placeholder="e.g. Net 30 Days" />
+            <Input
+              id="payment-terms"
+              value={form.payment_terms}
+              onChange={(e) => patchForm({ payment_terms: e.target.value })}
+              placeholder="e.g. Net 30 Days"
+              aria-invalid={Boolean(serverFieldErrors.payment_terms)}
+              className={cn(serverFieldErrors.payment_terms && 'border-destructive focus-visible:ring-destructive')}
+            />
+            {serverFieldErrors.payment_terms && (
+              <p className="text-xs text-destructive">{serverFieldErrors.payment_terms}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="tax-rate">Tax Rate (%)</Label>
-            <Input id="tax-rate" type="number" min="0" step="0.01" value={form.tax_rate} onChange={(e) => setForm((s) => ({ ...s, tax_rate: e.target.value }))} placeholder="e.g. 7.5" />
+            <Input
+              id="tax-rate"
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.tax_rate}
+              onChange={(e) => patchForm({ tax_rate: e.target.value })}
+              placeholder="e.g. 7.5 (enter 0 for no tax)"
+              aria-invalid={Boolean(serverFieldErrors.tax_rate)}
+              className={cn(serverFieldErrors.tax_rate && 'border-destructive focus-visible:ring-destructive')}
+            />
+            {serverFieldErrors.tax_rate && (
+              <p className="text-xs text-destructive">{serverFieldErrors.tax_rate}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="po-currency">Currency</Label>
@@ -975,15 +1069,35 @@ export function CreatePOForm({
 
           <div className="space-y-2">
             <Label htmlFor="invoice-to">Invoice Submission Email (To)</Label>
-            <Input id="invoice-to" type="email" value={form.invoice_submission_email} onChange={(e) => setForm((s) => ({ ...s, invoice_submission_email: e.target.value }))} aria-invalid={toInvalid} />
+            <Input
+              id="invoice-to"
+              type="email"
+              value={form.invoice_submission_email}
+              onChange={(e) => patchForm({ invoice_submission_email: e.target.value })}
+              aria-invalid={toInvalid || Boolean(serverFieldErrors.invoice_submission_email)}
+              className={cn((toInvalid || serverFieldErrors.invoice_submission_email) && 'border-destructive focus-visible:ring-destructive')}
+            />
             {toInvalid && <p className="text-xs text-destructive">Enter a valid email address.</p>}
+            {!toInvalid && serverFieldErrors.invoice_submission_email && (
+              <p className="text-xs text-destructive">{serverFieldErrors.invoice_submission_email}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="invoice-cc">CC Email *</Label>
-            <Input id="invoice-cc" type="email" value={form.invoice_submission_cc} onChange={(e) => setForm((s) => ({ ...s, invoice_submission_cc: e.target.value }))} aria-invalid={ccBlocked || ccInvalid} />
+            <Input
+              id="invoice-cc"
+              type="email"
+              value={form.invoice_submission_cc}
+              onChange={(e) => patchForm({ invoice_submission_cc: e.target.value })}
+              aria-invalid={ccBlocked || ccInvalid || Boolean(serverFieldErrors.invoice_submission_cc)}
+              className={cn((ccBlocked || ccInvalid || serverFieldErrors.invoice_submission_cc) && 'border-destructive focus-visible:ring-destructive')}
+            />
             {ccBlocked && <p className="text-xs text-destructive">This email address is not allowed in the CC field.</p>}
             {ccInvalid && !ccBlocked && <p className="text-xs text-destructive">Enter a valid email address.</p>}
+            {!ccBlocked && !ccInvalid && serverFieldErrors.invoice_submission_cc && (
+              <p className="text-xs text-destructive">{serverFieldErrors.invoice_submission_cc}</p>
+            )}
           </div>
         </div>
 
@@ -1322,6 +1436,25 @@ export function CreatePOForm({
         </div>
       )}
 
+      {/* Server-side (422) field errors — shows any errors that could not be
+          mapped to a specific input above so the PM still sees the message. */}
+      {Object.keys(serverFieldErrors).length > 0 && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-1.5">
+          <div className="flex items-center gap-2 font-medium text-destructive">
+            <AlertCircle className="h-3.5 w-3.5" />
+            The server rejected {Object.keys(serverFieldErrors).length} field
+            {Object.keys(serverFieldErrors).length === 1 ? '' : 's'} — fix the highlighted inputs below.
+          </div>
+          <ul className="list-disc pl-5 text-muted-foreground space-y-0.5">
+            {Object.entries(serverFieldErrors).map(([field, msg]) => (
+              <li key={field}>
+                <span className="font-medium text-foreground">{field}</span>: {msg}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       </div>
 
       {/* Footer actions — fixed below scroll area so fields are never covered */}
@@ -1367,8 +1500,17 @@ export function CreatePOForm({
             onClick={() => void saveDraft()}
             disabled={isSaving || !hasAnyInput || isFinalised}
           >
-            <Save className="h-3.5 w-3.5 mr-1" />
-            Save as Draft
+            {isSaving && savingMode === 'draft' ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                Processing…
+              </>
+            ) : (
+              <>
+                <Save className="h-3.5 w-3.5 mr-1" />
+                Save as Draft
+              </>
+            )}
           </Button>
           <Button
             onClick={() => void finalisePO()}
@@ -1381,12 +1523,21 @@ export function CreatePOForm({
                 : undefined
             }
           >
-            <Send className="h-3.5 w-3.5 mr-1" />
-            {editingFinalised
-              ? 'Regenerate & replace SCD queue'
-              : fastTrack
-                ? 'Generate & route to SCD (fast-track)'
-                : 'Generate & Route for Approval'}
+            {isSaving && savingMode === 'finalise' ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                Processing…
+              </>
+            ) : (
+              <>
+                <Send className="h-3.5 w-3.5 mr-1" />
+                {editingFinalised
+                  ? 'Regenerate & replace SCD queue'
+                  : fastTrack
+                    ? 'Generate & route to SCD (fast-track)'
+                    : 'Generate & Route for Approval'}
+              </>
+            )}
           </Button>
         </div>
       </div>

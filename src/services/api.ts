@@ -2285,6 +2285,12 @@ async function vendorApiRequest<T>(
       return {
         success: false,
         error: errorMessage,
+        status: 422,
+        raw: data,
+        fieldErrors:
+          data.errors && typeof data.errors === 'object' && !Array.isArray(data.errors)
+            ? (data.errors as Record<string, string | string[]>)
+            : undefined,
       };
     }
 
