@@ -3471,18 +3471,29 @@ export const notificationApi = {
     if (params?.unread_only) queryParams.append('unread_only', 'true');
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     const query = queryParams.toString();
-    const response = await apiRequest<any>(`/notifications${query ? `?${query}` : ''}`);
-    // Backend returns { success: true, notifications: [...], unread_count: ... }
-    if (response.success && response.data) {
+    // Use apiRequestFull so we can read the raw envelope. The backend returns
+    // { success, data: [...], notifications: [...], unread_count, pagination }.
+    // apiRequest would unwrap `data` and drop unread_count/notifications siblings.
+    const response = await apiRequestFull(`/notifications${query ? `?${query}` : ''}`);
+    if (response.success && response.body && typeof response.body === 'object') {
+      const body = response.body as Record<string, any>;
+      const list = Array.isArray(body.notifications)
+        ? body.notifications
+        : Array.isArray(body.data)
+          ? body.data
+          : Array.isArray(body.data?.notifications)
+            ? body.data.notifications
+            : [];
+      const unread = Number(body.unread_count ?? body.data?.unread_count ?? 0) || 0;
       return {
         success: true,
         data: {
-          notifications: (response.data as any).notifications || [],
-          unread_count: (response.data as any).unread_count || 0,
+          notifications: list,
+          unread_count: unread,
         },
       };
     }
-    return response;
+    return { success: false, error: response.error || 'Failed to load notifications' };
   },
 
   markAsRead: async (id: string): Promise<ApiResponse<void>> => {
