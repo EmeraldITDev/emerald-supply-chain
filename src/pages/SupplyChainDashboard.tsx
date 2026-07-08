@@ -1193,7 +1193,8 @@ const SupplyChainDashboard = () => {
               )}
 
               {/* Vendor Selections Pending Approval */}
-              {pendingVendorApprovals.length > 0 && (
+              {(pendingFilter === "all" || pendingFilter === "pos") &&
+                pendingVendorApprovals.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Vendor Selections Pending Approval</CardTitle>
