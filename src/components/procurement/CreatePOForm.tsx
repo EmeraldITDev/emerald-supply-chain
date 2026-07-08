@@ -649,6 +649,41 @@ export function CreatePOForm({
     setSavingMode(null);
   };
 
+  /**
+   * Normalise the `fieldErrors` bag from an ApiResponse (backend 422) into a
+   * flat `{ field: message }` map that the form can bind to. Values arriving
+   * as arrays are joined with " · " so a single input can surface every
+   * violation the backend reported.
+   */
+  const flattenFieldErrors = (
+    src: Record<string, string | string[]> | undefined,
+  ): Record<string, string> => {
+    if (!src) return {};
+    const out: Record<string, string> = {};
+    Object.entries(src).forEach(([k, v]) => {
+      out[k] = Array.isArray(v) ? v.join(' · ') : String(v);
+    });
+    return out;
+  };
+
+  /** Clear an individual server error the moment the user edits that field. */
+  const clearServerFieldError = useCallback((name: string) => {
+    setServerFieldErrors((prev) => {
+      if (!prev[name]) return prev;
+      const { [name]: _dropped, ...rest } = prev;
+      void _dropped;
+      return rest;
+    });
+  }, []);
+
+  const patchForm = useCallback(
+    (patch: Partial<FormState>) => {
+      setForm((s) => ({ ...s, ...patch }));
+      Object.keys(patch).forEach((k) => clearServerFieldError(k));
+    },
+    [clearServerFieldError],
+  );
+
   const saveDraft = useCallback(async () => {
     if (!acquireLock('draft')) return;
     try {
