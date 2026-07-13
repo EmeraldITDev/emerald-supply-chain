@@ -1,4 +1,4 @@
-import { mrfApi, vendorApi } from '@/services/api';
+import { vendorApi } from '@/services/api';
 import { procurementApi } from '@/services/procurementApi';
 import type { MRF } from '@/types';
 import { getMrfApiId } from '@/utils/displayId';
@@ -54,37 +54,62 @@ async function buildEmeraldModelForMrf(
   const mrfId = getMrfApiId(mrf) || mrf.id;
   if (!mrfId) return { error: 'Missing MRF identifier.' };
 
-  const fullRes = await mrfApi.getById(mrfId);
+  // Lightweight for_po payload already includes form fields + priceComparisons.
+  const fullRes = await procurementApi.getMRFForPO(mrfId);
   if (!fullRes.success || !fullRes.data) {
     return { error: fullRes.error || 'Could not load MRF.' };
   }
-  const fullMrf = fullRes.data;
+  const fullMrf = fullRes.data as MRF & {
+    priceComparisons?: import('@/types/procurement').PriceComparisonEntry[];
+    po_type?: string;
+    custom_terms?: string;
+    customTerms?: string;
+    terms_mode?: string;
+    termsMode?: string;
+  };
 
-  const pcRes = await procurementApi.getPriceComparison(mrfId);
-  const rows = pcRes.success && pcRes.data ? pcRes.data : [];
+  let rows =
+    Array.isArray(fullMrf.priceComparisons) && fullMrf.priceComparisons.length > 0
+      ? fullMrf.priceComparisons
+      : [];
+  if (rows.length === 0) {
+    const pcRes = await procurementApi.getPriceComparison(mrfId);
+    rows = pcRes.success && pcRes.data ? pcRes.data : [];
+  }
 
   const selectedRow = rows.find(
-    (r) => (r as { is_selected?: boolean; isSelected?: boolean }).is_selected
-      || (r as { is_selected?: boolean; isSelected?: boolean }).isSelected,
+    (r) =>
+      (r as { is_selected?: boolean; isSelected?: boolean }).is_selected ||
+      (r as { is_selected?: boolean; isSelected?: boolean }).isSelected,
   );
   const vendorId =
-    (selectedRow as { vendor_id?: string | number } | undefined)?.vendor_id
-    ?? (fullMrf as { selected_vendor_id?: string | number; selectedVendorId?: string | number })
-      .selected_vendor_id
-    ?? (fullMrf as { selected_vendor_id?: string | number; selectedVendorId?: string | number })
+    (selectedRow as { vendor_id?: string | number } | undefined)?.vendor_id ??
+    (fullMrf as { selected_vendor_id?: string | number; selectedVendorId?: string | number })
+      .selected_vendor_id ??
+    (fullMrf as { selected_vendor_id?: string | number; selectedVendorId?: string | number })
       .selectedVendorId;
 
+  const vendorName =
+    (selectedRow as { vendor_name?: string } | undefined)?.vendor_name ||
+    (selectedRow as { vendorName?: string } | undefined)?.vendorName;
+
   const vendors: import('@/types').Vendor[] = [];
-  if (vendorId) {
+  if (vendorName && vendorId) {
+    vendors.push({
+      id: String(vendorId),
+      name: vendorName,
+    } as import('@/types').Vendor);
+  } else if (vendorId) {
     const vendorsRes = await vendorApi.getById(String(vendorId));
     if (vendorsRes.success && vendorsRes.data) {
       vendors.push(vendorsRes.data);
     }
   }
 
-  const poType = String(
-    (fullMrf as { po_type?: string }).po_type || 'goods',
-  ) as 'goods' | 'services' | 'logistics';
+  const poType = String(fullMrf.po_type || 'goods') as
+    | 'goods'
+    | 'services'
+    | 'logistics';
   let standardTermsBody: string | undefined;
   const termsRes = await procurementApi.getPOTermsTemplate(poType);
   if (termsRes.success && termsRes.data) {
@@ -97,13 +122,9 @@ async function buildEmeraldModelForMrf(
     rows,
     vendors,
     standardTermsBody,
-    terms_mode: coercePOTermsMode(
-      (fullMrf as { terms_mode?: string; termsMode?: string }).terms_mode ??
-        (fullMrf as { terms_mode?: string; termsMode?: string }).termsMode,
-    ),
+    terms_mode: coercePOTermsMode(fullMrf.terms_mode ?? fullMrf.termsMode),
     user_terms_text: userClausesFromStoredCustomTerms(
-      (fullMrf as { custom_terms?: string; customTerms?: string }).custom_terms ??
-        (fullMrf as { custom_terms?: string; customTerms?: string }).customTerms,
+      fullMrf.custom_terms ?? fullMrf.customTerms,
     ),
     includeSignature: Boolean(options?.includeSignature),
     signatureDataUrl: options?.signatureDataUrl,

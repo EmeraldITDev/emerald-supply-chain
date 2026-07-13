@@ -156,6 +156,23 @@ const initialState = (): FormState => ({
 const isValidEmail = (e: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
+/** CC may be a comma/semicolon-separated list of emails. */
+const isValidEmailList = (value: string) => {
+  const parts = value
+    .split(/[,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return true;
+  return parts.every(isValidEmail);
+};
+
+const emailListContains = (value: string, target: string) =>
+  value
+    .split(/[,;]+/)
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(target.trim().toLowerCase());
+
 /** Summarise backend vendor resolution from generate-po for the success toast. */
 function formatResolvedVendorsSummary(entries: ResolvedVendorEntry[]): string | undefined {
   if (!entries.length) return undefined;
@@ -301,10 +318,8 @@ export function CreatePOForm({
     const slowTimer = window.setTimeout(() => setHydrateSlow(true), 15000);
     const hydrateStarted = performance.now();
     try {
-      const [mrfRes, pcRes] = await Promise.all([
-        procurementApi.getMRFForPO(mrfId),
-        procurementApi.getPriceComparison(mrfId),
-      ]);
+      // Single lightweight call — for_po already embeds priceComparisons + milestones.
+      const mrfRes = await procurementApi.getMRFForPO(mrfId);
       if (!mrfRes.success || !mrfRes.data) {
         setHydrateError(mrfRes.error || 'Failed to load MRF.');
         return;
@@ -407,7 +422,12 @@ export function CreatePOForm({
         );
       }
 
-      const incoming = pcRes.success && pcRes.data ? pcRes.data : m.priceComparisons;
+      let incoming = m.priceComparisons;
+      // Fallback only when for_po payload omitted comparisons (legacy backends).
+      if (!Array.isArray(incoming) || incoming.length === 0) {
+        const pcRes = await procurementApi.getPriceComparison(mrfId);
+        incoming = pcRes.success && pcRes.data ? pcRes.data : undefined;
+      }
       if (Array.isArray(incoming) && incoming.length > 0) {
         setRows(incoming.map((e) => hydrateRow(e, groupKeyFor(e))));
       }
@@ -420,6 +440,7 @@ export function CreatePOForm({
           ship_to: Boolean(m.ship_to_address),
           tax_rate: m.tax_rate != null && m.tax_rate !== '',
           milestones: milestones.length,
+          price_rows: Array.isArray(incoming) ? incoming.length : 0,
         },
       });
     } catch (err) {
@@ -533,11 +554,11 @@ export function CreatePOForm({
   const isFinalisedRaw = signedLocked;
   const isFinalised = isFinalisedRaw && !editingFinalised;
 
-  const ccBlocked =
-    form.invoice_submission_cc.trim().toLowerCase() === BLOCKED_EMAIL.toLowerCase();
+  const ccBlocked = emailListContains(form.invoice_submission_cc, BLOCKED_EMAIL);
 
   const ccInvalid =
-    form.invoice_submission_cc.trim().length > 0 && !isValidEmail(form.invoice_submission_cc);
+    form.invoice_submission_cc.trim().length > 0 &&
+    !isValidEmailList(form.invoice_submission_cc);
 
   const termsModeCustomInvalid =
     form.terms_mode === 'custom' && !form.custom_terms.trim();
@@ -1285,7 +1306,11 @@ export function CreatePOForm({
               className={cn((ccBlocked || ccInvalid || serverFieldErrors.invoice_submission_cc) && 'border-destructive focus-visible:ring-destructive')}
             />
             {ccBlocked && <p className="text-xs text-destructive">This email address is not allowed in the CC field.</p>}
-            {ccInvalid && !ccBlocked && <p className="text-xs text-destructive">Enter a valid email address.</p>}
+            {ccInvalid && !ccBlocked && (
+              <p className="text-xs text-destructive">
+                Enter valid email addresses (comma-separated allowed).
+              </p>
+            )}
             {!ccBlocked && !ccInvalid && serverFieldErrors.invoice_submission_cc && (
               <p className="text-xs text-destructive">{serverFieldErrors.invoice_submission_cc}</p>
             )}
