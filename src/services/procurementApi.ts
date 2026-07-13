@@ -115,9 +115,11 @@ export const procurementApi = {
     );
   },
 
-  /** GET /api/mrfs/{id} — used to hydrate the form. */
+  /** GET /api/mrfs/{id}?for_po=1 — lightweight hydrate for Create/Edit PO. */
   getMRFForPO: async (mrfId: string): Promise<ApiResponse<MRF>> => {
-    return apiRequest<MRF>(`/mrfs/${encodeURIComponent(mrfId)}`);
+    return apiRequest<MRF>(
+      `/mrfs/${encodeURIComponent(mrfId)}?for_po=1`,
+    );
   },
 
   /**

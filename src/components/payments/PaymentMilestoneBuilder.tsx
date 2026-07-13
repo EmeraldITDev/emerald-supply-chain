@@ -67,7 +67,11 @@ export function PaymentMilestoneBuilder({ value, onChange, onValidityChange, req
   );
 
   const total = useMemo(() => sumMilestonePercentages(value), [value]);
-  const valid = value.length > 0 && Math.abs(total - 100) < 0.001;
+  // Empty schedule is valid when optional (Create PO marks milestones optional).
+  const valid =
+    value.length === 0
+      ? !required
+      : Math.abs(total - 100) < 0.001;
 
   useEffect(() => {
     onValidityChange?.(valid);

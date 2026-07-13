@@ -1854,9 +1854,18 @@ const Procurement = () => {
       mrf.signedPOShareUrl;
     const unsignedPOUrl = getMRFPOShareUrl(mrf) || getMRFPOUrl(mrf);
 
-    // If it's an external URL (OneDrive, etc.), open it directly
+    // Prefer stored signed/unsigned URLs (S3) before client-side jsPDF rebuild.
     if (signedPOUrl && signedPOUrl.startsWith("http")) {
       window.open(signedPOUrl, "_blank");
+      return;
+    }
+
+    if (unsignedPOUrl && unsignedPOUrl.startsWith("http")) {
+      window.open(unsignedPOUrl, "_blank");
+      toast({
+        title: "Download started",
+        description: "Opening the stored Purchase Order PDF.",
+      });
       return;
     }
 
@@ -1878,11 +1887,6 @@ const Procurement = () => {
         description: `${emerald.error ?? "Unknown error"} Trying the server copy if available.`,
         variant: "default",
       });
-    }
-
-    if (unsignedPOUrl && unsignedPOUrl.startsWith("http")) {
-      window.open(unsignedPOUrl, "_blank");
-      return;
     }
 
     // Try to download from backend API

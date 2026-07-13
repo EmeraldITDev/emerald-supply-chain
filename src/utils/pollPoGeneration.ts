@@ -8,7 +8,8 @@ import type { MRF } from '@/types';
  * async) returns 202 immediately while a worker builds the PDF. The frontend
  * must then poll until either:
  *   - `unsigned_po_url` / `unsignedPOUrl` is populated, OR
- *   - `workflow_state` (or `workflowState`) equals `po_generated`.
+ *   - `workflow_state` (or `workflowState`) equals `po_generated`, OR
+ *   - `po_generation_error` is set (failure — throws).
  *
  * Resolves with the latest MRF once ready, or `null` if it never resolves
  * inside the timeout window.
@@ -17,15 +18,24 @@ export async function pollForGeneratedPO(
   mrfId: string,
   opts: { intervalMs?: number; timeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<MRF | null> {
-  const intervalMs = opts.intervalMs ?? 2000;
-  const timeoutMs = opts.timeoutMs ?? 45_000;
+  const intervalMs = opts.intervalMs ?? 1500;
+  const timeoutMs = opts.timeoutMs ?? 60_000;
   const started = Date.now();
 
   while (Date.now() - started < timeoutMs) {
     if (opts.signal?.aborted) return null;
     const res = await mrfApi.getById(mrfId);
     const mrf = res.success ? (res.data as MRF | undefined) : undefined;
-    if (mrf && isPoReady(mrf)) return mrf;
+    if (mrf) {
+      const err =
+        (mrf as MRF & { po_generation_error?: string; poGenerationError?: string })
+          .po_generation_error ||
+        (mrf as MRF & { poGenerationError?: string }).poGenerationError;
+      if (err && String(err).trim()) {
+        throw new Error(String(err));
+      }
+      if (isPoReady(mrf)) return mrf;
+    }
     await wait(intervalMs, opts.signal);
   }
   return null;

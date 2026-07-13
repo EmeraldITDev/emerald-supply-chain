@@ -159,7 +159,7 @@ export function resolveSelectedSupplier(
   return { supplierName, supplierAddress, supplierRows };
 }
 
-function parsePaymentTermsFromCustomTerms(custom?: string | null): string | null {
+export function parsePaymentTermsFromCustomTerms(custom?: string | null): string | null {
   if (!custom?.trim()) return null;
   const m = custom.match(/Payment\s*Terms:\s*([^\n]+)/i);
   let v = m?.[1]?.trim();
@@ -170,6 +170,25 @@ function parsePaymentTermsFromCustomTerms(custom?: string | null): string | null
   if (!v) return null;
   const cleaned = v.replace(/^Payment\s*Terms\s*:?\s*/i, '').trim();
   return cleaned || v;
+}
+
+/** Pull `Delivery / Service Date: YYYY-MM-DD` out of stored remarks. */
+export function parseDeliveryDateFromRemarks(remarks?: string | null): Date | undefined {
+  if (!remarks?.trim()) return undefined;
+  const m = remarks.match(/Delivery\s*\/\s*Service\s*Date:\s*(\d{4}-\d{2}-\d{2})/i);
+  if (!m?.[1]) return undefined;
+  const d = new Date(`${m[1]}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+/** Strip the delivery-date prefix block from remarks for the free-text field. */
+export function userRemarksFromStored(remarks?: string | null): string {
+  if (!remarks?.trim()) return '';
+  return remarks
+    .split(/\n\s*\n/)
+    .filter((block) => !/^Delivery\s*\/\s*Service\s*Date:/im.test(block.trim()))
+    .join('\n\n')
+    .trim();
 }
 
 export function coercePOTermsMode(v: unknown): POTermsMode {

@@ -59,7 +59,7 @@ import {
   makeEmptyRow,
 } from './PriceComparisonTable';
 import { EmeraldPurchaseOrderPreview } from './EmeraldPurchaseOrderPreview';
-import { buildEmeraldPoDisplayModel, coercePOTermsMode, resolveSelectedSupplier } from '@/utils/emeraldPoDocumentModel';
+import { buildEmeraldPoDisplayModel, coercePOTermsMode, parseDeliveryDateFromRemarks, parsePaymentTermsFromCustomTerms, resolveSelectedSupplier, userClausesFromStoredCustomTerms, userRemarksFromStored } from '@/utils/emeraldPoDocumentModel';
 import { previewPoNumber } from '@/utils/poNumber';
 import {
   formatPoAmount,
@@ -249,6 +249,8 @@ export function CreatePOForm({
   const lastManualSaveRef = useRef<number>(0);
   const dirtyRef = useRef(false);
   const debounceRef = useRef<number | null>(null);
+  /** Suppress dirty/autosave for the first form write that comes from hydrate. */
+  const justHydratedRef = useRef(false);
 
   // ---------- review + cancel ----------
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -283,6 +285,7 @@ export function CreatePOForm({
     setHydrateSlow(false);
     setHydrateError(null);
     const slowTimer = window.setTimeout(() => setHydrateSlow(true), 15000);
+    const hydrateStarted = performance.now();
     try {
       const [mrfRes, pcRes] = await Promise.all([
         procurementApi.getMRFForPO(mrfId),
@@ -303,11 +306,56 @@ export function CreatePOForm({
         po_draft_saved_at?: string | null;
         is_po_draft?: boolean;
         priceComparisons?: PriceComparisonEntry[];
+        po_type?: string;
+        poType?: string;
+        po_payment_terms?: string | null;
+        payment_terms?: string | null;
+        paymentTerms?: string | null;
+        expected_delivery_date?: string | null;
+        delivery_date?: string | null;
+        deliveryDate?: string | null;
+        payment_milestones?: Array<{
+          label?: string;
+          percentage?: number;
+          trigger_condition?: string;
+          triggerCondition?: string;
+        }>;
+        paymentMilestones?: Array<{
+          label?: string;
+          percentage?: number;
+          trigger_condition?: string;
+          triggerCondition?: string;
+        }>;
       };
       setMrf(m);
+
+      const deliveryRaw =
+        m.expected_delivery_date || m.delivery_date || m.deliveryDate || null;
+      let deliveryDate: Date | undefined;
+      if (deliveryRaw) {
+        const d = new Date(`${String(deliveryRaw).slice(0, 10)}T00:00:00`);
+        if (!Number.isNaN(d.getTime())) deliveryDate = d;
+      }
+      if (!deliveryDate) {
+        deliveryDate = parseDeliveryDateFromRemarks(m.remarks);
+      }
+
+      const paymentTerms =
+        (m.po_payment_terms || m.payment_terms || m.paymentTerms || '').trim() ||
+        parsePaymentTermsFromCustomTerms(m.custom_terms) ||
+        '';
+
+      const poTypeRaw = String(m.po_type || m.poType || 'goods').toLowerCase();
+      const poType: POType =
+        poTypeRaw === 'services' || poTypeRaw === 'logistics' ? poTypeRaw : 'goods';
+
+      justHydratedRef.current = true;
       setForm((prev) => ({
         ...prev,
+        po_type: poType,
+        delivery_date: deliveryDate ?? prev.delivery_date,
         ship_to_address: m.ship_to_address ?? prev.ship_to_address,
+        payment_terms: paymentTerms || prev.payment_terms,
         currency: normalizeCurrencyCode(m.currency),
         tax_rate:
           m.tax_rate === null || m.tax_rate === undefined || m.tax_rate === ''
@@ -318,23 +366,53 @@ export function CreatePOForm({
         invoice_submission_cc:
           m.invoice_submission_cc || prev.invoice_submission_cc,
         terms_mode: coercePOTermsMode(
-          (m as { terms_mode?: string; termsMode?: string }).terms_mode ??
-            (m as { terms_mode?: string; termsMode?: string }).termsMode,
+          (m as { terms_mode?: string; termsMode?: string; po_terms_mode?: string }).terms_mode ??
+            (m as { termsMode?: string }).termsMode ??
+            (m as { po_terms_mode?: string }).po_terms_mode,
         ),
-        custom_terms: m.custom_terms ?? prev.custom_terms,
-        remarks: m.remarks ?? prev.remarks,
+        custom_terms:
+          userClausesFromStoredCustomTerms(m.custom_terms) ??
+          m.custom_terms ??
+          prev.custom_terms,
+        remarks: userRemarksFromStored(m.remarks) || (m.remarks ?? prev.remarks),
       }));
       setDraftSavedAt(m.po_draft_saved_at ?? null);
+
+      const milestones = m.payment_milestones ?? m.paymentMilestones ?? [];
+      if (Array.isArray(milestones) && milestones.length > 0) {
+        setPaymentMilestones(
+          milestones.map((row, i) => ({
+            milestoneNumber: i + 1,
+            label: row.label ?? '',
+            percentage: Number(row.percentage) || 0,
+            triggerCondition: (row.triggerCondition ||
+              row.trigger_condition ||
+              'on_advance') as PaymentMilestoneInput['triggerCondition'],
+          })),
+        );
+      }
 
       const incoming = pcRes.success && pcRes.data ? pcRes.data : m.priceComparisons;
       if (Array.isArray(incoming) && incoming.length > 0) {
         setRows(incoming.map((e) => hydrateRow(e, groupKeyFor(e))));
       }
+      console.info('[PO hydrate]', {
+        mrfId,
+        elapsed_ms: Math.round(performance.now() - hydrateStarted),
+        fields: {
+          delivery_date: Boolean(deliveryDate),
+          payment_terms: Boolean(paymentTerms),
+          ship_to: Boolean(m.ship_to_address),
+          tax_rate: m.tax_rate != null && m.tax_rate !== '',
+          milestones: milestones.length,
+        },
+      });
     } catch (err) {
       setHydrateError(err instanceof Error ? err.message : 'Failed to load MRF.');
     } finally {
       window.clearTimeout(slowTimer);
       setHydrating(false);
+      dirtyRef.current = false;
     }
   }, [mrfId]);
 
@@ -541,12 +619,18 @@ export function CreatePOForm({
   // Mark dirty whenever inputs change (after hydrate completes)
   useEffect(() => {
     if (hydrating) return;
+    if (justHydratedRef.current) {
+      justHydratedRef.current = false;
+      dirtyRef.current = false;
+      return;
+    }
     dirtyRef.current = true;
-  }, [form, rows, hydrating]);
+  }, [form, rows, paymentMilestones, hydrating]);
 
   // -------------------------------------------------------------------------
   // Build the PO payload from form state.
   // Per spec: delivery date appended to remarks, payment terms appended to custom_terms.
+  // Top-level delivery_date / payment_terms are ALWAYS sent so draft reopen works.
   // -------------------------------------------------------------------------
   const buildPayload = useCallback((): POFormPayload => {
     const remarksPieces: string[] = [];
@@ -573,17 +657,16 @@ export function CreatePOForm({
       terms_mode: form.terms_mode,
       custom_terms: customPieces.join('\n\n') || undefined,
       remarks: remarksPieces.join('\n\n') || undefined,
+      // Always persist dedicated columns (not only allow_missing_rfq path).
+      payment_terms: form.payment_terms.trim() || undefined,
+      delivery_date: form.delivery_date
+        ? format(form.delivery_date, 'yyyy-MM-dd')
+        : undefined,
     };
 
     if (fastTrack) base.fast_track = true;
     if (allowMissingRfq) {
       base.allow_missing_rfq = true;
-      if (form.payment_terms.trim()) {
-        base.payment_terms = form.payment_terms.trim();
-      }
-      if (form.delivery_date) {
-        base.delivery_date = format(form.delivery_date, 'yyyy-MM-dd');
-      }
     }
 
     if (paymentMilestones.length > 0 && paymentMilestonesValid) {
@@ -682,7 +765,13 @@ export function CreatePOForm({
   // -------------------------------------------------------------------------
   // Save flows
   // -------------------------------------------------------------------------
-  const acquireLock = (mode: 'draft' | 'finalise' | 'auto'): boolean => {
+  const acquireLock = async (mode: 'draft' | 'finalise' | 'auto'): Promise<boolean> => {
+    // Wait for in-flight autosave so manual save / finalise never race it.
+    if (isAutoSavingRef.current) {
+      for (let i = 0; i < 40 && isAutoSavingRef.current; i += 1) {
+        await new Promise((r) => window.setTimeout(r, 50));
+      }
+    }
     if (isSavingRef.current) return false;
     isSavingRef.current = true;
     setIsSaving(true);
@@ -732,7 +821,7 @@ export function CreatePOForm({
   );
 
   const saveDraft = useCallback(async () => {
-    if (!acquireLock('draft')) return;
+    if (!(await acquireLock('draft'))) return;
     setServerFieldErrors({});
     try {
       const pcInvalid = validatePriceComparison(rows, vendors).length > 0;
@@ -776,7 +865,7 @@ export function CreatePOForm({
   }, [mrfId, rows, buildPayload, vendors, mrf, onDraftSaved]);
 
   const finalisePO = useCallback(async () => {
-    if (!acquireLock('finalise')) return;
+    if (!(await acquireLock('finalise'))) return;
     setServerFieldErrors({});
     try {
       const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
@@ -820,14 +909,24 @@ export function CreatePOForm({
       // Backend may 202-accept and defer PDF generation to a queue worker.
       // Poll GET /api/mrfs/{id} until unsigned_po_url / workflow_state show up.
       if (!isPoReady(resolvedMrf)) {
-        const polled = await pollForGeneratedPO(mrfId);
-        if (polled) {
-          resolvedMrf = polled;
-        } else {
-          toast.warning('PO generation is still processing', {
+        try {
+          const polled = await pollForGeneratedPO(mrfId);
+          if (polled) {
+            resolvedMrf = polled;
+          } else {
+            toast.warning('PO generation is still processing', {
+              description:
+                'The backend accepted the request but the PDF is not ready yet. Refresh in a moment to see the unsigned PO.',
+            });
+          }
+        } catch (pollErr) {
+          toast.error('PO generation failed', {
             description:
-              'The backend accepted the request but the PDF is not ready yet. Refresh in a moment to see the unsigned PO.',
+              pollErr instanceof Error
+                ? pollErr.message
+                : 'Background PDF generation failed. Please try again.',
           });
+          return;
         }
       }
       const wf = String(
