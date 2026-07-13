@@ -102,7 +102,21 @@ export interface CreatePOFormProps {
 
 const BLOCKED_EMAIL = 'douglas.anuforo@emeraldcfze.com';
 const DEFAULT_INVOICE_TO = 'accountpayables@emeraldcfze.com';
-const DEFAULT_INVOICE_CC = 'lateef.olanrewaju@emeraldcfze.com';
+const PROCUREMENT_CC = 'procurement@emeraldcfze.com';
+const DEFAULT_INVOICE_CC = `lateef.olanrewaju@emeraldcfze.com, ${PROCUREMENT_CC}`;
+
+/** Ensure procurement is always on the invoice CC list. */
+function ensureProcurementCc(cc: string | null | undefined): string {
+  const parts = String(cc || '')
+    .split(/[,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const lower = new Set(parts.map((p) => p.toLowerCase()));
+  if (!lower.has(PROCUREMENT_CC)) {
+    parts.push(PROCUREMENT_CC);
+  }
+  return parts.join(', ') || DEFAULT_INVOICE_CC;
+}
 const PO_TYPES: { value: POType; label: string }[] = [
   { value: 'goods', label: 'Goods' },
   { value: 'services', label: 'Services' },
@@ -363,8 +377,9 @@ export function CreatePOForm({
             : String(m.tax_rate),
         invoice_submission_email:
           m.invoice_submission_email || prev.invoice_submission_email,
-        invoice_submission_cc:
-          m.invoice_submission_cc || prev.invoice_submission_cc,
+        invoice_submission_cc: ensureProcurementCc(
+          m.invoice_submission_cc || prev.invoice_submission_cc || DEFAULT_INVOICE_CC,
+        ),
         terms_mode: coercePOTermsMode(
           (m as { terms_mode?: string; termsMode?: string; po_terms_mode?: string }).terms_mode ??
             (m as { termsMode?: string }).termsMode ??
@@ -653,7 +668,7 @@ export function CreatePOForm({
           ? undefined
           : Number(form.tax_rate),
       invoice_submission_email: form.invoice_submission_email.trim() || undefined,
-      invoice_submission_cc: form.invoice_submission_cc.trim() || undefined,
+      invoice_submission_cc: ensureProcurementCc(form.invoice_submission_cc.trim()) || undefined,
       terms_mode: form.terms_mode,
       custom_terms: customPieces.join('\n\n') || undefined,
       remarks: remarksPieces.join('\n\n') || undefined,
@@ -690,7 +705,7 @@ export function CreatePOForm({
           ? (mrf as MRF & { tax_rate?: number | string }).tax_rate
           : Number(form.tax_rate),
       invoice_submission_email: form.invoice_submission_email.trim() || undefined,
-      invoice_submission_cc: form.invoice_submission_cc.trim() || undefined,
+      invoice_submission_cc: ensureProcurementCc(form.invoice_submission_cc.trim()) || undefined,
       custom_terms: payload.custom_terms ?? (mrf as MRF & { custom_terms?: string }).custom_terms,
       remarks: payload.remarks ?? (mrf as MRF & { remarks?: string }).remarks,
       po_number:

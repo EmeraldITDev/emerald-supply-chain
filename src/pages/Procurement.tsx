@@ -1854,18 +1854,10 @@ const Procurement = () => {
       mrf.signedPOShareUrl;
     const unsignedPOUrl = getMRFPOShareUrl(mrf) || getMRFPOUrl(mrf);
 
-    // Prefer stored signed/unsigned URLs (S3) before client-side jsPDF rebuild.
+    // Signed POs must come from storage (SCD signature). Unsigned POs always
+    // use the Emerald client template — never serve legacy Dompdf S3 copies.
     if (signedPOUrl && signedPOUrl.startsWith("http")) {
       window.open(signedPOUrl, "_blank");
-      return;
-    }
-
-    if (unsignedPOUrl && unsignedPOUrl.startsWith("http")) {
-      window.open(unsignedPOUrl, "_blank");
-      toast({
-        title: "Download started",
-        description: "Opening the stored Purchase Order PDF.",
-      });
       return;
     }
 
@@ -1878,13 +1870,13 @@ const Procurement = () => {
       if (emerald.ok) {
         toast({
           title: "Download started",
-          description: `PO-${poNum}.pdf is downloading to your device.`,
+          description: `PO-${poNum}.pdf (Emerald template) is downloading.`,
         });
         return;
       }
       toast({
         title: "Emerald PO layout unavailable",
-        description: `${emerald.error ?? "Unknown error"} Trying the server copy if available.`,
+        description: `${emerald.error ?? "Unknown error"} Trying the server Emerald copy.`,
         variant: "default",
       });
     }

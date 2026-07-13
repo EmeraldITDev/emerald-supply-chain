@@ -303,7 +303,17 @@ export function buildEmeraldPoDisplayModel(input: {
   const poDateDisplay = format(pDate, 'dd/MM/yyyy');
 
   const invoiceTo = mrf.invoice_submission_email?.trim() || 'accountpayables@emeraldcfze.com';
-  const invoiceCc = mrf.invoice_submission_cc?.trim() || 'lateef.olanrewaju@emeraldcfze.com';
+  const rawCc =
+    mrf.invoice_submission_cc?.trim() ||
+    'lateef.olanrewaju@emeraldcfze.com, procurement@emeraldcfze.com';
+  const ccParts = rawCc
+    .split(/[,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!ccParts.some((e) => e.toLowerCase() === 'procurement@emeraldcfze.com')) {
+    ccParts.push('procurement@emeraldcfze.com');
+  }
+  const invoiceCc = ccParts.join(', ');
   const invoiceSubmissionLine = `Invoice submission: ${invoiceTo} cc: ${invoiceCc}`;
 
   const standardTermsLines = resolvePoTermsLines({
