@@ -123,6 +123,20 @@ export const procurementApi = {
   },
 
   /**
+   * GET /api/mrfs/{id}?include_pnl=1&include_documents=1 — MRF details hydrate
+   * that seeds Budget vs Actuals + Procurement Documents without extra round-trips.
+   */
+  getMRFDetailsHydrate: async (mrfId: string): Promise<ApiResponse<MRF & {
+    profitAndLoss?: import('@/types').ProfitAndLoss;
+    procurementDocuments?: import('@/types/procurement-documents').ProcurementDocumentsResponse;
+    procurement_documents?: import('@/types/procurement-documents').ProcurementDocumentsResponse;
+  }>> => {
+    return apiRequest(
+      `/mrfs/${encodeURIComponent(mrfId)}?include_pnl=1&include_documents=1`,
+    );
+  },
+
+  /**
    * GET /api/mrfs/{id}/workflow-gates — Finance AP Phase 3.
    *
    * Returns vendor invoice gate, delivery confirmation requirements, and

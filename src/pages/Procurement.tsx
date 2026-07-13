@@ -105,6 +105,7 @@ import {
   poApi,
   srfApi,
 } from "@/services/api";
+import { procurementApi } from "@/services/procurementApi";
 import {
   normalizeQuotation,
   displayNumeric,
@@ -117,7 +118,6 @@ import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
 import { normalizeAttachments } from "@/utils/attachments";
 import { isPORevisionRequired, getRejectionReason } from "@/utils/poHelpers";
-import { downloadEmeraldPurchaseOrderForMrf } from "@/utils/emeraldPoPdfActions";
 import {
   Select,
   SelectContent,
@@ -237,6 +237,8 @@ const Procurement = () => {
     useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+  const [loadingQuotations, setLoadingQuotations] = useState(false);
+  const [mrfDetailDocs, setMrfDetailDocs] = useState<import("@/types/procurement-documents").ProcurementDocumentsResponse | null>(null);
 
   // SRF Details Dialog
   const [srfDetailsDialogOpen, setSRFDetailsDialogOpen] = useState(false);
@@ -1201,20 +1203,34 @@ const Procurement = () => {
     let cancelled = false;
     mrfDeepLinkHandled.current = mrfQ;
     setMrfDetailsDialogOpen(true);
-    setLoadingFullDetails(true);
+    setLoadingFullDetails(false);
+    setLoadingQuotations(true);
     setMrfFullDetails(null);
+    setMrfDetailDocs(null);
 
     const openFromRow = findMrfByAnyLinkId(mrfQ, mrfRequests) as MRF | null;
+    if (openFromRow) {
+      setSelectedMRFForDetails(openFromRow);
+    }
 
     (async () => {
       try {
         let mrf: MRF | null = openFromRow;
-        if (!mrf) {
+        const hydrate = await procurementApi.getMRFDetailsHydrate(mrfQ);
+        if (!hydrate.success || !hydrate.data) {
+          // Fall back to plain getById if hydrate fails
           const response = await mrfApi.getById(mrfQ);
           if (!response.success || !response.data) {
-            throw new Error(response.error || "MRF not found");
+            throw new Error(hydrate.error || response.error || "MRF not found");
           }
           mrf = response.data as MRF;
+        } else {
+          mrf = hydrate.data as MRF;
+          const docs =
+            (hydrate.data as any).procurementDocuments ||
+            (hydrate.data as any).procurement_documents ||
+            null;
+          if (!cancelled && docs) setMrfDetailDocs(docs);
         }
         if (cancelled) return;
         setSelectedMRFForDetails(mrf);
@@ -1234,7 +1250,7 @@ const Procurement = () => {
           variant: "destructive",
         });
       } finally {
-        if (!cancelled) setLoadingFullDetails(false);
+        if (!cancelled) setLoadingQuotations(false);
       }
     })();
 
@@ -1846,111 +1862,48 @@ const Procurement = () => {
       });
     }
     try {
-    // Check for signed PO first (preferred), then unsigned PO
-    const signedPOUrl =
-      mrf.signed_po_url ||
-      mrf.signedPOUrl ||
-      mrf.signed_po_share_url ||
-      mrf.signedPOShareUrl;
-    const unsignedPOUrl = getMRFPOShareUrl(mrf) || getMRFPOUrl(mrf);
-
-    // Signed POs must come from storage (SCD signature). Unsigned POs always
-    // use the Emerald client template — never serve legacy Dompdf S3 copies.
-    if (signedPOUrl && signedPOUrl.startsWith("http")) {
-      window.open(signedPOUrl, "_blank");
-      return;
-    }
-
-    const hasGeneratedPo = Boolean(mrf.po_number || mrf.poNumber);
-    if (!signedPOUrl && hasGeneratedPo) {
-      const poNum = mrf.po_number || mrf.poNumber || "purchase-order";
-      const emerald = await downloadEmeraldPurchaseOrderForMrf(mrf, {
-        fileName: `PO-${poNum}.pdf`,
-      });
-      if (emerald.ok) {
+      const hasGeneratedPo = Boolean(
+        mrf.po_number ||
+          mrf.poNumber ||
+          getMRFPOUrl(mrf) ||
+          mrf.signed_po_url ||
+          mrf.signedPOUrl,
+      );
+      if (!hasGeneratedPo) {
         toast({
-          title: "Download started",
-          description: `PO-${poNum}.pdf (Emerald template) is downloading.`,
+          title: "PO Not Available",
+          description: "PO document is not available for download",
+          variant: "destructive",
         });
         return;
       }
-      toast({
-        title: "Emerald PO layout unavailable",
-        description: `${emerald.error ?? "Unknown error"} Trying the server Emerald copy.`,
-        variant: "default",
-      });
-    }
 
-    // Try to download from backend API
-    // Prefer signed PO if available, otherwise unsigned
-    const poType = signedPOUrl ? "signed" : "unsigned";
-
-    // Check if PO exists before attempting download
-    if (!signedPOUrl && !unsignedPOUrl) {
-      toast({
-        title: "PO Not Available",
-        description: "PO document is not available for download",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const response = await mrfApi.downloadPO(getMrfApiId(mrf), poType);
-
+      // Always use the authenticated Emerald server stream — never jsPDF or
+      // cached/expired S3 pre-signed URLs from list payloads.
+      const { downloadMrfPurchaseOrderPdf } = await import(
+        "@/utils/downloadMrfPurchaseOrderPdf"
+      );
+      const response = await downloadMrfPurchaseOrderPdf(mrf);
       if (response.success) {
         toast({
           title: "Download Started",
-          description: "Purchase Order download has started",
-        });
-      } else {
-        // If API download fails, try direct URL approach as fallback
-        const fallbackUrl = signedPOUrl || unsignedPOUrl;
-        if (fallbackUrl) {
-          const baseUrl =
-            import.meta.env.VITE_API_BASE_URL ||
-            "https://supply-chain-backend-hwh6.onrender.com/api";
-          const fullUrl = fallbackUrl.startsWith("http")
-            ? fallbackUrl
-            : `${baseUrl.replace("/api", "")}/${fallbackUrl}`;
-          window.open(fullUrl, "_blank");
-          toast({
-            title: "Opening PO",
-            description: "Opening PO document in a new window",
-          });
-        } else {
-          toast({
-            title: "Download Failed",
-            description: response.error || "Unable to download PO document",
-            variant: "destructive",
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error downloading PO:", error);
-      // Fallback to direct URL if API fails
-      const fallbackUrl = signedPOUrl || unsignedPOUrl;
-      if (fallbackUrl) {
-        const baseUrl =
-          import.meta.env.VITE_API_BASE_URL ||
-          "https://supply-chain-backend-hwh6.onrender.com/api";
-        const fullUrl = fallbackUrl.startsWith("http")
-          ? fallbackUrl
-          : `${baseUrl.replace("/api", "")}/${fallbackUrl}`;
-        window.open(fullUrl, "_blank");
-        toast({
-          title: "Opening PO",
-          description: "Opening PO document in a new window",
+          description: "Purchase Order download has started (Emerald layout)",
         });
       } else {
         toast({
           title: "Download Failed",
-          description:
-            "Unable to download PO document. Please try again later.",
+          description: response.error || "Unable to download PO document",
           variant: "destructive",
         });
       }
-    }
+    } catch (error) {
+      console.error("Error downloading PO:", error);
+      toast({
+        title: "Download Failed",
+        description:
+          "Unable to download PO document. Please try again later.",
+        variant: "destructive",
+      });
     } finally {
       if (key) {
         setDownloadingPOIds((prev) => {
@@ -3335,43 +3288,54 @@ const Procurement = () => {
                                         size="sm"
                                         variant="outline"
                                         className="text-xs"
-                                        onClick={async (e) => {
+                                        onClick={(e) => {
                                           e.stopPropagation();
-                                          setSelectedMRFForDetails(
-                                            request as MRF,
-                                          );
+                                          const row = request as MRF;
+                                          const apiId = getMrfApiId(row);
+                                          setSelectedMRFForDetails(row);
+                                          setMrfFullDetails(null);
+                                          setMrfDetailDocs(null);
                                           setMrfDetailsDialogOpen(true);
+                                          setLoadingFullDetails(false);
+                                          setLoadingQuotations(true);
                                           setSearchParams(
                                             (prev) => {
                                               const p = new URLSearchParams(prev);
                                               p.delete("srf");
-                                              p.set("mrf", getDisplayId(request as MRF));
+                                              p.set("mrf", getDisplayId(row));
                                               return p;
                                             },
                                             { replace: true },
                                           );
 
-                                          // Fetch full details
-                                          setLoadingFullDetails(true);
-                                          try {
-                                            const response =
-                                              await mrfApi.getFullDetails(
-                                                getMrfApiId(request as MRF),
-                                              );
-                                            if (
-                                              response.success &&
-                                              response.data
-                                            ) {
-                                              setMrfFullDetails(response.data);
+                                          // Fast hydrate (PnL + docs), then quotations timeline.
+                                          void (async () => {
+                                            try {
+                                              const hydrate =
+                                                await procurementApi.getMRFDetailsHydrate(apiId);
+                                              if (hydrate.success && hydrate.data) {
+                                                setSelectedMRFForDetails(hydrate.data as MRF);
+                                                const docs =
+                                                  (hydrate.data as any).procurementDocuments ||
+                                                  (hydrate.data as any).procurement_documents ||
+                                                  null;
+                                                if (docs) setMrfDetailDocs(docs);
+                                              }
+                                            } catch (error) {
+                                              console.error("Failed to hydrate MRF details:", error);
                                             }
-                                          } catch (error) {
-                                            console.error(
-                                              "Failed to fetch full details:",
-                                              error,
-                                            );
-                                          } finally {
-                                            setLoadingFullDetails(false);
-                                          }
+
+                                            try {
+                                              const response = await mrfApi.getFullDetails(apiId);
+                                              if (response.success && response.data) {
+                                                setMrfFullDetails(response.data);
+                                              }
+                                            } catch (error) {
+                                              console.error("Failed to fetch full details:", error);
+                                            } finally {
+                                              setLoadingQuotations(false);
+                                            }
+                                          })();
                                         }}
                                       >
                                         <FileText className="h-3 w-3 mr-1" />
@@ -4813,6 +4777,8 @@ const Procurement = () => {
             setMrfDetailsDialogOpen(open);
             if (!open) {
               setMrfFullDetails(null);
+              setMrfDetailDocs(null);
+              setLoadingQuotations(false);
               setSelectedMRFForDetails(null);
               setSearchParams(
                 (prev) => {
@@ -4833,12 +4799,12 @@ const Procurement = () => {
               quotations and progress
             </DialogDescription>
           </DialogHeader>
-          {loadingFullDetails ? (
+          {!selectedMRFForDetails ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            selectedMRFForDetails && (
+            (
               <div className="space-y-6 mt-4">
                 {/* Progress Tracker */}
                 <MRFProgressTracker
@@ -4860,14 +4826,18 @@ const Procurement = () => {
                     null
                   }
                   documentsByType={
+                    mrfDetailDocs?.documentsByType ??
                     (mrfFullDetails as any)?.documentsByType ??
                     (mrfFullDetails as any)?.procurementDocuments?.documentsByType ??
-                    (selectedMRFForDetails as any).documentsByType
+                    (selectedMRFForDetails as any).documentsByType ??
+                    (selectedMRFForDetails as any)?.procurementDocuments?.documentsByType
                   }
                   activeByType={
+                    mrfDetailDocs?.activeByType ??
                     (mrfFullDetails as any)?.activeByType ??
                     (mrfFullDetails as any)?.procurementDocuments?.activeByType ??
-                    (selectedMRFForDetails as any).activeByType
+                    (selectedMRFForDetails as any).activeByType ??
+                    (selectedMRFForDetails as any)?.procurementDocuments?.activeByType
                   }
                 />
 
@@ -4961,16 +4931,24 @@ const Procurement = () => {
                   type="mrf"
                   id={getMrfApiId(selectedMRFForDetails)}
                   initialPnL={
+                    (selectedMRFForDetails as { profitAndLoss?: import("@/types").ProfitAndLoss })
+                      ?.profitAndLoss ||
                     (mrfFullDetails as { profitAndLoss?: import("@/types").ProfitAndLoss })
                       ?.profitAndLoss ||
-                    (selectedMRFForDetails as { profitAndLoss?: import("@/types").ProfitAndLoss })
-                      ?.profitAndLoss
+                    (mrfFullDetails as { mrf?: { profitAndLoss?: import("@/types").ProfitAndLoss } })
+                      ?.mrf?.profitAndLoss
                   }
                 />
 
                 <ProcurementDocumentsPanel
                   mrfId={getMrfApiId(selectedMRFForDetails)}
                   readOnly={getScmRole(user) === "executive"}
+                  initialData={
+                    mrfDetailDocs ||
+                    (selectedMRFForDetails as any)?.procurementDocuments ||
+                    (selectedMRFForDetails as any)?.procurement_documents ||
+                    undefined
+                  }
                 />
 
                 {/* Supporting Document */}
@@ -5177,6 +5155,11 @@ const Procurement = () => {
                   return null;
                 })()}
 
+                {loadingQuotations && !mrfFullDetails && (
+                  <div className="flex items-center text-sm text-muted-foreground py-2">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading quotations…
+                  </div>
+                )}
                 {/* RFQs and Quotations from Full Details API */}
                 {mrfFullDetails ? (
                   <>

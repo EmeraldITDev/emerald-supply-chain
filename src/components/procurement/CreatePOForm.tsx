@@ -457,47 +457,13 @@ export function CreatePOForm({
   }, [hydrate]);
 
   // -------------------------------------------------------------------------
-  // Vendors — deferred lazy fetch.
-  //
-  // Previously this eagerly pulled 100 vendors on mount and competed for
-  // bandwidth with the MRF + price-comparison hydration, making the modal
-  // sit on skeleton loaders. We now defer the pull until AFTER hydration
-  // completes, and only pull a small page (25). The Directory dropdown in
-  // the price comparison table also refetches on user search input.
-  // -------------------------------------------------------------------------
+  // Vendors — async search only (no mount preload).
+  // Directory selects type-to-search via PriceComparisonTable →
+  // GET /api/vendors?dropdown=1&search=…
   useEffect(() => {
     if (hydrating) return;
-    // Fast-track / no-RFQ POs capture suppliers manually in the price
-    // comparison sheet, so we don't need to preload the vendor directory at
-    // all. AsyncVendorSearchSelect handles on-demand lookups via
-    // GET /api/vendors?dropdown=1&search=… when the user types.
-    if (isDirectProcurement) {
-      setVendors([]);
-      return;
-    }
-    let cancelled = false;
-    // Kick off in the next tick so the form paints first.
-    const handle = window.setTimeout(() => {
-      if (cancelled) return;
-      setLoadingVendors(true);
-      vendorApi
-        .list({ page: 1, per_page: 20, status: 'Active', dropdown: true })
-        .then((res) => {
-          if (cancelled) return;
-          if (res.success && res.data?.items) {
-            setVendors(
-              res.data.items.filter(
-                (v) => v.status === 'Active' || v.status === 'Pending',
-              ),
-            );
-          }
-        })
-        .finally(() => !cancelled && setLoadingVendors(false));
-    }, 0);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(handle);
-    };
+    setVendors([]);
+    setLoadingVendors(false);
   }, [hydrating, isDirectProcurement]);
 
   // -------------------------------------------------------------------------
@@ -786,7 +752,29 @@ export function CreatePOForm({
     }
   }, [emeraldPreviewModel, finalisedMrf, mrf, mrfId]);
 
+  /** Finalised POs always stream from the authenticated Emerald API endpoint. */
+  const downloadFinalisedServerPo = useCallback(async () => {
+    const target = (finalisedMrf || mrf) as import('@/types').MRF | null | undefined;
+    if (!target) {
+      toast.error('PO is not ready yet.');
+      return;
+    }
+    const { downloadMrfPurchaseOrderPdf } = await import(
+      '@/utils/downloadMrfPurchaseOrderPdf'
+    );
+    const res = await downloadMrfPurchaseOrderPdf(target);
+    if (res.success) {
+      toast.success('PO download started (Emerald layout)');
+    } else {
+      toast.error(res.error || 'Unable to download PO');
+    }
+  }, [finalisedMrf, mrf]);
+
   const openEmeraldPoInNewTab = useCallback(async () => {
+    if (isFinalised) {
+      await downloadFinalisedServerPo();
+      return;
+    }
     if (!emeraldPreviewModel) {
       toast.error('PO preview is not ready yet.');
       return;
@@ -796,7 +784,7 @@ export function CreatePOForm({
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not open PDF');
     }
-  }, [emeraldPreviewModel]);
+  }, [emeraldPreviewModel, isFinalised, downloadFinalisedServerPo]);
 
   // -------------------------------------------------------------------------
   // Save flows
@@ -1587,7 +1575,15 @@ export function CreatePOForm({
               >
                 <PencilLine className="h-3.5 w-3.5" /> Edit PO
               </button>
-              {emeraldPreviewModel ? (
+              {isFinalised ? (
+                <button
+                  type="button"
+                  onClick={() => void downloadFinalisedServerPo()}
+                  className="inline-flex items-center gap-1 text-primary hover:underline font-medium bg-transparent border-0 cursor-pointer p-0"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Open PDF
+                </button>
+              ) : emeraldPreviewModel ? (
                 <button
                   type="button"
                   onClick={() => void openEmeraldPoInNewTab()}
@@ -1595,10 +1591,6 @@ export function CreatePOForm({
                 >
                   <ExternalLink className="h-3.5 w-3.5" /> Open PDF
                 </button>
-              ) : finalisedUrl ? (
-                <a href={finalisedUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                  <ExternalLink className="h-3.5 w-3.5" /> Open PDF
-                </a>
               ) : null}
             </div>
           </div>
@@ -1693,18 +1685,10 @@ export function CreatePOForm({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {isFinalised && emeraldPreviewModel && (
-            <Button variant="outline" size="sm" type="button" onClick={() => void downloadEmeraldPreviewPdf()}>
+          {isFinalised && (
+            <Button variant="outline" size="sm" type="button" onClick={() => void downloadFinalisedServerPo()}>
               <Download className="h-3.5 w-3.5 mr-1" />
               Download PDF
-            </Button>
-          )}
-          {isFinalised && !emeraldPreviewModel && finalisedUrl && (
-            <Button variant="outline" size="sm" asChild>
-              <a href={finalisedUrl} target="_blank" rel="noreferrer">
-                <Download className="h-3.5 w-3.5 mr-1" />
-                Download PDF
-              </a>
             </Button>
           )}
           <Button

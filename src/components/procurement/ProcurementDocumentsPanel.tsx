@@ -43,6 +43,8 @@ interface ProcurementDocumentsPanelProps {
   restrictToLmTypes?: boolean;
   /** When true, hide the upload form (read-only document registry). */
   readOnly?: boolean;
+  /** Seed from parent MRF hydrate (`include_documents=1`) to skip the first empty load. */
+  initialData?: ProcurementDocumentsResponse | null;
 }
 
 const UPLOADABLE_TYPES: { value: ProcurementDocumentType; label: string }[] = [
@@ -81,10 +83,12 @@ export default function ProcurementDocumentsPanel({
   defaultUploadType = "waybill",
   restrictToLmTypes = false,
   readOnly = false,
+  initialData = null,
 }: ProcurementDocumentsPanelProps) {
   const { toast } = useToast();
-  const [data, setData] = useState<ProcurementDocumentsResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<ProcurementDocumentsResponse | null>(initialData);
+  const [loading, setLoading] = useState(!initialData);
+  const [openingDocId, setOpeningDocId] = useState<number | null>(null);
   const [uploadType, setUploadType] = useState<ProcurementDocumentType>(defaultUploadType);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -98,24 +102,68 @@ export default function ProcurementDocumentsPanel({
       });
       if (res.success && res.data) {
         setData(res.data);
-      } else if (!res.success) {
+        return res.data;
+      }
+      if (!res.success) {
         toast({
           title: "Failed to load documents",
           description: res.error || "Unknown error",
           variant: "destructive",
         });
       }
+      return null;
     } finally {
       setLoading(false);
     }
   }, [mrfId, toast]);
 
   useEffect(() => {
-    void fetchDocs();
+    if (initialData) {
+      setData(initialData);
+      setLoading(false);
+    }
+  }, [initialData]);
+
+  useEffect(() => {
+    if (!initialData) {
+      void fetchDocs();
+    }
     const onRefresh = () => void fetchDocs();
     window.addEventListener("app:refresh", onRefresh);
     return () => window.removeEventListener("app:refresh", onRefresh);
-  }, [fetchDocs]);
+  }, [fetchDocs, initialData]);
+
+  const openDocument = useCallback(
+    async (doc: ProcurementDocument) => {
+      setOpeningDocId(doc.id);
+      try {
+        // Always re-fetch registry so S3 pre-signed URLs are freshly signed.
+        const fresh = await fetchDocs();
+        const docs = fresh?.documents ?? [];
+        const match =
+          docs.find((d) => d.id === doc.id) ||
+          docs.find(
+            (d) =>
+              d.type === doc.type &&
+              d.version === doc.version &&
+              d.fileName === doc.fileName,
+          );
+        const url = match?.fileUrl || doc.fileUrl;
+        if (!url) {
+          toast({
+            title: "Document unavailable",
+            description: "No download URL returned for this file.",
+            variant: "destructive",
+          });
+          return;
+        }
+        window.open(url, "_blank", "noopener,noreferrer");
+      } finally {
+        setOpeningDocId(null);
+      }
+    },
+    [fetchDocs, toast],
+  );
 
   const grouped = useMemo(() => {
     if (data?.documentsByType) return data.documentsByType;
@@ -238,14 +286,19 @@ export default function ProcurementDocumentsPanel({
                       {doc.fileName}
                     </p>
                   </div>
-                  <Button asChild size="sm" variant="outline" className="ml-3 shrink-0">
-                    <a
-                      href={doc.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="h-3 w-3 mr-1" /> Open
-                    </a>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="ml-3 shrink-0"
+                    disabled={openingDocId === doc.id}
+                    onClick={() => void openDocument(doc)}
+                  >
+                    {openingDocId === doc.id ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                    )}{" "}
+                    Open
                   </Button>
                 </div>
               ))}
@@ -292,14 +345,17 @@ export default function ProcurementDocumentsPanel({
                               {formatDate(doc.uploadedAt)}
                             </p>
                           </div>
-                          <Button asChild size="sm" variant="ghost">
-                            <a
-                              href={doc.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={openingDocId === doc.id}
+                            onClick={() => void openDocument(doc)}
+                          >
+                            {openingDocId === doc.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
                               <ExternalLink className="h-3 w-3" />
-                            </a>
+                            )}
                           </Button>
                         </li>
                       ))}

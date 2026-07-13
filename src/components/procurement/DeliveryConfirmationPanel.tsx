@@ -282,11 +282,24 @@ export const DeliveryConfirmationPanel = ({
                       <Button
                         size="sm"
                         variant="outline"
-                        asChild
+                        onClick={async () => {
+                          // Re-fetch MRF documents for a fresh pre-signed URL.
+                          try {
+                            const res = await procurementApi.getProcurementDocuments(mrfId, {
+                              includeInactive: true,
+                            });
+                            const docs = res.data?.documents ?? [];
+                            const match = docs.find((d) => d.id === item.document?.id);
+                            const url = match?.fileUrl || item.document?.fileUrl;
+                            if (url) window.open(url, "_blank", "noopener,noreferrer");
+                          } catch {
+                            if (item.document?.fileUrl) {
+                              window.open(item.document.fileUrl, "_blank", "noopener,noreferrer");
+                            }
+                          }
+                        }}
                       >
-                        <a href={item.document.fileUrl} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> View
-                        </a>
+                        <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> View
                       </Button>
                     )}
 

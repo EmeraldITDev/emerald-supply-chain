@@ -117,7 +117,21 @@ const Reports = () => {
         )}
 
         {loading && !dashboard ? (
-          <TableSkeleton rows={4} />
+          <>
+            <div className="grid gap-4 md:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Loading KPI…</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <TableSkeleton rows={4} />
+          </>
         ) : dashboard ? (
           <>
             <div className="grid gap-4 md:grid-cols-4">

@@ -523,7 +523,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Initial data fetch
+  // Initial data fetch — non-blocking (shell renders immediately).
   useEffect(() => {
     // Check if we're in vendor portal context (vendor logged in but no regular user token)
     const regularToken = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
@@ -532,14 +532,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // Only auto-refresh if we have a regular user token (not vendor-only)
     // Vendors should use vendor-specific endpoints instead (vendorPortalApi)
     if (regularToken || !vendorToken) {
-      const fetchAllData = async () => {
-        setLoading(true);
-        // Fetch MRFs, SRFs, and RFQs in parallel — quotations load on RFQ views only.
-        await Promise.all([refreshMRFs(), refreshSRFs(), refreshRFQs()]);
-        setLoading(false);
-      };
-      
-      fetchAllData();
+      setLoading(false);
+      void Promise.all([refreshMRFs(), refreshSRFs(), refreshRFQs()]);
     } else {
       // Vendor-only context - skip auto-refresh to avoid 401 errors
       // Vendors will fetch their own data via vendorPortalApi in VendorPortal component

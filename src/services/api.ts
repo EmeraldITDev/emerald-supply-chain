@@ -747,8 +747,26 @@ export const mrfApi = {
     }
   },
 
-  getById: async (id: string): Promise<ApiResponse<MRF>> => {
-    return apiRequest<MRF>(`/mrfs/${id}`);
+  getById: async (
+    id: string,
+    options?: {
+      includePnl?: boolean;
+      includeDocuments?: boolean;
+      forPo?: boolean;
+      freshPoUrls?: boolean;
+    },
+  ): Promise<ApiResponse<MRF & {
+    profitAndLoss?: import('@/types').ProfitAndLoss;
+    procurementDocuments?: import('@/types/procurement-documents').ProcurementDocumentsResponse;
+    procurement_documents?: import('@/types/procurement-documents').ProcurementDocumentsResponse;
+  }>> => {
+    const qs = new URLSearchParams();
+    if (options?.forPo) qs.set('for_po', '1');
+    if (options?.includePnl) qs.set('include_pnl', '1');
+    if (options?.includeDocuments) qs.set('include_documents', '1');
+    if (options?.freshPoUrls) qs.set('fresh_po_urls', '1');
+    const query = qs.toString();
+    return apiRequest(`/mrfs/${encodeURIComponent(id)}${query ? `?${query}` : ''}`);
   },
 
   // Get full MRF details with all quotations

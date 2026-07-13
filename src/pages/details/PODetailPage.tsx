@@ -4,11 +4,8 @@ import { mrfApi } from "@/services/api";
 import type { MRF } from "@/types";
 import { EntityDetailShell, DetailFields } from "./EntityDetailShell";
 import { Button } from "@/components/ui/button";
-import { Download, ExternalLink, Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
-import { downloadEmeraldPurchaseOrderForMrf } from "@/utils/emeraldPoPdfActions";
-import { resolveUserSignatureDataUrl } from "@/utils/userSignature";
 
 /**
  * PO detail view. The PO is a derivative of its MRF, so we hydrate via mrfApi.
@@ -18,7 +15,6 @@ import { resolveUserSignatureDataUrl } from "@/utils/userSignature";
 export default function PODetailPage() {
   const { id = "" } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
   const [mrf, setMrf] = useState<MRF | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,28 +50,14 @@ export default function PODetailPage() {
     if (!mrf) return;
     setDownloading(true);
     try {
-      // Include the signer's signature on the downloaded PDF so it matches the
-      // Emerald PO layout signature block.
-      let signatureDataUrl: string | null = null;
-      if (isSigned) {
-        signatureDataUrl = await resolveUserSignatureDataUrl({
-          userId: user?.id,
-          signatureUrl:
-            (user as { signature_url?: string } | null)?.signature_url ?? null,
-        });
-      }
-      const res = await downloadEmeraldPurchaseOrderForMrf(mrf, {
-        includeSignature: isSigned && Boolean(signatureDataUrl),
-        signatureDataUrl,
+      const { downloadMrfPurchaseOrderPdf } = await import(
+        "@/utils/downloadMrfPurchaseOrderPdf"
+      );
+      const res = await downloadMrfPurchaseOrderPdf(mrf, {
+        preferSigned: isSigned,
       });
-      if (!res.ok) {
-        // Fall back to the stored signed/unsigned file when local build fails.
-        const fallback = signed || unsigned;
-        if (fallback) {
-          window.open(fallback, "_blank", "noopener,noreferrer");
-        } else {
-          toast.error(res.error || "Could not download the PO PDF.");
-        }
+      if (!res.success) {
+        toast.error(res.error || "Could not download the PO PDF.");
       }
     } finally {
       setDownloading(false);
@@ -116,20 +98,6 @@ export default function PODetailPage() {
               )}
               {isSigned ? "Download signed PO (PDF)" : "Download PO (PDF)"}
             </Button>
-            {signed && (
-              <Button asChild variant="outline" size="sm">
-                <a href={signed} target="_blank" rel="noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" /> Signed PO (server copy)
-                </a>
-              </Button>
-            )}
-            {unsigned && (
-              <Button asChild variant="outline" size="sm">
-                <a href={unsigned} target="_blank" rel="noreferrer">
-                  <ExternalLink className="mr-2 h-4 w-4" /> Unsigned PO
-                </a>
-              </Button>
-            )}
           </div>
         </div>
       )}

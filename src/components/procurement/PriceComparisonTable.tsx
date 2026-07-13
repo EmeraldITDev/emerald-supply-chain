@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { Trash2, Plus, AlertCircle, Building2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -233,6 +233,57 @@ export function PriceComparisonTable({
     Record<string, VendorLookupMatch | null | undefined>
   >({});
   const [lookupLoading, setLookupLoading] = useState<Set<string>>(() => new Set());
+  const [vendorSearch, setVendorSearch] = useState('');
+  const [searchedVendors, setSearchedVendors] = useState<Vendor[]>([]);
+  const [searchingVendors, setSearchingVendors] = useState(false);
+
+  useEffect(() => {
+    const q = vendorSearch.trim();
+    if (!q) {
+      setSearchedVendors([]);
+      setSearchingVendors(false);
+      return;
+    }
+    const handle = window.setTimeout(async () => {
+      setSearchingVendors(true);
+      try {
+        const res = await vendorApi.list({
+          search: q,
+          per_page: 20,
+          page: 1,
+          dropdown: true,
+          status: 'Active',
+        });
+        if (res.success && res.data?.items) {
+          setSearchedVendors(
+            res.data.items.filter(
+              (v) => v.status === 'Active' || v.status === 'Pending' || !v.status,
+            ),
+          );
+        } else {
+          setSearchedVendors([]);
+        }
+      } finally {
+        setSearchingVendors(false);
+      }
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [vendorSearch]);
+
+  const directoryVendors = useMemo(() => {
+    const q = vendorSearch.trim();
+    if (q) return searchedVendors;
+    // Prefer any selected vendors already on the rows so values stay visible.
+    const selectedIds = new Set(
+      value.map((r) => r.vendor_id).filter(Boolean) as string[],
+    );
+    const fromProps = vendors.filter((v) => selectedIds.has(vendorStringId(v)));
+    const merged = new Map<string, Vendor>();
+    for (const v of [...fromProps, ...searchedVendors]) {
+      merged.set(vendorStringId(v), v);
+    }
+    return Array.from(merged.values());
+  }, [vendorSearch, searchedVendors, vendors, value]);
 
   const runVendorLookup = useCallback(
     async (groupKey: string, manual: ManualVendor | undefined) => {
@@ -508,32 +559,57 @@ export function PriceComparisonTable({
                     </ToggleGroupItem>
                   </ToggleGroup>
                   {headMode === 'directory' ? (
-                    <Select
-                      value={head.vendor_id || undefined}
-                      onValueChange={(v) =>
-                        updateGroup(group.key, {
-                          vendor_id: v,
-                          manual_vendor: undefined,
-                        })
-                      }
-                      disabled={disabled || loadingVendors}
-                    >
-                      <SelectTrigger
-                        className={cn('h-9', headFe.supplier && 'border-destructive')}
-                        aria-invalid={!!headFe.supplier}
+                    <div className="space-y-1.5">
+                      <Input
+                        value={vendorSearch}
+                        onChange={(e) => setVendorSearch(e.target.value)}
+                        placeholder="Type to search vendors…"
+                        disabled={disabled}
+                        className="h-9"
+                      />
+                      <Select
+                        value={head.vendor_id || undefined}
+                        onValueChange={(v) =>
+                          updateGroup(group.key, {
+                            vendor_id: v,
+                            manual_vendor: undefined,
+                          })
+                        }
+                        disabled={disabled || searchingVendors || loadingVendors}
                       >
-                        <SelectValue
-                          placeholder={loadingVendors ? 'Loading…' : 'Select supplier'}
-                        />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover max-h-64">
-                        {vendors.map((v) => (
-                          <SelectItem key={v.id} value={vendorStringId(v)}>
-                            {v.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        <SelectTrigger
+                          className={cn('h-9', headFe.supplier && 'border-destructive')}
+                          aria-invalid={!!headFe.supplier}
+                        >
+                          <SelectValue
+                            placeholder={
+                              searchingVendors || loadingVendors
+                                ? 'Searching…'
+                                : vendorSearch.trim()
+                                  ? 'Select supplier from results'
+                                  : 'Search vendors above'
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover max-h-64">
+                          {!vendorSearch.trim() && (
+                            <div className="px-3 py-2 text-sm text-muted-foreground">
+                              Type a vendor name or email to search
+                            </div>
+                          )}
+                          {vendorSearch.trim() && !searchingVendors && directoryVendors.length === 0 && (
+                            <div className="px-3 py-2 text-sm text-muted-foreground">
+                              No vendors found
+                            </div>
+                          )}
+                          {directoryVendors.map((v) => (
+                            <SelectItem key={v.id} value={vendorStringId(v)}>
+                              {v.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   ) : (
                     <div className="space-y-1.5">
                       <Input

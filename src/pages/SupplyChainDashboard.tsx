@@ -65,7 +65,6 @@ import { procurementApi } from "@/services/procurementApi";
 import { buildEmeraldPoDisplayModel, coercePOTermsMode, userClausesFromStoredCustomTerms } from "@/utils/emeraldPoDocumentModel";
 import { buildEmeraldPurchaseOrderPdf } from "@/utils/emeraldPOPdf";
 import { resolveUserSignatureDataUrl, readCachedUserSignature } from "@/utils/userSignature";
-import { openEmeraldPurchaseOrderForMrf } from "@/utils/emeraldPoPdfActions";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { VendorRegistration } from "@/types";
 import type { MRF, SRF } from "@/types";
@@ -366,10 +365,21 @@ const SupplyChainDashboard = () => {
 
   const openMrfDetails = useCallback(async (mrf: MRF) => {
     setSelectedMRFForDetails(mrf);
+    setMrfFullDetails(null);
     setMrfDetailsDialogOpen(true);
-    setLoadingFullDetails(true);
+    setLoadingFullDetails(false);
+    const apiId = getMrfApiId(mrf);
     try {
-      const response = await mrfApi.getFullDetails(mrf.id);
+      const hydrate = await procurementApi.getMRFDetailsHydrate(apiId);
+      if (hydrate.success && hydrate.data) {
+        setSelectedMRFForDetails(hydrate.data as MRF);
+      }
+    } catch {
+      // keep row payload
+    }
+    try {
+      setLoadingFullDetails(true);
+      const response = await mrfApi.getFullDetails(apiId);
       if (response.success && response.data) {
         setMrfFullDetails(response.data);
       }
@@ -658,27 +668,17 @@ const SupplyChainDashboard = () => {
   };
 
   const handleDownloadPO = async (mrf: MRF) => {
-    const r = await openEmeraldPurchaseOrderForMrf(mrf);
-    if (r.ok) return;
-
-    const errMsg = r.error ?? "Unknown error";
-    const poShareUrl = getUnsignedPOShareUrl(mrf);
-    const poUrl = getUnsignedPOUrl(mrf);
-    const poUrlToUse = poShareUrl || poUrl;
-
-    if (poUrlToUse) {
-      if (poUrlToUse.startsWith("http")) {
-        window.open(poUrlToUse, "_blank");
-      } else {
-        const baseUrl =
-          import.meta.env.VITE_API_BASE_URL ||
-          "https://supply-chain-backend-hwh6.onrender.com/api";
-        window.open(`${baseUrl.replace("/api", "")}/${poUrlToUse}`, "_blank");
-      }
-      toast.info("Opened server PO copy", { description: errMsg });
+    const { downloadMrfPurchaseOrderPdf } = await import(
+      "@/utils/downloadMrfPurchaseOrderPdf"
+    );
+    const res = await downloadMrfPurchaseOrderPdf(mrf);
+    if (res.success) {
+      toast.success("PO download started", {
+        description: "Emerald layout via server stream",
+      });
       return;
     }
-    toast.error(errMsg || "PO document not available for download");
+    toast.error(res.error || "PO document not available for download");
   };
 
   // Handle reject vendor selection or PO
@@ -2210,12 +2210,12 @@ const SupplyChainDashboard = () => {
               {selectedMRFForDetails?.title}
             </DialogDescription>
           </DialogHeader>
-          {loadingFullDetails ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          {!selectedMRFForDetails ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            selectedMRFForDetails && (
+            (
               <div className="space-y-6 mt-4">
                 {/* Progress Tracker */}
                 {mrfFullDetails && (
@@ -2285,7 +2285,11 @@ const SupplyChainDashboard = () => {
                   id={getMrfApiId(selectedMRFForDetails)}
                   initialPnL={
                     (selectedMRFForDetails as { profitAndLoss?: import("@/types").ProfitAndLoss })
-                      .profitAndLoss
+                      .profitAndLoss ||
+                    (mrfFullDetails as { profitAndLoss?: import("@/types").ProfitAndLoss } | null)
+                      ?.profitAndLoss ||
+                    (mrfFullDetails as { mrf?: { profitAndLoss?: import("@/types").ProfitAndLoss } } | null)
+                      ?.mrf?.profitAndLoss
                   }
                 />
               </div>
