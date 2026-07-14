@@ -29,7 +29,15 @@ function num(v: unknown): number {
 
 function normalizeKpis(raw: Record<string, unknown> | undefined): DashboardKPIs | undefined {
   if (!raw) return undefined;
-  const k = (raw.kpis as Record<string, unknown>) ?? raw;
+  // Only emit a KPI block when the payload actually carries one. The
+  // /dashboard/procurement-manager endpoint does NOT return `kpis` (those come
+  // from /dashboard/kpis). Previously this fell back to the root object and
+  // manufactured an all-zeros KPI object, which then raced against the real
+  // KPI fetch and overwrote correct values with zeros ("correct then wrong"
+  // flash). Returning undefined here keeps the KPI fetch the single source of
+  // truth for those tiles.
+  const k = raw.kpis as Record<string, unknown> | undefined;
+  if (!k || typeof k !== 'object') return undefined;
   return {
     totalPosGenerated: num(k.totalPosGenerated ?? k.total_pos_generated),
     totalMrfsApproved: num(k.totalMrfsApproved ?? k.total_mrfs_approved),

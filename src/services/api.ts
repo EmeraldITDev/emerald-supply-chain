@@ -97,6 +97,57 @@ export { API_BASE_URL };
  * TypeError from fetch = network/DNS/CORS reject. HTTP errors bubble through
  * to the caller for normal handling. GET/HEAD only — never retry mutations.
  */
+/**
+ * Hard ceiling for a single fetch attempt. Without this, a stalled Render
+ * connection (cold start, DB lock, dropped keep-alive) leaves the fetch promise
+ * pending forever — which is what made "Save PO as draft" spin for hours. When
+ * the ceiling is hit we abort so the caller's promise rejects and the UI can
+ * recover instead of hanging indefinitely.
+ */
+const REQUEST_TIMEOUT_MS = 45_000;
+
+/** Error thrown when a request exceeds REQUEST_TIMEOUT_MS. */
+class RequestTimeoutError extends Error {
+  constructor(url: string) {
+    super(`Request to ${url} timed out after ${Math.round(REQUEST_TIMEOUT_MS / 1000)}s`);
+    this.name = 'RequestTimeoutError';
+  }
+}
+
+/**
+ * Run a single fetch with an AbortController-based timeout. Composes with any
+ * caller-provided signal so external cancellation still works.
+ */
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  const callerSignal = init.signal ?? undefined;
+  const onCallerAbort = () => controller.abort();
+  if (callerSignal) {
+    if (callerSignal.aborted) controller.abort();
+    else callerSignal.addEventListener('abort', onCallerAbort, { once: true });
+  }
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    // Distinguish our timeout abort from a genuine caller-initiated abort or a
+    // network TypeError. Surface a timeout as a retryable network-class error.
+    if (timedOut && err instanceof DOMException && err.name === 'AbortError') {
+      throw new RequestTimeoutError(url);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+    if (callerSignal) callerSignal.removeEventListener('abort', onCallerAbort);
+  }
+}
+
 async function fetchWithColdStartRetry(
   url: string,
   init: RequestInit,
@@ -107,11 +158,14 @@ async function fetchWithColdStartRetry(
   let lastErr: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      return await fetch(url, init);
+      return await fetchWithTimeout(url, init, REQUEST_TIMEOUT_MS);
     } catch (err) {
       lastErr = err;
-      // Only retry idempotent reads on real network failures.
-      if (!isIdempotent || !(err instanceof TypeError) || attempt === maxAttempts) {
+      // A timeout or network failure is retryable for idempotent reads only.
+      // Mutations (POST/PUT/PATCH/DELETE) must never auto-retry — but they DO
+      // benefit from the timeout above so the UI stops hanging.
+      const retryable = err instanceof TypeError || err instanceof RequestTimeoutError;
+      if (!isIdempotent || !retryable || attempt === maxAttempts) {
         throw err;
       }
       // Backoff: 1s, 3s, 6s (~10s total). Covers most Render cold starts.
@@ -164,6 +218,17 @@ if (typeof window !== 'undefined') {
 // We translate that into something a vendor (and a developer) can actually act on.
 function classifyFetchError(error: unknown, endpoint: string): string {
   const url = `${API_BASE_URL}${endpoint}`;
+  if (error instanceof RequestTimeoutError) {
+    console.error(`[API] ${error.message}`);
+    return (
+      'The server took too long to respond and the request timed out. ' +
+      'It may still be processing in the background — refresh in a moment to check. ' +
+      'If this keeps happening, please try again shortly.'
+    );
+  }
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return 'The request was cancelled.';
+  }
   if (error instanceof TypeError) {
     const msg = (error.message || '').toLowerCase();
     if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('load failed')) {
