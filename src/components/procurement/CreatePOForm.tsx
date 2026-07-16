@@ -445,11 +445,29 @@ export function CreatePOForm({
           ),
         );
         if (ids.length > 0) {
-          void Promise.all(ids.map((id) => vendorApi.getById(id).catch(() => null)))
+          void Promise.all(
+            ids.map(async (id) => {
+              // Try direct id lookup first (works when the row stored a UUID),
+              // then fall back to a search on the formatted vendor_id (V001).
+              const direct = await vendorApi.getById(id).catch(() => null);
+              if (direct?.success && direct.data) return direct.data;
+              const listRes = await vendorApi
+                .list({ search: id, dropdown: true, per_page: 5, page: 1 })
+                .catch(() => null);
+              if (!listRes?.success || !listRes.data) return null;
+              const match = listRes.data.items.find((v) => {
+                const anyV = v as Vendor & { formatted_id?: string; vendor_id?: string };
+                return (
+                  anyV.formatted_id === id ||
+                  anyV.vendor_id === id ||
+                  String(v.id) === id
+                );
+              });
+              return match ?? listRes.data.items[0] ?? null;
+            }),
+          )
             .then((results) => {
-              const fetched = results
-                .map((r) => (r && r.success ? r.data : null))
-                .filter((v): v is Vendor => !!v);
+              const fetched = results.filter((v): v is Vendor => !!v);
               if (fetched.length === 0) return;
               setVendors((prev) => {
                 const merged = new Map<string, Vendor>();
