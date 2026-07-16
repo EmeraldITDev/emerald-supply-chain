@@ -88,7 +88,7 @@ export default function ProcurementDocumentsPanel({
   const { toast } = useToast();
   const [data, setData] = useState<ProcurementDocumentsResponse | null>(initialData);
   const [loading, setLoading] = useState(!initialData);
-  const [openingDocId, setOpeningDocId] = useState<number | null>(null);
+  const [openingDocId, setOpeningDocId] = useState<number | string | null>(null);
   const [uploadType, setUploadType] = useState<ProcurementDocumentType>(defaultUploadType);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);

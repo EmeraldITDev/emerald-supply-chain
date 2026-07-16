@@ -431,6 +431,52 @@ export function CreatePOForm({
       if (Array.isArray(incoming) && incoming.length > 0) {
         setRows(incoming.map((e) => hydrateRow(e, groupKeyFor(e))));
       }
+
+      // Hydrate vendor directory entries for any vendor_ids already on the
+      // price comparison rows so their NAMES render immediately (instead of
+      // showing the raw VND-xxx code / blank Select while the user waits for
+      // the async vendor search). Batched + parallel so it's fast.
+      if (Array.isArray(incoming) && incoming.length > 0) {
+        const ids = Array.from(
+          new Set(
+            incoming
+              .map((e) => e.vendor_id)
+              .filter((v): v is string => typeof v === 'string' && v.trim().length > 0),
+          ),
+        );
+        if (ids.length > 0) {
+          void Promise.all(
+            ids.map(async (id) => {
+              // Try direct id lookup first (works when the row stored a UUID),
+              // then fall back to a search on the formatted vendor_id (V001).
+              const direct = await vendorApi.getById(id).catch(() => null);
+              if (direct?.success && direct.data) return direct.data;
+              const listRes = await vendorApi
+                .list({ search: id, dropdown: true, per_page: 5, page: 1 })
+                .catch(() => null);
+              if (!listRes?.success || !listRes.data) return null;
+              const match = listRes.data.items.find((v) => {
+                const anyV = v as Vendor & { formatted_id?: string; vendor_id?: string };
+                return (
+                  anyV.formatted_id === id ||
+                  anyV.vendor_id === id ||
+                  String(v.id) === id
+                );
+              });
+              return match ?? listRes.data.items[0] ?? null;
+            }),
+          )
+            .then((results) => {
+              const fetched = results.filter((v): v is Vendor => !!v);
+              if (fetched.length === 0) return;
+              setVendors((prev) => {
+                const merged = new Map<string, Vendor>();
+                for (const v of [...prev, ...fetched]) merged.set(String(v.id), v);
+                return Array.from(merged.values());
+              });
+            });
+        }
+      }
       console.info('[PO hydrate]', {
         mrfId,
         elapsed_ms: Math.round(performance.now() - hydrateStarted),
@@ -922,6 +968,15 @@ export function CreatePOForm({
         if (finalRes.fieldErrors) {
           setServerFieldErrors(flattenFieldErrors(finalRes.fieldErrors));
         }
+        console.error('[PO regenerate/finalise failed]', {
+          mrfId,
+          isRegen,
+          status: finalRes.status,
+          error: finalRes.error,
+          fieldErrors: finalRes.fieldErrors,
+          raw: finalRes.raw,
+          payload,
+        });
         toast.error('PO generation failed', {
           description: describeBackendError(finalRes.raw, finalRes.error || 'Please try again.'),
         });
