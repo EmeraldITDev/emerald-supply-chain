@@ -968,6 +968,15 @@ export function CreatePOForm({
         if (finalRes.fieldErrors) {
           setServerFieldErrors(flattenFieldErrors(finalRes.fieldErrors));
         }
+        console.error('[PO regenerate/finalise failed]', {
+          mrfId,
+          isRegen,
+          status: finalRes.status,
+          error: finalRes.error,
+          fieldErrors: finalRes.fieldErrors,
+          raw: finalRes.raw,
+          payload,
+        });
         toast.error('PO generation failed', {
           description: describeBackendError(finalRes.raw, finalRes.error || 'Please try again.'),
         });
