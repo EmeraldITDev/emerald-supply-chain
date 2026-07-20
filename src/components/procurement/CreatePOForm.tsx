@@ -10,6 +10,9 @@ import {
   PencilLine,
   Save,
   Send,
+  Paperclip,
+  Trash2,
+  UploadCloud,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,6 +55,10 @@ import type {
   PriceComparisonEntry,
   PriceComparisonRow,
 } from '@/types/procurement';
+import type {
+  ProcurementDocumentType,
+  UploadProcurementDocumentPayload,
+} from '@/types/procurement-documents';
 
 import {
   PriceComparisonTable,
