@@ -4556,13 +4556,16 @@ const Procurement = () => {
                 );
               })()}
               {/* Phase 2 — procurement document registry */}
-              <ProcurementDocumentsPanel
-                mrfId={
-                  getMrfApiId(selectedMRFForPODetails as unknown as MRF) ||
-                  String((selectedMRFForPODetails as any).id ?? "")
-                }
-                restrictToLmTypes={isProcurementReadOnly}
-              />
+              {canViewProcurementDocuments(user) && (
+                <ProcurementDocumentsPanel
+                  mrfId={
+                    getMrfApiId(selectedMRFForPODetails as unknown as MRF) ||
+                    String((selectedMRFForPODetails as any).id ?? "")
+                  }
+                  restrictToLmTypes={isProcurementReadOnly}
+                  readOnly={isProcurementDocumentsReadOnly(user)}
+                />
+              )}
               {/* Phase 3 — Finance AP workflow gates */}
               <WorkflowGatesPanel
                 mrfId={
