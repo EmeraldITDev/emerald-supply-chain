@@ -25,6 +25,16 @@ import {
   Trash2,
   UploadCloud,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { procurementApi } from "@/services/procurementApi";
 import type {
@@ -103,6 +113,8 @@ export default function ProcurementDocumentsPanel({
   const [openingDocId, setOpeningDocId] = useState<number | string | null>(null);
   const [pending, setPending] = useState<PendingUpload[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState<number | string | null>(null);
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<ProcurementDocument | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchDocs = useCallback(async () => {
@@ -174,6 +186,32 @@ export default function ProcurementDocumentsPanel({
       }
     },
     [fetchDocs, toast],
+  );
+
+  const handleDeleteDocument = useCallback(
+    async (doc: ProcurementDocument) => {
+      setDeletingDocId(doc.id);
+      try {
+        const res = await procurementApi.deleteProcurementDocument(mrfId, doc.id);
+        if (res.success) {
+          toast({
+            title: "Document removed",
+            description: `${doc.fileName} was deleted from the registry.`,
+          });
+          setConfirmDeleteDoc(null);
+          void fetchDocs();
+        } else {
+          toast({
+            title: "Failed to delete document",
+            description: res.error || "Unknown error",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        setDeletingDocId(null);
+      }
+    },
+    [mrfId, toast, fetchDocs],
   );
 
   const grouped = useMemo(() => {
@@ -301,6 +339,7 @@ export default function ProcurementDocumentsPanel({
   ][];
 
   return (
+    <>
     <Card className="border-t">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-base">Procurement Documents</CardTitle>
@@ -361,6 +400,22 @@ export default function ProcurementDocumentsPanel({
                     )}{" "}
                     Open
                   </Button>
+                  {!readOnly && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="ml-1 shrink-0 text-destructive hover:text-destructive"
+                      disabled={deletingDocId === doc.id}
+                      onClick={() => setConfirmDeleteDoc(doc)}
+                      aria-label={`Delete ${doc.fileName}`}
+                    >
+                      {deletingDocId === doc.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -418,6 +473,22 @@ export default function ProcurementDocumentsPanel({
                               <ExternalLink className="h-3 w-3" />
                             )}
                           </Button>
+                          {!readOnly && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              disabled={deletingDocId === doc.id}
+                              onClick={() => setConfirmDeleteDoc(doc)}
+                              aria-label={`Delete ${doc.fileName}`}
+                            >
+                              {deletingDocId === doc.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3 w-3" />
+                              )}
+                            </Button>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -546,5 +617,42 @@ export default function ProcurementDocumentsPanel({
         )}
       </CardContent>
     </Card>
+    <AlertDialog
+      open={!!confirmDeleteDoc}
+      onOpenChange={(open) => {
+        if (!open) setConfirmDeleteDoc(null);
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete this document?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {confirmDeleteDoc?.fileName
+              ? `"${confirmDeleteDoc.fileName}" will be permanently removed from the procurement documents registry. This action cannot be undone.`
+              : "This file will be permanently removed from the procurement documents registry. This action cannot be undone."}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deletingDocId != null}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            disabled={deletingDocId != null}
+            onClick={(e) => {
+              e.preventDefault();
+              if (confirmDeleteDoc) void handleDeleteDocument(confirmDeleteDoc);
+            }}
+          >
+            {deletingDocId != null ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting…
+              </>
+            ) : (
+              "Delete"
+            )}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
