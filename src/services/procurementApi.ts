@@ -14,6 +14,9 @@ import type {
   ProcurementDocumentsResponse,
   ProcurementDocument,
   UploadProcurementDocumentPayload,
+  UploadProcurementDocumentsPayload,
+  UploadProcurementDocumentsResponse,
+  UploadProcurementDocumentsFailure,
 } from '@/types/procurement-documents';
 import type { WorkflowGatesResponse } from '@/types/workflow-gates';
 import type { DeliveryConfirmationResponse } from '@/types/delivery-confirmation';
