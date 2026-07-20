@@ -54,6 +54,23 @@ export interface GetProcurementDocumentsParams {
 export interface UploadProcurementDocumentPayload {
   type: ProcurementDocumentType;
   file: File;
+  remarks?: string;
+}
+
+/** Phase 3: multi-file upload — each entry carries its own type + remarks. */
+export interface UploadProcurementDocumentsPayload {
+  documents: UploadProcurementDocumentPayload[];
+}
+
+export interface UploadProcurementDocumentsFailure {
+  index: number;
+  fileName?: string;
+  error: string;
+}
+
+export interface UploadProcurementDocumentsResponse {
+  uploaded: ProcurementDocument[];
+  failed: UploadProcurementDocumentsFailure[];
 }
 
 /** Phase 2: per-line override sent with preview/generate. */

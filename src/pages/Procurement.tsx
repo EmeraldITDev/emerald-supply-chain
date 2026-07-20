@@ -147,6 +147,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 import { resolveProcurementOverviewMode } from "@/utils/procurementAccess";
+import {
+  canViewProcurementDocuments,
+  isProcurementDocumentsReadOnly,
+} from "@/utils/procurementDocumentsAccess";
 import type { ProcurementManagerDashboardPayload } from "@/utils/normalizeProcurementDashboard";
 
 function convertSrfToPseudoMrfRequest(srf: SRFRequest): MRFRequest {
@@ -4552,13 +4556,16 @@ const Procurement = () => {
                 );
               })()}
               {/* Phase 2 — procurement document registry */}
-              <ProcurementDocumentsPanel
-                mrfId={
-                  getMrfApiId(selectedMRFForPODetails as unknown as MRF) ||
-                  String((selectedMRFForPODetails as any).id ?? "")
-                }
-                restrictToLmTypes={isProcurementReadOnly}
-              />
+              {canViewProcurementDocuments(user) && (
+                <ProcurementDocumentsPanel
+                  mrfId={
+                    getMrfApiId(selectedMRFForPODetails as unknown as MRF) ||
+                    String((selectedMRFForPODetails as any).id ?? "")
+                  }
+                  restrictToLmTypes={isProcurementReadOnly}
+                  readOnly={isProcurementDocumentsReadOnly(user)}
+                />
+              )}
               {/* Phase 3 — Finance AP workflow gates */}
               <WorkflowGatesPanel
                 mrfId={
@@ -4940,16 +4947,18 @@ const Procurement = () => {
                   }
                 />
 
-                <ProcurementDocumentsPanel
-                  mrfId={getMrfApiId(selectedMRFForDetails)}
-                  readOnly={getScmRole(user) === "executive"}
-                  initialData={
-                    mrfDetailDocs ||
-                    (selectedMRFForDetails as any)?.procurementDocuments ||
-                    (selectedMRFForDetails as any)?.procurement_documents ||
-                    undefined
-                  }
-                />
+                {canViewProcurementDocuments(user) && (
+                  <ProcurementDocumentsPanel
+                    mrfId={getMrfApiId(selectedMRFForDetails)}
+                    readOnly={isProcurementDocumentsReadOnly(user)}
+                    initialData={
+                      mrfDetailDocs ||
+                      (selectedMRFForDetails as any)?.procurementDocuments ||
+                      (selectedMRFForDetails as any)?.procurement_documents ||
+                      undefined
+                    }
+                  />
+                )}
 
                 {/* Supporting Document */}
                 {getMRFPFIUrl(selectedMRFForDetails) && (

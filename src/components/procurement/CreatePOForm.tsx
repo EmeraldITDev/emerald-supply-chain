@@ -10,6 +10,9 @@ import {
   PencilLine,
   Save,
   Send,
+  Paperclip,
+  Trash2,
+  UploadCloud,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,6 +55,10 @@ import type {
   PriceComparisonEntry,
   PriceComparisonRow,
 } from '@/types/procurement';
+import type {
+  ProcurementDocumentType,
+  UploadProcurementDocumentPayload,
+} from '@/types/procurement-documents';
 
 import {
   PriceComparisonTable,
@@ -270,6 +277,82 @@ export function CreatePOForm({
    */
   const isAutoSavingRef = useRef(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+
+  // ---------- optional PO document attachments (create + update) ----------
+  type PendingPoDoc = {
+    key: string;
+    file: File;
+    type: ProcurementDocumentType;
+    remarks: string;
+  };
+  const PO_DOC_TYPES: { value: ProcurementDocumentType; label: string }[] = [
+    { value: 'pfi', label: 'Proforma Invoice (PFI)' },
+    { value: 'vendor_invoice', label: 'Vendor Invoice' },
+    { value: 'waybill', label: 'Waybill' },
+    { value: 'jcc', label: 'JCC' },
+    { value: 'delivery_confirmation', label: 'Delivery Confirmation' },
+    { value: 'other', label: 'Other' },
+  ];
+  const MAX_PO_DOC_BYTES = 20 * 1024 * 1024;
+  const [pendingDocs, setPendingDocs] = useState<PendingPoDoc[]>([]);
+  const poDocInputRef = useRef<HTMLInputElement | null>(null);
+  const addPendingDocs = (files: FileList | File[]) => {
+    const list = Array.from(files ?? []);
+    if (!list.length) return;
+    const accepted: PendingPoDoc[] = [];
+    let skipped = 0;
+    for (const f of list) {
+      if (f.size > MAX_PO_DOC_BYTES) {
+        skipped += 1;
+        continue;
+      }
+      accepted.push({
+        key: `pod_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        file: f,
+        type: 'pfi',
+        remarks: '',
+      });
+    }
+    if (skipped > 0) {
+      toast.warning(`${skipped} file(s) skipped`, {
+        description: 'Each file must be 20MB or smaller.',
+      });
+    }
+    if (accepted.length) setPendingDocs((prev) => [...prev, ...accepted]);
+  };
+  const uploadPendingDocs = useCallback(async () => {
+    if (!pendingDocs.length) return;
+    const res = await procurementApi.uploadProcurementDocuments(mrfId, {
+      documents: pendingDocs.map<UploadProcurementDocumentPayload>((p) => ({
+        type: p.type,
+        file: p.file,
+        remarks: p.remarks || undefined,
+      })),
+    });
+    if (!res.success || !res.data) {
+      toast.warning('PO saved, but document upload failed', {
+        description: res.error || 'Please retry from the Documents panel.',
+      });
+      return;
+    }
+    const { uploaded, failed } = res.data;
+    if (uploaded.length > 0) {
+      toast.success(`${uploaded.length} document(s) attached`);
+    }
+    if (failed.length > 0) {
+      toast.warning('Some attachments failed', {
+        description: failed
+          .slice(0, 3)
+          .map((f) => `${f.fileName ?? `#${f.index + 1}`}: ${f.error}`)
+          .join(' · '),
+      });
+      const failedIdx = new Set(failed.map((f) => f.index));
+      setPendingDocs((prev) => prev.filter((_, i) => failedIdx.has(i)));
+    } else {
+      setPendingDocs([]);
+    }
+  }, [mrfId, pendingDocs]);
+
   /**
    * Field-level errors returned by the backend on a 422 Unprocessable Entity
    * response. Keyed by backend field name so we can attach a red border and
@@ -924,6 +1007,7 @@ export function CreatePOForm({
       dirtyRef.current = false;
       lastManualSaveRef.current = Date.now();
       toast.success('Draft saved.');
+      await uploadPendingDocs();
       if (savedMrf) onDraftSaved?.(savedMrf);
     } catch (err) {
       toast.error('Draft save failed', {
@@ -932,7 +1016,7 @@ export function CreatePOForm({
     } finally {
       releaseLock();
     }
-  }, [mrfId, rows, buildPayload, vendors, mrf, onDraftSaved]);
+  }, [mrfId, rows, buildPayload, vendors, mrf, onDraftSaved, uploadPendingDocs]);
 
   const finalisePO = useCallback(async () => {
     if (!(await acquireLock('finalise'))) return;
@@ -1040,6 +1124,7 @@ export function CreatePOForm({
         },
       );
       onFinalised?.(resolvedMrf);
+      await uploadPendingDocs();
     } catch (err) {
       toast.error('PO generation failed', {
         description: err instanceof Error ? err.message : 'Unexpected error.',
@@ -1047,7 +1132,7 @@ export function CreatePOForm({
     } finally {
       releaseLock();
     }
-  }, [mrfId, rows, buildPayload, onFinalised, vendors, editingFinalised]);
+  }, [mrfId, rows, buildPayload, onFinalised, vendors, editingFinalised, uploadPendingDocs]);
 
   // -------------------------------------------------------------------------
   // Autosave — debounced 3s, draft mode only, lock-protected,
@@ -1681,7 +1766,114 @@ export function CreatePOForm({
         </div>
       )}
 
-      {/* ============== Blocking errors summary (1c) ============== */}
+      {/* Optional: attach supporting documents alongside the PO save */}
+      {!isFinalised && (
+        <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Paperclip className="h-4 w-4 text-muted-foreground" />
+              Supporting Documents (optional)
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => poDocInputRef.current?.click()}
+              disabled={isSaving}
+            >
+              <UploadCloud className="mr-2 h-4 w-4" /> Add files
+            </Button>
+            <input
+              ref={poDocInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files) addPendingDocs(e.target.files);
+                e.currentTarget.value = '';
+              }}
+            />
+          </div>
+          {pendingDocs.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Attach PFI, invoices, waybills or any related file. They upload after
+              the PO is saved or generated. PDF, DOC, DOCX, JPG, PNG · 20MB each.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {pendingDocs.map((p) => (
+                <div
+                  key={p.key}
+                  className="grid gap-2 rounded border bg-background p-2 sm:grid-cols-[1fr_180px_1fr_auto] sm:items-end"
+                >
+                  <div className="min-w-0">
+                    <Label className="text-xs">File</Label>
+                    <p className="truncate text-sm font-medium" title={p.file.name}>
+                      {p.file.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {(p.file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Type</Label>
+                    <Select
+                      value={p.type}
+                      onValueChange={(v) =>
+                        setPendingDocs((prev) =>
+                          prev.map((d) =>
+                            d.key === p.key ? { ...d, type: v as ProcurementDocumentType } : d,
+                          ),
+                        )
+                      }
+                      disabled={isSaving}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PO_DOC_TYPES.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Remarks (optional)</Label>
+                    <Input
+                      value={p.remarks}
+                      onChange={(e) =>
+                        setPendingDocs((prev) =>
+                          prev.map((d) =>
+                            d.key === p.key ? { ...d, remarks: e.target.value } : d,
+                          ),
+                        )
+                      }
+                      placeholder="Notes for this file"
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setPendingDocs((prev) => prev.filter((d) => d.key !== p.key))
+                    }
+                    disabled={isSaving}
+                    aria-label="Remove attachment"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {!isFinalised && blockingErrors.length > 0 && (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-1.5">
           <div className="flex items-center gap-2 font-medium text-destructive">
