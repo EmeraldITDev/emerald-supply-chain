@@ -616,5 +616,42 @@ export default function ProcurementDocumentsPanel({
         )}
       </CardContent>
     </Card>
+    <AlertDialog
+      open={!!confirmDeleteDoc}
+      onOpenChange={(open) => {
+        if (!open) setConfirmDeleteDoc(null);
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete this document?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {confirmDeleteDoc?.fileName
+              ? `"${confirmDeleteDoc.fileName}" will be permanently removed from the procurement documents registry. This action cannot be undone.`
+              : "This file will be permanently removed from the procurement documents registry. This action cannot be undone."}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deletingDocId != null}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            disabled={deletingDocId != null}
+            onClick={(e) => {
+              e.preventDefault();
+              if (confirmDeleteDoc) void handleDeleteDocument(confirmDeleteDoc);
+            }}
+          >
+            {deletingDocId != null ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting…
+              </>
+            ) : (
+              "Delete"
+            )}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
