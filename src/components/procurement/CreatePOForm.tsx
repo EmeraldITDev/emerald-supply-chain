@@ -1124,6 +1124,7 @@ export function CreatePOForm({
         },
       );
       onFinalised?.(resolvedMrf);
+      await uploadPendingDocs();
     } catch (err) {
       toast.error('PO generation failed', {
         description: err instanceof Error ? err.message : 'Unexpected error.',
@@ -1131,7 +1132,7 @@ export function CreatePOForm({
     } finally {
       releaseLock();
     }
-  }, [mrfId, rows, buildPayload, onFinalised, vendors, editingFinalised]);
+  }, [mrfId, rows, buildPayload, onFinalised, vendors, editingFinalised, uploadPendingDocs]);
 
   // -------------------------------------------------------------------------
   // Autosave — debounced 3s, draft mode only, lock-protected,
