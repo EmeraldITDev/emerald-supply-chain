@@ -1766,10 +1766,6 @@ export function CreatePOForm({
         </div>
       )}
 
-      {/* ============== Blocking errors summary (1c) ============== */}
-      {!isFinalised && blockingErrors.length > 0 && (
-        null
-      )}
       {/* Optional: attach supporting documents alongside the PO save */}
       {!isFinalised && (
         <div className="rounded-md border bg-muted/20 p-3 space-y-3">
