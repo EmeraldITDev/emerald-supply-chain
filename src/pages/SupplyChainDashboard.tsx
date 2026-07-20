@@ -1674,6 +1674,11 @@ const SupplyChainDashboard = () => {
                                     <Download className="h-4 w-4 mr-2" />
                                     Download PO
                                   </Button>
+                                  <ViewPoDocumentsButton
+                                    mrfId={mrf.id}
+                                    poNumber={poNumber}
+                                    readOnly={false}
+                                  />
                                   {getUnsignedPOShareUrl(mrf) && (
                                     <OneDriveLink
                                       webUrl={getUnsignedPOShareUrl(mrf)}
