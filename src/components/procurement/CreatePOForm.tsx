@@ -1007,6 +1007,7 @@ export function CreatePOForm({
       dirtyRef.current = false;
       lastManualSaveRef.current = Date.now();
       toast.success('Draft saved.');
+      await uploadPendingDocs();
       if (savedMrf) onDraftSaved?.(savedMrf);
     } catch (err) {
       toast.error('Draft save failed', {
@@ -1015,7 +1016,7 @@ export function CreatePOForm({
     } finally {
       releaseLock();
     }
-  }, [mrfId, rows, buildPayload, vendors, mrf, onDraftSaved]);
+  }, [mrfId, rows, buildPayload, vendors, mrf, onDraftSaved, uploadPendingDocs]);
 
   const finalisePO = useCallback(async () => {
     if (!(await acquireLock('finalise'))) return;
