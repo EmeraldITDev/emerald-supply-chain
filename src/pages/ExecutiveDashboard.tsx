@@ -33,6 +33,7 @@ import {
 import { DashboardSummaryStats } from "@/components/dashboard/DashboardSummaryStats";
 import { DashboardMrfHistoryList } from "@/components/dashboard/DashboardMrfHistoryList";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
+import { ViewPoDocumentsButton } from "@/components/procurement/ViewPoDocumentsButton";
 
 const ExecutiveDashboard = () => {
   const { user } = useAuth();
