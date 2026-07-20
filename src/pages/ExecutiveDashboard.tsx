@@ -552,6 +552,7 @@ const ExecutiveDashboard = () => {
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </Button>
+                              <ViewPoDocumentsButton mrfId={mrf.id} readOnly />
                             </div>
 
                           </CardContent>
