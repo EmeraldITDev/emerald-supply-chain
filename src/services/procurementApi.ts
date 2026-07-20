@@ -277,6 +277,64 @@ export const procurementApi = {
   },
 
   /**
+   * POST /api/mrfs/{id}/procurement-documents — Phase 3 multi-file variant.
+   * Sends `documents[i][file|type|remarks]` as multipart form data. Backend
+   * responds with `{ uploaded: [...], failed: [...] }` so callers can surface
+   * partial-success warnings.
+   */
+  uploadProcurementDocuments: async (
+    mrfId: string,
+    { documents }: UploadProcurementDocumentsPayload,
+  ): Promise<ApiResponse<UploadProcurementDocumentsResponse>> => {
+    const { token, expired } = getAuthToken();
+    if (expired || !token) {
+      return { success: false, error: 'Authentication token has expired. Please log in again.' };
+    }
+    if (!documents.length) {
+      return { success: true, data: { uploaded: [], failed: [] } };
+    }
+    const formData = new FormData();
+    documents.forEach((doc, i) => {
+      formData.append(`documents[${i}][file]`, doc.file);
+      formData.append(`documents[${i}][type]`, doc.type);
+      if (doc.remarks) formData.append(`documents[${i}][remarks]`, doc.remarks);
+    });
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/mrfs/${encodeURIComponent(mrfId)}/procurement-documents`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        },
+      );
+      const raw = await response.json().catch(() => ({}));
+      if (response.ok) dispatchRefresh();
+      const payload = (raw?.data ?? raw) as Partial<UploadProcurementDocumentsResponse> & {
+        // Legacy single-doc shape fallback.
+        id?: number | string;
+      };
+      const uploaded: ProcurementDocument[] = Array.isArray(payload?.uploaded)
+        ? (payload.uploaded as ProcurementDocument[])
+        : payload && (payload as ProcurementDocument).id
+          ? [payload as ProcurementDocument]
+          : [];
+      const failed: UploadProcurementDocumentsFailure[] = Array.isArray(payload?.failed)
+        ? (payload.failed as UploadProcurementDocumentsFailure[])
+        : [];
+      return {
+        success: response.ok,
+        data: { uploaded, failed },
+        error: raw?.error || raw?.message,
+        status: response.status,
+      };
+    } catch (error) {
+      console.error('uploadProcurementDocuments failed:', error);
+      return { success: false, error: 'Network error while uploading documents.' };
+    }
+  },
+
+  /**
    * GRN preview — Phase 2.
    * Uses GET when no line-item overrides are present, POST when they are
    * (the backend accepts the same body shape as `generate`).
