@@ -239,6 +239,22 @@ export const procurementApi = {
   },
 
   /**
+   * DELETE /api/mrfs/{mrfId}/procurement-documents/{documentId} — remove an
+   * uploaded procurement document (e.g. an accidentally attached file).
+   */
+  deleteProcurementDocument: async (
+    mrfId: string,
+    documentId: string | number,
+  ): Promise<ApiResponse<{ id: string | number }>> => {
+    const res = await apiRequest<{ id: string | number }>(
+      `/mrfs/${encodeURIComponent(mrfId)}/procurement-documents/${encodeURIComponent(String(documentId))}`,
+      { method: 'DELETE' },
+    );
+    if (res.success) dispatchRefresh();
+    return res;
+  },
+
+  /**
    * POST /api/mrfs/{id}/procurement-documents — Phase 2.
    * Multipart upload of a supporting document (waybill, JCC, PFI, etc.).
    */
