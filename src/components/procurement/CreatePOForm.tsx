@@ -277,6 +277,82 @@ export function CreatePOForm({
    */
   const isAutoSavingRef = useRef(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+
+  // ---------- optional PO document attachments (create + update) ----------
+  type PendingPoDoc = {
+    key: string;
+    file: File;
+    type: ProcurementDocumentType;
+    remarks: string;
+  };
+  const PO_DOC_TYPES: { value: ProcurementDocumentType; label: string }[] = [
+    { value: 'pfi', label: 'Proforma Invoice (PFI)' },
+    { value: 'vendor_invoice', label: 'Vendor Invoice' },
+    { value: 'waybill', label: 'Waybill' },
+    { value: 'jcc', label: 'JCC' },
+    { value: 'delivery_confirmation', label: 'Delivery Confirmation' },
+    { value: 'other', label: 'Other' },
+  ];
+  const MAX_PO_DOC_BYTES = 20 * 1024 * 1024;
+  const [pendingDocs, setPendingDocs] = useState<PendingPoDoc[]>([]);
+  const poDocInputRef = useRef<HTMLInputElement | null>(null);
+  const addPendingDocs = (files: FileList | File[]) => {
+    const list = Array.from(files ?? []);
+    if (!list.length) return;
+    const accepted: PendingPoDoc[] = [];
+    let skipped = 0;
+    for (const f of list) {
+      if (f.size > MAX_PO_DOC_BYTES) {
+        skipped += 1;
+        continue;
+      }
+      accepted.push({
+        key: `pod_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        file: f,
+        type: 'pfi',
+        remarks: '',
+      });
+    }
+    if (skipped > 0) {
+      toast.warning(`${skipped} file(s) skipped`, {
+        description: 'Each file must be 20MB or smaller.',
+      });
+    }
+    if (accepted.length) setPendingDocs((prev) => [...prev, ...accepted]);
+  };
+  const uploadPendingDocs = useCallback(async () => {
+    if (!pendingDocs.length) return;
+    const res = await procurementApi.uploadProcurementDocuments(mrfId, {
+      documents: pendingDocs.map<UploadProcurementDocumentPayload>((p) => ({
+        type: p.type,
+        file: p.file,
+        remarks: p.remarks || undefined,
+      })),
+    });
+    if (!res.success || !res.data) {
+      toast.warning('PO saved, but document upload failed', {
+        description: res.error || 'Please retry from the Documents panel.',
+      });
+      return;
+    }
+    const { uploaded, failed } = res.data;
+    if (uploaded.length > 0) {
+      toast.success(`${uploaded.length} document(s) attached`);
+    }
+    if (failed.length > 0) {
+      toast.warning('Some attachments failed', {
+        description: failed
+          .slice(0, 3)
+          .map((f) => `${f.fileName ?? `#${f.index + 1}`}: ${f.error}`)
+          .join(' · '),
+      });
+      const failedIdx = new Set(failed.map((f) => f.index));
+      setPendingDocs((prev) => prev.filter((_, i) => failedIdx.has(i)));
+    } else {
+      setPendingDocs([]);
+    }
+  }, [mrfId, pendingDocs]);
+
   /**
    * Field-level errors returned by the backend on a 422 Unprocessable Entity
    * response. Keyed by backend field name so we can attach a red border and
