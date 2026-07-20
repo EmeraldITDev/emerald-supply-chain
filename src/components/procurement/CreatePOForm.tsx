@@ -1768,6 +1768,117 @@ export function CreatePOForm({
 
       {/* ============== Blocking errors summary (1c) ============== */}
       {!isFinalised && blockingErrors.length > 0 && (
+        null
+      )}
+      {/* Optional: attach supporting documents alongside the PO save */}
+      {!isFinalised && (
+        <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Paperclip className="h-4 w-4 text-muted-foreground" />
+              Supporting Documents (optional)
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => poDocInputRef.current?.click()}
+              disabled={isSaving}
+            >
+              <UploadCloud className="mr-2 h-4 w-4" /> Add files
+            </Button>
+            <input
+              ref={poDocInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files) addPendingDocs(e.target.files);
+                e.currentTarget.value = '';
+              }}
+            />
+          </div>
+          {pendingDocs.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Attach PFI, invoices, waybills or any related file. They upload after
+              the PO is saved or generated. PDF, DOC, DOCX, JPG, PNG · 20MB each.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {pendingDocs.map((p) => (
+                <div
+                  key={p.key}
+                  className="grid gap-2 rounded border bg-background p-2 sm:grid-cols-[1fr_180px_1fr_auto] sm:items-end"
+                >
+                  <div className="min-w-0">
+                    <Label className="text-xs">File</Label>
+                    <p className="truncate text-sm font-medium" title={p.file.name}>
+                      {p.file.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {(p.file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Type</Label>
+                    <Select
+                      value={p.type}
+                      onValueChange={(v) =>
+                        setPendingDocs((prev) =>
+                          prev.map((d) =>
+                            d.key === p.key ? { ...d, type: v as ProcurementDocumentType } : d,
+                          ),
+                        )
+                      }
+                      disabled={isSaving}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PO_DOC_TYPES.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Remarks (optional)</Label>
+                    <Input
+                      value={p.remarks}
+                      onChange={(e) =>
+                        setPendingDocs((prev) =>
+                          prev.map((d) =>
+                            d.key === p.key ? { ...d, remarks: e.target.value } : d,
+                          ),
+                        )
+                      }
+                      placeholder="Notes for this file"
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setPendingDocs((prev) => prev.filter((d) => d.key !== p.key))
+                    }
+                    disabled={isSaving}
+                    aria-label="Remove attachment"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {!isFinalised && blockingErrors.length > 0 && (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-1.5">
           <div className="flex items-center gap-2 font-medium text-destructive">
             <AlertCircle className="h-3.5 w-3.5" />
