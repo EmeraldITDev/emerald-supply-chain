@@ -4947,16 +4947,18 @@ const Procurement = () => {
                   }
                 />
 
-                <ProcurementDocumentsPanel
-                  mrfId={getMrfApiId(selectedMRFForDetails)}
-                  readOnly={getScmRole(user) === "executive"}
-                  initialData={
-                    mrfDetailDocs ||
-                    (selectedMRFForDetails as any)?.procurementDocuments ||
-                    (selectedMRFForDetails as any)?.procurement_documents ||
-                    undefined
-                  }
-                />
+                {canViewProcurementDocuments(user) && (
+                  <ProcurementDocumentsPanel
+                    mrfId={getMrfApiId(selectedMRFForDetails)}
+                    readOnly={isProcurementDocumentsReadOnly(user)}
+                    initialData={
+                      mrfDetailDocs ||
+                      (selectedMRFForDetails as any)?.procurementDocuments ||
+                      (selectedMRFForDetails as any)?.procurement_documents ||
+                      undefined
+                    }
+                  />
+                )}
 
                 {/* Supporting Document */}
                 {getMRFPFIUrl(selectedMRFForDetails) && (
