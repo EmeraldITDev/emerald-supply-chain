@@ -339,6 +339,7 @@ export default function ProcurementDocumentsPanel({
   ][];
 
   return (
+    <>
     <Card className="border-t">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-base">Procurement Documents</CardTitle>
