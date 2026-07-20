@@ -64,6 +64,7 @@ import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { procurementApi } from "@/services/procurementApi";
 import { buildEmeraldPoDisplayModel, coercePOTermsMode, userClausesFromStoredCustomTerms } from "@/utils/emeraldPoDocumentModel";
 import { buildEmeraldPurchaseOrderPdf } from "@/utils/emeraldPOPdf";
+import { ViewPoDocumentsButton } from "@/components/procurement/ViewPoDocumentsButton";
 import { resolveUserSignatureDataUrl, readCachedUserSignature } from "@/utils/userSignature";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { VendorRegistration } from "@/types";
@@ -1673,6 +1674,11 @@ const SupplyChainDashboard = () => {
                                     <Download className="h-4 w-4 mr-2" />
                                     Download PO
                                   </Button>
+                                  <ViewPoDocumentsButton
+                                    mrfId={mrf.id}
+                                    poNumber={poNumber}
+                                    readOnly={false}
+                                  />
                                   {getUnsignedPOShareUrl(mrf) && (
                                     <OneDriveLink
                                       webUrl={getUnsignedPOShareUrl(mrf)}
