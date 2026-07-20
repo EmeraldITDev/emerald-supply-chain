@@ -22,6 +22,7 @@ import {
   FileText,
   Loader2,
   RefreshCw,
+  Trash2,
   UploadCloud,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -71,6 +72,17 @@ const TYPE_LABELS: Record<ProcurementDocumentType, string> = {
 const ACCEPTED_MIME = ".pdf,.doc,.docx,.jpg,.jpeg,.png";
 const MAX_BYTES = 20 * 1024 * 1024;
 
+type PendingUpload = {
+  key: string;
+  file: File;
+  type: ProcurementDocumentType;
+  remarks: string;
+};
+
+function newPendingKey() {
+  return `pu_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function formatDate(value?: string) {
   if (!value) return "—";
   const d = new Date(value);
@@ -89,8 +101,7 @@ export default function ProcurementDocumentsPanel({
   const [data, setData] = useState<ProcurementDocumentsResponse | null>(initialData);
   const [loading, setLoading] = useState(!initialData);
   const [openingDocId, setOpeningDocId] = useState<number | string | null>(null);
-  const [uploadType, setUploadType] = useState<ProcurementDocumentType>(defaultUploadType);
-  const [file, setFile] = useState<File | null>(null);
+  const [pending, setPending] = useState<PendingUpload[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -185,38 +196,88 @@ export default function ProcurementDocumentsPanel({
     return out;
   }, [data, grouped]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null;
-    if (f && f.size > MAX_BYTES) {
+  const availableTypes = useMemo(
+    () =>
+      restrictToLmTypes
+        ? UPLOADABLE_TYPES.filter((t) =>
+            (LM_UPLOADABLE_DOC_TYPES as readonly string[]).includes(t.value),
+          )
+        : UPLOADABLE_TYPES,
+    [restrictToLmTypes],
+  );
+
+  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const list = Array.from(e.target.files ?? []);
+    if (!list.length) return;
+    const accepted: PendingUpload[] = [];
+    let rejected = 0;
+    for (const f of list) {
+      if (f.size > MAX_BYTES) {
+        rejected += 1;
+        continue;
+      }
+      accepted.push({
+        key: newPendingKey(),
+        file: f,
+        type: defaultUploadType,
+        remarks: "",
+      });
+    }
+    if (rejected > 0) {
       toast({
-        title: "File too large",
-        description: "Maximum size is 20MB.",
+        title: `${rejected} file(s) skipped`,
+        description: "Each file must be ≤ 20MB.",
         variant: "destructive",
       });
-      e.target.value = "";
-      return;
     }
-    setFile(f);
+    if (accepted.length) setPending((prev) => [...prev, ...accepted]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const updatePending = (key: string, patch: Partial<PendingUpload>) =>
+    setPending((prev) => prev.map((p) => (p.key === key ? { ...p, ...patch } : p)));
+
+  const removePending = (key: string) =>
+    setPending((prev) => prev.filter((p) => p.key !== key));
+
   const handleUpload = async () => {
-    if (!file) {
-      toast({ title: "Select a file first", variant: "destructive" });
+    if (!pending.length) {
+      toast({ title: "Add at least one file", variant: "destructive" });
       return;
     }
     setUploading(true);
     try {
-      const res = await procurementApi.uploadProcurementDocument(mrfId, {
-        type: uploadType,
-        file,
+      const res = await procurementApi.uploadProcurementDocuments(mrfId, {
+        documents: pending.map((p) => ({
+          type: p.type,
+          file: p.file,
+          remarks: p.remarks || undefined,
+        })),
       });
-      if (res.success) {
-        toast({
-          title: "Document uploaded",
-          description: `${TYPE_LABELS[uploadType]} added to registry.`,
-        });
-        setFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = "";
+      if (res.success && res.data) {
+        const uploaded = res.data.uploaded.length;
+        const failed = res.data.failed;
+        if (uploaded > 0) {
+          toast({
+            title: `${uploaded} document(s) uploaded`,
+            description: failed.length
+              ? `${failed.length} file(s) failed — see below.`
+              : "Registry refreshed.",
+          });
+        }
+        if (failed.length > 0) {
+          toast({
+            title: "Some uploads failed",
+            description: failed
+              .slice(0, 3)
+              .map((f) => `${f.fileName ?? `#${f.index + 1}`}: ${f.error}`)
+              .join(" · "),
+            variant: "destructive",
+          });
+        }
+        // Keep only the failed items so the user can retry them.
+        const failedIndexes = new Set(failed.map((f) => f.index));
+        setPending((prev) => prev.filter((_, i) => failedIndexes.has(i)));
         void fetchDocs();
       } else {
         toast({
@@ -367,71 +428,121 @@ export default function ProcurementDocumentsPanel({
           </section>
         )}
 
-        {/* Upload form — hidden when read-only or when no types are available for this user */}
-        {!readOnly &&
-        (!restrictToLmTypes ||
-          LM_UPLOADABLE_DOC_TYPES.some((t) =>
-            UPLOADABLE_TYPES.find((u) => u.value === t),
-          )) && (
-        <section className="space-y-3 rounded-md border bg-muted/30 p-3">
-          <h4 className="text-sm font-semibold">Upload Supporting Document</h4>
-          {restrictToLmTypes && (
-            <p className="text-xs text-muted-foreground">
-              Your role can upload JCC and Waybill documents only.
-            </p>
-          )}
-          <div className="grid gap-3 sm:grid-cols-[180px_1fr_auto]">
-            <div className="space-y-1">
-              <Label className="text-xs">Type</Label>
-              <Select
-                value={uploadType}
-                onValueChange={(v) => setUploadType(v as ProcurementDocumentType)}
+        {/* Multi-file upload — hidden when read-only or no types available */}
+        {!readOnly && availableTypes.length > 0 && (
+          <section className="space-y-3 rounded-md border bg-muted/30 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="text-sm font-semibold">Upload Supporting Documents</h4>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(restrictToLmTypes
-                    ? UPLOADABLE_TYPES.filter((t) =>
-                        (LM_UPLOADABLE_DOC_TYPES as readonly string[]).includes(t.value),
-                      )
-                    : UPLOADABLE_TYPES
-                  ).map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">File</Label>
-              <Input
+                <UploadCloud className="mr-2 h-4 w-4" /> Add files
+              </Button>
+              <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 accept={ACCEPTED_MIME}
-                onChange={handleFileChange}
+                className="hidden"
+                onChange={handleFilesSelected}
                 disabled={uploading}
               />
             </div>
-            <div className="flex items-end">
-              <Button onClick={handleUpload} disabled={uploading || !file}>
+            {restrictToLmTypes && (
+              <p className="text-xs text-muted-foreground">
+                Your role can upload JCC and Waybill documents only.
+              </p>
+            )}
+            {pending.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Select one or more files to attach. Each file can have its own
+                type and remarks. PDF, DOC, DOCX, JPG, PNG · Max 20MB each.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {pending.map((p) => (
+                  <div
+                    key={p.key}
+                    className="grid gap-2 rounded border bg-background p-2 sm:grid-cols-[1fr_180px_1fr_auto] sm:items-end"
+                  >
+                    <div className="min-w-0">
+                      <Label className="text-xs">File</Label>
+                      <p className="truncate text-sm font-medium" title={p.file.name}>
+                        {p.file.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {(p.file.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Type</Label>
+                      <Select
+                        value={p.type}
+                        onValueChange={(v) =>
+                          updatePending(p.key, { type: v as ProcurementDocumentType })
+                        }
+                        disabled={uploading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableTypes.map((t) => (
+                            <SelectItem key={t.value} value={t.value}>
+                              {t.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Remarks (optional)</Label>
+                      <Input
+                        value={p.remarks}
+                        onChange={(e) => updatePending(p.key, { remarks: e.target.value })}
+                        placeholder="Notes for this file"
+                        disabled={uploading}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removePending(p.key)}
+                      disabled={uploading}
+                      aria-label="Remove file"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center justify-end">
+              <Button
+                type="button"
+                onClick={handleUpload}
+                disabled={uploading || pending.length === 0}
+              >
                 {uploading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading {pending.length} file{pending.length === 1 ? "" : "s"}…
                   </>
                 ) : (
                   <>
-                    <UploadCloud className="mr-2 h-4 w-4" /> Upload
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Upload {pending.length > 0 ? `${pending.length} ` : ""}file
+                    {pending.length === 1 ? "" : "s"}
                   </>
                 )}
               </Button>
             </div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Accepted: PDF, DOC, DOCX, JPG, PNG · Max 20MB
-          </p>
-        </section>
+          </section>
         )}
       </CardContent>
     </Card>
