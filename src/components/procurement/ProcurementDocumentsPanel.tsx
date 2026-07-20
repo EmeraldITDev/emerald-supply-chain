@@ -25,6 +25,16 @@ import {
   Trash2,
   UploadCloud,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { procurementApi } from "@/services/procurementApi";
 import type {
@@ -103,6 +113,8 @@ export default function ProcurementDocumentsPanel({
   const [openingDocId, setOpeningDocId] = useState<number | string | null>(null);
   const [pending, setPending] = useState<PendingUpload[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState<number | string | null>(null);
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<ProcurementDocument | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchDocs = useCallback(async () => {
@@ -174,6 +186,32 @@ export default function ProcurementDocumentsPanel({
       }
     },
     [fetchDocs, toast],
+  );
+
+  const handleDeleteDocument = useCallback(
+    async (doc: ProcurementDocument) => {
+      setDeletingDocId(doc.id);
+      try {
+        const res = await procurementApi.deleteProcurementDocument(mrfId, doc.id);
+        if (res.success) {
+          toast({
+            title: "Document removed",
+            description: `${doc.fileName} was deleted from the registry.`,
+          });
+          setConfirmDeleteDoc(null);
+          void fetchDocs();
+        } else {
+          toast({
+            title: "Failed to delete document",
+            description: res.error || "Unknown error",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        setDeletingDocId(null);
+      }
+    },
+    [mrfId, toast, fetchDocs],
   );
 
   const grouped = useMemo(() => {
