@@ -399,6 +399,22 @@ export default function ProcurementDocumentsPanel({
                     )}{" "}
                     Open
                   </Button>
+                  {!readOnly && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="ml-1 shrink-0 text-destructive hover:text-destructive"
+                      disabled={deletingDocId === doc.id}
+                      onClick={() => setConfirmDeleteDoc(doc)}
+                      aria-label={`Delete ${doc.fileName}`}
+                    >
+                      {deletingDocId === doc.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -456,6 +472,22 @@ export default function ProcurementDocumentsPanel({
                               <ExternalLink className="h-3 w-3" />
                             )}
                           </Button>
+                          {!readOnly && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              disabled={deletingDocId === doc.id}
+                              onClick={() => setConfirmDeleteDoc(doc)}
+                              aria-label={`Delete ${doc.fileName}`}
+                            >
+                              {deletingDocId === doc.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3 w-3" />
+                              )}
+                            </Button>
+                          )}
                         </li>
                       ))}
                     </ul>
