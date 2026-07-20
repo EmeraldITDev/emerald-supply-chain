@@ -147,6 +147,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 import { resolveProcurementOverviewMode } from "@/utils/procurementAccess";
+import {
+  canViewProcurementDocuments,
+  isProcurementDocumentsReadOnly,
+} from "@/utils/procurementDocumentsAccess";
 import type { ProcurementManagerDashboardPayload } from "@/utils/normalizeProcurementDashboard";
 
 function convertSrfToPseudoMrfRequest(srf: SRFRequest): MRFRequest {
