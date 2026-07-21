@@ -16,8 +16,9 @@ import { TripCommentsPanel } from "./TripCommentsPanel";
 import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
 import { resolveTripBookingScopeLabel } from "@/utils/tripBookingValidation";
 import { Separator } from "@/components/ui/separator";
-import { CalendarClock, MapPin, Plane, Car, Users } from "lucide-react";
+import { CalendarClock, MapPin, Plane, Car, Users, BedDouble, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
+import { formatPoAmount } from "@/utils/currency";
 
 function formatDateTime(value?: string | null): string {
   if (!value) return "—";
@@ -112,6 +113,19 @@ export function TripRequestDetailDialog({
   const passengers = trip?.passengers ?? [];
   const externalPassengers = trip?.externalPassengers ?? trip?.external_passengers ?? [];
   const totalPassengers = passengers.length + externalPassengers.length;
+
+  const accommodationRequired = Boolean(
+    trip?.accommodationRequired ?? trip?.accommodation_required,
+  );
+  const accName = trip?.accommodationName ?? trip?.accommodation_name ?? null;
+  const accAddress = trip?.accommodationAddress ?? trip?.accommodation_address ?? null;
+  const accContact = trip?.accommodationContact ?? trip?.accommodation_contact ?? null;
+  const accDetails = trip?.accommodationDetails ?? trip?.accommodation_details ?? null;
+  const accCost = trip?.accommodationEstimatedCost ?? trip?.accommodation_estimated_cost ?? null;
+  const escortRequired = Boolean(trip?.escortRequired ?? trip?.escort_required);
+  const escortDescription = trip?.escortDescription ?? trip?.escort_description ?? null;
+  const auditTrail = trip?.auditTrail ?? trip?.audit_trail ?? [];
+  const approvalStatus = trip?.approvalStatus ?? trip?.approval_status ?? null;
 
   const handleDeleted = () => {
     onOpenChange(false);
@@ -222,6 +236,57 @@ export function TripRequestDetailDialog({
                     <DetailRow label="Purpose" value={trip.purpose} />
                   </>
                 )}
+                {(accommodationRequired || escortRequired) && (
+                  <>
+                    <Separator />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {accommodationRequired && (
+                        <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-sm font-medium">
+                            <BedDouble className="h-4 w-4 text-primary" />
+                            Accommodation requested
+                          </div>
+                          {accName || accAddress || accContact || accDetails || accCost ? (
+                            <div className="space-y-1 text-xs text-muted-foreground">
+                              {accName && <div><span className="font-medium text-foreground">Hotel:</span> {accName}</div>}
+                              {accAddress && <div><span className="font-medium text-foreground">Address:</span> {accAddress}</div>}
+                              {accContact && <div><span className="font-medium text-foreground">Contact:</span> {accContact}</div>}
+                              {accDetails && <div><span className="font-medium text-foreground">Notes:</span> {accDetails}</div>}
+                              {accCost != null && (
+                                <div><span className="font-medium text-foreground">Est. cost:</span> {formatPoAmount(Number(accCost), 'NGN')}</div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">
+                              Requester did not specify a hotel. Logistics will arrange accommodation.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {escortRequired && (
+                        <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-sm font-medium">
+                            <ShieldCheck className="h-4 w-4 text-primary" />
+                            Escort requested
+                          </div>
+                          {escortDescription ? (
+                            <p className="text-xs text-muted-foreground">{escortDescription}</p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">
+                              Requester did not specify an escort. Logistics will assign one.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+                {approvalStatus && (
+                  <>
+                    <Separator />
+                    <DetailRow label="Approval Status" value={<span className="capitalize">{approvalStatus.replace(/_/g, " ")}</span>} />
+                  </>
+                )}
                 {(passengers.length > 0 || externalPassengers.length > 0) && (
                   <>
                     <Separator />
@@ -245,6 +310,35 @@ export function TripRequestDetailDialog({
                     </div>
                   </>
                 )}
+              </div>
+            )}
+            {auditTrail.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                  Edit history
+                </p>
+                <div className="space-y-2">
+                  {auditTrail.map((entry, idx) => {
+                    const field = entry.field_name ?? entry.fieldName ?? "field";
+                    const oldV = entry.original_value ?? entry.originalValue;
+                    const newV = entry.new_value ?? entry.newValue;
+                    const who = entry.editor_name ?? entry.editorName ?? "System";
+                    const when = entry.created_at ?? entry.createdAt;
+                    return (
+                      <div key={entry.id ?? idx} className="rounded-md border border-border/40 p-2 text-xs">
+                        <div className="font-medium capitalize">{String(field).replace(/_/g, " ")}</div>
+                        <div className="text-muted-foreground">
+                          {oldV != null && <span className="line-through mr-2">{String(oldV)}</span>}
+                          {newV != null && <span className="text-foreground">{String(newV)}</span>}
+                        </div>
+                        <div className="text-muted-foreground mt-0.5">
+                          {who}{when ? ` · ${formatDateTime(when)}` : ""}
+                          {entry.reason ? ` — ${entry.reason}` : ""}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
             {trip && (trip.availableActions?.length ?? 0) > 0 && (
