@@ -903,8 +903,8 @@ const SupplyChainDashboard = () => {
                               }
                             }}
                             className={`cursor-pointer transition-all hover:shadow-md ${active
-                                ? "ring-2 ring-primary border-primary"
-                                : ""
+                              ? "ring-2 ring-primary border-primary"
+                              : ""
                               }`}
                           >
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3">
