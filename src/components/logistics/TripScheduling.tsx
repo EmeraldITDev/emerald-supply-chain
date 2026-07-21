@@ -149,6 +149,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [jccOpen, setJccOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [selectedTripRequest, setSelectedTripRequest] = useState<StaffTripRequest | null>(null);
+  const [loadingTripRequest, setLoadingTripRequest] = useState(false);
 
   // When a trip request row (TRQ-*) is opened in the details dialog, fetch the
   // underlying StaffTripRequest so trip-request workflow buttons (Forward,
@@ -156,19 +157,23 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   useEffect(() => {
     if (!viewDialogOpen || !selectedTrip) {
       setSelectedTripRequest(null);
+      setLoadingTripRequest(false);
       return;
     }
     const code = selectedTrip.tripNumber ?? "";
     if (!code.startsWith("TRQ-")) {
       setSelectedTripRequest(null);
+      setLoadingTripRequest(false);
       return;
     }
     let cancelled = false;
     (async () => {
+      setLoadingTripRequest(true);
       const res = await tripRequestApi.getById(String(selectedTrip.id));
       if (!cancelled && res.success && res.data?.trip) {
         setSelectedTripRequest(res.data.trip);
       }
+      setLoadingTripRequest(false);
     })();
     return () => {
       cancelled = true;
@@ -1586,98 +1591,115 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   )}
                 </div>
 
-                {/* Staff Trip Request Information */}
-                {selectedTripRequest && (
+                {/* Staff Trip Request Information - Loading or Loaded */}
+                {(selectedTripRequest || loadingTripRequest) && (
                   <>
                     <Separator />
-                    <div className="grid grid-cols-2 gap-3">
-                      {selectedTripRequest.requesterName && (
-                        <div>
-                          <Label className="text-xs text-muted-foreground font-medium uppercase">Requester</Label>
-                          <p className="text-sm font-medium mt-0.5">{selectedTripRequest.requesterName}</p>
+                    {loadingTripRequest ? (
+                      <div className="space-y-3">
+                        <div className="h-8 bg-muted rounded animate-pulse" />
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="h-6 bg-muted rounded animate-pulse" />
+                          <div className="h-6 bg-muted rounded animate-pulse" />
                         </div>
-                      )}
-                      {selectedTripRequest.requesterDepartment && (
-                        <div>
-                          <Label className="text-xs text-muted-foreground font-medium uppercase">Department</Label>
-                          <p className="text-sm font-medium mt-0.5">{selectedTripRequest.requesterDepartment}</p>
-                        </div>
-                      )}
-                      {selectedTripRequest.purpose && (
-                        <div className="col-span-2">
-                          <Label className="text-xs text-muted-foreground font-medium uppercase">Purpose</Label>
-                          <p className="text-sm mt-0.5">{selectedTripRequest.purpose}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Accommodation & Escort Section */}
-                    {(selectedTripRequest.accommodationRequired || selectedTripRequest.escortRequired) && (
-                      <>
-                        <Separator />
+                        <div className="h-6 bg-muted rounded animate-pulse col-span-2" />
                         <div className="grid gap-3 sm:grid-cols-2">
-                          {selectedTripRequest.accommodationRequired && (
-                            <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
-                              <div className="flex items-center gap-1.5 text-sm font-medium">
-                                <BedDouble className="h-4 w-4 text-primary" />
-                                Accommodation Requested
-                              </div>
-                              {selectedTripRequest.accommodationName ||
-                              selectedTripRequest.accommodationAddress ||
-                              selectedTripRequest.accommodationContact ||
-                              selectedTripRequest.accommodationDetails ||
-                              selectedTripRequest.accommodationEstimatedCost ? (
-                                <div className="space-y-1 text-xs text-muted-foreground">
-                                  {selectedTripRequest.accommodationName && (
-                                    <div>
-                                      <span className="font-medium text-foreground">Hotel:</span> {selectedTripRequest.accommodationName}
+                          <div className="h-20 bg-muted rounded animate-pulse" />
+                          <div className="h-20 bg-muted rounded animate-pulse" />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-3">
+                          {selectedTripRequest?.requesterName && (
+                            <div>
+                              <Label className="text-xs text-muted-foreground font-medium uppercase">Requester</Label>
+                              <p className="text-sm font-medium mt-0.5">{selectedTripRequest.requesterName}</p>
+                            </div>
+                          )}
+                          {selectedTripRequest?.requesterDepartment && (
+                            <div>
+                              <Label className="text-xs text-muted-foreground font-medium uppercase">Department</Label>
+                              <p className="text-sm font-medium mt-0.5">{selectedTripRequest.requesterDepartment}</p>
+                            </div>
+                          )}
+                          {selectedTripRequest?.purpose && (
+                            <div className="col-span-2">
+                              <Label className="text-xs text-muted-foreground font-medium uppercase">Purpose</Label>
+                              <p className="text-sm mt-0.5">{selectedTripRequest.purpose}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Accommodation & Escort Section */}
+                        {(selectedTripRequest?.accommodationRequired || selectedTripRequest?.escortRequired) && (
+                          <>
+                            <Separator />
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {selectedTripRequest?.accommodationRequired && (
+                                <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
+                                  <div className="flex items-center gap-1.5 text-sm font-medium">
+                                    <BedDouble className="h-4 w-4 text-primary" />
+                                    Accommodation Requested
+                                  </div>
+                                  {selectedTripRequest.accommodationName ||
+                                  selectedTripRequest.accommodationAddress ||
+                                  selectedTripRequest.accommodationContact ||
+                                  selectedTripRequest.accommodationDetails ||
+                                  selectedTripRequest.accommodationEstimatedCost ? (
+                                    <div className="space-y-1 text-xs text-muted-foreground">
+                                      {selectedTripRequest.accommodationName && (
+                                        <div>
+                                          <span className="font-medium text-foreground">Hotel:</span> {selectedTripRequest.accommodationName}
+                                        </div>
+                                      )}
+                                      {selectedTripRequest.accommodationAddress && (
+                                        <div>
+                                          <span className="font-medium text-foreground">Address:</span> {selectedTripRequest.accommodationAddress}
+                                        </div>
+                                      )}
+                                      {selectedTripRequest.accommodationContact && (
+                                        <div>
+                                          <span className="font-medium text-foreground">Contact:</span> {selectedTripRequest.accommodationContact}
+                                        </div>
+                                      )}
+                                      {selectedTripRequest.accommodationDetails && (
+                                        <div>
+                                          <span className="font-medium text-foreground">Notes:</span> {selectedTripRequest.accommodationDetails}
+                                        </div>
+                                      )}
+                                      {selectedTripRequest.accommodationEstimatedCost != null && (
+                                        <div>
+                                          <span className="font-medium text-foreground">Est. Cost:</span>{" "}
+                                          {formatPoAmount(Number(selectedTripRequest.accommodationEstimatedCost), "NGN")}
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                  {selectedTripRequest.accommodationAddress && (
-                                    <div>
-                                      <span className="font-medium text-foreground">Address:</span> {selectedTripRequest.accommodationAddress}
-                                    </div>
-                                  )}
-                                  {selectedTripRequest.accommodationContact && (
-                                    <div>
-                                      <span className="font-medium text-foreground">Contact:</span> {selectedTripRequest.accommodationContact}
-                                    </div>
-                                  )}
-                                  {selectedTripRequest.accommodationDetails && (
-                                    <div>
-                                      <span className="font-medium text-foreground">Notes:</span> {selectedTripRequest.accommodationDetails}
-                                    </div>
-                                  )}
-                                  {selectedTripRequest.accommodationEstimatedCost != null && (
-                                    <div>
-                                      <span className="font-medium text-foreground">Est. Cost:</span>{" "}
-                                      {formatPoAmount(Number(selectedTripRequest.accommodationEstimatedCost), "NGN")}
-                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground italic">
+                                      Requester did not specify a hotel. Logistics will arrange accommodation.
+                                    </p>
                                   )}
                                 </div>
-                              ) : (
-                                <p className="text-xs text-muted-foreground italic">
-                                  Requester did not specify a hotel. Logistics will arrange accommodation.
-                                </p>
+                              )}
+                              {selectedTripRequest?.escortRequired && (
+                                <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
+                                  <div className="flex items-center gap-1.5 text-sm font-medium">
+                                    <ShieldCheck className="h-4 w-4 text-primary" />
+                                    Escort Requested
+                                  </div>
+                                  {selectedTripRequest.escortDescription ? (
+                                    <p className="text-xs text-muted-foreground">{selectedTripRequest.escortDescription}</p>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground italic">
+                                      Requester did not specify escort details. Logistics will assign one.
+                                    </p>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          )}
-                          {selectedTripRequest.escortRequired && (
-                            <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
-                              <div className="flex items-center gap-1.5 text-sm font-medium">
-                                <ShieldCheck className="h-4 w-4 text-primary" />
-                                Escort Requested
-                              </div>
-                              {selectedTripRequest.escortDescription ? (
-                                <p className="text-xs text-muted-foreground">{selectedTripRequest.escortDescription}</p>
-                              ) : (
-                                <p className="text-xs text-muted-foreground italic">
-                                  Requester did not specify escort details. Logistics will assign one.
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                          </>
+                        )}
                       </>
                     )}
                   </>
