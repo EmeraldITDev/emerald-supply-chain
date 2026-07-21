@@ -900,6 +900,17 @@ export interface CreateTripRequestData {
    * Logistics Manager confirms the trip.
    */
   external_passengers?: Array<{ name: string; email: string; phone?: string }>;
+  international_transport_mode?: import('./trip-request').InternationalTransportMode | null;
+  trip_type?: string | null;
+  accommodation_required?: boolean;
+  accommodation_name?: string;
+  accommodation_address?: string;
+  accommodation_contact?: string;
+  accommodation_details?: string;
+  accommodation_estimated_cost?: number;
+  escort_required?: boolean;
+  escort_description?: string;
+  save_as_draft?: boolean;
 }
 
 export interface TripConversionData {

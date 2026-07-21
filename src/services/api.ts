@@ -4032,7 +4032,7 @@ export const tripRequestApi = {
     }>
   > => {
     const res = await apiRequest<Record<string, unknown>>(
-      `/trip-requests/${encodeURIComponent(id)}`,
+      `/trip-requests/${encodeURIComponent(id)}?include_progress=true`,
     );
     if (res.success && res.data) {
       const raw = res.data as Record<string, unknown>;
@@ -4046,12 +4046,30 @@ export const tripRequestApi = {
         trip.availableActions ??
         (trip as { available_actions?: string[] }).available_actions
       ) as string[] | undefined;
+      const auditTrail = (
+        (raw.auditTrail as import('@/types/trip-request').TripAuditTrailEntry[] | undefined) ??
+        (raw.audit_trail as import('@/types/trip-request').TripAuditTrailEntry[] | undefined) ??
+        trip.auditTrail ??
+        trip.audit_trail
+      );
+      const bookingRules = (
+        (raw.bookingRules as import('@/types/trip-request').TripBookingRulesPayload | undefined) ??
+        (raw.booking_rules as import('@/types/trip-request').TripBookingRulesPayload | undefined) ??
+        undefined
+      );
+      const comments = (
+        (raw.comments as import('@/types/trip-request').TripComment[] | undefined) ??
+        trip.comments
+      );
       return {
         ...res,
         data: {
           trip: {
             ...trip,
             availableActions,
+            auditTrail,
+            comments,
+            bookingRules,
             viewer: viewer ?? trip.viewer,
             readOnly: Boolean(raw.readOnly ?? viewer?.readOnly ?? trip.readOnly),
             canManage: Boolean(raw.canManage ?? viewer?.canManage ?? trip.canManage),
@@ -4282,24 +4300,48 @@ export const tripRequestApi = {
   },
 
   reject: async (id: string, reason?: string): Promise<ApiResponse<{ message?: string }>> => {
-    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/reject`, {
-      method: 'POST',
-      body: JSON.stringify({ reason: reason ?? '' }),
-    });
+    return tripRequestApi.logisticsReview(id, { action: 'reject', reason: reason ?? '' });
   },
 
   forward: async (id: string, notes?: string) => {
-    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/forward`, {
-      method: 'POST',
-      body: JSON.stringify({ notes: notes ?? '' }),
+    return tripRequestApi.logisticsReview(id, {
+      action: 'forward',
+      comments: notes || undefined,
     });
   },
 
   requestChanges: async (id: string, reason: string) => {
-    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/request-changes`, {
-      method: 'POST',
-      body: JSON.stringify({ reason }),
-    });
+    return tripRequestApi.logisticsReview(id, { action: 'request_changes', reason });
+  },
+
+  /** Unified logistics review action — POST /api/trip-requests/{id}/logistics-review */
+  logisticsReview: async (
+    id: string,
+    payload: import('@/types/trip-request').LogisticsReviewPayload,
+  ): Promise<
+    ApiResponse<{
+      trip?: import('@/types/trip-request').StaffTripRequest;
+      auditTrail?: import('@/types/trip-request').TripAuditTrailEntry[];
+      message?: string;
+    }>
+  > => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/trip-requests/${encodeURIComponent(id)}/logistics-review`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    );
+    if (res.success && res.data) {
+      const raw = res.data as Record<string, unknown>;
+      const trip =
+        (raw.trip as import('@/types/trip-request').StaffTripRequest) ?? undefined;
+      const auditTrail = (raw.auditTrail ??
+        raw.audit_trail) as import('@/types/trip-request').TripAuditTrailEntry[] | undefined;
+      return { ...res, data: { trip, auditTrail, message: raw.message as string | undefined } };
+    }
+    return res as unknown as ApiResponse<{
+      trip?: import('@/types/trip-request').StaffTripRequest;
+      auditTrail?: import('@/types/trip-request').TripAuditTrailEntry[];
+      message?: string;
+    }>;
   },
 
   directorApprove: async (id: string) => {

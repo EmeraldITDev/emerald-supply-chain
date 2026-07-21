@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Send, XCircle, RotateCcw, CheckCircle, Truck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +33,8 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
   const [busy, setBusy] = useState(false);
   const [reasonOpen, setReasonOpen] = useState<"reject" | "changes" | "return" | null>(null);
   const [reason, setReason] = useState("");
+  const [reviewComments, setReviewComments] = useState("");
+  const [reviewEstimatedCost, setReviewEstimatedCost] = useState("");
   const [convertOpen, setConvertOpen] = useState(false);
 
   const isLm =
@@ -87,6 +90,8 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
       setBusy(false);
       setReasonOpen(null);
       setReason("");
+      setReviewComments("");
+      setReviewEstimatedCost("");
     }
   };
 
@@ -122,7 +127,15 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
           <Button
             size="sm"
             disabled={busy}
-            onClick={() => run(() => tripRequestApi.forward(String(trip.id)), "Forwarded to Supervising Director")}
+            onClick={() =>
+              run(
+                () =>
+                  tripRequestApi.logisticsReview(String(trip.id), {
+                    action: "forward",
+                  }),
+                "Forwarded to Supervising Director",
+              )
+            }
           >
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
             Forward to Director
@@ -185,6 +198,27 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
             <Label>Reason{reasonOpen === "reject" && !isDirector ? " (optional)" : " (required)"}</Label>
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} />
           </div>
+          {reasonOpen === "changes" && isLm && (
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label>Review comments (optional)</Label>
+                <Textarea
+                  rows={2}
+                  value={reviewComments}
+                  onChange={(e) => setReviewComments(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Updated estimated total cost (₦, optional)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={reviewEstimatedCost}
+                  onChange={(e) => setReviewEstimatedCost(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setReasonOpen(null)}>
               Cancel
@@ -193,13 +227,31 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
               disabled={busy || (reasonOpen !== "reject" && !reason.trim())}
               onClick={() => {
                 if (reasonOpen === "changes") {
-                  void run(() => tripRequestApi.requestChanges(String(trip.id), reason), "Change request sent");
+                  const cost = reviewEstimatedCost ? Number(reviewEstimatedCost) : undefined;
+                  void run(
+                    () =>
+                      tripRequestApi.logisticsReview(String(trip.id), {
+                        action: "request_changes",
+                        reason,
+                        comments: reviewComments.trim() || undefined,
+                        estimated_cost:
+                          cost != null && !Number.isNaN(cost) ? cost : undefined,
+                      }),
+                    "Change request sent",
+                  );
                 } else if (reasonOpen === "return") {
                   void run(() => tripRequestApi.directorReturn(String(trip.id), reason), "Returned to employee");
                 } else if (reasonOpen === "reject" && isDirector && actions.includes("director_reject")) {
                   void run(() => tripRequestApi.directorReject(String(trip.id), reason), "Trip request rejected");
                 } else {
-                  void run(() => tripRequestApi.reject(String(trip.id), reason), "Trip request rejected");
+                  void run(
+                    () =>
+                      tripRequestApi.logisticsReview(String(trip.id), {
+                        action: "reject",
+                        reason,
+                      }),
+                    "Trip request rejected",
+                  );
                 }
               }}
             >

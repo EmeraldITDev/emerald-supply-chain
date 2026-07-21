@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -72,6 +74,15 @@ export function TripRequestForm({
   const [externalPassengers, setExternalPassengers] = useState<
     Array<{ name: string; email: string; phone: string }>
   >([]);
+  const [tripType, setTripType] = useState<string>("");
+  const [accommodationRequired, setAccommodationRequired] = useState(false);
+  const [accommodationName, setAccommodationName] = useState("");
+  const [accommodationAddress, setAccommodationAddress] = useState("");
+  const [accommodationContact, setAccommodationContact] = useState("");
+  const [accommodationDetails, setAccommodationDetails] = useState("");
+  const [accommodationEstimatedCost, setAccommodationEstimatedCost] = useState<string>("");
+  const [escortRequired, setEscortRequired] = useState(false);
+  const [escortDescription, setEscortDescription] = useState("");
 
   const isEdit = mode === "edit" && trip != null;
 
@@ -110,6 +121,16 @@ export function TripRequestForm({
         phone: p.phone || "",
       })),
     );
+    setTripType(String(trip.tripType ?? trip.trip_type ?? ""));
+    setAccommodationRequired(Boolean(trip.accommodationRequired ?? trip.accommodation_required));
+    setAccommodationName(String(trip.accommodationName ?? trip.accommodation_name ?? ""));
+    setAccommodationAddress(String(trip.accommodationAddress ?? trip.accommodation_address ?? ""));
+    setAccommodationContact(String(trip.accommodationContact ?? trip.accommodation_contact ?? ""));
+    setAccommodationDetails(String(trip.accommodationDetails ?? trip.accommodation_details ?? ""));
+    const cost = trip.accommodationEstimatedCost ?? trip.accommodation_estimated_cost;
+    setAccommodationEstimatedCost(cost != null ? String(cost) : "");
+    setEscortRequired(Boolean(trip.escortRequired ?? trip.escort_required));
+    setEscortDescription(String(trip.escortDescription ?? trip.escort_description ?? ""));
   }, [isEdit, trip]);
 
   useEffect(() => {
@@ -164,9 +185,12 @@ export function TripRequestForm({
     departureAt &&
     (passengerIds.length > 0 || externalPassengers.some((p) => p.name.trim() && p.email.trim())) &&
     effectiveLeadTimeCheck.valid &&
+    (!accommodationRequired ||
+      (accommodationName.trim() && accommodationAddress.trim())) &&
+    (!escortRequired || escortDescription.trim()) &&
     !submitting;
 
-  const handleSubmit = async () => {
+  const submit = async (asDraft: boolean) => {
     if (!destination.trim() || !purpose.trim() || !origin.trim() || !departureAt) {
       toast({
         title: "Validation error",
@@ -193,7 +217,7 @@ export function TripRequestForm({
       });
       return;
     }
-    if (passengerIds.length === 0 && validExternal.length === 0) {
+    if (!asDraft && passengerIds.length === 0 && validExternal.length === 0) {
       toast({
         title: "Validation error",
         description: "Select at least one staff passenger or add an external passenger.",
@@ -201,7 +225,7 @@ export function TripRequestForm({
       });
       return;
     }
-    if (!effectiveLeadTimeCheck.valid) {
+    if (!asDraft && !effectiveLeadTimeCheck.valid) {
       toast({
         title: "Advance booking required",
         description: leadTimeCheck.valid === false ? leadTimeCheck.violationMessage : undefined,
@@ -209,13 +233,32 @@ export function TripRequestForm({
       });
       return;
     }
+    if (!asDraft && accommodationRequired && (!accommodationName.trim() || !accommodationAddress.trim())) {
+      toast({
+        title: "Accommodation details required",
+        description: "Provide at least a hotel/venue name and address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!asDraft && escortRequired && !escortDescription.trim()) {
+      toast({
+        title: "Escort description required",
+        description: "Describe the escort or security detail needed.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSubmitting(true);
     try {
+      const accommodationCostNumber = accommodationEstimatedCost
+        ? Number(accommodationEstimatedCost)
+        : undefined;
       const payload = {
         destination: destination.trim(),
         purpose: purpose.trim(),
-        origin: origin.trim(),
+        origin: origin.trim() || "Office",
         scheduled_departure_at: new Date(departureAt).toISOString(),
         scheduled_arrival_at: arrivalAt
           ? new Date(arrivalAt).toISOString()
@@ -227,6 +270,19 @@ export function TripRequestForm({
         external_passengers: validExternal.length > 0 ? validExternal : undefined,
         international_transport_mode:
           bookingScope === "international" ? internationalTransportMode : null,
+        trip_type: tripType || undefined,
+        accommodation_required: accommodationRequired,
+        accommodation_name: accommodationRequired ? accommodationName.trim() || undefined : undefined,
+        accommodation_address: accommodationRequired ? accommodationAddress.trim() || undefined : undefined,
+        accommodation_contact: accommodationRequired ? accommodationContact.trim() || undefined : undefined,
+        accommodation_details: accommodationRequired ? accommodationDetails.trim() || undefined : undefined,
+        accommodation_estimated_cost:
+          accommodationRequired && accommodationCostNumber != null && !Number.isNaN(accommodationCostNumber)
+            ? accommodationCostNumber
+            : undefined,
+        escort_required: escortRequired,
+        escort_description: escortRequired ? escortDescription.trim() || undefined : undefined,
+        save_as_draft: asDraft || undefined,
       };
 
       const res = isEdit
@@ -235,10 +291,16 @@ export function TripRequestForm({
 
       if (res.success) {
         toast({
-          title: isEdit ? "Trip request updated" : "Trip request submitted",
+          title: isEdit
+            ? "Trip request updated"
+            : asDraft
+              ? "Draft saved"
+              : "Trip request submitted",
           description: isEdit
             ? "Your changes were saved. Logistics and other reviewers will see the updated trip."
-            : "Your request has been sent to logistics for review.",
+            : asDraft
+              ? "You can resume this draft later from your trip requests list."
+              : "Your request has been sent to logistics for review.",
         });
         if (!isEdit) {
           setDestination("");
@@ -250,6 +312,15 @@ export function TripRequestForm({
           setBookingScope("out_of_state_local");
           setInternationalTransportMode(null);
           setExternalPassengers([]);
+          setTripType("");
+          setAccommodationRequired(false);
+          setAccommodationName("");
+          setAccommodationAddress("");
+          setAccommodationContact("");
+          setAccommodationDetails("");
+          setAccommodationEstimatedCost("");
+          setEscortRequired(false);
+          setEscortDescription("");
         }
         if (isEdit) {
           window.dispatchEvent(new Event("app:refresh"));
@@ -266,6 +337,9 @@ export function TripRequestForm({
       setSubmitting(false);
     }
   };
+
+  const handleSubmit = () => submit(false);
+  const handleSaveDraft = () => submit(true);
 
   const selectedRule = rules.find((r) => r.value === bookingScope);
 
@@ -389,6 +463,110 @@ export function TripRequestForm({
         showDriver={false}
       />
 
+      <div className="space-y-2">
+        <Label>Trip type</Label>
+        <Select value={tripType} onValueChange={setTripType}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select trip type (optional)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="business">Business</SelectItem>
+            <SelectItem value="client_visit">Client Visit</SelectItem>
+            <SelectItem value="training">Training</SelectItem>
+            <SelectItem value="conference">Conference</SelectItem>
+            <SelectItem value="field_work">Field Work</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-3 border rounded-lg p-3">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="accommodation-required"
+            checked={accommodationRequired}
+            onCheckedChange={(v) => setAccommodationRequired(Boolean(v))}
+          />
+          <Label htmlFor="accommodation-required" className="cursor-pointer">
+            Accommodation required
+          </Label>
+        </div>
+        <div className={accommodationRequired ? "grid gap-3 sm:grid-cols-2" : "grid gap-3 sm:grid-cols-2 opacity-60"}>
+          <div className="space-y-1">
+            <Label className="text-xs">
+              Hotel / Venue name{accommodationRequired ? " *" : ""}
+            </Label>
+            <Input
+              value={accommodationName}
+              onChange={(e) => setAccommodationName(e.target.value)}
+              disabled={!accommodationRequired}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">
+              Address{accommodationRequired ? " *" : ""}
+            </Label>
+            <Input
+              value={accommodationAddress}
+              onChange={(e) => setAccommodationAddress(e.target.value)}
+              disabled={!accommodationRequired}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Contact number</Label>
+            <Input
+              value={accommodationContact}
+              onChange={(e) => setAccommodationContact(e.target.value)}
+              disabled={!accommodationRequired}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Estimated cost (₦)</Label>
+            <Input
+              type="number"
+              min={0}
+              value={accommodationEstimatedCost}
+              onChange={(e) => setAccommodationEstimatedCost(e.target.value)}
+              disabled={!accommodationRequired}
+            />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label className="text-xs">Additional details</Label>
+            <Textarea
+              rows={2}
+              value={accommodationDetails}
+              onChange={(e) => setAccommodationDetails(e.target.value)}
+              disabled={!accommodationRequired}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3 border rounded-lg p-3">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="escort-required"
+            checked={escortRequired}
+            onCheckedChange={(v) => setEscortRequired(Boolean(v))}
+          />
+          <Label htmlFor="escort-required" className="cursor-pointer">
+            Escort / security required
+          </Label>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">
+            Escort details{escortRequired ? " *" : ""}
+          </Label>
+          <Textarea
+            rows={2}
+            value={escortDescription}
+            onChange={(e) => setEscortDescription(e.target.value)}
+            disabled={!escortRequired}
+            placeholder="Describe the escort/security detail required for this trip"
+          />
+        </div>
+      </div>
+
       <div className="space-y-2 border rounded-lg p-3">
         <div className="flex items-center justify-between">
           <Label>External passengers (non-staff)</Label>
@@ -473,6 +651,17 @@ export function TripRequestForm({
         {showCancel && onCancel && (
           <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
             Cancel
+          </Button>
+        )}
+        {!isEdit && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleSaveDraft}
+            disabled={submitting}
+          >
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save as draft
           </Button>
         )}
         <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
