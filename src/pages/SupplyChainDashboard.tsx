@@ -164,12 +164,22 @@ const SupplyChainDashboard = () => {
     return Array.isArray(list) ? (list as SRF[]) : [];
   }, [scdDashRaw]);
 
+  const {
+    data: pendingTripApprovalsData = null,
+    isLoading: pendingTripApprovalsLoading,
+    refetch: refetchPendingTripApprovals,
+  } = useQuery<import('@/types/trip-request').TripRequestsListResponse | null>({
+    queryKey: queryKeys.dashboard.pendingTripApprovals?.(),
+    queryFn: async () => {
+      const res = await tripRequestApi.listPendingForDirector();
+      return res.success && res.data ? res.data : null;
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
+
   const pendingTripApprovals = useMemo<Array<Record<string, unknown>>>(() => {
-    const trips =
-      (scdDashRaw?.pendingTripApprovals as unknown) ??
-      (scdDashRaw?.pending_trip_approvals as unknown);
-    return Array.isArray(trips) ? (trips as Array<Record<string, unknown>>) : [];
-  }, [scdDashRaw]);
+    return pendingTripApprovalsData?.trips ?? [];
+  }, [pendingTripApprovalsData]);
 
   const scdDashStats = useMemo(
     () =>

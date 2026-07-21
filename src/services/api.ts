@@ -4280,6 +4280,45 @@ export const tripRequestApi = {
     return res.success ? res : fallback;
   },
 
+  /** List trip requests awaiting Supervising Director approval */
+  listPendingForDirector: async (): Promise<
+    ApiResponse<import('@/types/trip-request').TripRequestsListResponse>
+  > => {
+    const fetchList = async (status?: string) => {
+      const qs = new URLSearchParams();
+      if (status) qs.set('status', status);
+      qs.set('limit', '100');
+      const res = await apiRequest<Record<string, unknown>>(`/trip-requests?${qs.toString()}`);
+      if (res.success) {
+        const data = (res.data ?? {}) as Record<string, unknown>;
+        const trips = (
+          (data.trips as import('@/types/trip-request').StaffTripRequest[]) ??
+          (Array.isArray(res.data) ? res.data : []) ??
+          []
+        ) as import('@/types/trip-request').StaffTripRequest[];
+        return { ...res, data: { trips, pagination: data.pagination as import('@/types/trip-request').TripRequestsListResponse['pagination'] } };
+      }
+      return res as unknown as ApiResponse<import('@/types/trip-request').TripRequestsListResponse>;
+    };
+
+    const res = await fetchList('pending_director_approval');
+    if (res.success && res.data?.trips?.length) return res;
+
+    const fallback = await fetchList();
+    if (fallback.success && fallback.data?.trips) {
+      const pending = fallback.data.trips.filter((t) => {
+        const stage = t.workflowStage ?? t.workflow_stage ?? '';
+        const status = (t.status ?? '').toLowerCase();
+        return (
+          ['director_approval', 'pending_director_approval'].includes(stage) ||
+          ['pending_director_approval'].includes(status)
+        );
+      });
+      return { ...fallback, data: { ...fallback.data, trips: pending } };
+    }
+    return res.success ? res : fallback;
+  },
+
   /** Logistics Manager approves and assigns vehicle + driver */
   confirm: async (
     id: string,
