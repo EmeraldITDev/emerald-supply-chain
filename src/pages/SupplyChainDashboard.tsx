@@ -1861,7 +1861,7 @@ const SupplyChainDashboard = () => {
         }}
         onApprove={handleFirstApprovalApprove}
         onReject={handleFirstApprovalReject}
-        currentUserRole={getScmRole(user)}
+        currentUserRole="supply_chain_director"
       />
 
       <SRFDirectorApprovalDialog
