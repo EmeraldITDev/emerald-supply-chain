@@ -4032,7 +4032,7 @@ export const tripRequestApi = {
     }>
   > => {
     const res = await apiRequest<Record<string, unknown>>(
-      `/trip-requests/${encodeURIComponent(id)}`,
+      `/trip-requests/${encodeURIComponent(id)}?include_progress=true`,
     );
     if (res.success && res.data) {
       const raw = res.data as Record<string, unknown>;
@@ -4046,12 +4046,30 @@ export const tripRequestApi = {
         trip.availableActions ??
         (trip as { available_actions?: string[] }).available_actions
       ) as string[] | undefined;
+      const auditTrail = (
+        (raw.auditTrail as import('@/types/trip-request').TripAuditTrailEntry[] | undefined) ??
+        (raw.audit_trail as import('@/types/trip-request').TripAuditTrailEntry[] | undefined) ??
+        trip.auditTrail ??
+        trip.audit_trail
+      );
+      const bookingRules = (
+        (raw.bookingRules as import('@/types/trip-request').TripBookingRulesPayload | undefined) ??
+        (raw.booking_rules as import('@/types/trip-request').TripBookingRulesPayload | undefined) ??
+        undefined
+      );
+      const comments = (
+        (raw.comments as import('@/types/trip-request').TripComment[] | undefined) ??
+        trip.comments
+      );
       return {
         ...res,
         data: {
           trip: {
             ...trip,
             availableActions,
+            auditTrail,
+            comments,
+            bookingRules,
             viewer: viewer ?? trip.viewer,
             readOnly: Boolean(raw.readOnly ?? viewer?.readOnly ?? trip.readOnly),
             canManage: Boolean(raw.canManage ?? viewer?.canManage ?? trip.canManage),
