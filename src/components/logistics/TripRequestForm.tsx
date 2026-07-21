@@ -477,9 +477,7 @@ export function TripRequestForm({
         </div>
         <div className={accommodationRequired ? "grid gap-3 sm:grid-cols-2" : "grid gap-3 sm:grid-cols-2 opacity-60"}>
           <div className="space-y-1">
-            <Label className="text-xs">
-              Hotel / Venue name{accommodationRequired ? " *" : ""}
-            </Label>
+            <Label className="text-xs">Hotel / Venue name (optional)</Label>
             <Input
               value={accommodationName}
               onChange={(e) => setAccommodationName(e.target.value)}
@@ -487,9 +485,7 @@ export function TripRequestForm({
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">
-              Address{accommodationRequired ? " *" : ""}
-            </Label>
+            <Label className="text-xs">Address (optional)</Label>
             <Input
               value={accommodationAddress}
               onChange={(e) => setAccommodationAddress(e.target.value)}
@@ -538,15 +534,13 @@ export function TripRequestForm({
           </Label>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">
-            Escort details{escortRequired ? " *" : ""}
-          </Label>
+          <Label className="text-xs">Escort details (optional)</Label>
           <Textarea
             rows={2}
             value={escortDescription}
             onChange={(e) => setEscortDescription(e.target.value)}
             disabled={!escortRequired}
-            placeholder="Describe the escort/security detail required for this trip"
+            placeholder="Optional — leave blank if you don't know yet; Logistics will fill this in during review"
           />
         </div>
       </div>
