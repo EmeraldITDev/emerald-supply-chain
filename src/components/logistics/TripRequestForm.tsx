@@ -185,9 +185,6 @@ export function TripRequestForm({
     departureAt &&
     (passengerIds.length > 0 || externalPassengers.some((p) => p.name.trim() && p.email.trim())) &&
     effectiveLeadTimeCheck.valid &&
-    (!accommodationRequired ||
-      (accommodationName.trim() && accommodationAddress.trim())) &&
-    (!escortRequired || escortDescription.trim()) &&
     !submitting;
 
   const submit = async (asDraft: boolean) => {
@@ -233,22 +230,9 @@ export function TripRequestForm({
       });
       return;
     }
-    if (!asDraft && accommodationRequired && (!accommodationName.trim() || !accommodationAddress.trim())) {
-      toast({
-        title: "Accommodation details required",
-        description: "Provide at least a hotel/venue name and address.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!asDraft && escortRequired && !escortDescription.trim()) {
-      toast({
-        title: "Escort description required",
-        description: "Describe the escort or security detail needed.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Accommodation and escort details are optional even when the
+    // requester flags they are required — logistics will fill them in
+    // during review if the requester doesn't yet know the specifics.
 
     setSubmitting(true);
     try {
