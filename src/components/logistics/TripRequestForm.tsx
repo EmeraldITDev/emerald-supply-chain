@@ -185,9 +185,6 @@ export function TripRequestForm({
     departureAt &&
     (passengerIds.length > 0 || externalPassengers.some((p) => p.name.trim() && p.email.trim())) &&
     effectiveLeadTimeCheck.valid &&
-    (!accommodationRequired ||
-      (accommodationName.trim() && accommodationAddress.trim())) &&
-    (!escortRequired || escortDescription.trim()) &&
     !submitting;
 
   const submit = async (asDraft: boolean) => {
@@ -233,22 +230,9 @@ export function TripRequestForm({
       });
       return;
     }
-    if (!asDraft && accommodationRequired && (!accommodationName.trim() || !accommodationAddress.trim())) {
-      toast({
-        title: "Accommodation details required",
-        description: "Provide at least a hotel/venue name and address.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!asDraft && escortRequired && !escortDescription.trim()) {
-      toast({
-        title: "Escort description required",
-        description: "Describe the escort or security detail needed.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Accommodation and escort details are optional even when the
+    // requester flags they are required — logistics will fill them in
+    // during review if the requester doesn't yet know the specifics.
 
     setSubmitting(true);
     try {
@@ -493,9 +477,7 @@ export function TripRequestForm({
         </div>
         <div className={accommodationRequired ? "grid gap-3 sm:grid-cols-2" : "grid gap-3 sm:grid-cols-2 opacity-60"}>
           <div className="space-y-1">
-            <Label className="text-xs">
-              Hotel / Venue name{accommodationRequired ? " *" : ""}
-            </Label>
+            <Label className="text-xs">Hotel / Venue name (optional)</Label>
             <Input
               value={accommodationName}
               onChange={(e) => setAccommodationName(e.target.value)}
@@ -503,9 +485,7 @@ export function TripRequestForm({
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">
-              Address{accommodationRequired ? " *" : ""}
-            </Label>
+            <Label className="text-xs">Address (optional)</Label>
             <Input
               value={accommodationAddress}
               onChange={(e) => setAccommodationAddress(e.target.value)}
@@ -554,15 +534,13 @@ export function TripRequestForm({
           </Label>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">
-            Escort details{escortRequired ? " *" : ""}
-          </Label>
+          <Label className="text-xs">Escort details (optional)</Label>
           <Textarea
             rows={2}
             value={escortDescription}
             onChange={(e) => setEscortDescription(e.target.value)}
             disabled={!escortRequired}
-            placeholder="Describe the escort/security detail required for this trip"
+            placeholder="Optional — leave blank if you don't know yet; Logistics will fill this in during review"
           />
         </div>
       </div>
