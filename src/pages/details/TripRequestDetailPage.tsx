@@ -148,6 +148,11 @@ export default function TripRequestDetailPage() {
             <Badge variant="secondary" className="capitalize">
               {(trip.workflowStage ?? trip.workflow_stage ?? trip.status).replace(/_/g, " ")}
             </Badge>
+            {(trip.approvalStatus ?? trip.approval_status) && (
+              <Badge variant="outline" className="capitalize">
+                Approval: {String(trip.approvalStatus ?? trip.approval_status).replace(/_/g, " ")}
+              </Badge>
+            )}
             {showWorkflowActions && (
               <TripRequestWorkflowActions trip={trip} onUpdated={() => void load()} />
             )}
@@ -172,6 +177,23 @@ export default function TripRequestDetailPage() {
             )}
           </div>
 
+          {(trip.bookingRules?.scopes?.length ?? 0) > 0 && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <span className="font-medium">Booking guidance</span>
+                <ul className="mt-1 space-y-0.5 text-xs">
+                  {trip.bookingRules!.scopes.map((r) => (
+                    <li key={r.value}>
+                      <span className="font-medium">{r.label}:</span> book at least{" "}
+                      {r.minimumLeadDays} day{r.minimumLeadDays === 1 ? "" : "s"} in advance.
+                    </li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <DetailFields
             fields={[
               { label: "Requester", value: trip.requesterName ?? trip.requester_name },
@@ -182,6 +204,9 @@ export default function TripRequestDetailPage() {
               { label: "Origin", value: trip.origin },
               { label: "Destination", value: trip.destination },
               { label: "Purpose", value: trip.purpose },
+              ...(trip.tripType ?? trip.trip_type
+                ? [{ label: "Trip Type", value: String(trip.tripType ?? trip.trip_type).replace(/_/g, " ") }]
+                : []),
               ...(trip.internationalTransportMode ?? trip.international_transport_mode
                 ? [
                     {
@@ -227,6 +252,76 @@ export default function TripRequestDetailPage() {
               },
             ]}
           />
+
+          {(trip.accommodationRequired ?? trip.accommodation_required) && (
+            <div className="rounded-md border p-3 space-y-2">
+              <h3 className="text-sm font-semibold">Accommodation</h3>
+              <DetailFields
+                fields={[
+                  { label: "Hotel / Venue", value: trip.accommodationName ?? trip.accommodation_name },
+                  { label: "Address", value: trip.accommodationAddress ?? trip.accommodation_address },
+                  { label: "Contact", value: trip.accommodationContact ?? trip.accommodation_contact },
+                  {
+                    label: "Estimated cost (₦)",
+                    value:
+                      (trip.accommodationEstimatedCost ?? trip.accommodation_estimated_cost) != null
+                        ? Number(
+                            trip.accommodationEstimatedCost ?? trip.accommodation_estimated_cost,
+                          ).toLocaleString()
+                        : undefined,
+                  },
+                  { label: "Details", value: trip.accommodationDetails ?? trip.accommodation_details },
+                ]}
+              />
+            </div>
+          )}
+
+          {(trip.escortRequired ?? trip.escort_required) && (
+            <div className="rounded-md border p-3 space-y-2">
+              <h3 className="text-sm font-semibold">Escort / Security</h3>
+              <p className="text-sm text-muted-foreground">
+                {trip.escortDescription ?? trip.escort_description ?? "—"}
+              </p>
+            </div>
+          )}
+
+          {(() => {
+            const trail = trip.auditTrail ?? trip.audit_trail ?? [];
+            if (!trail.length) return null;
+            return (
+              <div>
+                <h3 className="text-sm font-semibold mb-2">Audit trail</h3>
+                <ol className="border rounded-md divide-y">
+                  {trail.map((entry, i) => {
+                    const field = entry.fieldName ?? entry.field_name;
+                    const original = entry.originalValue ?? entry.original_value;
+                    const next = entry.newValue ?? entry.new_value;
+                    const editor = entry.editorName ?? entry.editor_name;
+                    const when = entry.createdAt ?? entry.created_at;
+                    return (
+                      <li key={entry.id ?? i} className="p-3 text-xs space-y-1">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-medium">{field ?? "Update"}</span>
+                          <span className="text-muted-foreground">
+                            {editor ?? "System"}
+                            {when ? ` · ${new Date(when).toLocaleString()}` : ""}
+                          </span>
+                        </div>
+                        {(original != null || next != null) && (
+                          <div className="text-muted-foreground">
+                            {String(original ?? "—")} → <span className="text-foreground">{String(next ?? "—")}</span>
+                          </div>
+                        )}
+                        {entry.reason && (
+                          <div className="italic">Reason: {entry.reason}</div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            );
+          })()}
 
           {(passengers.length > 0 || externalPassengers.length > 0) && (
             <div>
