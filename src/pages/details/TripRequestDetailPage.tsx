@@ -10,7 +10,7 @@ import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepp
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ExternalLink, Edit } from "lucide-react";
+import { ExternalLink, Edit, Info } from "lucide-react";
 import type { StaffTripRequest, TripProgressStep } from "@/types/trip-request";
 import type { Trip } from "@/types/logistics";
 import { resolveLogisticsTripId, resolveTripViewer } from "@/utils/tripViewer";
