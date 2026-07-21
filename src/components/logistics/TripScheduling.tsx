@@ -1591,6 +1591,27 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   )}
                 </div>
 
+                {/* Passengers Section - Always show for visibility */}
+                <Separator />
+                <div>
+                  <Label className="text-xs text-muted-foreground font-medium uppercase mb-1.5 block">
+                    Passengers ({selectedTrip.passengers?.length ?? 0})
+                  </Label>
+                  {selectedTrip.passengers && selectedTrip.passengers.length > 0 ? (
+                    <div className="mt-2 space-y-2">
+                      {selectedTrip.passengers.map((passenger) => (
+                        <div key={passenger.id} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
+                          <Users className="h-4 w-4" />
+                          <span>{passenger.name}</span>
+                          {passenger.department && <span className="text-muted-foreground">({passenger.department})</span>}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic mt-1">No passengers assigned yet</p>
+                  )}
+                </div>
+
                 {/* Staff Trip Request Information - Loading or Loaded */}
                 {(selectedTripRequest || loadingTripRequest) && (
                   <>
@@ -1702,27 +1723,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                         )}
                       </>
                     )}
-                  </>
-                )}
-
-                {/* Passengers Section */}
-                {selectedTrip.passengers && selectedTrip.passengers.length > 0 && (
-                  <>
-                    <Separator />
-                    <div>
-                      <Label className="text-xs text-muted-foreground font-medium uppercase mb-1.5 block">
-                        Passengers ({selectedTrip.passengers.length})
-                      </Label>
-                      <div className="mt-2 space-y-2">
-                        {selectedTrip.passengers.map((passenger) => (
-                          <div key={passenger.id} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
-                            <Users className="h-4 w-4" />
-                            <span>{passenger.name}</span>
-                            {passenger.department && <span className="text-muted-foreground">({passenger.department})</span>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </>
                 )}
 
