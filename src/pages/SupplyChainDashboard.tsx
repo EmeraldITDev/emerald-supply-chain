@@ -168,17 +168,32 @@ const SupplyChainDashboard = () => {
     data: pendingTripApprovalsData = null,
     isLoading: pendingTripApprovalsLoading,
     refetch: refetchPendingTripApprovals,
-  } = useQuery<import('@/types/trip-request').TripRequestsListResponse | null>({
+  } = useQuery({
     queryKey: ['dashboard', 'pending-trip-approvals'] as const,
     queryFn: async () => {
-      const res = await tripRequestApi.listPendingForDirector();
+      // Use listAll to fetch organization-wide trip requests instead of just departmental ones
+      const res = await tripRequestApi.listAll({ per_page: 50 });
       return res.success && res.data ? res.data : null;
     },
     ...WORKFLOW_QUERY_OPTIONS,
   });
 
   const pendingTripApprovals = useMemo<any[]>(() => {
-    return pendingTripApprovalsData?.trips ?? [];
+    if (!pendingTripApprovalsData) return [];
+    const data = pendingTripApprovalsData as any;
+    const allTrips = Array.isArray(data) ? data : data.trips || data.items || data.data || [];
+
+    // Filter for trips that are awaiting approval (submitted or pending_approval)
+    return allTrips.filter((t: any) => {
+      const status = (t.status || "").toLowerCase();
+      const stage = (t.workflowStage || t.workflow_stage || "").toLowerCase();
+      return (
+        status === "submitted" ||
+        status === "pending_approval" ||
+        stage.includes("director") ||
+        stage.includes("pending")
+      );
+    });
   }, [pendingTripApprovalsData]);
 
   const scdDashStats = useMemo(
@@ -1863,7 +1878,7 @@ const SupplyChainDashboard = () => {
         onReject={handleFirstApprovalReject}
         currentUserRole="supply_chain_director"
       />
-      
+
 
       <SRFDirectorApprovalDialog
         srf={srfForDirectorApproval}
