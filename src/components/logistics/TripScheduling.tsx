@@ -1594,22 +1594,40 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 {/* Passengers Section - Always show for visibility */}
                 <Separator />
                 <div>
-                  <Label className="text-xs text-muted-foreground font-medium uppercase mb-1.5 block">
-                    Passengers ({selectedTrip.passengers?.length ?? 0})
-                  </Label>
-                  {selectedTrip.passengers && selectedTrip.passengers.length > 0 ? (
-                    <div className="mt-2 space-y-2">
-                      {selectedTrip.passengers.map((passenger) => (
-                        <div key={passenger.id} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
-                          <Users className="h-4 w-4" />
-                          <span>{passenger.name}</span>
-                          {passenger.department && <span className="text-muted-foreground">({passenger.department})</span>}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic mt-1">No passengers assigned yet</p>
-                  )}
+                  {(() => {
+                    // Get passengers from StaffTripRequest if available, otherwise from Trip
+                    const internalPassengers = selectedTripRequest?.passengers ?? selectedTrip.passengers ?? [];
+                    const externalPassengers = selectedTripRequest?.externalPassengers ?? selectedTripRequest?.external_passengers ?? [];
+                    const totalPassengers = internalPassengers.length + externalPassengers.length;
+                    
+                    return (
+                      <>
+                        <Label className="text-xs text-muted-foreground font-medium uppercase mb-1.5 block">
+                          Passengers ({totalPassengers})
+                        </Label>
+                        {totalPassengers > 0 ? (
+                          <div className="mt-2 space-y-2">
+                            {internalPassengers.map((passenger, idx) => (
+                              <div key={passenger.id ?? `p-${idx}`} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
+                                <Users className="h-4 w-4" />
+                                <span>{passenger.name}</span>
+                                {passenger.department && <span className="text-muted-foreground">({passenger.department})</span>}
+                              </div>
+                            ))}
+                            {externalPassengers.map((passenger, idx) => (
+                              <div key={`ext-${idx}`} className="flex items-center gap-2 text-sm p-2 bg-muted rounded border border-border/40">
+                                <Users className="h-4 w-4" />
+                                <span>{passenger.name}</span>
+                                <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">External</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic mt-1">No passengers assigned yet</p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Staff Trip Request Information - Loading or Loaded */}
