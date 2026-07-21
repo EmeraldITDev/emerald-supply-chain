@@ -70,7 +70,7 @@ export function MRFApprovalDialog({
   const getTimerColor = () => {
     const hours = getTimeElapsed();
     if (!hours) return "text-muted-foreground";
-    
+
     if (hours <= 48) return "text-emerald-600 dark:text-emerald-400";
     if (hours <= 72) return "text-amber-600 dark:text-amber-400";
     return "text-destructive";
@@ -79,17 +79,24 @@ export function MRFApprovalDialog({
   const formatTimeElapsed = () => {
     const hours = getTimeElapsed();
     if (!hours) return "N/A";
-    
+
     const days = Math.floor(hours / 24);
     const remainingHours = Math.floor(hours % 24);
-    
+
     if (days > 0) {
       return `${days}d ${remainingHours}h`;
     }
     return `${remainingHours}h`;
   };
 
-  const currentStage = ((mrf as MRFRequest).currentStage as string | undefined) || "";
+  const mrfAny = mrf as any;
+  const currentStage = (
+    mrfAny.currentStage ||
+    mrfAny.current_stage ||
+    mrfAny.stage ||
+    mrfAny.status ||
+    ""
+  ).toString();
 
   // Pick the most relevant "stage start" timestamp based on the MRF's current
   // pending stage. Falls back to the MRF creation/submission date so the timer
@@ -121,7 +128,42 @@ export function MRFApprovalDialog({
     }
     return { iso: createdIso, label: "since MRF submission" };
   }
-  const canApprove = currentStage.toLowerCase() === currentUserRole.toLowerCase();
+
+  const stageStr = currentStage.toLowerCase();
+  const roleStr = currentUserRole.toLowerCase();
+
+  const canApprove = (() => {
+    // 1. Direct exact match fallback
+    if (stageStr === roleStr) return true;
+
+    // 2. Supply Chain Director checks (handles 'supply_chain_director', 'supply_chain', 'director')
+    if (roleStr.includes("supply_chain") || roleStr.includes("director")) {
+      return (
+        stageStr.includes("supply_chain") ||
+        stageStr.includes("director") ||
+        stageStr === "first_approval" ||
+        stageStr === "initial_approval" ||
+        stageStr === "pending_director_approval" ||
+        stageStr === "pending_scd"
+      );
+    }
+
+    // 3. Executive / Chairman checks
+    if (roleStr === "executive" || roleStr === "chairman") {
+      return (
+        stageStr.includes("executive") ||
+        stageStr === "second_approval" ||
+        stageStr === "final_approval"
+      );
+    }
+
+    // 4. Procurement Manager checks
+    if (roleStr.includes("procurement")) {
+      return stageStr.includes("procurement");
+    }
+
+    return false;
+  })();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -156,7 +198,7 @@ export function MRFApprovalDialog({
               <Label className="text-muted-foreground">Title</Label>
               <p className="font-medium">{mrf.title}</p>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-muted-foreground">Category</Label>
@@ -227,11 +269,10 @@ export function MRFApprovalDialog({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium capitalize">{action.stage}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded ${
-                            action.action === "approved" 
-                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
-                              : "bg-destructive/10 text-destructive"
-                          }`}>
+                          <span className={`text-xs px-2 py-0.5 rounded ${action.action === "approved"
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
+                            : "bg-destructive/10 text-destructive"
+                            }`}>
                             {action.action}
                           </span>
                         </div>

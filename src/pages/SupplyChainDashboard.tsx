@@ -169,7 +169,7 @@ const SupplyChainDashboard = () => {
     isLoading: pendingTripApprovalsLoading,
     refetch: refetchPendingTripApprovals,
   } = useQuery<import('@/types/trip-request').TripRequestsListResponse | null>({
-    queryKey: queryKeys.dashboard.pendingTripApprovals?.(),
+    queryKey: ['dashboard', 'pending-trip-approvals'] as const,
     queryFn: async () => {
       const res = await tripRequestApi.listPendingForDirector();
       return res.success && res.data ? res.data : null;
@@ -177,7 +177,7 @@ const SupplyChainDashboard = () => {
     ...WORKFLOW_QUERY_OPTIONS,
   });
 
-  const pendingTripApprovals = useMemo<Array<Record<string, unknown>>>(() => {
+  const pendingTripApprovals = useMemo<any[]>(() => {
     return pendingTripApprovalsData?.trips ?? [];
   }, [pendingTripApprovalsData]);
 
@@ -228,8 +228,8 @@ const SupplyChainDashboard = () => {
     void signaturePresenceTick;
     return Boolean(
       user?.signature_url ||
-        readStoredUserSignatureUrl() ||
-        (user?.id ? readCachedUserSignature(user.id) : null),
+      readStoredUserSignatureUrl() ||
+      (user?.id ? readCachedUserSignature(user.id) : null),
     );
   }, [user?.signature_url, user?.id, signaturePresenceTick]);
 
@@ -631,11 +631,11 @@ const SupplyChainDashboard = () => {
         standardTermsBody,
         terms_mode: coercePOTermsMode(
           (fullMrf as { terms_mode?: string; termsMode?: string }).terms_mode ??
-            (fullMrf as { terms_mode?: string; termsMode?: string }).termsMode,
+          (fullMrf as { terms_mode?: string; termsMode?: string }).termsMode,
         ),
         user_terms_text: userClausesFromStoredCustomTerms(
           (fullMrf as { custom_terms?: string; customTerms?: string }).custom_terms ??
-            (fullMrf as { custom_terms?: string; customTerms?: string }).customTerms,
+          (fullMrf as { custom_terms?: string; customTerms?: string }).customTerms,
         ),
         includeSignature: true,
         signatureDataUrl: sigDataUrl,
@@ -834,40 +834,40 @@ const SupplyChainDashboard = () => {
                   count: number;
                   icon: typeof Users;
                 }> = [
-                  {
-                    key: "vendors",
-                    label: "Vendor Registrations",
-                    count: readCount("pending_vendor_registrations", vendorRegistrations.length),
-                    icon: Building2,
-                  },
-                  {
-                    key: "mrf",
-                    label: "MRF First Approvals",
-                    count: readCount("pending_mrf_scd_first_approval", pendingFirstApprovals.length),
-                    icon: FileText,
-                  },
-                  {
-                    key: "trips",
-                    label: "Trip Approvals",
-                    count: readCount("pending_trip_approvals", pendingTripApprovals.length),
-                    icon: Truck,
-                  },
-                  {
-                    key: "srfs",
-                    label: "Service Requests (SRFs)",
-                    count: readCount(
-                      "pending_srf_scd_approval",
-                      scdDashStats?.pendingSrfDirectorApprovals ?? pendingDirectorSrfs.length,
-                    ),
-                    icon: ClipboardList,
-                  },
-                  {
-                    key: "pos",
-                    label: "Purchase Orders",
-                    count: readCount("pending_purchase_orders", pendingPOs.length),
-                    icon: ShoppingCart,
-                  },
-                ];
+                    {
+                      key: "vendors",
+                      label: "Vendor Registrations",
+                      count: readCount("pending_vendor_registrations", vendorRegistrations.length),
+                      icon: Building2,
+                    },
+                    {
+                      key: "mrf",
+                      label: "MRF First Approvals",
+                      count: readCount("pending_mrf_scd_first_approval", pendingFirstApprovals.length),
+                      icon: FileText,
+                    },
+                    {
+                      key: "trips",
+                      label: "Trip Approvals",
+                      count: readCount("pending_trip_approvals", pendingTripApprovals.length),
+                      icon: Truck,
+                    },
+                    {
+                      key: "srfs",
+                      label: "Service Requests (SRFs)",
+                      count: readCount(
+                        "pending_srf_scd_approval",
+                        scdDashStats?.pendingSrfDirectorApprovals ?? pendingDirectorSrfs.length,
+                      ),
+                      icon: ClipboardList,
+                    },
+                    {
+                      key: "pos",
+                      label: "Purchase Orders",
+                      count: readCount("pending_purchase_orders", pendingPOs.length),
+                      icon: ShoppingCart,
+                    },
+                  ];
                 return (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -902,11 +902,10 @@ const SupplyChainDashboard = () => {
                                 setPendingFilter(active ? "all" : key);
                               }
                             }}
-                            className={`cursor-pointer transition-all hover:shadow-md ${
-                              active
+                            className={`cursor-pointer transition-all hover:shadow-md ${active
                                 ? "ring-2 ring-primary border-primary"
                                 : ""
-                            }`}
+                              }`}
                           >
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3">
                               <CardTitle className="text-xs sm:text-sm font-medium">
@@ -945,13 +944,13 @@ const SupplyChainDashboard = () => {
 
               {/* Vendor Registrations Section */}
               {(pendingFilter === "all" || pendingFilter === "vendors") && (
-              <VendorRegistrationsList
-                maxItems={3}
-                showTabs={false}
-                title="Pending Vendor Registrations"
-                externalRegistrations={vendorRegistrations}
-                externalLoading={vendorRegistrationsLoading}
-              />
+                <VendorRegistrationsList
+                  maxItems={3}
+                  showTabs={false}
+                  title="Pending Vendor Registrations"
+                  externalRegistrations={vendorRegistrations}
+                  externalLoading={vendorRegistrationsLoading}
+                />
               )}
 
               {(pendingFilter === "all" || pendingFilter === "srfs") &&
@@ -995,9 +994,9 @@ const SupplyChainDashboard = () => {
                                   •{" "}
                                   {formatMRFDate(
                                     srf.createdAt ||
-                                      srf.created_at ||
-                                      srf.date ||
-                                      "",
+                                    srf.created_at ||
+                                    srf.date ||
+                                    "",
                                   )}
                                 </p>
                               </div>
@@ -1043,374 +1042,374 @@ const SupplyChainDashboard = () => {
 
               {(pendingFilter === "all" || pendingFilter === "trips") &&
                 pendingTripApprovals.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Pending Trip Approvals</CardTitle>
-                    <CardDescription>
-                      Staff trip requests awaiting Supervising Director approval. Click a row to review and act.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {pendingTripApprovals.map((t) => {
-                        const tid = String(
-                          (t.id as string | number | undefined) ?? "",
-                        );
-                        const code =
-                          (t.tripCode as string | undefined) ??
-                          (t.trip_code as string | undefined) ??
-                          tid;
-                        const dest = (t.destination as string | undefined) ?? "—";
-                        const requester =
-                          (t.requesterName as string | undefined) ??
-                          (t.requester_name as string | undefined) ??
-                          "Unknown";
-                        const dept =
-                          (t.requesterDepartment as string | undefined) ??
-                          (t.requester_department as string | undefined) ??
-                          "";
-                        const dep =
-                          (t.scheduledDepartureAt as string | undefined) ??
-                          (t.scheduled_departure_at as string | undefined);
-                        const stageLabel =
-                          (t.workflowStageLabel as string | undefined) ??
-                          "Pending Director Approval";
-                        return (
-                          <div
-                            key={tid}
-                            className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4 hover:bg-accent/40 transition-colors"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold truncate">
-                                {code} — {dest}
-                              </p>
-                              <p className="text-sm text-muted-foreground truncate">
-                                {requester}
-                                {dept ? ` • ${dept}` : ""}
-                                {dep ? ` • Departs ${formatMRFDate(dep)}` : ""}
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 shrink-0">
-                              <Badge variant="secondary">{stageLabel}</Badge>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  navigate(`/trip-requests/${encodeURIComponent(tid)}`)
-                                }
-                              >
-                                View
-                              </Button>
-                              <Button
-                                size="sm"
-                                disabled={approvingTripId === tid}
-                                onClick={async () => {
-                                  setApprovingTripId(tid);
-                                  const res = await tripRequestApi.directorApprove(tid);
-                                  if (res.success) {
-                                    toast.success("Trip request approved");
-                                     // Optimistically drop the row from the cached
-                                     // SCD dashboard payload — avoids a full refetch flicker.
-                                     queryClient.setQueryData<Record<string, unknown> | null>(
-                                       queryKeys.dashboard.supplyChainDirectorRaw(),
-                                       (prev) => {
-                                         if (!prev) return prev;
-                                         const filterList = (v: unknown) =>
-                                           Array.isArray(v)
-                                             ? v.filter(
-                                                 (p) =>
-                                                   String(
-                                                     ((p as Record<string, unknown>).id as
-                                                       | string
-                                                       | number
-                                                       | undefined) ?? "",
-                                                   ) !== tid,
-                                               )
-                                             : v;
-                                         return {
-                                           ...prev,
-                                           pendingTripApprovals: filterList(prev.pendingTripApprovals),
-                                           pending_trip_approvals: filterList(prev.pending_trip_approvals),
-                                         };
-                                       },
-                                     );
-                                    void fetchPendingDirectorSrfs();
-                                    window.dispatchEvent(new CustomEvent("app:refresh"));
-                                  } else {
-                                    toast.error(res.error || "Failed to approve trip");
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Pending Trip Approvals</CardTitle>
+                      <CardDescription>
+                        Staff trip requests awaiting Supervising Director approval. Click a row to review and act.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {pendingTripApprovals.map((t) => {
+                          const tid = String(
+                            (t.id as string | number | undefined) ?? "",
+                          );
+                          const code =
+                            (t.tripCode as string | undefined) ??
+                            (t.trip_code as string | undefined) ??
+                            tid;
+                          const dest = (t.destination as string | undefined) ?? "—";
+                          const requester =
+                            (t.requesterName as string | undefined) ??
+                            (t.requester_name as string | undefined) ??
+                            "Unknown";
+                          const dept =
+                            (t.requesterDepartment as string | undefined) ??
+                            (t.requester_department as string | undefined) ??
+                            "";
+                          const dep =
+                            (t.scheduledDepartureAt as string | undefined) ??
+                            (t.scheduled_departure_at as string | undefined);
+                          const stageLabel =
+                            (t.workflowStageLabel as string | undefined) ??
+                            "Pending Director Approval";
+                          return (
+                            <div
+                              key={tid}
+                              className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-4 hover:bg-accent/40 transition-colors"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold truncate">
+                                  {code} — {dest}
+                                </p>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {requester}
+                                  {dept ? ` • ${dept}` : ""}
+                                  {dep ? ` • Departs ${formatMRFDate(dep)}` : ""}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                <Badge variant="secondary">{stageLabel}</Badge>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    navigate(`/trip-requests/${encodeURIComponent(tid)}`)
                                   }
-                                  setApprovingTripId(null);
-                                }}
-                              >
-                                {approvingTripId === tid ? "Approving…" : "Approve"}
-                              </Button>
+                                >
+                                  View
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  disabled={approvingTripId === tid}
+                                  onClick={async () => {
+                                    setApprovingTripId(tid);
+                                    const res = await tripRequestApi.directorApprove(tid);
+                                    if (res.success) {
+                                      toast.success("Trip request approved");
+                                      // Optimistically drop the row from the cached
+                                      // SCD dashboard payload — avoids a full refetch flicker.
+                                      queryClient.setQueryData<Record<string, unknown> | null>(
+                                        queryKeys.dashboard.supplyChainDirectorRaw(),
+                                        (prev) => {
+                                          if (!prev) return prev;
+                                          const filterList = (v: unknown) =>
+                                            Array.isArray(v)
+                                              ? v.filter(
+                                                (p) =>
+                                                  String(
+                                                    ((p as Record<string, unknown>).id as
+                                                      | string
+                                                      | number
+                                                      | undefined) ?? "",
+                                                  ) !== tid,
+                                              )
+                                              : v;
+                                          return {
+                                            ...prev,
+                                            pendingTripApprovals: filterList(prev.pendingTripApprovals),
+                                            pending_trip_approvals: filterList(prev.pending_trip_approvals),
+                                          };
+                                        },
+                                      );
+                                      void fetchPendingDirectorSrfs();
+                                      window.dispatchEvent(new CustomEvent("app:refresh"));
+                                    } else {
+                                      toast.error(res.error || "Failed to approve trip");
+                                    }
+                                    setApprovingTripId(null);
+                                  }}
+                                >
+                                  {approvingTripId === tid ? "Approving…" : "Approve"}
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
               {/* Non-Emerald First Approvals (Supply Chain Director approves MRF first) */}
               {(pendingFilter === "all" || pendingFilter === "mrf") &&
                 pendingFirstApprovals.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>
-                      MRFs Awaiting Supply Chain Director First Approval
-                    </CardTitle>
-                    <CardDescription>
-                      Parallel with Executive — first approval wins; then Procurement review
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {pendingFirstApprovals.map((mrf) => {
-                        const estimatedCost = getEstimatedCost(mrf);
-                        const isActionLoading = actionLoading === mrf.id;
-                        return (
-                          <Card
-                            key={mrf.id}
-                            className="border-l-4 border-l-primary"
-                          >
-                            <CardHeader className="p-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                  <CardTitle className="text-base truncate">
-                                    {mrf.title}
-                                  </CardTitle>
-                                  <CardDescription className="text-xs truncate">
-                                    {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
-                                    {mrf.department || "N/A"}
-                                  </CardDescription>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>
+                        MRFs Awaiting Supply Chain Director First Approval
+                      </CardTitle>
+                      <CardDescription>
+                        Parallel with Executive — first approval wins; then Procurement review
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {pendingFirstApprovals.map((mrf) => {
+                          const estimatedCost = getEstimatedCost(mrf);
+                          const isActionLoading = actionLoading === mrf.id;
+                          return (
+                            <Card
+                              key={mrf.id}
+                              className="border-l-4 border-l-primary"
+                            >
+                              <CardHeader className="p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <CardTitle className="text-base truncate">
+                                      {mrf.title}
+                                    </CardTitle>
+                                    <CardDescription className="text-xs truncate">
+                                      {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
+                                      {mrf.department || "N/A"}
+                                    </CardDescription>
+                                  </div>
+                                  <Badge>₦{estimatedCost.toLocaleString()}</Badge>
                                 </div>
-                                <Badge>₦{estimatedCost.toLocaleString()}</Badge>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
-                                <p className="text-sm font-medium text-primary">
-                                  First Approval: Supply Chain Director (parallel with Executive)
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Contract Type:{" "}
-                                  {getMRFContractType(mrf) || "N/A"}
-                                </p>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={isActionLoading}
-                                  className="flex-1"
-                                  onClick={() => {
-                                    setMrfForFirstApproval(mrf);
-                                    setFirstApprovalDialogOpen(true);
-                                  }}
-                                >
-                                  Review & Approve / Reject
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                              </CardHeader>
+                              <CardContent className="space-y-3">
+                                <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                                  <p className="text-sm font-medium text-primary">
+                                    First Approval: Supply Chain Director (parallel with Executive)
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Contract Type:{" "}
+                                    {getMRFContractType(mrf) || "N/A"}
+                                  </p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={isActionLoading}
+                                    className="flex-1"
+                                    onClick={() => {
+                                      setMrfForFirstApproval(mrf);
+                                      setFirstApprovalDialogOpen(true);
+                                    }}
+                                  >
+                                    Review & Approve / Reject
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
               {/* Vendor Selections Pending Approval */}
               {(pendingFilter === "all" || pendingFilter === "pos") &&
                 pendingVendorApprovals.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Vendor Selections Pending Approval</CardTitle>
-                    <CardDescription>
-                      Review and approve Procurement's vendor selections from
-                      RFQ responses before PO generation
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {pendingVendorApprovals.map((mrf) => {
-                        const estimatedCost = getEstimatedCost(mrf);
-                        const isActionLoading = actionLoading === mrf.id;
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Vendor Selections Pending Approval</CardTitle>
+                      <CardDescription>
+                        Review and approve Procurement's vendor selections from
+                        RFQ responses before PO generation
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {pendingVendorApprovals.map((mrf) => {
+                          const estimatedCost = getEstimatedCost(mrf);
+                          const isActionLoading = actionLoading === mrf.id;
 
-                        return (
-                          <Card
-                            key={mrf.id}
-                            className="border-l-4 border-l-amber-500"
-                          >
-                            <CardHeader>
-                              <div className="flex items-start justify-between">
-                                <div>
-                                  <CardTitle className="text-lg">
-                                    {mrf.title}
-                                  </CardTitle>
-                                  <CardDescription>
-                                    {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
-                                    {mrf.department || "N/A"}
-                                  </CardDescription>
+                          return (
+                            <Card
+                              key={mrf.id}
+                              className="border-l-4 border-l-amber-500"
+                            >
+                              <CardHeader>
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <CardTitle className="text-lg">
+                                      {mrf.title}
+                                    </CardTitle>
+                                    <CardDescription>
+                                      {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
+                                      {mrf.department || "N/A"}
+                                    </CardDescription>
+                                  </div>
+                                  <Badge>₦{estimatedCost.toLocaleString()}</Badge>
                                 </div>
-                                <Badge>₦{estimatedCost.toLocaleString()}</Badge>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                              <div className="grid md:grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <p className="font-semibold">Category:</p>
-                                  <p className="text-muted-foreground">
-                                    {mrf.category}
+                              </CardHeader>
+                              <CardContent className="space-y-4">
+                                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <p className="font-semibold">Category:</p>
+                                    <p className="text-muted-foreground">
+                                      {mrf.category}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold">Quantity:</p>
+                                    <p className="text-muted-foreground">
+                                      {mrf.quantity}
+                                    </p>
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <p className="font-semibold">Description:</p>
+                                    <p className="text-muted-foreground">
+                                      {mrf.description}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Vendor Selection Info */}
+                                <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                                  <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                                    Procurement has selected a vendor from RFQ
+                                    responses. Review and approve to allow PO
+                                    generation.
                                   </p>
                                 </div>
-                                <div>
-                                  <p className="font-semibold">Quantity:</p>
-                                  <p className="text-muted-foreground">
-                                    {mrf.quantity}
-                                  </p>
-                                </div>
-                                <div className="md:col-span-2">
-                                  <p className="font-semibold">Description:</p>
-                                  <p className="text-muted-foreground">
-                                    {mrf.description}
-                                  </p>
-                                </div>
-                              </div>
 
-                              {/* Vendor Selection Info */}
-                              <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-                                <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                                  Procurement has selected a vendor from RFQ
-                                  responses. Review and approve to allow PO
-                                  generation.
-                                </p>
-                              </div>
-
-                              {/* View Details and Quotation Details Buttons */}
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={async () => {
-                                    setSelectedMRFForDetails(mrf);
-                                    setMrfDetailsDialogOpen(true);
-                                    setLoadingFullDetails(true);
-                                    try {
-                                      const response =
-                                        await mrfApi.getFullDetails(mrf.id);
-                                      if (response.success && response.data) {
-                                        setMrfFullDetails(response.data);
+                                {/* View Details and Quotation Details Buttons */}
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      setSelectedMRFForDetails(mrf);
+                                      setMrfDetailsDialogOpen(true);
+                                      setLoadingFullDetails(true);
+                                      try {
+                                        const response =
+                                          await mrfApi.getFullDetails(mrf.id);
+                                        if (response.success && response.data) {
+                                          setMrfFullDetails(response.data);
+                                        }
+                                      } catch (error) {
+                                        toast.error("Failed to load MRF details");
+                                      } finally {
+                                        setLoadingFullDetails(false);
                                       }
-                                    } catch (error) {
-                                      toast.error("Failed to load MRF details");
-                                    } finally {
-                                      setLoadingFullDetails(false);
-                                    }
-                                  }}
-                                >
-                                  <FileText className="h-4 w-4 mr-2" />
-                                  View Details
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={async () => {
-                                    setSelectedMRFForDetails(mrf);
-                                    setQuotationDetailsDialogOpen(true);
-                                    setLoadingFullDetails(true);
-                                    try {
-                                      const response =
-                                        await mrfApi.getFullDetails(mrf.id);
-                                      if (response.success && response.data) {
-                                        setMrfFullDetails(response.data);
-                                      } else {
-                                        toast.error(
-                                          response.error ||
+                                    }}
+                                  >
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      setSelectedMRFForDetails(mrf);
+                                      setQuotationDetailsDialogOpen(true);
+                                      setLoadingFullDetails(true);
+                                      try {
+                                        const response =
+                                          await mrfApi.getFullDetails(mrf.id);
+                                        if (response.success && response.data) {
+                                          setMrfFullDetails(response.data);
+                                        } else {
+                                          toast.error(
+                                            response.error ||
                                             "Failed to load quotation details. Please try again.",
+                                          );
+                                          setQuotationDetailsDialogOpen(false);
+                                        }
+                                      } catch (error: any) {
+                                        console.error(
+                                          "Error loading quotation details:",
+                                          error,
+                                        );
+                                        toast.error(
+                                          error?.message ||
+                                          "Failed to load quotation details. Please try again.",
                                         );
                                         setQuotationDetailsDialogOpen(false);
+                                      } finally {
+                                        setLoadingFullDetails(false);
                                       }
-                                    } catch (error: any) {
-                                      console.error(
-                                        "Error loading quotation details:",
-                                        error,
-                                      );
-                                      toast.error(
-                                        error?.message ||
-                                          "Failed to load quotation details. Please try again.",
-                                      );
-                                      setQuotationDetailsDialogOpen(false);
-                                    } finally {
-                                      setLoadingFullDetails(false);
-                                    }
-                                  }}
-                                >
-                                  <FileText className="h-4 w-4 mr-2" />
-                                  View Quotation Details
-                                </Button>
-                              </div>
+                                    }}
+                                  >
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    View Quotation Details
+                                  </Button>
+                                </div>
 
-                              {/* Action Buttons */}
-                              <SupplyChainVendorApprovalButtons
-                                mrf={mrf}
-                                onApprove={async () => {
-                                  setActionLoading(mrf.id);
-                                  try {
-                                    const response =
-                                      await mrfApi.getAvailableActions(mrf.id);
-                                    if (
-                                      !response.success ||
-                                      !response.data?.canApproveInvoice
-                                    ) {
-                                      toast.error(
-                                        "You do not have permission to approve vendor selection at this time",
-                                      );
-                                      setActionLoading(null);
-                                      return;
-                                    }
-                                    const approveResponse =
-                                      await mrfApi.approveVendorSelection(
-                                        mrf.id,
-                                      );
-                                    if (approveResponse.success) {
-                                      toast.success(
-                                        "Vendor selection approved - Procurement can now generate PO based on the approved RFQ",
-                                      );
-                                      if ((approveResponse.data as any)?.vendorInvoiceGateOpen) {
-                                        toast.info(
-                                          "Vendor invoice upload is now unlocked for this MRF (advance payment).",
+                                {/* Action Buttons */}
+                                <SupplyChainVendorApprovalButtons
+                                  mrf={mrf}
+                                  onApprove={async () => {
+                                    setActionLoading(mrf.id);
+                                    try {
+                                      const response =
+                                        await mrfApi.getAvailableActions(mrf.id);
+                                      if (
+                                        !response.success ||
+                                        !response.data?.canApproveInvoice
+                                      ) {
+                                        toast.error(
+                                          "You do not have permission to approve vendor selection at this time",
+                                        );
+                                        setActionLoading(null);
+                                        return;
+                                      }
+                                      const approveResponse =
+                                        await mrfApi.approveVendorSelection(
+                                          mrf.id,
+                                        );
+                                      if (approveResponse.success) {
+                                        toast.success(
+                                          "Vendor selection approved - Procurement can now generate PO based on the approved RFQ",
+                                        );
+                                        if ((approveResponse.data as any)?.vendorInvoiceGateOpen) {
+                                          toast.info(
+                                            "Vendor invoice upload is now unlocked for this MRF (advance payment).",
+                                          );
+                                        }
+                                        await fetchMRFs();
+                                      } else {
+                                        toast.error(
+                                          approveResponse.error ||
+                                          "Failed to approve vendor selection",
                                         );
                                       }
-                                      await fetchMRFs();
-                                    } else {
-                                      toast.error(
-                                        approveResponse.error ||
-                                          "Failed to approve vendor selection",
-                                      );
+                                    } catch (error) {
+                                      toast.error("Failed to connect to server");
+                                    } finally {
+                                      setActionLoading(null);
                                     }
-                                  } catch (error) {
-                                    toast.error("Failed to connect to server");
-                                  } finally {
-                                    setActionLoading(null);
-                                  }
-                                }}
-                                onReject={() => {
-                                  setSelectedMRFForRejection(mrf);
-                                  setRejectDialogOpen(true);
-                                }}
-                                isLoading={isActionLoading}
-                              />
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                                  }}
+                                  onReject={() => {
+                                    setSelectedMRFForRejection(mrf);
+                                    setRejectDialogOpen(true);
+                                  }}
+                                  isLoading={isActionLoading}
+                                />
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
               {/* Final Approval — SCD approves quotes/vendor selection before PO generation */}
               {pendingFinalApprovals.length > 0 && (
@@ -1540,225 +1539,225 @@ const SupplyChainDashboard = () => {
               )}
 
               {(pendingFilter === "all" || pendingFilter === "pos") && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Purchase Orders</CardTitle>
-                  <CardDescription>
-                    Review, sign, and upload Purchase Orders from Procurement
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <TableSkeleton rows={3} />
-                  ) : pendingPOs.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                      <p>No POs pending processing</p>
-                      <p className="text-xs mt-2">All POs have been reviewed</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {pendingPOs.map((mrf) => {
-                        const estimatedCost = getEstimatedCost(mrf);
-                        const poNumber = getPONumber(mrf);
-                        const poVersion = getPOVersion(mrf);
-                        const isActionLoading = actionLoading === mrf.id;
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Purchase Orders</CardTitle>
+                    <CardDescription>
+                      Review, sign, and upload Purchase Orders from Procurement
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? (
+                      <TableSkeleton rows={3} />
+                    ) : pendingPOs.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                        <p>No POs pending processing</p>
+                        <p className="text-xs mt-2">All POs have been reviewed</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {pendingPOs.map((mrf) => {
+                          const estimatedCost = getEstimatedCost(mrf);
+                          const poNumber = getPONumber(mrf);
+                          const poVersion = getPOVersion(mrf);
+                          const isActionLoading = actionLoading === mrf.id;
 
-                        return (
-                          <Card
-                            key={mrf.id}
-                            className="border-l-4 border-l-primary"
-                          >
-                            <CardHeader>
-                              <div className="flex items-start justify-between">
-                                <div>
-                                  <CardTitle className="text-lg">
-                                    {mrf.title}
-                                  </CardTitle>
-                                  <CardDescription>
-                                    {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
-                                    {mrf.department || "N/A"}
-                                  </CardDescription>
+                          return (
+                            <Card
+                              key={mrf.id}
+                              className="border-l-4 border-l-primary"
+                            >
+                              <CardHeader>
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <CardTitle className="text-lg">
+                                      {mrf.title}
+                                    </CardTitle>
+                                    <CardDescription>
+                                      {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
+                                      {mrf.department || "N/A"}
+                                    </CardDescription>
+                                  </div>
+                                  <Badge>₦{estimatedCost.toLocaleString()}</Badge>
                                 </div>
-                                <Badge>₦{estimatedCost.toLocaleString()}</Badge>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                              <div className="grid md:grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <p className="font-semibold">Category:</p>
-                                  <p className="text-muted-foreground">
-                                    {mrf.category}
-                                  </p>
+                              </CardHeader>
+                              <CardContent className="space-y-4">
+                                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <p className="font-semibold">Category:</p>
+                                    <p className="text-muted-foreground">
+                                      {mrf.category}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold">Quantity:</p>
+                                    <p className="text-muted-foreground">
+                                      {mrf.quantity}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold">PO Number:</p>
+                                    <p className="text-muted-foreground font-mono">
+                                      {poNumber}
+                                      {poVersion > 1 && (
+                                        <Badge
+                                          variant="secondary"
+                                          className="ml-2 text-xs"
+                                        >
+                                          v{poVersion} (Resubmitted)
+                                        </Badge>
+                                      )}
+                                    </p>
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <p className="font-semibold">Description:</p>
+                                    <p className="text-muted-foreground">
+                                      {mrf.description}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="font-semibold">Quantity:</p>
-                                  <p className="text-muted-foreground">
-                                    {mrf.quantity}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="font-semibold">PO Number:</p>
-                                  <p className="text-muted-foreground font-mono">
-                                    {poNumber}
-                                    {poVersion > 1 && (
-                                      <Badge
-                                        variant="secondary"
-                                        className="ml-2 text-xs"
+
+                                {/* Invoice/PFI Access */}
+                                {getPFIUrl(mrf) && (
+                                  <div className="flex flex-col gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                      <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                      <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                                        Invoice/PFI Submitted by Staff
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleDownloadPFI(mrf)}
+                                        className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
                                       >
-                                        v{poVersion} (Resubmitted)
-                                      </Badge>
-                                    )}
-                                  </p>
-                                </div>
-                                <div className="md:col-span-2">
-                                  <p className="font-semibold">Description:</p>
-                                  <p className="text-muted-foreground">
-                                    {mrf.description}
-                                  </p>
-                                </div>
-                              </div>
+                                        <Download className="h-4 w-4 mr-2" />
+                                        View Invoice
+                                      </Button>
+                                      {(mrf.pfi_share_url || mrf.pfiShareUrl) && (
+                                        <OneDriveLink
+                                          webUrl={
+                                            mrf.pfi_share_url || mrf.pfiShareUrl
+                                          }
+                                          fileName="Invoice"
+                                          variant="badge"
+                                        />
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
 
-                              {/* Invoice/PFI Access */}
-                              {getPFIUrl(mrf) && (
-                                <div className="flex flex-col gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                {(mrf.attachmentUrl || mrf.attachment_url || mrf.attachmentShareUrl || mrf.attachment_share_url) && (
+                                  <div className="mt-3">
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">Supporting Document</p>
+                                    <a
+                                      href={mrf.attachmentShareUrl || mrf.attachment_share_url || mrf.attachmentUrl || mrf.attachment_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      download
+                                      className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                      {mrf.attachmentName || mrf.attachment_name || 'Download Attachment'}
+                                    </a>
+                                  </div>
+                                )}
+
+                                {/* Download unsigned PO */}
+                                <div className="flex flex-col gap-2 p-3 bg-muted/50 rounded-lg">
                                   <div className="flex items-center gap-2">
-                                    <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                    <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                                      Invoice/PFI Submitted by Staff
+                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                    <span className="text-sm flex-1">
+                                      PO uploaded by Procurement Manager
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => handleDownloadPFI(mrf)}
-                                      className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
+                                      onClick={() => handleDownloadPO(mrf)}
                                     >
                                       <Download className="h-4 w-4 mr-2" />
-                                      View Invoice
+                                      Download PO
                                     </Button>
-                                    {(mrf.pfi_share_url || mrf.pfiShareUrl) && (
+                                    <ViewPoDocumentsButton
+                                      mrfId={mrf.id}
+                                      poNumber={poNumber}
+                                      readOnly={false}
+                                    />
+                                    {getUnsignedPOShareUrl(mrf) && (
                                       <OneDriveLink
-                                        webUrl={
-                                          mrf.pfi_share_url || mrf.pfiShareUrl
-                                        }
-                                        fileName="Invoice"
+                                        webUrl={getUnsignedPOShareUrl(mrf)}
+                                        fileName={`PO-${getPONumber(mrf)}.pdf`}
                                         variant="badge"
                                       />
                                     )}
                                   </div>
                                 </div>
-                              )}
 
-                              {(mrf.attachmentUrl || mrf.attachment_url || mrf.attachmentShareUrl || mrf.attachment_share_url) && (
-                                <div className="mt-3">
-                                  <p className="text-xs font-medium text-muted-foreground mb-1">Supporting Document</p>
-                                  <a
-                                    href={mrf.attachmentShareUrl || mrf.attachment_share_url || mrf.attachmentUrl || mrf.attachment_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    download
-                                    className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                    {mrf.attachmentName || mrf.attachment_name || 'Download Attachment'}
-                                  </a>
-                                </div>
-                              )}
-
-                              {/* Download unsigned PO */}
-                              <div className="flex flex-col gap-2 p-3 bg-muted/50 rounded-lg">
-                                <div className="flex items-center gap-2">
-                                  <CheckCircle className="h-4 w-4 text-green-600" />
-                                  <span className="text-sm flex-1">
-                                    PO uploaded by Procurement Manager
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 flex-wrap">
+                                {/* View Details Button */}
+                                <div className="flex gap-2 pt-2">
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => handleDownloadPO(mrf)}
-                                  >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Download PO
-                                  </Button>
-                                  <ViewPoDocumentsButton
-                                    mrfId={mrf.id}
-                                    poNumber={poNumber}
-                                    readOnly={false}
-                                  />
-                                  {getUnsignedPOShareUrl(mrf) && (
-                                    <OneDriveLink
-                                      webUrl={getUnsignedPOShareUrl(mrf)}
-                                      fileName={`PO-${getPONumber(mrf)}.pdf`}
-                                      variant="badge"
-                                    />
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* View Details Button */}
-                              <div className="flex gap-2 pt-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={async () => {
-                                    setSelectedMRFForDetails(mrf);
-                                    setMrfDetailsDialogOpen(true);
-                                    setLoadingFullDetails(true);
-                                    try {
-                                      const response =
-                                        await mrfApi.getFullDetails(mrf.id);
-                                      if (response.success && response.data) {
-                                        setMrfFullDetails(response.data);
+                                    onClick={async () => {
+                                      setSelectedMRFForDetails(mrf);
+                                      setMrfDetailsDialogOpen(true);
+                                      setLoadingFullDetails(true);
+                                      try {
+                                        const response =
+                                          await mrfApi.getFullDetails(mrf.id);
+                                        if (response.success && response.data) {
+                                          setMrfFullDetails(response.data);
+                                        }
+                                      } catch (error) {
+                                        toast.error("Failed to load MRF details");
+                                      } finally {
+                                        setLoadingFullDetails(false);
                                       }
-                                    } catch (error) {
-                                      toast.error("Failed to load MRF details");
-                                    } finally {
-                                      setLoadingFullDetails(false);
-                                    }
-                                  }}
-                                >
-                                  <FileText className="h-4 w-4 mr-2" />
-                                  View Details
-                                </Button>
-                              </div>
+                                    }}
+                                  >
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </Button>
+                                </div>
 
-                              {/* Upload signed PO - Uses available actions */}
-                              <SupplyChainActionButtons
-                                mrf={mrf}
-                                onAttachSignature={handleAttachSignature}
-                                onUploadSignedPO={handleUploadSignedPO}
-                                onRejectPO={() => {
-                                  setSelectedMRFForRejection(mrf);
-                                  setRejectDialogOpen(true);
-                                }}
-                                signedPOFile={signedPOs[mrf.id] || null}
-                                attachSignatureFile={
-                                  attachSignatureFiles[mrf.id] || null
-                                }
-                                onSignedPOFileChange={(file) =>
-                                  handleFileChange(mrf.id, file)
-                                }
-                                onAttachSignatureFileChange={(file) =>
-                                  setAttachSignatureFiles((prev) => ({
-                                    ...prev,
-                                    [mrf.id]: file,
-                                  }))
-                                }
-                                isLoading={isActionLoading}
-                                hasSavedProfileSignature={hasProfileSignature}
-                              />
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                                {/* Upload signed PO - Uses available actions */}
+                                <SupplyChainActionButtons
+                                  mrf={mrf}
+                                  onAttachSignature={handleAttachSignature}
+                                  onUploadSignedPO={handleUploadSignedPO}
+                                  onRejectPO={() => {
+                                    setSelectedMRFForRejection(mrf);
+                                    setRejectDialogOpen(true);
+                                  }}
+                                  signedPOFile={signedPOs[mrf.id] || null}
+                                  attachSignatureFile={
+                                    attachSignatureFiles[mrf.id] || null
+                                  }
+                                  onSignedPOFileChange={(file) =>
+                                    handleFileChange(mrf.id, file)
+                                  }
+                                  onAttachSignatureFileChange={(file) =>
+                                    setAttachSignatureFiles((prev) => ({
+                                      ...prev,
+                                      [mrf.id]: file,
+                                    }))
+                                  }
+                                  isLoading={isActionLoading}
+                                  hasSavedProfileSignature={hasProfileSignature}
+                                />
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
 
@@ -1862,7 +1861,7 @@ const SupplyChainDashboard = () => {
         }}
         onApprove={handleFirstApprovalApprove}
         onReject={handleFirstApprovalReject}
-        currentUserRole="supply_chain_director_review"
+        currentUserRole={getScmRole(user)}
       />
 
       <SRFDirectorApprovalDialog
@@ -2037,8 +2036,8 @@ const SupplyChainDashboard = () => {
                     <p className="font-bold text-lg">
                       {formatAmount(
                         mrfFullDetails.selectedQuotation.totalAmount ??
-                          mrfFullDetails.selectedQuotation.total_amount ??
-                          mrfFullDetails.selectedQuotation.price,
+                        mrfFullDetails.selectedQuotation.total_amount ??
+                        mrfFullDetails.selectedQuotation.price,
                         mrfFullDetails.selectedQuotation.currency ?? "NGN",
                       )}
                     </p>
@@ -2050,7 +2049,7 @@ const SupplyChainDashboard = () => {
                     <p className="font-medium">
                       {displayString(
                         mrfFullDetails.selectedQuotation.paymentTerms ??
-                          mrfFullDetails.selectedQuotation.payment_terms,
+                        mrfFullDetails.selectedQuotation.payment_terms,
                       )}
                     </p>
                   </div>
@@ -2061,7 +2060,7 @@ const SupplyChainDashboard = () => {
                     <p className="font-medium">
                       {displayString(
                         mrfFullDetails.selectedQuotation.deliveryDate ??
-                          mrfFullDetails.selectedQuotation.delivery_date,
+                        mrfFullDetails.selectedQuotation.delivery_date,
                       )}
                     </p>
                   </div>
@@ -2072,7 +2071,7 @@ const SupplyChainDashboard = () => {
                     <p className="font-medium">
                       {formatDays(
                         mrfFullDetails.selectedQuotation.validityDays ??
-                          mrfFullDetails.selectedQuotation.validity_days,
+                        mrfFullDetails.selectedQuotation.validity_days,
                       )}
                     </p>
                   </div>
@@ -2083,7 +2082,7 @@ const SupplyChainDashboard = () => {
                     <p className="font-medium">
                       {displayString(
                         mrfFullDetails.selectedQuotation.warrantyPeriod ??
-                          mrfFullDetails.selectedQuotation.warranty_period,
+                        mrfFullDetails.selectedQuotation.warranty_period,
                       )}
                     </p>
                   </div>
@@ -2159,7 +2158,7 @@ const SupplyChainDashboard = () => {
                                   {parseFloat(
                                     String(
                                       (item.quantity || 0) *
-                                        (item.unit_price || 0),
+                                      (item.unit_price || 0),
                                     ),
                                   ).toLocaleString()}
                                 </td>
