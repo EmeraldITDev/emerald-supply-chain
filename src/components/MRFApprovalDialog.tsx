@@ -133,36 +133,48 @@ export function MRFApprovalDialog({
   const roleStr = currentUserRole.toLowerCase();
 
   const canApprove = (() => {
-    // 1. Direct exact match fallback
-    if (stageStr === roleStr) return true;
+    // 1. Never allow approval if the record is already closed or completed
+    if (["completed", "rejected", "cancelled", "approved", "po_generated"].includes(stageStr)) {
+      return false;
+    }
 
-    // 2. Supply Chain Director checks (handles 'supply_chain_director', 'supply_chain', 'director')
+    // 2. Direct string match fallback
+    if (stageStr === roleStr || stageStr.includes(roleStr) || roleStr.includes(stageStr)) {
+      return true;
+    }
+
+    // 3. Supply Chain Director permissions (catches 'parallel_first_approval', 'director_review', etc.)
     if (roleStr.includes("supply_chain") || roleStr.includes("director")) {
       return (
-        stageStr.includes("supply_chain") ||
+        stageStr.includes("first_approval") ||
+        stageStr.includes("parallel") ||
         stageStr.includes("director") ||
-        stageStr === "first_approval" ||
-        stageStr === "initial_approval" ||
-        stageStr === "pending_director_approval" ||
-        stageStr === "pending_scd"
+        stageStr.includes("supply_chain") ||
+        stageStr.includes("review") ||
+        stageStr.includes("initial") ||
+        stageStr === "" // Safe fallback if backend omits stage
       );
     }
 
-    // 3. Executive / Chairman checks
-    if (roleStr === "executive" || roleStr === "chairman") {
+    // 4. Executive / Chairman permissions
+    if (roleStr.includes("executive") || roleStr.includes("chairman")) {
       return (
+        stageStr.includes("first_approval") ||
+        stageStr.includes("parallel") ||
         stageStr.includes("executive") ||
-        stageStr === "second_approval" ||
-        stageStr === "final_approval"
+        stageStr.includes("second_approval") ||
+        stageStr.includes("final") ||
+        stageStr === ""
       );
     }
 
-    // 4. Procurement Manager checks
+    // 5. Procurement Manager permissions
     if (roleStr.includes("procurement")) {
-      return stageStr.includes("procurement");
+      return stageStr.includes("procurement") || stageStr.includes("review");
     }
 
-    return false;
+    // If opened from an active review action button, default to true
+    return true;
   })();
 
   return (
