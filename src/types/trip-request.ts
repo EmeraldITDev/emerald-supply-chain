@@ -240,6 +240,16 @@ export interface CreateStaffTripRequestData {
   bookingScope: TripBookingScope;
   external_passengers?: TripRequestExternalPassenger[];
   international_transport_mode?: InternationalTransportMode | null;
+  trip_type?: TripType | string | null;
+  accommodation_required?: boolean;
+  accommodation_name?: string;
+  accommodation_address?: string;
+  accommodation_contact?: string;
+  accommodation_details?: string;
+  accommodation_estimated_cost?: number;
+  escort_required?: boolean;
+  escort_description?: string;
+  save_as_draft?: boolean;
 }
 
 /** Partial body for PUT /api/trip-requests/{id} (requester edit within 48h). */
