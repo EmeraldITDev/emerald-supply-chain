@@ -4300,24 +4300,48 @@ export const tripRequestApi = {
   },
 
   reject: async (id: string, reason?: string): Promise<ApiResponse<{ message?: string }>> => {
-    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/reject`, {
-      method: 'POST',
-      body: JSON.stringify({ reason: reason ?? '' }),
-    });
+    return tripRequestApi.logisticsReview(id, { action: 'reject', reason: reason ?? '' });
   },
 
   forward: async (id: string, notes?: string) => {
-    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/forward`, {
-      method: 'POST',
-      body: JSON.stringify({ notes: notes ?? '' }),
+    return tripRequestApi.logisticsReview(id, {
+      action: 'forward',
+      comments: notes || undefined,
     });
   },
 
   requestChanges: async (id: string, reason: string) => {
-    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/request-changes`, {
-      method: 'POST',
-      body: JSON.stringify({ reason }),
-    });
+    return tripRequestApi.logisticsReview(id, { action: 'request_changes', reason });
+  },
+
+  /** Unified logistics review action — POST /api/trip-requests/{id}/logistics-review */
+  logisticsReview: async (
+    id: string,
+    payload: import('@/types/trip-request').LogisticsReviewPayload,
+  ): Promise<
+    ApiResponse<{
+      trip?: import('@/types/trip-request').StaffTripRequest;
+      auditTrail?: import('@/types/trip-request').TripAuditTrailEntry[];
+      message?: string;
+    }>
+  > => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/trip-requests/${encodeURIComponent(id)}/logistics-review`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    );
+    if (res.success && res.data) {
+      const raw = res.data as Record<string, unknown>;
+      const trip =
+        (raw.trip as import('@/types/trip-request').StaffTripRequest) ?? undefined;
+      const auditTrail = (raw.auditTrail ??
+        raw.audit_trail) as import('@/types/trip-request').TripAuditTrailEntry[] | undefined;
+      return { ...res, data: { trip, auditTrail, message: raw.message as string | undefined } };
+    }
+    return res as unknown as ApiResponse<{
+      trip?: import('@/types/trip-request').StaffTripRequest;
+      auditTrail?: import('@/types/trip-request').TripAuditTrailEntry[];
+      message?: string;
+    }>;
   },
 
   directorApprove: async (id: string) => {
