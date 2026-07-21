@@ -178,14 +178,25 @@ export function TripRequestForm({
     ? { valid: true as const }
     : leadTimeCheck;
 
-  const canSubmit =
-    destination.trim() &&
-    purpose.trim() &&
-    origin.trim() &&
-    departureAt &&
-    (passengerIds.length > 0 || externalPassengers.some((p) => p.name.trim() && p.email.trim())) &&
-    effectiveLeadTimeCheck.valid &&
-    !submitting;
+  const missingReasons: string[] = [];
+  if (!destination.trim()) missingReasons.push("Destination");
+  if (!purpose.trim()) missingReasons.push("Purpose");
+  if (!origin.trim()) missingReasons.push("Origin");
+  if (!departureAt) missingReasons.push("Departure date & time");
+  if (
+    passengerIds.length === 0 &&
+    !externalPassengers.some((p) => p.name.trim() && p.email.trim())
+  ) {
+    missingReasons.push("At least one passenger (staff or external)");
+  }
+  if (!effectiveLeadTimeCheck.valid) {
+    missingReasons.push(
+      effectiveLeadTimeCheck.valid === false
+        ? effectiveLeadTimeCheck.violationMessage
+        : "Meets advance-booking lead time",
+    );
+  }
+  const canSubmit = missingReasons.length === 0 && !submitting;
 
   const submit = async (asDraft: boolean) => {
     if (!destination.trim() || !purpose.trim() || !origin.trim() || !departureAt) {
