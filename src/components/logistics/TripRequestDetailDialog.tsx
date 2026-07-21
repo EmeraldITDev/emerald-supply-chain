@@ -18,7 +18,7 @@ import { resolveTripBookingScopeLabel } from "@/utils/tripBookingValidation";
 import { Separator } from "@/components/ui/separator";
 import { CalendarClock, MapPin, Plane, Car, Users, BedDouble, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
-import { formatNaira } from "@/utils/currency";
+import { formatPoAmount } from "@/utils/currency";
 
 function formatDateTime(value?: string | null): string {
   if (!value) return "—";
@@ -253,7 +253,7 @@ export function TripRequestDetailDialog({
                               {accContact && <div><span className="font-medium text-foreground">Contact:</span> {accContact}</div>}
                               {accDetails && <div><span className="font-medium text-foreground">Notes:</span> {accDetails}</div>}
                               {accCost != null && (
-                                <div><span className="font-medium text-foreground">Est. cost:</span> {formatNaira(Number(accCost))}</div>
+                                <div><span className="font-medium text-foreground">Est. cost:</span> {formatPoAmount(Number(accCost), 'NGN')}</div>
                               )}
                             </div>
                           ) : (
