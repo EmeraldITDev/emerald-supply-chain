@@ -266,17 +266,17 @@ const Procurement = () => {
     useState(false);
   const [vendorSelectionTarget, setVendorSelectionTarget] = useState<
     | {
-        kind: "mrf";
-        request: MRFRequest;
-        rfq: RFQ;
-        quotation: Record<string, unknown>;
-      }
+      kind: "mrf";
+      request: MRFRequest;
+      rfq: RFQ;
+      quotation: Record<string, unknown>;
+    }
     | {
-        kind: "srf";
-        request: SRFRequest;
-        rfq: RFQ;
-        quotation: Record<string, unknown>;
-      }
+      kind: "srf";
+      request: SRFRequest;
+      rfq: RFQ;
+      quotation: Record<string, unknown>;
+    }
     | null
   >(null);
   const [vendorSelectionReason, setVendorSelectionReason] = useState("");
@@ -816,7 +816,7 @@ const Procurement = () => {
         kind === "mrf"
           ? getMrfApiId(request as unknown as MRF)
           : getDisplayId(request as SRFRequest) ||
-            String((request as SRFRequest).id);
+          String((request as SRFRequest).id);
       const sendResponse =
         kind === "mrf"
           ? await mrfApi.sendVendorForApproval(apiId, vid, qid, reason)
@@ -1497,14 +1497,52 @@ const Procurement = () => {
     return `${days}d ${remHours}h`;
   };
 
-  const handleMRFClick = (mrf: MRFRequest | MRF) => {
-    // Procurement can only view MRFs, not approve them
-    toast({
-      title: "View Only",
-      description:
-        "Procurement can view MRFs but cannot approve. Only Executive has approval authority.",
-      variant: "default",
-    });
+  const handleMRFClick = (mrfInput: MRFRequest | MRF) => {
+    const row = mrfInput as MRF;
+    const apiId = getMrfApiId(row);
+    setSelectedMRFForDetails(row);
+    setMrfFullDetails(null);
+    setMrfDetailDocs(null);
+    setMrfDetailsDialogOpen(true);
+    setLoadingFullDetails(false);
+    setLoadingQuotations(true);
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        p.delete("srf");
+        p.set("mrf", getDisplayId(row));
+        return p;
+      },
+      { replace: true },
+    );
+
+    // Fast hydrate (PnL + docs), then quotations timeline.
+    void (async () => {
+      try {
+        const hydrate = await procurementApi.getMRFDetailsHydrate(apiId);
+        if (hydrate.success && hydrate.data) {
+          setSelectedMRFForDetails(hydrate.data as MRF);
+          const docs =
+            (hydrate.data as any).procurementDocuments ||
+            (hydrate.data as any).procurement_documents ||
+            null;
+          if (docs) setMrfDetailDocs(docs);
+        }
+      } catch (error) {
+        console.error("Failed to hydrate MRF details:", error);
+      }
+
+      try {
+        const response = await mrfApi.getFullDetails(apiId);
+        if (response.success && response.data) {
+          setMrfFullDetails(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch full details:", error);
+      } finally {
+        setLoadingQuotations(false);
+      }
+    })();
   };
 
   const [resubmittingPOId, setResubmittingPOId] = useState<string | null>(null);
@@ -1722,51 +1760,51 @@ const Procurement = () => {
       const resolvedSrfForRfq =
         rfqCreateSource === "srf"
           ? srfRequests.find((s) =>
-              collectSrfIdAliases(s).includes(String(selectedMRFForPO.id)),
-            ) ??
-            srfRequests.find(
-              (s) =>
-                getDisplayId(s) === selectedMRFForPO.id ||
-                String(s.id) === selectedMRFForPO.id,
-            )
+            collectSrfIdAliases(s).includes(String(selectedMRFForPO.id)),
+          ) ??
+          srfRequests.find(
+            (s) =>
+              getDisplayId(s) === selectedMRFForPO.id ||
+              String(s.id) === selectedMRFForPO.id,
+          )
           : undefined;
       const srfIdForRfq =
         rfqCreateSource === "srf"
           ? String(
-              (resolvedSrfForRfq &&
-                (getDisplayId(resolvedSrfForRfq) || resolvedSrfForRfq.id)) ||
-                selectedMRFForPO.id,
-            )
+            (resolvedSrfForRfq &&
+              (getDisplayId(resolvedSrfForRfq) || resolvedSrfForRfq.id)) ||
+            selectedMRFForPO.id,
+          )
           : "";
 
       const rfqResponse = await rfqApi.create(
         rfqCreateSource === "srf"
           ? {
-              srfId: srfIdForRfq,
-              title: selectedMRFForPO.title || "RFQ Request",
-              category: selectedMRFForPO.category || "",
-              description: poData.items || selectedMRFForPO.description || "",
-              quantity: selectedMRFForPO.quantity || "1",
-              estimatedCost:
-                poData.amount || selectedMRFForPO.estimatedCost || "0",
-              deadline,
-              vendorIds: poData.vendors,
-              paymentTerms: poData.paymentTerms || "",
-              notes: poData.notes || "",
-            }
+            srfId: srfIdForRfq,
+            title: selectedMRFForPO.title || "RFQ Request",
+            category: selectedMRFForPO.category || "",
+            description: poData.items || selectedMRFForPO.description || "",
+            quantity: selectedMRFForPO.quantity || "1",
+            estimatedCost:
+              poData.amount || selectedMRFForPO.estimatedCost || "0",
+            deadline,
+            vendorIds: poData.vendors,
+            paymentTerms: poData.paymentTerms || "",
+            notes: poData.notes || "",
+          }
           : {
-              mrfId: selectedMRFForPO.id,
-              title: selectedMRFForPO.title || "RFQ Request",
-              category: selectedMRFForPO.category || "",
-              description: poData.items || selectedMRFForPO.description || "",
-              quantity: selectedMRFForPO.quantity || "1",
-              estimatedCost:
-                poData.amount || selectedMRFForPO.estimatedCost || "0",
-              deadline,
-              vendorIds: poData.vendors,
-              paymentTerms: poData.paymentTerms || "",
-              notes: poData.notes || "",
-            },
+            mrfId: selectedMRFForPO.id,
+            title: selectedMRFForPO.title || "RFQ Request",
+            category: selectedMRFForPO.category || "",
+            description: poData.items || selectedMRFForPO.description || "",
+            quantity: selectedMRFForPO.quantity || "1",
+            estimatedCost:
+              poData.amount || selectedMRFForPO.estimatedCost || "0",
+            deadline,
+            vendorIds: poData.vendors,
+            paymentTerms: poData.paymentTerms || "",
+            notes: poData.notes || "",
+          },
       );
 
       if (rfqResponse.success) {
@@ -1849,9 +1887,9 @@ const Procurement = () => {
   const poDownloadKey = (mrf: MRF): string =>
     String(
       (mrf as MRF & { formatted_id?: string }).formatted_id ||
-        mrf.id ||
-        getMrfApiId(mrf) ||
-        '',
+      mrf.id ||
+      getMrfApiId(mrf) ||
+      '',
     );
 
   const handleDownloadPO = async (mrf: MRF) => {
@@ -1868,10 +1906,10 @@ const Procurement = () => {
     try {
       const hasGeneratedPo = Boolean(
         mrf.po_number ||
-          mrf.poNumber ||
-          getMRFPOUrl(mrf) ||
-          mrf.signed_po_url ||
-          mrf.signedPOUrl,
+        mrf.poNumber ||
+        getMRFPOUrl(mrf) ||
+        mrf.signed_po_url ||
+        mrf.signedPOUrl,
       );
       if (!hasGeneratedPo) {
         toast({
@@ -2418,8 +2456,8 @@ const Procurement = () => {
                                       (sum, item) =>
                                         sum +
                                         (parseFloat(item.quantity) || 0) *
-                                          (parseFloat(item.estimatedUnitCost) ||
-                                            0),
+                                        (parseFloat(item.estimatedUnitCost) ||
+                                          0),
                                       0,
                                     )
                                     .toLocaleString()}
@@ -2457,8 +2495,8 @@ const Procurement = () => {
                             </div>
 
                             {(mrn.status === "Pending" ||
-                            mrn.status === "Under Review") &&
-                            !isProcurementReadOnly ? (
+                              mrn.status === "Under Review") &&
+                              !isProcurementReadOnly ? (
                               <div className="flex gap-2">
                                 <Button
                                   onClick={() => handleConvertMRNToMRF(mrn.id)}
@@ -2503,14 +2541,14 @@ const Procurement = () => {
                     {/* Only employees can create MRF */}
                     {(getScmRole(user) === "employee" ||
                       getScmRole(user) === "general_employee") && (
-                      <Button
-                        onClick={() => navigate("/procurement/mrf/new")}
-                        size="sm"
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        New MRF
-                      </Button>
-                    )}
+                        <Button
+                          onClick={() => navigate("/procurement/mrf/new")}
+                          size="sm"
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          New MRF
+                        </Button>
+                      )}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -2585,34 +2623,34 @@ const Procurement = () => {
                                     {/* Regenerate PO button - Only for Procurement Managers */}
                                     {(getScmRole(user) === "procurement" ||
                                       getScmRole(user) === "procurement_manager") && (
-                                      <div className="flex flex-col sm:flex-row gap-2">
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => handleGeneratePO(mrf)}
-                                        >
-                                          <FileText className="h-4 w-4 mr-2" />
-                                          Edit / Regenerate PO
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          onClick={() => handleResubmitPO(mrf)}
-                                          disabled={resubmittingPOId === String(mrf.id)}
-                                        >
-                                          {resubmittingPOId === String(mrf.id) ? (
-                                            <>
-                                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                              Resubmitting...
-                                            </>
-                                          ) : (
-                                            <>
-                                              <RefreshCw className="h-4 w-4 mr-2" />
-                                              Resubmit for Approval
-                                            </>
-                                          )}
-                                        </Button>
-                                      </div>
-                                    )}
+                                        <div className="flex flex-col sm:flex-row gap-2">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleGeneratePO(mrf)}
+                                          >
+                                            <FileText className="h-4 w-4 mr-2" />
+                                            Edit / Regenerate PO
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            onClick={() => handleResubmitPO(mrf)}
+                                            disabled={resubmittingPOId === String(mrf.id)}
+                                          >
+                                            {resubmittingPOId === String(mrf.id) ? (
+                                              <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Resubmitting...
+                                              </>
+                                            ) : (
+                                              <>
+                                                <RefreshCw className="h-4 w-4 mr-2" />
+                                                Resubmit for Approval
+                                              </>
+                                            )}
+                                          </Button>
+                                        </div>
+                                      )}
                                   </div>
 
                                   {/* Rejection Details */}
@@ -2709,7 +2747,7 @@ const Procurement = () => {
                           state={mrfControls}
                           onChange={handleMrfControlsChange}
                           statusOptions={statusOptions}
-                        searchPlaceholder="Search by MRF ID, formatted ID, PO number, or requester..."
+                          searchPlaceholder="Search by MRF ID, formatted ID, PO number, or requester..."
                         />
                       </div>
                       <TableExportMenu export={mrfTableExport} title="Export MRFs" />
@@ -2741,779 +2779,732 @@ const Procurement = () => {
                         </div>
                       ) : (
                         <>
-                      {filteredMRFs.map((request) => {
-                        const timerColor = getApprovalTimerColor(request);
-                        return (
-                          <div
-                            key={getMrfApiId(request as MRF) || request.id}
-                            className="group flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 p-5 sm:p-6 border rounded-xl hover:shadow-lg hover:border-primary/30 transition-all duration-200 bg-card hover:bg-accent/30 cursor-pointer"
-                            onClick={() => handleMRFClick(request)}
-                          >
-                            <div className="flex items-start gap-4 min-w-0 flex-1">
-                              <div className="w-12 h-12 bg-gradient-to-br from-primary/15 to-primary/5 rounded-xl flex items-center justify-center flex-shrink-0 ring-1 ring-primary/10 group-hover:ring-primary/30 transition-all">
-                                <Package className="h-6 w-6 text-primary" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2.5">
-                                  <h3 className="font-semibold text-base sm:text-lg leading-tight mr-1">
-                                    {request.title}
-                                  </h3>
-                                  {request.isResubmission && (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs"
-                                    >
-                                      Resubmission
-                                    </Badge>
-                                  )}
-                                  {/* Executive Approval Indicator */}
-                                  {(() => {
-                                    const executiveApproved =
-                                      (request as any).executiveApproved ||
-                                      (request as any).executive_approved ||
-                                      isExecutiveApproved(request as MRF);
-                                    if (executiveApproved) {
-                                      return (
-                                        <Badge className="bg-green-500 text-white hover:bg-green-600">
-                                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                                          Executive Approved
+                          {filteredMRFs.map((request) => {
+                            const timerColor = getApprovalTimerColor(request);
+                            return (
+                              <div
+                                key={getMrfApiId(request as MRF) || request.id}
+                                className="group flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 p-5 sm:p-6 border rounded-xl hover:shadow-lg hover:border-primary/30 transition-all duration-200 bg-card hover:bg-accent/30 cursor-pointer"
+                                onClick={() => handleMRFClick(request)}
+                              >
+                                <div className="flex items-start gap-4 min-w-0 flex-1">
+                                  <div className="w-12 h-12 bg-gradient-to-br from-primary/15 to-primary/5 rounded-xl flex items-center justify-center flex-shrink-0 ring-1 ring-primary/10 group-hover:ring-primary/30 transition-all">
+                                    <Package className="h-6 w-6 text-primary" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2.5">
+                                      <h3 className="font-semibold text-base sm:text-lg leading-tight mr-1">
+                                        {request.title}
+                                      </h3>
+                                      {request.isResubmission && (
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs"
+                                        >
+                                          Resubmission
                                         </Badge>
-                                      );
-                                    }
-                                    return null;
-                                  })()}
-                                  {/* SCD Approval Badge */}
-                                  {(() => {
-                                    const m = request as any;
-                                    // Show SCD badge for:
-                                    // 1. Explicit SCD approval fields from backend
-                                    // 2. Last action was by supply_chain_director
-                                    // 3. At procurement_review stage with any SCD approval (initial approval)
-                                    // 4. At later stages that indicate SCD approval (final approval like invoice_approved)
-                                    const stage = getMRFStage(request as MRF);
-                                    const workflowState = getWorkflowState(
-                                      request as MRF,
-                                    );
-
-                                    const scdApproved =
-                                      m.scd_approved ||
-                                      m.scdApproved ||
-                                      m.director_approved ||
-                                      m.directorApproved ||
-                                      m.supply_chain_approved ||
-                                      m.supplyChainApproved ||
-                                      m.last_action_by_role ===
-                                        "supply_chain_director" ||
-                                      ((stage === "procurement" ||
-                                        stage === "procurement_review") &&
-                                        isSupplyChainDirectorInitialApproved(
-                                          request as MRF,
-                                        )) ||
-                                      isSupplyChainApproved(request as MRF);
-
-                                    if (scdApproved) {
-                                      return (
-                                        <Badge className="bg-purple-500 text-white hover:bg-purple-600">
-                                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                                          SCD Approved
-                                        </Badge>
-                                      );
-                                    }
-                                    return null;
-                                  })()}
-                                  {/* Overall workflow performance badge — Procurement view only */}
-                                  {(() => {
-                                    const m = request as MRF;
-                                    const stage = getMRFStage(m);
-                                    if (stage === "rejected") return null;
-                                    const createdRaw = m.created_at || m.date;
-                                    if (!createdRaw) return null;
-                                    const createdMs = new Date(
-                                      createdRaw,
-                                    ).getTime();
-                                    if (Number.isNaN(createdMs)) return null;
-                                    const isCompleted = stage === "completed";
-                                    const completionProxy =
-                                      m.grn_completed_at ||
-                                      m.payment_approved_at ||
-                                      m.procurement_review_started_at;
-                                    const endMs =
-                                      isCompleted && completionProxy
-                                        ? new Date(completionProxy).getTime()
-                                        : Date.now();
-                                    const totalElapsed = endMs - createdMs;
-                                    const isDelayed =
-                                      totalElapsed > 5 * 24 * 60 * 60 * 1000;
-                                    return isDelayed ? (
-                                      <Badge className="bg-amber-500 text-white hover:bg-amber-600">
-                                        <Clock className="h-3 w-3 mr-1" />
-                                        Delayed
-                                      </Badge>
-                                    ) : (
-                                      <Badge className="bg-emerald-500 text-white hover:bg-emerald-600">
-                                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                                        Efficient
-                                      </Badge>
-                                    );
-                                  })()}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground mb-2.5">
-                                  <span className="font-medium">
-                                    {getDisplayId(request)}
-                                  </span>
-                                  <span>•</span>
-                                  <span>{request.requester}</span>
-                                  <span>•</span>
-                                  <span>
-                                    {formatDateLagos(getMRFDate(request), {
-                                      includeTime: false,
-                                      format: "medium",
-                                    })}
-                                  </span>
-                                  <span>•</span>
-                                  <span className="font-semibold text-foreground ml-1">
-                                    {parseFloat(request.estimatedCost || "0") >
-                                    0
-                                      ? `₦${parseInt(request.estimatedCost).toLocaleString()}`
-                                      : "-"}
-                                  </span>
-                                </div>
-                                {request.currentStage && (
-                                  <p className="text-xs text-muted-foreground mt-2">
-                                    Stage:{" "}
-                                    <span className="font-medium">
-                                      {getWorkflowStageLabel(
-                                        request.currentStage,
                                       )}
-                                    </span>
-                                  </p>
-                                )}
-                                {/* Invoice/PFI Access */}
-                                {getMRFPFIUrl(request as MRF) && (
-                                  <div className="mt-2 flex items-center gap-2 flex-wrap">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="text-xs"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDownloadPFI(request as MRF);
-                                      }}
-                                    >
-                                      <FileText className="h-3 w-3 mr-1" />
-                                      View Invoice
-                                    </Button>
+                                      {/* Executive Approval Indicator */}
+                                      {(() => {
+                                        const executiveApproved =
+                                          (request as any).executiveApproved ||
+                                          (request as any).executive_approved ||
+                                          isExecutiveApproved(request as MRF);
+                                        if (executiveApproved) {
+                                          return (
+                                            <Badge className="bg-green-500 text-white hover:bg-green-600">
+                                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                                              Executive Approved
+                                            </Badge>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                      {/* SCD Approval Badge */}
+                                      {(() => {
+                                        const m = request as any;
+                                        // Show SCD badge for:
+                                        // 1. Explicit SCD approval fields from backend
+                                        // 2. Last action was by supply_chain_director
+                                        // 3. At procurement_review stage with any SCD approval (initial approval)
+                                        // 4. At later stages that indicate SCD approval (final approval like invoice_approved)
+                                        const stage = getMRFStage(request as MRF);
+                                        const workflowState = getWorkflowState(
+                                          request as MRF,
+                                        );
+
+                                        const scdApproved =
+                                          m.scd_approved ||
+                                          m.scdApproved ||
+                                          m.director_approved ||
+                                          m.directorApproved ||
+                                          m.supply_chain_approved ||
+                                          m.supplyChainApproved ||
+                                          m.last_action_by_role ===
+                                          "supply_chain_director" ||
+                                          ((stage === "procurement" ||
+                                            stage === "procurement_review") &&
+                                            isSupplyChainDirectorInitialApproved(
+                                              request as MRF,
+                                            )) ||
+                                          isSupplyChainApproved(request as MRF);
+
+                                        if (scdApproved) {
+                                          return (
+                                            <Badge className="bg-purple-500 text-white hover:bg-purple-600">
+                                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                                              SCD Approved
+                                            </Badge>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                      {/* Overall workflow performance badge — Procurement view only */}
+                                      {(() => {
+                                        const m = request as MRF;
+                                        const stage = getMRFStage(m);
+                                        if (stage === "rejected") return null;
+                                        const createdRaw = m.created_at || m.date;
+                                        if (!createdRaw) return null;
+                                        const createdMs = new Date(
+                                          createdRaw,
+                                        ).getTime();
+                                        if (Number.isNaN(createdMs)) return null;
+                                        const isCompleted = stage === "completed";
+                                        const completionProxy =
+                                          m.grn_completed_at ||
+                                          m.payment_approved_at ||
+                                          m.procurement_review_started_at;
+                                        const endMs =
+                                          isCompleted && completionProxy
+                                            ? new Date(completionProxy).getTime()
+                                            : Date.now();
+                                        const totalElapsed = endMs - createdMs;
+                                        const isDelayed =
+                                          totalElapsed > 5 * 24 * 60 * 60 * 1000;
+                                        return isDelayed ? (
+                                          <Badge className="bg-amber-500 text-white hover:bg-amber-600">
+                                            <Clock className="h-3 w-3 mr-1" />
+                                            Delayed
+                                          </Badge>
+                                        ) : (
+                                          <Badge className="bg-emerald-500 text-white hover:bg-emerald-600">
+                                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                                            Efficient
+                                          </Badge>
+                                        );
+                                      })()}
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground mb-2.5">
+                                      <span className="font-medium">
+                                        {getDisplayId(request)}
+                                      </span>
+                                      <span>•</span>
+                                      <span>{request.requester}</span>
+                                      <span>•</span>
+                                      <span>
+                                        {formatDateLagos(getMRFDate(request), {
+                                          includeTime: false,
+                                          format: "medium",
+                                        })}
+                                      </span>
+                                      <span>•</span>
+                                      <span className="font-semibold text-foreground ml-1">
+                                        {parseFloat(request.estimatedCost || "0") >
+                                          0
+                                          ? `₦${parseInt(request.estimatedCost).toLocaleString()}`
+                                          : "-"}
+                                      </span>
+                                    </div>
+                                    {request.currentStage && (
+                                      <p className="text-xs text-muted-foreground mt-2">
+                                        Stage:{" "}
+                                        <span className="font-medium">
+                                          {getWorkflowStageLabel(
+                                            request.currentStage,
+                                          )}
+                                        </span>
+                                      </p>
+                                    )}
+                                    {/* Invoice/PFI Access */}
+                                    {getMRFPFIUrl(request as MRF) && (
+                                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="text-xs"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadPFI(request as MRF);
+                                          }}
+                                        >
+                                          <FileText className="h-3 w-3 mr-1" />
+                                          View Invoice
+                                        </Button>
+                                        {(() => {
+                                          const shareUrl =
+                                            (request as any).invoice_onedrive_url ||
+                                            (request as any).invoiceOneDriveUrl ||
+                                            (request as MRF).pfi_share_url ||
+                                            (request as MRF).pfiShareUrl;
+                                          return (
+                                            shareUrl && (
+                                              <OneDriveLink
+                                                webUrl={shareUrl}
+                                                fileName="Supporting Document"
+                                                variant="badge"
+                                                size="sm"
+                                              />
+                                            )
+                                          );
+                                        })()}
+                                      </div>
+                                    )}
+                                    {((request as MRF).attachmentUrl || (request as MRF).attachment_url || (request as MRF).attachmentShareUrl || (request as MRF).attachment_share_url) && (
+                                      <div className="mt-3">
+                                        <p className="text-xs font-medium text-muted-foreground mb-1">Supporting Document</p>
+                                        <a
+                                          href={(request as MRF).attachmentShareUrl || (request as MRF).attachment_share_url || (request as MRF).attachmentUrl || (request as MRF).attachment_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          download
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                                        >
+                                          <FileText className="h-4 w-4" />
+                                          {(request as MRF).attachmentName || (request as MRF).attachment_name || 'Download Attachment'}
+                                        </a>
+                                      </div>
+                                    )}
+                                    {/* Quotations Section - Show if RFQ exists and has quotations */}
                                     {(() => {
-                                      const shareUrl =
-                                        (request as any).invoice_onedrive_url ||
-                                        (request as any).invoiceOneDriveUrl ||
-                                        (request as MRF).pfi_share_url ||
-                                        (request as MRF).pfiShareUrl;
+                                      const mrfQuotations =
+                                        getQuotationsForMRF(request);
+                                      const rfq = getRFQForMRF(request);
+                                      if (!rfq || mrfQuotations.length === 0)
+                                        return null;
+
                                       return (
-                                        shareUrl && (
-                                          <OneDriveLink
-                                            webUrl={shareUrl}
-                                            fileName="Supporting Document"
-                                            variant="badge"
+                                        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                          <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                              <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                                                Vendor Quotations (
+                                                {mrfQuotations.length})
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <div className="space-y-2.5">
+                                            {mrfQuotations.map((quotation: any) => (
+                                              <div
+                                                key={quotation.id}
+                                                className="flex flex-col gap-3 p-4 bg-white dark:bg-gray-900 rounded-lg border border-blue-200 dark:border-blue-700 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all"
+                                                onClick={(e) => e.stopPropagation()}
+                                              >
+                                                <div className="min-w-0 space-y-2 pb-3 border-b border-blue-100 dark:border-blue-800/60">
+                                                  <p className="text-sm font-medium leading-snug break-words">
+                                                    {quotation.vendorName ||
+                                                      quotation.vendor_name ||
+                                                      "Vendor"}
+                                                  </p>
+                                                  {(() => {
+                                                    const quoteAmount = Number(
+                                                      quotation.totalAmount ??
+                                                      quotation.total_amount ??
+                                                      quotation.total ??
+                                                      quotation.price ??
+                                                      0,
+                                                    );
+                                                    const budgetRaw =
+                                                      (rfq as any)?.estimatedBudget ??
+                                                      (rfq as any)?.estimated_budget ??
+                                                      (rfq as any)?.estimatedCost ??
+                                                      (rfq as any)?.estimated_cost ??
+                                                      (request as MRF).estimatedCost ??
+                                                      (request as MRF).estimated_cost ??
+                                                      null;
+                                                    const budget = Number(budgetRaw) || 0;
+                                                    const currency =
+                                                      quotation.currency ?? "NGN";
+
+                                                    let amountColor =
+                                                      "text-muted-foreground";
+                                                    let badge: React.ReactNode = null;
+                                                    let bar: React.ReactNode = null;
+
+                                                    if (budget > 0) {
+                                                      const diff = quoteAmount - budget;
+                                                      const pct = Math.round(
+                                                        (diff / budget) * 100,
+                                                      );
+                                                      const abs = Math.abs(pct);
+                                                      let label = "";
+                                                      let badgeCls = "";
+                                                      if (abs <= 2) {
+                                                        label = "At budget";
+                                                        badgeCls =
+                                                          "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800";
+                                                        amountColor =
+                                                          "text-amber-700 dark:text-amber-300";
+                                                      } else if (pct < 0) {
+                                                        label = `Under budget by ${abs}%`;
+                                                        badgeCls =
+                                                          "bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-200 dark:border-green-800";
+                                                        amountColor =
+                                                          "text-green-700 dark:text-green-400";
+                                                      } else {
+                                                        label = `Over budget by ${pct}%`;
+                                                        badgeCls =
+                                                          "bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800";
+                                                        amountColor =
+                                                          "text-red-700 dark:text-red-400";
+                                                      }
+                                                      badge = (
+                                                        <Badge
+                                                          variant="outline"
+                                                          className={`text-[10px] ${badgeCls}`}
+                                                        >
+                                                          {label}
+                                                        </Badge>
+                                                      );
+                                                      const fillPct = Math.min(
+                                                        100,
+                                                        (quoteAmount / budget) * 100,
+                                                      );
+                                                      const overPct =
+                                                        quoteAmount > budget
+                                                          ? Math.min(
+                                                            100,
+                                                            ((quoteAmount - budget) /
+                                                              budget) *
+                                                            100,
+                                                          )
+                                                          : 0;
+                                                      bar = (
+                                                        <div className="mt-2 h-1.5 w-full max-w-xs rounded bg-muted overflow-hidden flex">
+                                                          <div
+                                                            className="h-full bg-green-500"
+                                                            style={{
+                                                              width: `${fillPct}%`,
+                                                            }}
+                                                          />
+                                                          {overPct > 0 && (
+                                                            <div
+                                                              className="h-full bg-red-500"
+                                                              style={{
+                                                                width: `${overPct}%`,
+                                                              }}
+                                                            />
+                                                          )}
+                                                        </div>
+                                                      );
+                                                    }
+
+                                                    return (
+                                                      <>
+                                                        <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                          <span>
+                                                            Price:{" "}
+                                                            <span
+                                                              className={`font-semibold ${amountColor}`}
+                                                            >
+                                                              {formatAmount(
+                                                                quoteAmount,
+                                                                currency,
+                                                              )}
+                                                            </span>
+                                                          </span>
+                                                          {badge}
+                                                          {(quotation.deliveryDate ||
+                                                            quotation.delivery_date) && (
+                                                              <span>
+                                                                • Delivery:{" "}
+                                                                {new Date(
+                                                                  quotation.deliveryDate ||
+                                                                  quotation.delivery_date,
+                                                                ).toLocaleDateString()}
+                                                              </span>
+                                                            )}
+                                                        </p>
+                                                        {bar}
+                                                      </>
+                                                    );
+                                                  })()}
+                                                </div>
+                                                {(() => {
+                                                  // Gate "Generate PO" strictly on workflow state.
+                                                  // Initial SCD approval moves MRF to procurement_review (quotation selection).
+                                                  // Final SCD sign-off / vendor approval moves it to PO generation states.
+                                                  const wfState = getWorkflowState(
+                                                    request as MRF,
+                                                  );
+                                                  const showGeneratePO =
+                                                    wfState ===
+                                                    "invoice_approved" ||
+                                                    wfState ===
+                                                    "pending_po_upload" ||
+                                                    wfState === "vendor_approved";
+
+                                                  if (showGeneratePO) {
+                                                    // Show "Generate PO" button after SCD approval
+                                                    // Open the new two-section Create PO form
+                                                    const isDraft = Boolean(
+                                                      (request as MRF & { is_po_draft?: boolean }).is_po_draft,
+                                                    );
+                                                    return (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="default"
+                                                        className="text-xs w-full"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          const row = request as MRF;
+                                                          const apiId = getMrfApiId(row);
+                                                          if (!apiId) {
+                                                            toast({
+                                                              title: "Missing MRF identifier",
+                                                              description:
+                                                                "Could not resolve this row's id for PO generation (expected formatted id or mrf id). Try refreshing the list.",
+                                                              variant: "destructive",
+                                                            });
+                                                            return;
+                                                          }
+                                                          setCreatePOFastTrack(false);
+                                                          setCreatePOAllowMissingRfq(
+                                                            false,
+                                                          );
+                                                          setCreatePOMrfId(apiId);
+                                                          setCreatePOOpen(true);
+                                                        }}
+                                                      >
+                                                        {isDraft ? "Continue PO Draft" : "Generate PO"}
+                                                      </Button>
+                                                    );
+                                                  } else {
+                                                    // Show "Select & Send for Approval" button before SCD approval
+                                                    return wfState ===
+                                                      "vendor_selected" ? (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="text-xs w-full text-green-600 border-green-600 cursor-not-allowed opacity-75"
+                                                        disabled
+                                                      >
+                                                        ✓ Sent for Approval
+                                                      </Button>
+                                                    ) : (
+                                                      <Button
+                                                        size="sm"
+                                                        variant="default"
+                                                        className="text-xs w-full"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          setVendorSelectionTarget({
+                                                            kind: "mrf",
+                                                            request: request as unknown as MRFRequest,
+                                                            rfq: rfq as any,
+                                                            quotation,
+                                                          });
+                                                          setVendorSelectionReason("");
+                                                          setVendorSelectionDialogOpen(
+                                                            true,
+                                                          );
+                                                        }}
+                                                      >
+                                                        Select & Send for Approval
+                                                      </Button>
+                                                    );
+                                                  }
+                                                })()}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+                                    {(() => {
+                                      const mrfQuotations =
+                                        getQuotationsForMRF(request);
+                                      const rfq = getRFQForMRF(request);
+                                      const wfState = getWorkflowState(
+                                        request as MRF,
+                                      );
+                                      const showGeneratePO =
+                                        wfState === "invoice_approved" ||
+                                        wfState === "pending_po_upload" ||
+                                        wfState === "vendor_approved";
+                                      if (!showGeneratePO) return null;
+                                      if (rfq && mrfQuotations.length > 0)
+                                        return null;
+
+                                      const row = request as MRF;
+                                      const apiId = getMrfApiId(row);
+                                      if (!apiId) return null;
+
+                                      const isProcurement =
+                                        getScmRole(user) === "procurement" ||
+                                        getScmRole(user) === "procurement_manager";
+                                      if (!isProcurement) return null;
+
+                                      const isDraft = Boolean(
+                                        (row as MRF & { is_po_draft?: boolean })
+                                          .is_po_draft,
+                                      );
+                                      return (
+                                        <div className="mt-4 rounded-lg border border-dashed border-primary/35 bg-muted/20 p-4">
+                                          <p className="text-xs text-muted-foreground mb-2 leading-snug">
+                                            No RFQ or quotations on file for this MRF. You can still create a PO using the
+                                            fast-track form: enter suppliers and pricing in the price comparison sheet, then
+                                            generate the PO for Supply Chain Director approval.
+                                          </p>
+                                          <Button
                                             size="sm"
-                                          />
-                                        )
+                                            variant="default"
+                                            className="text-xs"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setCreatePOFastTrack(true);
+                                              setCreatePOAllowMissingRfq(true);
+                                              setCreatePOMrfId(apiId);
+                                              setCreatePOOpen(true);
+                                            }}
+                                          >
+                                            {isDraft
+                                              ? "Continue PO (no RFQ)"
+                                              : "Generate PO (no RFQ)"}
+                                          </Button>
+                                        </div>
                                       );
                                     })()}
                                   </div>
-                                )}
-                                {((request as MRF).attachmentUrl || (request as MRF).attachment_url || (request as MRF).attachmentShareUrl || (request as MRF).attachment_share_url) && (
-                                  <div className="mt-3">
-                                    <p className="text-xs font-medium text-muted-foreground mb-1">Supporting Document</p>
-                                    <a
-                                      href={(request as MRF).attachmentShareUrl || (request as MRF).attachment_share_url || (request as MRF).attachmentUrl || (request as MRF).attachment_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      download
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                                    >
-                                      <FileText className="h-4 w-4" />
-                                      {(request as MRF).attachmentName || (request as MRF).attachment_name || 'Download Attachment'}
-                                    </a>
-                                  </div>
-                                )}
-                                {/* Quotations Section - Show if RFQ exists and has quotations */}
-                                {(() => {
-                                  const mrfQuotations =
-                                    getQuotationsForMRF(request);
-                                  const rfq = getRFQForMRF(request);
-                                  if (!rfq || mrfQuotations.length === 0)
-                                    return null;
-
-                                  return (
-                                    <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                      <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-2">
-                                          <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                          <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                                            Vendor Quotations (
-                                            {mrfQuotations.length})
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3 self-stretch lg:self-center lg:justify-end pt-3 lg:pt-0 lg:pl-3 lg:max-w-[55%] xl:max-w-[50%] border-t lg:border-t-0 lg:border-l border-border/40">
+                                  <div className="flex items-center gap-2 flex-shrink-0 pr-1">
+                                    {timerColor && (
+                                      <span className="flex items-center gap-1.5">
+                                        <Clock
+                                          className={`h-4 w-4 ${timerColor}`}
+                                        />
+                                        {getElapsedTimeText(request) && (
+                                          <span
+                                            className={`text-xs font-medium ${timerColor}`}
+                                          >
+                                            {getElapsedTimeText(request)}
                                           </span>
-                                        </div>
-                                      </div>
-                                      <div className="space-y-2.5">
-                                        {mrfQuotations.map((quotation: any) => (
-                                            <div
-                                              key={quotation.id}
-                                              className="flex flex-col gap-3 p-4 bg-white dark:bg-gray-900 rounded-lg border border-blue-200 dark:border-blue-700 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all"
-                                              onClick={(e) => e.stopPropagation()}
-                                            >
-                                              <div className="min-w-0 space-y-2 pb-3 border-b border-blue-100 dark:border-blue-800/60">
-                                               <p className="text-sm font-medium leading-snug break-words">
-                                                {quotation.vendorName ||
-                                                  quotation.vendor_name ||
-                                                  "Vendor"}
-                                              </p>
-                                              {(() => {
-                                                const quoteAmount = Number(
-                                                  quotation.totalAmount ??
-                                                    quotation.total_amount ??
-                                                    quotation.total ??
-                                                    quotation.price ??
-                                                    0,
-                                                );
-                                                const budgetRaw =
-                                                  (rfq as any)?.estimatedBudget ??
-                                                  (rfq as any)?.estimated_budget ??
-                                                  (rfq as any)?.estimatedCost ??
-                                                  (rfq as any)?.estimated_cost ??
-                                                  (request as MRF).estimatedCost ??
-                                                  (request as MRF).estimated_cost ??
-                                                  null;
-                                                const budget = Number(budgetRaw) || 0;
-                                                const currency =
-                                                  quotation.currency ?? "NGN";
-
-                                                let amountColor =
-                                                  "text-muted-foreground";
-                                                let badge: React.ReactNode = null;
-                                                let bar: React.ReactNode = null;
-
-                                                if (budget > 0) {
-                                                  const diff = quoteAmount - budget;
-                                                  const pct = Math.round(
-                                                    (diff / budget) * 100,
-                                                  );
-                                                  const abs = Math.abs(pct);
-                                                  let label = "";
-                                                  let badgeCls = "";
-                                                  if (abs <= 2) {
-                                                    label = "At budget";
-                                                    badgeCls =
-                                                      "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800";
-                                                    amountColor =
-                                                      "text-amber-700 dark:text-amber-300";
-                                                  } else if (pct < 0) {
-                                                    label = `Under budget by ${abs}%`;
-                                                    badgeCls =
-                                                      "bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-200 dark:border-green-800";
-                                                    amountColor =
-                                                      "text-green-700 dark:text-green-400";
-                                                  } else {
-                                                    label = `Over budget by ${pct}%`;
-                                                    badgeCls =
-                                                      "bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800";
-                                                    amountColor =
-                                                      "text-red-700 dark:text-red-400";
-                                                  }
-                                                  badge = (
-                                                    <Badge
-                                                      variant="outline"
-                                                      className={`text-[10px] ${badgeCls}`}
-                                                    >
-                                                      {label}
-                                                    </Badge>
-                                                  );
-                                                  const fillPct = Math.min(
-                                                    100,
-                                                    (quoteAmount / budget) * 100,
-                                                  );
-                                                  const overPct =
-                                                    quoteAmount > budget
-                                                      ? Math.min(
-                                                          100,
-                                                          ((quoteAmount - budget) /
-                                                            budget) *
-                                                            100,
-                                                        )
-                                                      : 0;
-                                                  bar = (
-                                                    <div className="mt-2 h-1.5 w-full max-w-xs rounded bg-muted overflow-hidden flex">
-                                                      <div
-                                                        className="h-full bg-green-500"
-                                                        style={{
-                                                          width: `${fillPct}%`,
-                                                        }}
-                                                      />
-                                                      {overPct > 0 && (
-                                                        <div
-                                                          className="h-full bg-red-500"
-                                                          style={{
-                                                            width: `${overPct}%`,
-                                                          }}
-                                                        />
-                                                      )}
-                                                    </div>
-                                                  );
-                                                }
-
-                                                return (
-                                                  <>
-                                                     <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
-                                                      <span>
-                                                        Price:{" "}
-                                                        <span
-                                                          className={`font-semibold ${amountColor}`}
-                                                        >
-                                                          {formatAmount(
-                                                            quoteAmount,
-                                                            currency,
-                                                          )}
-                                                        </span>
-                                                      </span>
-                                                      {badge}
-                                                      {(quotation.deliveryDate ||
-                                                        quotation.delivery_date) && (
-                                                        <span>
-                                                          • Delivery:{" "}
-                                                          {new Date(
-                                                            quotation.deliveryDate ||
-                                                              quotation.delivery_date,
-                                                          ).toLocaleDateString()}
-                                                        </span>
-                                                      )}
-                                                    </p>
-                                                    {bar}
-                                                  </>
-                                                );
-                                              })()}
-                                            </div>
-                                            {(() => {
-                                              // Gate "Generate PO" strictly on workflow state.
-                                              // Initial SCD approval moves MRF to procurement_review (quotation selection).
-                                              // Final SCD sign-off / vendor approval moves it to PO generation states.
-                                              const wfState = getWorkflowState(
-                                                request as MRF,
-                                              );
-                                              const showGeneratePO =
-                                                wfState ===
-                                                  "invoice_approved" ||
-                                                wfState ===
-                                                  "pending_po_upload" ||
-                                                wfState === "vendor_approved";
-
-                                              if (showGeneratePO) {
-                                                // Show "Generate PO" button after SCD approval
-                                                // Open the new two-section Create PO form
-                                                const isDraft = Boolean(
-                                                  (request as MRF & { is_po_draft?: boolean }).is_po_draft,
-                                                );
-                                                return (
-                                                  <Button
-                                                    size="sm"
-                                                    variant="default"
-                                                    className="text-xs w-full"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      const row = request as MRF;
-                                                      const apiId = getMrfApiId(row);
-                                                      if (!apiId) {
-                                                        toast({
-                                                          title: "Missing MRF identifier",
-                                                          description:
-                                                            "Could not resolve this row's id for PO generation (expected formatted id or mrf id). Try refreshing the list.",
-                                                          variant: "destructive",
-                                                        });
-                                                        return;
-                                                      }
-                                                      setCreatePOFastTrack(false);
-                                                      setCreatePOAllowMissingRfq(
-                                                        false,
-                                                      );
-                                                      setCreatePOMrfId(apiId);
-                                                      setCreatePOOpen(true);
-                                                    }}
-                                                  >
-                                                    {isDraft ? "Continue PO Draft" : "Generate PO"}
-                                                  </Button>
-                                                );
-                                              } else {
-                                                // Show "Select & Send for Approval" button before SCD approval
-                                                return wfState ===
-                                                  "vendor_selected" ? (
-                                                  <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="text-xs w-full text-green-600 border-green-600 cursor-not-allowed opacity-75"
-                                                    disabled
-                                                  >
-                                                    ✓ Sent for Approval
-                                                  </Button>
-                                                ) : (
-                                                  <Button
-                                                    size="sm"
-                                                    variant="default"
-                                                    className="text-xs w-full"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      setVendorSelectionTarget({
-                                                        kind: "mrf",
-                                                        request: request as unknown as MRFRequest,
-                                                        rfq: rfq as any,
-                                                        quotation,
-                                                      });
-                                                      setVendorSelectionReason("");
-                                                      setVendorSelectionDialogOpen(
-                                                        true,
-                                                      );
-                                                    }}
-                                                  >
-                                                    Select & Send for Approval
-                                                  </Button>
-                                                );
-                                              }
-                                            })()}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  );
-                                })()}
-                                {(() => {
-                                  const mrfQuotations =
-                                    getQuotationsForMRF(request);
-                                  const rfq = getRFQForMRF(request);
-                                  const wfState = getWorkflowState(
-                                    request as MRF,
-                                  );
-                                  const showGeneratePO =
-                                    wfState === "invoice_approved" ||
-                                    wfState === "pending_po_upload" ||
-                                    wfState === "vendor_approved";
-                                  if (!showGeneratePO) return null;
-                                  if (rfq && mrfQuotations.length > 0)
-                                    return null;
-
-                                  const row = request as MRF;
-                                  const apiId = getMrfApiId(row);
-                                  if (!apiId) return null;
-
-                                  const isProcurement =
-                                    getScmRole(user) === "procurement" ||
-                                    getScmRole(user) === "procurement_manager";
-                                  if (!isProcurement) return null;
-
-                                  const isDraft = Boolean(
-                                    (row as MRF & { is_po_draft?: boolean })
-                                      .is_po_draft,
-                                  );
-                                  return (
-                                    <div className="mt-4 rounded-lg border border-dashed border-primary/35 bg-muted/20 p-4">
-                                      <p className="text-xs text-muted-foreground mb-2 leading-snug">
-                                        No RFQ or quotations on file for this MRF. You can still create a PO using the
-                                        fast-track form: enter suppliers and pricing in the price comparison sheet, then
-                                        generate the PO for Supply Chain Director approval.
-                                      </p>
-                                      <Button
-                                        size="sm"
-                                        variant="default"
-                                        className="text-xs"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setCreatePOFastTrack(true);
-                                          setCreatePOAllowMissingRfq(true);
-                                          setCreatePOMrfId(apiId);
-                                          setCreatePOOpen(true);
-                                        }}
-                                      >
-                                        {isDraft
-                                          ? "Continue PO (no RFQ)"
-                                          : "Generate PO (no RFQ)"}
-                                      </Button>
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-3 self-stretch lg:self-center lg:justify-end pt-3 lg:pt-0 lg:pl-3 lg:max-w-[55%] xl:max-w-[50%] border-t lg:border-t-0 lg:border-l border-border/40">
-                              <div className="flex items-center gap-2 flex-shrink-0 pr-1">
-                                {timerColor && (
-                                  <span className="flex items-center gap-1.5">
-                                    <Clock
-                                      className={`h-4 w-4 ${timerColor}`}
-                                    />
-                                    {getElapsedTimeText(request) && (
-                                      <span
-                                        className={`text-xs font-medium ${timerColor}`}
-                                      >
-                                        {getElapsedTimeText(request)}
+                                        )}
                                       </span>
                                     )}
-                                  </span>
-                                )}
-                                {getMRFStage(request as MRF) ===
-                                  "completed" && (
-                                  <CheckCircle2 className="h-5 w-5 text-success" />
-                                )}
-                                {getMRFStage(request as MRF) === "rejected" && (
-                                  <XCircle className="h-5 w-5 text-destructive" />
-                                )}
-                                <Badge
-                                  className={getStatusColor(request.status)}
-                                >
-                                  {getMRFStatusBadgeText(request as unknown as MRF)}
-                                </Badge>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2.5">
-                                {/* View Details button - Shown for procurement after the FIRST required approval */}
-                                {(() => {
-                                  const workflowState = getWorkflowState(
-                                    request as MRF,
-                                  );
-                                   const isProcurement =
-                                     getScmRole(user) === "procurement" ||
-                                     getScmRole(user) === "procurement_manager";
-                                   const isOversight =
-                                     getScmRole(user) === "supply_chain_director" ||
-                                     getScmRole(user) === "supply_chain" ||
-                                     getScmRole(user) === "executive" ||
-                                     getScmRole(user) === "chairman";
-                                   const canViewDetails = isProcurement || isOversight;
-
-                                  if (canViewDetails) {
-                                    return (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="text-xs"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const row = request as MRF;
-                                          const apiId = getMrfApiId(row);
-                                          setSelectedMRFForDetails(row);
-                                          setMrfFullDetails(null);
-                                          setMrfDetailDocs(null);
-                                          setMrfDetailsDialogOpen(true);
-                                          setLoadingFullDetails(false);
-                                          setLoadingQuotations(true);
-                                          setSearchParams(
-                                            (prev) => {
-                                              const p = new URLSearchParams(prev);
-                                              p.delete("srf");
-                                              p.set("mrf", getDisplayId(row));
-                                              return p;
-                                            },
-                                            { replace: true },
-                                          );
-
-                                          // Fast hydrate (PnL + docs), then quotations timeline.
-                                          void (async () => {
-                                            try {
-                                              const hydrate =
-                                                await procurementApi.getMRFDetailsHydrate(apiId);
-                                              if (hydrate.success && hydrate.data) {
-                                                setSelectedMRFForDetails(hydrate.data as MRF);
-                                                const docs =
-                                                  (hydrate.data as any).procurementDocuments ||
-                                                  (hydrate.data as any).procurement_documents ||
-                                                  null;
-                                                if (docs) setMrfDetailDocs(docs);
-                                              }
-                                            } catch (error) {
-                                              console.error("Failed to hydrate MRF details:", error);
-                                            }
-
-                                            try {
-                                              const response = await mrfApi.getFullDetails(apiId);
-                                              if (response.success && response.data) {
-                                                setMrfFullDetails(response.data);
-                                              }
-                                            } catch (error) {
-                                              console.error("Failed to fetch full details:", error);
-                                            } finally {
-                                              setLoadingQuotations(false);
-                                            }
-                                          })();
-                                        }}
-                                      >
-                                        <FileText className="h-3 w-3 mr-1" />
-                                        View Details
-                                      </Button>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-                                {/* Upload PO button - Shown when status is pending_po_upload */}
-                                {(() => {
-                                  const workflowState = getWorkflowState(
-                                    request as MRF,
-                                  );
-                                  const isProcurement =
-                                    getScmRole(user) === "procurement" ||
-                                    getScmRole(user) === "procurement_manager";
-                                  const isPendingPOUpload =
-                                    workflowState === "pending_po_upload";
-
-                                  if (isProcurement && isPendingPOUpload) {
-                                    return (
-                                      <Button
-                                        size="sm"
-                                        variant="default"
-                                        className="text-xs bg-primary hover:bg-primary/90"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedMRFForPO(
-                                            convertToMRFRequest(request as MRF),
-                                          );
-                                          setPODialogOpen(true);
-                                        }}
-                                      >
-                                        <Upload className="h-3 w-3 mr-1" />
-                                        Upload PO
-                                      </Button>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-                                {/* Send Request to Vendors button - Shown after the FIRST required approval */}
-                                {/* The handleGeneratePO function checks canGeneratePO before proceeding */}
-                                {(() => {
-                                  if (import.meta.env.DEV) {
-                                  }
-                                  const workflowState = getWorkflowState(
-                                    request as MRF,
-                                  );
-                                  const isProcurement =
-                                    getScmRole(user) === "procurement" ||
-                                    getScmRole(user) === "procurement_manager";
-                                  const isPendingPOUpload =
-                                    workflowState === "pending_po_upload";
-                                  const hasInitialApproval =
-                                    isInitialApprovalApproved(request as MRF) ||
-                                    isSupplyChainApproved(request as MRF);
-                                  const canShowPOButton =
-                                    isProcurement &&
-                                    !isPendingPOUpload &&
-                                    hasInitialApproval &&
-                                    (workflowState === "procurement_review" ||
-                                      workflowState ===
-                                        "supply_chain_director_approved" ||
-                                      workflowState === "vendor_selected" ||
-                                      workflowState === "invoice_received" ||
-                                      workflowState === "invoice_approved" ||
-                                      (getMRFStage(request as MRF) ===
-                                        "procurement" &&
-                                        hasInitialApproval));
-
-                                  if (import.meta.env.DEV) {
-                                  }
-
-                                  if (!canShowPOButton) return null;
-
-                                  // Check if RFQ already exists for this MRF
-                                  const existingRFQ = getRFQForMRF(request);
-                                  const buttonText = existingRFQ
-                                    ? "Send RFQ to Vendors Again"
-                                    : "Send RFQ to Vendors";
-
-                                  return (
-                                    <Button
-                                      size="sm"
-                                      variant="default"
-                                      className="text-xs"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleGeneratePO(request);
-                                      }}
+                                    {getMRFStage(request as MRF) ===
+                                      "completed" && (
+                                        <CheckCircle2 className="h-5 w-5 text-success" />
+                                      )}
+                                    {getMRFStage(request as MRF) === "rejected" && (
+                                      <XCircle className="h-5 w-5 text-destructive" />
+                                    )}
+                                    <Badge
+                                      className={getStatusColor(request.status)}
                                     >
-                                      <ShoppingCart className="h-3 w-3 mr-1" />
-                                      {buttonText}
-                                    </Button>
-                                  );
-                                })()}
-                                {/* Download PO if available */}
-                                {getMRFPOUrl(request as MRF) && (
-                                  <>
+                                      {getMRFStatusBadgeText(request as unknown as MRF)}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2.5">
+                                    {/* View Details button - Shown for procurement after the FIRST required approval */}
                                     {(() => {
-                                      const dlKey = poDownloadKey(request as MRF);
-                                      const isDl = downloadingPOIds.has(dlKey);
+                                      const isProcurement =
+                                        getScmRole(user) === "procurement" ||
+                                        getScmRole(user) === "procurement_manager";
+                                      const isOversight =
+                                        getScmRole(user) === "supply_chain_director" ||
+                                        getScmRole(user) === "supply_chain" ||
+                                        getScmRole(user) === "executive" ||
+                                        getScmRole(user) === "chairman";
+                                      const canViewDetails = isProcurement || isOversight;
+
+                                      if (canViewDetails) {
+                                        return (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-xs"
+                                            onClick={(e) => {
+                                              e.stopPropagation(); // Prevents clicking the button from firing the outer row click twice
+                                              handleMRFClick(request);
+                                            }}
+                                          >
+                                            <FileText className="h-3 w-3 mr-1" />
+                                            View Details
+                                          </Button>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+
+                                    {/* Upload PO button - Shown when status is pending_po_upload */}
+                                    {(() => {
+                                      const workflowState = getWorkflowState(
+                                        request as MRF,
+                                      );
+                                      const isProcurement =
+                                        getScmRole(user) === "procurement" ||
+                                        getScmRole(user) === "procurement_manager";
+                                      const isPendingPOUpload =
+                                        workflowState === "pending_po_upload";
+
+                                      if (isProcurement && isPendingPOUpload) {
+                                        return (
+                                          <Button
+                                            size="sm"
+                                            variant="default"
+                                            className="text-xs bg-primary hover:bg-primary/90"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedMRFForPO(
+                                                convertToMRFRequest(request as MRF),
+                                              );
+                                              setPODialogOpen(true);
+                                            }}
+                                          >
+                                            <Upload className="h-3 w-3 mr-1" />
+                                            Upload PO
+                                          </Button>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+                                    {/* Send Request to Vendors button - Shown after the FIRST required approval */}
+                                    {/* The handleGeneratePO function checks canGeneratePO before proceeding */}
+                                    {(() => {
+                                      if (import.meta.env.DEV) {
+                                      }
+                                      const workflowState = getWorkflowState(
+                                        request as MRF,
+                                      );
+                                      const isProcurement =
+                                        getScmRole(user) === "procurement" ||
+                                        getScmRole(user) === "procurement_manager";
+                                      const isPendingPOUpload =
+                                        workflowState === "pending_po_upload";
+                                      const hasInitialApproval =
+                                        isInitialApprovalApproved(request as MRF) ||
+                                        isSupplyChainApproved(request as MRF);
+                                      const canShowPOButton =
+                                        isProcurement &&
+                                        !isPendingPOUpload &&
+                                        hasInitialApproval &&
+                                        (workflowState === "procurement_review" ||
+                                          workflowState ===
+                                          "supply_chain_director_approved" ||
+                                          workflowState === "vendor_selected" ||
+                                          workflowState === "invoice_received" ||
+                                          workflowState === "invoice_approved" ||
+                                          (getMRFStage(request as MRF) ===
+                                            "procurement" &&
+                                            hasInitialApproval));
+
+                                      if (import.meta.env.DEV) {
+                                      }
+
+                                      if (!canShowPOButton) return null;
+
+                                      // Check if RFQ already exists for this MRF
+                                      const existingRFQ = getRFQForMRF(request);
+                                      const buttonText = existingRFQ
+                                        ? "Send RFQ to Vendors Again"
+                                        : "Send RFQ to Vendors";
+
                                       return (
                                         <Button
                                           size="sm"
-                                          variant="outline"
+                                          variant="default"
                                           className="text-xs"
-                                          disabled={isDl}
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            handleDownloadPO(request as MRF);
+                                            handleGeneratePO(request);
                                           }}
                                         >
-                                          {isDl ? (
-                                            <>
-                                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                              Downloading…
-                                            </>
-                                          ) : (
-                                            <>
-                                              <Download className="h-3 w-3 mr-1" />
-                                              Download PO
-                                            </>
-                                          )}
+                                          <ShoppingCart className="h-3 w-3 mr-1" />
+                                          {buttonText}
                                         </Button>
                                       );
                                     })()}
-                                    {/* Delete PO button - only for procurement managers */}
+                                    {/* Download PO if available */}
+                                    {getMRFPOUrl(request as MRF) && (
+                                      <>
+                                        {(() => {
+                                          const dlKey = poDownloadKey(request as MRF);
+                                          const isDl = downloadingPOIds.has(dlKey);
+                                          return (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="text-xs"
+                                              disabled={isDl}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDownloadPO(request as MRF);
+                                              }}
+                                            >
+                                              {isDl ? (
+                                                <>
+                                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                  Downloading…
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <Download className="h-3 w-3 mr-1" />
+                                                  Download PO
+                                                </>
+                                              )}
+                                            </Button>
+                                          );
+                                        })()}
+                                        {/* Delete PO button - only for procurement managers */}
+                                        {(getScmRole(user) === "procurement_manager" ||
+                                          getScmRole(user) === "procurement") && (
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="text-xs text-destructive hover:text-destructive"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeletePO(request as MRF);
+                                              }}
+                                            >
+                                              <Trash2 className="h-3 w-3 mr-1" />
+                                              Delete PO
+                                            </Button>
+                                          )}
+                                      </>
+                                    )}
+                                    {/* PM can delete MRFs at any stage (Batch 2 Item 3) */}
                                     {(getScmRole(user) === "procurement_manager" ||
                                       getScmRole(user) === "procurement") && (
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="text-xs text-destructive hover:text-destructive"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeletePO(request as MRF);
-                                        }}
-                                      >
-                                        <Trash2 className="h-3 w-3 mr-1" />
-                                        Delete PO
-                                      </Button>
-                                    )}
-                                  </>
-                                )}
-                                {/* PM can delete MRFs at any stage (Batch 2 Item 3) */}
-                                {(getScmRole(user) === "procurement_manager" ||
-                                  getScmRole(user) === "procurement") && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="text-xs text-destructive hover:text-destructive"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteMRF(
-                                        getMrfApiId(request as MRF),
-                                      );
-                                    }}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                    Delete
-                                  </Button>
-                                )}
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="text-xs text-destructive hover:text-destructive"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteMRF(
+                                              getMrfApiId(request as MRF),
+                                            );
+                                          }}
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                          Delete
+                                        </Button>
+                                      )}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <ServerPaginationBar
-                        pagination={mrfPagination}
-                        page={mrfPage}
-                        onPageChange={setMrfPage}
-                      />
+                            );
+                          })}
+                          <ServerPaginationBar
+                            pagination={mrfPagination}
+                            page={mrfPage}
+                            onPageChange={setMrfPage}
+                          />
                         </>
                       )}
                     </div>
@@ -3573,11 +3564,11 @@ const Procurement = () => {
                                     </h3>
                                     {((mrf as any).executive_approved ||
                                       (mrf as any).executiveApproved) && (
-                                      <Badge className="bg-green-500 text-white hover:bg-green-600">
-                                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                                        Executive Approved
-                                      </Badge>
-                                    )}
+                                        <Badge className="bg-green-500 text-white hover:bg-green-600">
+                                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                                          Executive Approved
+                                        </Badge>
+                                      )}
                                     {(() => {
                                       const m = mrf as any;
                                       const scdApproved =
@@ -3588,7 +3579,7 @@ const Procurement = () => {
                                         m.supply_chain_approved ||
                                         m.supplyChainApproved ||
                                         m.last_action_by_role ===
-                                          "supply_chain_director" ||
+                                        "supply_chain_director" ||
                                         isSupplyChainApproved(mrf as MRF);
                                       if (scdApproved) {
                                         return (
@@ -3629,19 +3620,19 @@ const Procurement = () => {
                                   </Badge>
                                   {(getScmRole(user) === "procurement_manager" ||
                                     getScmRole(user) === "procurement") && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="text-xs text-destructive hover:text-destructive"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteMRF(getMrfApiId(mrf));
-                                      }}
-                                    >
-                                      <Trash2 className="h-3 w-3 mr-1" />
-                                      Delete
-                                    </Button>
-                                  )}
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="text-xs text-destructive hover:text-destructive"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteMRF(getMrfApiId(mrf));
+                                        }}
+                                      >
+                                        <Trash2 className="h-3 w-3 mr-1" />
+                                        Delete
+                                      </Button>
+                                    )}
                                 </div>
                               </div>
                             </CardContent>
@@ -3672,14 +3663,14 @@ const Procurement = () => {
                     {/* Only employees can create SRF */}
                     {(getScmRole(user) === "employee" ||
                       getScmRole(user) === "general_employee") && (
-                      <Button
-                        onClick={() => navigate("/procurement/srf/new")}
-                        size="sm"
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        New SRF
-                      </Button>
-                    )}
+                        <Button
+                          onClick={() => navigate("/procurement/srf/new")}
+                          size="sm"
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          New SRF
+                        </Button>
+                      )}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -3746,8 +3737,8 @@ const Procurement = () => {
                                   {getSrfRequesterDisplayName(request)} •{" "}
                                   {formatMRFDate(
                                     (request as { createdAt?: string }).createdAt ||
-                                      (request as { created_at?: string }).created_at ||
-                                      request.date,
+                                    (request as { created_at?: string }).created_at ||
+                                    request.date,
                                   )}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
@@ -3822,9 +3813,9 @@ const Procurement = () => {
                                         {formatAmount(
                                           Number(
                                             quotation.totalAmount ??
-                                              quotation.total_amount ??
-                                              quotation.price ??
-                                              0,
+                                            quotation.total_amount ??
+                                            quotation.price ??
+                                            0,
                                           ),
                                           quotation.currency ?? "NGN",
                                         )}
@@ -3938,9 +3929,9 @@ const Procurement = () => {
                           "N/A";
                         const amount = quotation
                           ? quotation.total_amount ||
-                            quotation.totalAmount ||
-                            quotation.price ||
-                            "0"
+                          quotation.totalAmount ||
+                          quotation.price ||
+                          "0"
                           : getMRFEstimatedCost(mrf as MRF);
                         const unsignedPOUrl =
                           getMRFPOUrl(mrf as MRF) ||
@@ -4486,11 +4477,11 @@ const Procurement = () => {
                                   Total: ₦
                                   {parseFloat(
                                     item.total_price ||
-                                      item.quantity *
-                                        (item.unit_price ||
-                                          item.unitPrice ||
-                                          0) ||
-                                      "0",
+                                    item.quantity *
+                                    (item.unit_price ||
+                                      item.unitPrice ||
+                                      0) ||
+                                    "0",
                                   ).toLocaleString()}
                                 </span>
                               </div>
@@ -4642,8 +4633,8 @@ const Procurement = () => {
                         <p className="font-medium">
                           {mrf.grn_requested_at || mrf.grnRequestedAt
                             ? new Date(
-                                mrf.grn_requested_at || mrf.grnRequestedAt,
-                              ).toLocaleDateString()
+                              mrf.grn_requested_at || mrf.grnRequestedAt,
+                            ).toLocaleDateString()
                             : "N/A"}
                         </p>
                       </div>
@@ -4778,26 +4769,26 @@ const Procurement = () => {
       </AlertDialog>
 
       {/* MRF Details Dialog */}
-        <Dialog
-          open={mrfDetailsDialogOpen}
-          onOpenChange={(open) => {
-            setMrfDetailsDialogOpen(open);
-            if (!open) {
-              setMrfFullDetails(null);
-              setMrfDetailDocs(null);
-              setLoadingQuotations(false);
-              setSelectedMRFForDetails(null);
-              setSearchParams(
-                (prev) => {
-                  const p = new URLSearchParams(prev);
-                  p.delete("mrf");
-                  return p;
-                },
-                { replace: true },
-              );
-            }
-          }}
-        >
+      <Dialog
+        open={mrfDetailsDialogOpen}
+        onOpenChange={(open) => {
+          setMrfDetailsDialogOpen(open);
+          if (!open) {
+            setMrfFullDetails(null);
+            setMrfDetailDocs(null);
+            setLoadingQuotations(false);
+            setSelectedMRFForDetails(null);
+            setSearchParams(
+              (prev) => {
+                const p = new URLSearchParams(prev);
+                p.delete("mrf");
+                return p;
+              },
+              { replace: true },
+            );
+          }
+        }}
+      >
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>MRF Full Details</DialogTitle>
@@ -5055,10 +5046,10 @@ const Procurement = () => {
                           <p className="text-sm text-green-800 dark:text-green-200">
                             Approved by:{" "}
                             {typeof executiveApprovedBy === "object" &&
-                            executiveApprovedBy !== null
+                              executiveApprovedBy !== null
                               ? executiveApprovedBy.name ||
-                                executiveApprovedBy.email ||
-                                "Unknown"
+                              executiveApprovedBy.email ||
+                              "Unknown"
                               : executiveApprovedBy}
                             {typeof executiveApprovedBy === "object" &&
                               executiveApprovedBy !== null &&
@@ -5113,10 +5104,10 @@ const Procurement = () => {
                         <p className="text-sm text-purple-800 dark:text-purple-200">
                           Approved by:{" "}
                           {typeof scdApprovedBy === "object" &&
-                          scdApprovedBy !== null
+                            scdApprovedBy !== null
                             ? scdApprovedBy.name ||
-                              scdApprovedBy.email ||
-                              "Unknown"
+                            scdApprovedBy.email ||
+                            "Unknown"
                             : scdApprovedBy}
                         </p>
                         {scdRemarks && (
@@ -5465,8 +5456,8 @@ const Procurement = () => {
                                         Price: ₦
                                         {parseFloat(
                                           quotation.price ||
-                                            quotation.total_amount ||
-                                            "0",
+                                          quotation.total_amount ||
+                                          "0",
                                         ).toLocaleString()}
                                         {quotation.deliveryDate &&
                                           ` • Delivery: ${new Date(quotation.deliveryDate).toLocaleDateString()}`}
