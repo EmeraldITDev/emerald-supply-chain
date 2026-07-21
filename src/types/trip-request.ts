@@ -257,3 +257,17 @@ export type UpdateStaffTripRequestData = Partial<CreateStaffTripRequestData> & {
   booking_scope?: TripBookingScope;
   externalPassengers?: TripRequestExternalPassenger[];
 };
+
+/** POST /api/trip-requests/{id}/logistics-review */
+export interface LogisticsReviewPayload {
+  action: 'forward' | 'request_changes' | 'reject';
+  reason?: string;
+  comments?: string;
+  accommodation_name?: string;
+  accommodation_address?: string;
+  accommodation_contact?: string;
+  accommodation_details?: string;
+  accommodation_estimated_cost?: number;
+  escort_description?: string;
+  estimated_cost?: number;
+}
