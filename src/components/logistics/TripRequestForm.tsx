@@ -636,6 +636,18 @@ export function TripRequestForm({
         )}
       </div>
 
+      {missingReasons.length > 0 && !submitting && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+          <p className="font-medium text-amber-600 dark:text-amber-400 mb-1">
+            Complete the following before submitting:
+          </p>
+          <ul className="list-disc pl-5 space-y-0.5 text-muted-foreground">
+            {missingReasons.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2 justify-end pt-2">
         {showCancel && onCancel && (
           <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
@@ -653,7 +665,12 @@ export function TripRequestForm({
             Save as draft
           </Button>
         )}
-        <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
+        <Button
+          type="button"
+          onClick={handleSubmit}
+          disabled={submitting}
+          title={missingReasons.length ? `Missing: ${missingReasons.join(", ")}` : undefined}
+        >
           {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isEdit ? "Save changes" : "Submit Request"}
         </Button>
