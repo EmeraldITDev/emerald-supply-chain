@@ -196,7 +196,7 @@ export function TripRequestForm({
         : "Meets advance-booking lead time",
     );
   }
-  const canSubmit = missingReasons.length === 0 && !submitting;
+  void missingReasons; // surfaced in UI below
 
   const submit = async (asDraft: boolean) => {
     if (!destination.trim() || !purpose.trim() || !origin.trim() || !departureAt) {
