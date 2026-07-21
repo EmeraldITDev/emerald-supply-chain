@@ -861,3 +861,12 @@ None blocking. Future-facing: add `X-Total-Count` to any still-unbounded list en
 2. Every `useMutation` for CRUD should use one of the three helpers in `optimisticMutation.ts` inside `onMutate` and roll back in `onError`.
 3. Every button that triggers a mutation should switch from `<Button>` + manual spinner to `<PendingButton isPending={mutation.isPending}>`.
 4. When adding a new heavy dependency (>50KB), prefer `const mod = await import('...')` inside the async action, mirroring the pattern in `tableExport.ts`.
+
+## Logistics Trip Request Workflow — Frontend Implementation
+
+- `src/types/trip-request.ts`: added accommodation, escort, trip_type, audit_trail, approval_status, comments, bookingRules fields on StaffTripRequest; added `LogisticsReviewPayload`, `TripAuditTrailEntry`, `TripType`; extended `CreateStaffTripRequestData` with new optional fields and `save_as_draft`.
+- `src/types/logistics.ts`: widened `CreateTripRequestData` to accept accommodation/escort/trip_type/save_as_draft/international_transport_mode.
+- `src/services/api.ts`: `tripRequestApi.getById` now appends `?include_progress=true` and passes through `auditTrail`, `bookingRules`, `comments`. Added `tripRequestApi.logisticsReview({action, reason, comments, accommodation_*, escort_description, estimated_cost})` targeting `POST /api/trip-requests/{id}/logistics-review`. `forward`, `requestChanges`, and `reject` now delegate to that endpoint.
+- `src/components/logistics/TripRequestForm.tsx`: added always-visible Accommodation section (required flag + hotel, address, contact, estimated ₦ cost, details) and Escort section (required flag + description), Trip Type select, "Save as draft" secondary action. Payload includes all new fields plus `save_as_draft` and `international_transport_mode`; origin defaults to Office. Edit mode hydrates the same fields.
+- `src/components/logistics/TripRequestWorkflowActions.tsx`: Forward / Request Changes / Reject buttons now call the unified `logisticsReview` endpoint. Request-changes dialog exposes optional review comments and updated estimated cost fields. React Query caches for dashboard/trips/trip-requests are invalidated on success.
+- `src/pages/details/TripRequestDetailPage.tsx`: renders approval status badge, booking-rules guidance info block, trip type, accommodation block, escort block, and chronological audit trail (field, before → after, editor, timestamp, reason). Existing read-only fallback for uninvolved staff preserved.
