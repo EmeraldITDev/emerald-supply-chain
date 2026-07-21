@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -46,6 +47,10 @@ import {
   FileCheck,
   Mail,
   Bell,
+  BedDouble,
+  ShieldCheck,
+  Plane,
+  Car,
 } from "lucide-react";
 import { Hotel, UserCog } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -60,6 +65,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { formatPoAmount } from "@/utils/currency";
 import { tripsApi, logisticsDashboardApi, logisticsVendorsApi } from "@/services/logisticsApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { tripRequestApi } from "@/services/api";
@@ -104,6 +110,13 @@ const priorityColors: Record<string, string> = {
   high: "bg-warning/10 text-warning",
   urgent: "bg-destructive/10 text-destructive",
 };
+
+function formatDateTime(value?: string | null): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString();
+}
 
 interface VendorItem {
   id: string;
@@ -1510,76 +1523,200 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
 
       {/* View Trip Details Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Trip Details - {selectedTrip?.tripNumber}</DialogTitle>
           </DialogHeader>
           {selectedTrip && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">Type</Label>
-                  <p className="font-medium capitalize">{selectedTrip.type}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Status</Label>
-                  <Badge className={cn(statusColors[selectedTrip.status], "capitalize mt-1")}>
-                    {selectedTrip.status.replace("_", " ")}
-                  </Badge>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Origin</Label>
-                  <p className="font-medium">{selectedTrip.origin}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Destination</Label>
-                  <p className="font-medium">{selectedTrip.destination}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Scheduled Departure</Label>
-                  <p className="font-medium">
-                    {formatDate(selectedTrip.scheduledDepartureAt)}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Priority</Label>
-                  <Badge className={cn(priorityColors[selectedTrip.priority], "capitalize mt-1")}>
-                    {selectedTrip.priority}
-                  </Badge>
-                </div>
-                {selectedTrip.vendorName && (
+              <div className="flex flex-wrap gap-2 text-sm items-center">
+                <Badge className={cn(statusColors[selectedTrip.status], "capitalize")}>
+                  {selectedTrip.status.replace("_", " ")}
+                </Badge>
+                <Badge variant="outline" className="capitalize">
+                  {selectedTrip.type}
+                </Badge>
+                <Badge variant="outline" className={cn(priorityColors[selectedTrip.priority], "capitalize")}>
+                  {selectedTrip.priority}
+                </Badge>
+              </div>
+              
+              {/* Main Trip Information */}
+              <div className="rounded-md border border-border/50 bg-muted/20 p-3 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-muted-foreground">Vendor</Label>
-                    <p className="font-medium">{selectedTrip.vendorName}</p>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">Origin</Label>
+                    <p className="text-sm font-medium mt-0.5 flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-muted-foreground" />
+                      {selectedTrip.origin}
+                    </p>
                   </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">Destination</Label>
+                    <p className="text-sm font-medium mt-0.5 flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-muted-foreground" />
+                      {selectedTrip.destination}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">Scheduled Departure</Label>
+                    <p className="text-sm font-medium mt-0.5 flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-muted-foreground" />
+                      {formatDateTime(selectedTrip.scheduledDepartureAt)}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">Scheduled Arrival</Label>
+                    <p className="text-sm font-medium mt-0.5 flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-muted-foreground" />
+                      {formatDateTime(selectedTrip.scheduledArrivalAt)}
+                    </p>
+                  </div>
+                  {selectedTrip.vendorName && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground font-medium uppercase">Vendor</Label>
+                      <p className="text-sm font-medium mt-0.5">{selectedTrip.vendorName}</p>
+                    </div>
+                  )}
+                  {selectedTrip.driverName && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground font-medium uppercase">Driver</Label>
+                      <p className="text-sm font-medium mt-0.5">{selectedTrip.driverName}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Staff Trip Request Information */}
+                {selectedTripRequest && (
+                  <>
+                    <Separator />
+                    <div className="grid grid-cols-2 gap-3">
+                      {selectedTripRequest.requesterName && (
+                        <div>
+                          <Label className="text-xs text-muted-foreground font-medium uppercase">Requester</Label>
+                          <p className="text-sm font-medium mt-0.5">{selectedTripRequest.requesterName}</p>
+                        </div>
+                      )}
+                      {selectedTripRequest.requesterDepartment && (
+                        <div>
+                          <Label className="text-xs text-muted-foreground font-medium uppercase">Department</Label>
+                          <p className="text-sm font-medium mt-0.5">{selectedTripRequest.requesterDepartment}</p>
+                        </div>
+                      )}
+                      {selectedTripRequest.purpose && (
+                        <div className="col-span-2">
+                          <Label className="text-xs text-muted-foreground font-medium uppercase">Purpose</Label>
+                          <p className="text-sm mt-0.5">{selectedTripRequest.purpose}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Accommodation & Escort Section */}
+                    {(selectedTripRequest.accommodationRequired || selectedTripRequest.escortRequired) && (
+                      <>
+                        <Separator />
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {selectedTripRequest.accommodationRequired && (
+                            <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
+                              <div className="flex items-center gap-1.5 text-sm font-medium">
+                                <BedDouble className="h-4 w-4 text-primary" />
+                                Accommodation Requested
+                              </div>
+                              {selectedTripRequest.accommodationName ||
+                              selectedTripRequest.accommodationAddress ||
+                              selectedTripRequest.accommodationContact ||
+                              selectedTripRequest.accommodationDetails ||
+                              selectedTripRequest.accommodationEstimatedCost ? (
+                                <div className="space-y-1 text-xs text-muted-foreground">
+                                  {selectedTripRequest.accommodationName && (
+                                    <div>
+                                      <span className="font-medium text-foreground">Hotel:</span> {selectedTripRequest.accommodationName}
+                                    </div>
+                                  )}
+                                  {selectedTripRequest.accommodationAddress && (
+                                    <div>
+                                      <span className="font-medium text-foreground">Address:</span> {selectedTripRequest.accommodationAddress}
+                                    </div>
+                                  )}
+                                  {selectedTripRequest.accommodationContact && (
+                                    <div>
+                                      <span className="font-medium text-foreground">Contact:</span> {selectedTripRequest.accommodationContact}
+                                    </div>
+                                  )}
+                                  {selectedTripRequest.accommodationDetails && (
+                                    <div>
+                                      <span className="font-medium text-foreground">Notes:</span> {selectedTripRequest.accommodationDetails}
+                                    </div>
+                                  )}
+                                  {selectedTripRequest.accommodationEstimatedCost != null && (
+                                    <div>
+                                      <span className="font-medium text-foreground">Est. Cost:</span>{" "}
+                                      {formatPoAmount(Number(selectedTripRequest.accommodationEstimatedCost), "NGN")}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-muted-foreground italic">
+                                  Requester did not specify a hotel. Logistics will arrange accommodation.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          {selectedTripRequest.escortRequired && (
+                            <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
+                              <div className="flex items-center gap-1.5 text-sm font-medium">
+                                <ShieldCheck className="h-4 w-4 text-primary" />
+                                Escort Requested
+                              </div>
+                              {selectedTripRequest.escortDescription ? (
+                                <p className="text-xs text-muted-foreground">{selectedTripRequest.escortDescription}</p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground italic">
+                                  Requester did not specify escort details. Logistics will assign one.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </>
                 )}
-                {selectedTrip.driverName && (
-                  <div>
-                    <Label className="text-muted-foreground">Driver</Label>
-                    <p className="font-medium">{selectedTrip.driverName}</p>
-                  </div>
+
+                {/* Passengers Section */}
+                {selectedTrip.passengers && selectedTrip.passengers.length > 0 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <Label className="text-xs text-muted-foreground font-medium uppercase mb-1.5 block">
+                        Passengers ({selectedTrip.passengers.length})
+                      </Label>
+                      <div className="mt-2 space-y-2">
+                        {selectedTrip.passengers.map((passenger) => (
+                          <div key={passenger.id} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
+                            <Users className="h-4 w-4" />
+                            <span>{passenger.name}</span>
+                            {passenger.department && <span className="text-muted-foreground">({passenger.department})</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Notes Section */}
+                {selectedTrip.notes && (
+                  <>
+                    <Separator />
+                    <div>
+                      <Label className="text-xs text-muted-foreground font-medium uppercase">Notes</Label>
+                      <p className="text-sm mt-0.5">{selectedTrip.notes}</p>
+                    </div>
+                  </>
                 )}
               </div>
-              {selectedTrip.passengers && selectedTrip.passengers.length > 0 && (
-                <div>
-                  <Label className="text-muted-foreground">Passengers ({selectedTrip.passengers.length})</Label>
-                  <div className="mt-2 space-y-2">
-                    {selectedTrip.passengers.map((passenger) => (
-                      <div key={passenger.id} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
-                        <Users className="h-4 w-4" />
-                        <span>{passenger.name}</span>
-                        <span className="text-muted-foreground">({passenger.department})</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {selectedTrip.notes && (
-                <div>
-                  <Label className="text-muted-foreground">Notes</Label>
-                  <p className="text-sm mt-1">{selectedTrip.notes}</p>
-                </div>
-              )}
+
+              {/* Trip Workflow Actions */}
               <TripWorkflowActions
                 trip={selectedTrip}
                 userRole={getScmRole(user)}
@@ -1593,9 +1730,11 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   setViewDialogOpen(false);
                 }}
               />
+              
+              {/* Trip Request Workflow Actions */}
               {selectedTripRequest && (selectedTripRequest.availableActions?.length ?? 0) > 0 && (
                 <div className="rounded-lg border p-4 bg-muted/30">
-                  <p className="text-sm font-medium mb-3">Trip request actions</p>
+                  <p className="text-sm font-medium mb-3">Trip Request Actions</p>
                   <TripRequestWorkflowActions
                     trip={selectedTripRequest}
                     onUpdated={() => {

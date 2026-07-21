@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -20,10 +21,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Truck, User, Users } from "lucide-react";
+import { Loader2, Truck, User, Users, BedDouble, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi, passengerApi } from "@/services/api";
 import { fleetApi } from "@/services/logisticsApi";
+import { formatPoAmount } from "@/utils/currency";
 import { TripCommentsPanel } from "./TripCommentsPanel";
 import type { StaffTripRequest } from "@/types/trip-request";
 import type { EligiblePassenger, FleetVehicle } from "@/types/logistics";
@@ -188,6 +190,66 @@ export function TripRequestApprovalDialog({
               <p className="text-sm">
                 Requested by: {trip.requesterName ?? trip.requester_name}
               </p>
+            )}
+            
+            {/* Accommodation & Escort Section */}
+            {(trip.accommodationRequired ?? trip.accommodation_required || trip.escortRequired ?? trip.escort_required) && (
+              <>
+                <Separator className="my-2" />
+                <div className="grid gap-2 sm:grid-cols-2 mt-3">
+                  {(trip.accommodationRequired ?? trip.accommodation_required) && (
+                    <div className="rounded-md border border-border/40 bg-background/60 p-2 space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs font-medium">
+                        <BedDouble className="h-3 w-3 text-primary" />
+                        Accommodation Requested
+                      </div>
+                      {trip.accommodationName || trip.accommodation_name ||
+                      trip.accommodationAddress || trip.accommodation_address ||
+                      trip.accommodationContact || trip.accommodation_contact ||
+                      trip.accommodationDetails || trip.accommodation_details ||
+                      trip.accommodationEstimatedCost || trip.accommodation_estimated_cost ? (
+                        <div className="space-y-0.5 text-xs text-muted-foreground">
+                          {(trip.accommodationName ?? trip.accommodation_name) && (
+                            <div className="text-[11px]">
+                              <span className="font-medium text-foreground">Hotel:</span> {trip.accommodationName ?? trip.accommodation_name}
+                            </div>
+                          )}
+                          {(trip.accommodationAddress ?? trip.accommodation_address) && (
+                            <div className="text-[11px]">
+                              <span className="font-medium text-foreground">Address:</span> {trip.accommodationAddress ?? trip.accommodation_address}
+                            </div>
+                          )}
+                          {(trip.accommodationEstimatedCost ?? trip.accommodation_estimated_cost) != null && (
+                            <div className="text-[11px]">
+                              <span className="font-medium text-foreground">Est. Cost:</span>{" "}
+                              {formatPoAmount(Number(trip.accommodationEstimatedCost ?? trip.accommodation_estimated_cost), "NGN")}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground italic">
+                          No specific accommodation provided
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {(trip.escortRequired ?? trip.escort_required) && (
+                    <div className="rounded-md border border-border/40 bg-background/60 p-2 space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs font-medium">
+                        <ShieldCheck className="h-3 w-3 text-primary" />
+                        Escort Requested
+                      </div>
+                      {trip.escortDescription ?? trip.escort_description ? (
+                        <p className="text-xs text-muted-foreground">{trip.escortDescription ?? trip.escort_description}</p>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground italic">
+                          No specific escort details provided
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
 
