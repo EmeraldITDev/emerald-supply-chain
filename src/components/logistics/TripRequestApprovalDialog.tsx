@@ -193,7 +193,7 @@ export function TripRequestApprovalDialog({
             )}
             
             {/* Accommodation & Escort Section */}
-            {(trip.accommodationRequired ?? trip.accommodation_required || trip.escortRequired ?? trip.escort_required) && (
+            {((trip.accommodationRequired ?? trip.accommodation_required) || (trip.escortRequired ?? trip.escort_required)) && (
               <>
                 <Separator className="my-2" />
                 <div className="grid gap-2 sm:grid-cols-2 mt-3">
