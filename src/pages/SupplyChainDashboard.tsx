@@ -57,6 +57,7 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { authApi, mrfApi, vendorApi, dashboardApi, srfApi, tripRequestApi } from "@/services/api";
+import { isTripAwaitingDirectorApproval, tripStatusPlainLabel } from "@/utils/tripApprovalState";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { queryKeys } from "@/lib/queryKeys";
@@ -182,18 +183,9 @@ const SupplyChainDashboard = () => {
     if (!pendingTripApprovalsData) return [];
     const data = pendingTripApprovalsData as any;
     const allTrips = Array.isArray(data) ? data : data.trips || data.items || data.data || [];
-
-    // Filter for trips that are awaiting approval (submitted or pending_approval)
-    return allTrips.filter((t: any) => {
-      const status = (t.status || "").toLowerCase();
-      const stage = (t.workflowStage || t.workflow_stage || "").toLowerCase();
-      return (
-        status === "submitted" ||
-        status === "pending_approval" ||
-        stage.includes("director") ||
-        stage.includes("pending")
-      );
-    });
+    // Single source of truth — never surface trips the backend has already
+    // approved, rejected, or moved past the SCD stage.
+    return allTrips.filter((t: any) => isTripAwaitingDirectorApproval(t));
   }, [pendingTripApprovalsData]);
 
   const scdDashStats = useMemo(
