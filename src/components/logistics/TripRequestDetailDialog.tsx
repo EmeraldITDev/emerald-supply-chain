@@ -236,51 +236,63 @@ export function TripRequestDetailDialog({
                     <DetailRow label="Purpose" value={trip.purpose} />
                   </>
                 )}
-                {(accommodationRequired || escortRequired) && (
-                  <>
-                    <Separator />
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {accommodationRequired && (
-                        <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
-                          <div className="flex items-center gap-1.5 text-sm font-medium">
-                            <BedDouble className="h-4 w-4 text-primary" />
-                            Accommodation requested
-                          </div>
-                          {accName || accAddress || accContact || accDetails || accCost ? (
-                            <div className="space-y-1 text-xs text-muted-foreground">
-                              {accName && <div><span className="font-medium text-foreground">Hotel:</span> {accName}</div>}
-                              {accAddress && <div><span className="font-medium text-foreground">Address:</span> {accAddress}</div>}
-                              {accContact && <div><span className="font-medium text-foreground">Contact:</span> {accContact}</div>}
-                              {accDetails && <div><span className="font-medium text-foreground">Notes:</span> {accDetails}</div>}
-                              {accCost != null && (
-                                <div><span className="font-medium text-foreground">Est. cost:</span> {formatPoAmount(Number(accCost), 'NGN')}</div>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground italic">
-                              Requester did not specify a hotel. Logistics will arrange accommodation.
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      {escortRequired && (
-                        <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
-                          <div className="flex items-center gap-1.5 text-sm font-medium">
-                            <ShieldCheck className="h-4 w-4 text-primary" />
-                            Escort requested
-                          </div>
-                          {escortDescription ? (
-                            <p className="text-xs text-muted-foreground">{escortDescription}</p>
-                          ) : (
-                            <p className="text-xs text-muted-foreground italic">
-                              Requester did not specify an escort. Logistics will assign one.
-                            </p>
-                          )}
-                        </div>
-                      )}
+                <Separator />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-sm font-medium">
+                      <BedDouble className="h-4 w-4 text-primary" />
+                      Accommodation
                     </div>
-                  </>
-                )}
+                    <p className="text-xs">
+                      <span className="font-medium">Required:</span>{" "}
+                      <span className={accommodationRequired ? "text-primary" : "text-muted-foreground"}>
+                        {accommodationRequired ? "Yes" : "No"}
+                      </span>
+                    </p>
+                    {accommodationRequired ? (
+                      accName || accAddress || accContact || accDetails || accCost ? (
+                        <div className="space-y-1 text-xs text-muted-foreground">
+                          {accName && <div><span className="font-medium text-foreground">Hotel:</span> {accName}</div>}
+                          {accAddress && <div><span className="font-medium text-foreground">Address:</span> {accAddress}</div>}
+                          {accContact && <div><span className="font-medium text-foreground">Contact:</span> {accContact}</div>}
+                          {accDetails && <div><span className="font-medium text-foreground">Notes:</span> {accDetails}</div>}
+                          {accCost != null && (
+                            <div><span className="font-medium text-foreground">Est. cost:</span> {formatPoAmount(Number(accCost), 'NGN')}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">
+                          Requester did not specify a hotel. Logistics will arrange accommodation.
+                        </p>
+                      )
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No accommodation required.</p>
+                    )}
+                  </div>
+                  <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-sm font-medium">
+                      <ShieldCheck className="h-4 w-4 text-primary" />
+                      Escort / Security
+                    </div>
+                    <p className="text-xs">
+                      <span className="font-medium">Required:</span>{" "}
+                      <span className={escortRequired ? "text-primary" : "text-muted-foreground"}>
+                        {escortRequired ? "Yes" : "No"}
+                      </span>
+                    </p>
+                    {escortRequired ? (
+                      escortDescription ? (
+                        <p className="text-xs text-muted-foreground">{escortDescription}</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">
+                          Requester did not specify an escort. Logistics will assign one.
+                        </p>
+                      )
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No escort required.</p>
+                    )}
+                  </div>
+                </div>
                 {approvalStatus && (
                   <>
                     <Separator />

@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi, vendorApi } from "@/services/api";
 import { fleetApi } from "@/services/logisticsApi";
@@ -48,10 +48,14 @@ export function TripRequestConversionDialog({
   const [passengerIds, setPassengerIds] = useState<string[]>([]);
   const [vendorSearch, setVendorSearch] = useState("");
   const [vendorResults, setVendorResults] = useState<Vendor[]>([]);
+  const [vendorLoading, setVendorLoading] = useState(false);
   const [vendorId, setVendorId] = useState("");
   const [vehicleType, setVehicleType] = useState("");
   const [estimatedCost, setEstimatedCost] = useState("");
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
+  const [vehicleSearch, setVehicleSearch] = useState("");
+  const [vehiclesLoaded, setVehiclesLoaded] = useState(false);
+  const [vehiclesLoading, setVehiclesLoading] = useState(false);
   const [vehicleId, setVehicleId] = useState("");
   const [driverType, setDriverType] = useState<"internal" | "external">("internal");
   const [driverUserId, setDriverUserId] = useState("");
@@ -76,38 +80,75 @@ export function TripRequestConversionDialog({
   useEffect(() => {
     if (!open || !request) return;
     seedPassengers(request);
-    setLoading(true);
-    fleetApi.getAll().then((res) => {
-      if (res.success && res.data) {
-        const arr = Array.isArray(res.data) ? res.data : [];
-        setVehicles(arr.filter((v) => v.approvalStatus !== "rejected"));
-      }
-      setLoading(false);
-    });
   }, [open, request, seedPassengers]);
 
+  // Fetch fleet vehicles the moment the user picks Internal Vehicle (not on
+  // dialog mount). Loaded once per open session, then filtered client-side.
+  useEffect(() => {
+    if (!open || fulfillmentType !== "internal_vehicle" || vehiclesLoaded) return;
+    setVehiclesLoading(true);
+    fleetApi
+      .list({ page: 1, per_page: 200, approvalStatus: "approved" })
+      .then(async (res) => {
+        let items: FleetVehicle[] = [];
+        if (res.success && res.data?.items?.length) {
+          items = res.data.items;
+        } else {
+          // Backend may not have approval_status set on legacy records —
+          // fall back to an unfiltered fetch and drop only rejected ones.
+          const fallback = await fleetApi.list({ page: 1, per_page: 200 });
+          if (fallback.success && fallback.data?.items) {
+            items = fallback.data.items.filter((v) => v.approvalStatus !== "rejected");
+          }
+        }
+        setVehicles(items);
+        setVehiclesLoaded(true);
+      })
+      .finally(() => setVehiclesLoading(false));
+  }, [open, fulfillmentType, vehiclesLoaded]);
+
+  // Vendor selector — fetch an initial slate on switching to external vendor
+  // so the dropdown is populated immediately, then debounce further search.
   useEffect(() => {
     if (!open || fulfillmentType !== "external_vendor") return;
     const handle = window.setTimeout(async () => {
-      const search = vendorSearch.trim();
-      // Only hit the backend once the user has typed — dropdown mode returns
-      // a lightweight {id,name} list capped at 20.
-      if (!search) {
-        setVendorResults([]);
-        return;
-      }
+      setVendorLoading(true);
       const res = await vendorApi.list({
         page: 1,
         per_page: 20,
-        search,
+        search: vendorSearch.trim() || undefined,
         dropdown: true,
       });
       if (res.success && res.data?.items) {
         setVendorResults(res.data.items);
+      } else {
+        setVendorResults([]);
       }
-    }, 300);
+      setVendorLoading(false);
+    }, vendorSearch.trim() ? 300 : 0);
     return () => window.clearTimeout(handle);
   }, [vendorSearch, fulfillmentType, open]);
+
+  // Reset per-open state so a re-opened dialog re-fetches fresh data.
+  useEffect(() => {
+    if (!open) {
+      setVehiclesLoaded(false);
+      setVehicles([]);
+      setVehicleSearch("");
+      setVendorResults([]);
+      setVendorSearch("");
+    }
+  }, [open]);
+
+  const filteredVehicles = useMemo(() => {
+    const q = vehicleSearch.trim().toLowerCase();
+    if (!q) return vehicles;
+    return vehicles.filter((v) => {
+      const plate = (v as any).plateNumber ?? (v as any).plate_number ?? v.plate ?? "";
+      const label = `${plate} ${v.make ?? ""} ${v.model ?? ""} ${v.vehicleNumber ?? ""}`.toLowerCase();
+      return label.includes(q);
+    });
+  }, [vehicles, vehicleSearch]);
 
   const canSubmit = useMemo(() => {
     if (passengerIds.length === 0) return false;
@@ -212,16 +253,30 @@ export function TripRequestConversionDialog({
               <>
                 <div className="space-y-2">
                   <Label>Vendor search</Label>
-                  <Input
-                    value={vendorSearch}
-                    onChange={(e) => setVendorSearch(e.target.value)}
-                    placeholder="Type to search vendors…"
-                  />
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      className="pl-9"
+                      value={vendorSearch}
+                      onChange={(e) => setVendorSearch(e.target.value)}
+                      placeholder="Type to filter vendors…"
+                    />
+                  </div>
                   <Select value={vendorId} onValueChange={setVendorId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select vendor" />
+                      <SelectValue placeholder={vendorLoading ? "Loading vendors…" : "Select vendor"} />
                     </SelectTrigger>
                     <SelectContent>
+                      {vendorLoading && (
+                        <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" /> Loading vendors…
+                        </div>
+                      )}
+                      {!vendorLoading && vendorResults.length === 0 && (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">
+                          No vendors found
+                        </div>
+                      )}
                       {vendorResults.map((v) => (
                         <SelectItem key={String(v.id)} value={String(v.id)}>
                           {v.name}
@@ -242,16 +297,49 @@ export function TripRequestConversionDialog({
             ) : (
               <div className="space-y-2">
                 <Label>Company vehicle</Label>
-                <Select value={vehicleId} onValueChange={setVehicleId}>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    className="pl-9"
+                    value={vehicleSearch}
+                    onChange={(e) => setVehicleSearch(e.target.value)}
+                    placeholder="Filter by plate, make or model…"
+                    disabled={vehiclesLoading}
+                  />
+                </div>
+                <Select value={vehicleId} onValueChange={setVehicleId} disabled={vehiclesLoading}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select vehicle" />
+                    <SelectValue
+                      placeholder={
+                        vehiclesLoading
+                          ? "Loading fleet vehicles…"
+                          : filteredVehicles.length === 0
+                            ? "No vehicles available"
+                            : "Select vehicle"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    {vehicles.map((v) => (
-                      <SelectItem key={String(v.id)} value={String(v.id)}>
-                        {(v as any).plateNumber ?? (v as any).plate_number ?? v.plate} — {v.make} {v.model}
-                      </SelectItem>
-                    ))}
+                    {vehiclesLoading && (
+                      <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Loading vehicles…
+                      </div>
+                    )}
+                    {!vehiclesLoading && filteredVehicles.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        {vehicles.length === 0
+                          ? "No vehicles found in the fleet. Please add a vehicle in Fleet Management."
+                          : "No vehicles match your search."}
+                      </div>
+                    )}
+                    {filteredVehicles.map((v) => {
+                      const plate = (v as any).plateNumber ?? (v as any).plate_number ?? v.plate ?? v.vehicleNumber;
+                      return (
+                        <SelectItem key={String(v.id)} value={String(v.id)}>
+                          {plate} — {v.make} {v.model}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -277,6 +365,11 @@ export function TripRequestConversionDialog({
                 <EligiblePassengerPicker
                   selectedPassengerIds={driverUserId ? [driverUserId] : []}
                   onPassengersChange={(ids) => setDriverUserId(ids[0] ?? "")}
+                  showDriver={false}
+                  label="Select Driver"
+                  placeholder="Search drivers by name or department…"
+                  emptyLabel="No eligible drivers found."
+                  selectedSuffix="driver selected"
                 />
               ) : (
                 <div className="grid gap-2">

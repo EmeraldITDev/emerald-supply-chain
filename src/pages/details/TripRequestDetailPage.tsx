@@ -253,37 +253,72 @@ export default function TripRequestDetailPage() {
             ]}
           />
 
-          {(trip.accommodationRequired ?? trip.accommodation_required) && (
-            <div className="rounded-md border p-3 space-y-2">
-              <h3 className="text-sm font-semibold">Accommodation</h3>
-              <DetailFields
-                fields={[
-                  { label: "Hotel / Venue", value: trip.accommodationName ?? trip.accommodation_name },
-                  { label: "Address", value: trip.accommodationAddress ?? trip.accommodation_address },
-                  { label: "Contact", value: trip.accommodationContact ?? trip.accommodation_contact },
-                  {
-                    label: "Estimated cost (₦)",
-                    value:
-                      (trip.accommodationEstimatedCost ?? trip.accommodation_estimated_cost) != null
-                        ? Number(
-                            trip.accommodationEstimatedCost ?? trip.accommodation_estimated_cost,
-                          ).toLocaleString()
-                        : undefined,
-                  },
-                  { label: "Details", value: trip.accommodationDetails ?? trip.accommodation_details },
-                ]}
-              />
-            </div>
-          )}
-
-          {(trip.escortRequired ?? trip.escort_required) && (
-            <div className="rounded-md border p-3 space-y-2">
-              <h3 className="text-sm font-semibold">Escort / Security</h3>
-              <p className="text-sm text-muted-foreground">
-                {trip.escortDescription ?? trip.escort_description ?? "—"}
-              </p>
-            </div>
-          )}
+          {(() => {
+            const accReq = Boolean(trip.accommodationRequired ?? trip.accommodation_required);
+            const escReq = Boolean(trip.escortRequired ?? trip.escort_required);
+            const accName = trip.accommodationName ?? trip.accommodation_name;
+            const accAddress = trip.accommodationAddress ?? trip.accommodation_address;
+            const accContact = trip.accommodationContact ?? trip.accommodation_contact;
+            const accDetails = trip.accommodationDetails ?? trip.accommodation_details;
+            const accCost = trip.accommodationEstimatedCost ?? trip.accommodation_estimated_cost;
+            const escDesc = trip.escortDescription ?? trip.escort_description;
+            return (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-md border p-3 space-y-2">
+                  <h3 className="text-sm font-semibold">Accommodation</h3>
+                  <p className="text-xs">
+                    <span className="font-medium">Required:</span>{" "}
+                    <span className={accReq ? "text-primary" : "text-muted-foreground"}>
+                      {accReq ? "Yes" : "No"}
+                    </span>
+                  </p>
+                  {accReq ? (
+                    accName || accAddress || accContact || accDetails || accCost != null ? (
+                      <DetailFields
+                        fields={[
+                          { label: "Hotel / Venue", value: accName },
+                          { label: "Address", value: accAddress },
+                          { label: "Contact", value: accContact },
+                          {
+                            label: "Estimated cost (₦)",
+                            value:
+                              accCost != null ? Number(accCost).toLocaleString() : undefined,
+                          },
+                          { label: "Details", value: accDetails },
+                        ]}
+                      />
+                    ) : (
+                      <p className="text-xs italic text-muted-foreground">
+                        Requester did not specify a hotel. Logistics will arrange accommodation.
+                      </p>
+                    )
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No accommodation required.</p>
+                  )}
+                </div>
+                <div className="rounded-md border p-3 space-y-2">
+                  <h3 className="text-sm font-semibold">Escort / Security</h3>
+                  <p className="text-xs">
+                    <span className="font-medium">Required:</span>{" "}
+                    <span className={escReq ? "text-primary" : "text-muted-foreground"}>
+                      {escReq ? "Yes" : "No"}
+                    </span>
+                  </p>
+                  {escReq ? (
+                    escDesc ? (
+                      <p className="text-sm text-muted-foreground">{escDesc}</p>
+                    ) : (
+                      <p className="text-xs italic text-muted-foreground">
+                        Requester did not specify an escort. Logistics will assign one.
+                      </p>
+                    )
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No escort required.</p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {(() => {
             const trail = trip.auditTrail ?? trip.audit_trail ?? [];

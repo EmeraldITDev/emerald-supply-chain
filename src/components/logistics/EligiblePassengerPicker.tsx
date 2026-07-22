@@ -19,6 +19,11 @@ interface EligiblePassengerPickerProps {
   driverUserId?: string;
   onDriverChange?: (id: string | undefined) => void;
   showDriver?: boolean;
+  /** Overrides for reuse in driver-selection context (e.g. "Select Driver"). */
+  label?: string;
+  emptyLabel?: string;
+  placeholder?: string;
+  selectedSuffix?: string;
 }
 
 export function EligiblePassengerPicker({
@@ -27,6 +32,10 @@ export function EligiblePassengerPicker({
   driverUserId,
   onDriverChange,
   showDriver = true,
+  label = "Select Passengers",
+  emptyLabel = "No eligible passengers found.",
+  placeholder = "Search by name or department...",
+  selectedSuffix = "passenger(s) selected",
 }: EligiblePassengerPickerProps) {
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<EligiblePassenger[]>([]);
@@ -66,12 +75,12 @@ export function EligiblePassengerPicker({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Select Passengers</Label>
+        <Label>{label}</Label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-9"
-            placeholder="Search by name or department..."
+            placeholder={placeholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -82,7 +91,7 @@ export function EligiblePassengerPicker({
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading staff...
             </div>
           ) : users.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-2">No eligible passengers found.</p>
+            <p className="text-sm text-muted-foreground text-center py-2">{emptyLabel}</p>
           ) : (
             users.map((u) => (
               <div key={u.id} className="flex items-center space-x-2">
@@ -103,7 +112,7 @@ export function EligiblePassengerPicker({
         </div>
         {selectedPassengerIds.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            {selectedPassengerIds.length} passenger(s) selected
+            {selectedPassengerIds.length} {selectedSuffix}
           </p>
         )}
       </div>
