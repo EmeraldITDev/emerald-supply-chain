@@ -87,22 +87,23 @@ export function TripRequestConversionDialog({
   useEffect(() => {
     if (!open || fulfillmentType !== "internal_vehicle" || vehiclesLoaded) return;
     setVehiclesLoading(true);
-    fleetApi
-      .list({ page: 1, per_page: 200, approvalStatus: "approved" })
-      .then(async (res) => {
-        let items: FleetVehicle[] = [];
-        if (res.success && res.data?.items?.length) {
-          items = res.data.items;
-        } else {
-          // Backend may not have approval_status set on legacy records —
-          // fall back to an unfiltered fetch and drop only rejected ones.
-          const fallback = await fleetApi.list({ page: 1, per_page: 200 });
-          if (fallback.success && fallback.data?.items) {
-            items = fallback.data.items.filter((v) => v.approvalStatus !== "rejected");
-          }
+
+    fleetApi.list({ page: 1, per_page: 200 })
+      .then((res) => {
+        let items: any[] = [];
+        if (res.success && res.data) {
+          // Cast to any to bypass strict PaginatedResult type checking for our fallbacks
+          const dataAny = res.data as any;
+          const rawData = Array.isArray(dataAny) ? dataAny : (dataAny.items || dataAny.vehicles || dataAny.data || []);
+
+          items = rawData.filter((v: any) => v.approvalStatus !== "rejected" && v.approval_status !== "rejected");
         }
         setVehicles(items);
         setVehiclesLoaded(true);
+      })
+      .catch((err) => {
+        console.error("Failed to load vehicles:", err);
+        setVehicles([]);
       })
       .finally(() => setVehiclesLoading(false));
   }, [open, fulfillmentType, vehiclesLoaded]);
@@ -111,21 +112,31 @@ export function TripRequestConversionDialog({
   // so the dropdown is populated immediately, then debounce further search.
   useEffect(() => {
     if (!open || fulfillmentType !== "external_vendor") return;
+
     const handle = window.setTimeout(async () => {
       setVendorLoading(true);
-      const res = await vendorApi.list({
-        page: 1,
-        per_page: 20,
-        search: vendorSearch.trim() || undefined,
-        dropdown: true,
-      });
-      if (res.success && res.data?.items) {
-        setVendorResults(res.data.items);
-      } else {
+      try {
+        const res = await vendorApi.list({
+          page: 1,
+          per_page: 100,
+          search: vendorSearch.trim() || undefined,
+        });
+
+        if (res.success && res.data) {
+          const dataAny = res.data as any;
+          const rawVendors = Array.isArray(dataAny) ? dataAny : (dataAny.items || dataAny.vendors || dataAny.data || []);
+          setVendorResults(rawVendors);
+        } else {
+          setVendorResults([]);
+        }
+      } catch (err) {
+        console.error("Failed to load vendors:", err);
         setVendorResults([]);
+      } finally {
+        setVendorLoading(false);
       }
-      setVendorLoading(false);
     }, vendorSearch.trim() ? 300 : 0);
+
     return () => window.clearTimeout(handle);
   }, [vendorSearch, fulfillmentType, open]);
 
@@ -174,17 +185,17 @@ export function TripRequestConversionDialog({
         external_driver:
           driverType === "external"
             ? {
-                name: externalName.trim(),
-                phone: externalPhone.trim() || undefined,
-                email: externalEmail.trim() || undefined,
-              }
+              name: externalName.trim(),
+              phone: externalPhone.trim() || undefined,
+              email: externalEmail.trim() || undefined,
+            }
             : undefined,
         ...(fulfillmentType === "external_vendor"
           ? {
-              vendor_id: parseInt(vendorId, 10),
-              vehicle_type: vehicleType.trim(),
-              estimated_vendor_cost: parseFloat(estimatedCost),
-            }
+            vendor_id: parseInt(vendorId, 10),
+            vehicle_type: vehicleType.trim(),
+            estimated_vendor_cost: parseFloat(estimatedCost),
+          }
           : { vehicle_id: parseInt(vehicleId, 10) }),
       };
 
