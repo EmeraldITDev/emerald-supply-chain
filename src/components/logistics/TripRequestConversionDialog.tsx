@@ -84,17 +84,19 @@ export function TripRequestConversionDialog({
 
   // Fetch fleet vehicles the moment the user picks Internal Vehicle (not on
   // dialog mount). Loaded once per open session, then filtered client-side.
+  // 1. Fetch Fleet Vehicles (With Debug Logging)
   useEffect(() => {
     if (!open || fulfillmentType !== "internal_vehicle" || vehiclesLoaded) return;
     setVehiclesLoading(true);
 
     fleetApi.list({ page: 1, per_page: 200 })
       .then((res) => {
+        console.log("FLEET API RESPONSE:", res); // <-- ADDED THIS LINE
+
         let items: any[] = [];
         if (res.success && res.data) {
-          // Cast to any to bypass strict PaginatedResult type checking for our fallbacks
           const dataAny = res.data as any;
-          const rawData = Array.isArray(dataAny) ? dataAny : (dataAny.items || dataAny.vehicles || dataAny.data || []);
+          const rawData = Array.isArray(dataAny) ? dataAny : (dataAny.items || dataAny.vehicles || dataAny.fleet || dataAny.data || []);
 
           items = rawData.filter((v: any) => v.approvalStatus !== "rejected" && v.approval_status !== "rejected");
         }
