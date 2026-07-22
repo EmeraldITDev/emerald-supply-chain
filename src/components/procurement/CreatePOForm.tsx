@@ -258,6 +258,33 @@ export function CreatePOForm({
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
 
+  const mergeVendorIntoList = useCallback((vendor: Vendor) => {
+    setVendors((prev) => {
+      const vendorIdVariants = [
+        vendor.id,
+        (vendor as Vendor & { formatted_id?: string; vendor_id?: string }).formatted_id,
+        (vendor as Vendor & { formatted_id?: string; vendor_id?: string }).vendor_id,
+      ].filter((value): value is string | number => Boolean(value));
+      const vendorKeys = new Set(
+        vendorIdVariants.map((value) => String(value)),
+      );
+      const existingIndex = prev.findIndex((candidate) => {
+        const candidateVariants = [
+          candidate.id,
+          (candidate as Vendor & { formatted_id?: string; vendor_id?: string }).formatted_id,
+          (candidate as Vendor & { formatted_id?: string; vendor_id?: string }).vendor_id,
+        ].filter((value): value is string | number => Boolean(value));
+        return candidateVariants.some((value) => vendorKeys.has(String(value)));
+      });
+      if (existingIndex >= 0) {
+        const next = [...prev];
+        next[existingIndex] = vendor;
+        return next;
+      }
+      return [...prev, vendor];
+    });
+  }, []);
+
   // ---------- T&C template ----------
   const [standardTerms, setStandardTerms] = useState('');
   const [termsLoading, setTermsLoading] = useState(false);
@@ -1546,6 +1573,7 @@ export function CreatePOForm({
           value={rows}
           onChange={setRows}
           vendors={vendors}
+          onVendorResolved={mergeVendorIntoList}
           loadingVendors={loadingVendors}
           disabled={isFinalised}
           currency={form.currency}

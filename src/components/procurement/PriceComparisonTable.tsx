@@ -23,6 +23,7 @@ export interface PriceComparisonTableProps {
   value: PriceComparisonRow[];
   onChange: (rows: PriceComparisonRow[]) => void;
   vendors: Vendor[];
+  onVendorResolved?: (vendor: Vendor) => void;
   disabled?: boolean;
   loadingVendors?: boolean;
   /** ISO 4217 code for unit prices and totals (NGN or USD). */
@@ -221,6 +222,7 @@ export function PriceComparisonTable({
   value,
   onChange,
   vendors,
+  onVendorResolved,
   disabled = false,
   loadingVendors = false,
   currency = 'NGN',
@@ -568,13 +570,20 @@ export function PriceComparisonTable({
                         className="h-9"
                       />
                       <Select
+                        key={group.key}
                         value={head.vendor_id || undefined}
-                        onValueChange={(v) =>
+                        onValueChange={(v) => {
+                          const selectedVendor = directoryVendors.find(
+                            (candidate) => vendorStringId(candidate) === v,
+                          );
                           updateGroup(group.key, {
                             vendor_id: v,
                             manual_vendor: undefined,
-                          })
-                        }
+                          });
+                          if (selectedVendor) {
+                            onVendorResolved?.(selectedVendor);
+                          }
+                        }}
                         disabled={disabled || searchingVendors || loadingVendors}
                       >
                         <SelectTrigger
@@ -728,6 +737,7 @@ export function PriceComparisonTable({
                                 vendor_id: vendorStringId(duplicateMatch),
                                 manual_vendor: undefined,
                               });
+                              onVendorResolved?.(duplicateMatch);
                             }}
                           >
                             Use existing vendor
