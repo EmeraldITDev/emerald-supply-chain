@@ -7,6 +7,8 @@ import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
 import { getWorkflowStageLabel } from "@/utils/workflowStageLabels";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { TripRequestWorkflowActions } from "@/components/logistics/TripRequestWorkflowActions";
+import { TripRequestDialog } from "@/components/logistics/TripRequestDialog";
 import {
   Card,
   CardContent,
@@ -135,6 +137,7 @@ const SupplyChainDashboard = () => {
     }
   }, [mrfFullDetails]);
   // (vendor registrations state replaced by useQuery below)
+  const [selectedTripForDetails, setSelectedTripForDetails] = useState<any | null>(null);
 
   const [approvingTripId, setApprovingTripId] = useState<string | null>(null);
   const [pendingFilter, setPendingFilter] = useState<
@@ -1098,14 +1101,13 @@ const SupplyChainDashboard = () => {
                               </div>
                               <div className="flex flex-wrap items-center gap-2 shrink-0">
                                 <Badge variant="secondary">{stageLabel}</Badge>
+                                {/* Replace the old View button with this: */}
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() =>
-                                    navigate(`/trip-requests/${encodeURIComponent(tid)}`)
-                                  }
+                                  onClick={() => setSelectedTripForDetails(t)}
                                 >
-                                  View
+                                  View Details
                                 </Button>
                                 <Button
                                   size="sm"
@@ -2320,6 +2322,83 @@ const SupplyChainDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Trip Details Dialog */}
+      <Dialog
+        open={!!selectedTripForDetails}
+        onOpenChange={(open) => !open && setSelectedTripForDetails(null)}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Trip Details - {selectedTripForDetails?.tripCode || selectedTripForDetails?.tripNumber || `TRQ-${selectedTripForDetails?.id}`}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedTripForDetails && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2 text-sm items-center">
+                <Badge className="capitalize">
+                  {(selectedTripForDetails.status || "").replace("_", " ")}
+                </Badge>
+                <Badge variant="outline" className="capitalize">
+                  {selectedTripForDetails.type || selectedTripForDetails.trip_type || "Personnel"}
+                </Badge>
+              </div>
+
+              <div className="rounded-md border border-border/50 bg-muted/20 p-3 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">Requester</Label>
+                    <p className="text-sm font-medium mt-0.5">
+                      {selectedTripForDetails.requesterName || selectedTripForDetails.requester_name}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">Department</Label>
+                    <p className="text-sm font-medium mt-0.5">
+                      {selectedTripForDetails.requesterDepartment || selectedTripForDetails.requester_department}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">Origin</Label>
+                    <p className="text-sm font-medium mt-0.5">{selectedTripForDetails.origin}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">Destination</Label>
+                    <p className="text-sm font-medium mt-0.5">{selectedTripForDetails.destination}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">Departure</Label>
+                    <p className="text-sm font-medium mt-0.5">
+                      {selectedTripForDetails.scheduledDepartureAt || selectedTripForDetails.scheduled_departure_at
+                        ? formatMRFDate(selectedTripForDetails.scheduledDepartureAt || selectedTripForDetails.scheduled_departure_at)
+                        : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">Purpose</Label>
+                    <p className="text-sm font-medium mt-0.5">{selectedTripForDetails.purpose}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="rounded-lg border p-4 bg-muted/30">
+                <p className="text-sm font-medium mb-3">Trip Request Actions</p>
+                <TripRequestWorkflowActions
+                  trip={selectedTripForDetails}
+                  onUpdated={() => {
+                    refetchPendingTripApprovals(); // Refreshes the dashboard queue
+                    setSelectedTripForDetails(null); // Closes the modal after action
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      
     </DashboardLayout>
   );
 };
