@@ -265,7 +265,7 @@ export function CreatePOForm({
         vendor.id,
         (vendor as Vendor & { formatted_id?: string; vendor_id?: string }).formatted_id,
         (vendor as Vendor & { formatted_id?: string; vendor_id?: string }).vendor_id,
-      ].filter((value): value is string | number => Boolean(value));
+      ].filter((value): value is NonNullable<typeof value> => Boolean(value));
       const vendorKeys = new Set(
         vendorIdVariants.map((value) => String(value)),
       );
@@ -274,7 +274,7 @@ export function CreatePOForm({
           candidate.id,
           (candidate as Vendor & { formatted_id?: string; vendor_id?: string }).formatted_id,
           (candidate as Vendor & { formatted_id?: string; vendor_id?: string }).vendor_id,
-        ].filter((value): value is string | number => Boolean(value));
+        ].filter((value): value is NonNullable<typeof value> => Boolean(value));
         return candidateVariants.some((value) => vendorKeys.has(String(value)));
       });
       if (existingIndex >= 0) {
