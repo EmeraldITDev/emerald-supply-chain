@@ -238,6 +238,34 @@ export function PriceComparisonTable({
   const [vendorSearch, setVendorSearch] = useState('');
   const [searchedVendors, setSearchedVendors] = useState<Vendor[]>([]);
   const [searchingVendors, setSearchingVendors] = useState(false);
+  /**
+   * Persistent set of every directory vendor the user has interacted with in
+   * this session — the incoming `vendors` prop is often a small snapshot that
+   * does NOT include vendors surfaced via async search. Without this cache,
+   * `computeRowFieldErrors` (which only sees the prop) would flag freshly
+   * selected suppliers as "does not match a known vendor" the moment the
+   * search input is cleared, and would also freeze the input by rejecting
+   * subsequent edits. Everything we ever surface via search or resolve via
+   * onValueChange lands here so validation stays in sync.
+   */
+  const [resolvedVendors, setResolvedVendors] = useState<Vendor[]>([]);
+
+  const rememberVendors = useCallback((incoming: Vendor[]) => {
+    if (!incoming.length) return;
+    setResolvedVendors((prev) => {
+      const map = new Map<string, Vendor>();
+      for (const v of prev) map.set(vendorStringId(v), v);
+      let changed = false;
+      for (const v of incoming) {
+        const key = vendorStringId(v);
+        if (!map.has(key)) {
+          map.set(key, v);
+          changed = true;
+        }
+      }
+      return changed ? Array.from(map.values()) : prev;
+    });
+  }, []);
 
   useEffect(() => {
     const q = vendorSearch.trim();
@@ -257,11 +285,11 @@ export function PriceComparisonTable({
           status: 'Active',
         });
         if (res.success && res.data?.items) {
-          setSearchedVendors(
-            res.data.items.filter(
-              (v) => v.status === 'Active' || v.status === 'Pending' || !v.status,
-            ),
+          const items = res.data.items.filter(
+            (v) => v.status === 'Active' || v.status === 'Pending' || !v.status,
           );
+          setSearchedVendors(items);
+          rememberVendors(items);
         } else {
           setSearchedVendors([]);
         }
@@ -270,7 +298,16 @@ export function PriceComparisonTable({
       }
     }, 300);
     return () => window.clearTimeout(handle);
-  }, [vendorSearch]);
+  }, [vendorSearch, rememberVendors]);
+
+  /** Union of prop vendors + everything cached via search/selection. */
+  const knownVendors = useMemo(() => {
+    const map = new Map<string, Vendor>();
+    for (const v of vendors) map.set(vendorStringId(v), v);
+    for (const v of resolvedVendors) map.set(vendorStringId(v), v);
+    for (const v of searchedVendors) map.set(vendorStringId(v), v);
+    return Array.from(map.values());
+  }, [vendors, resolvedVendors, searchedVendors]);
 
   const directoryVendors = useMemo(() => {
     const q = vendorSearch.trim();
@@ -279,13 +316,13 @@ export function PriceComparisonTable({
     const selectedIds = new Set(
       value.map((r) => r.vendor_id).filter(Boolean) as string[],
     );
-    const fromProps = vendors.filter((v) => selectedIds.has(vendorStringId(v)));
+    const fromKnown = knownVendors.filter((v) => selectedIds.has(vendorStringId(v)));
     const merged = new Map<string, Vendor>();
-    for (const v of [...fromProps, ...searchedVendors]) {
+    for (const v of [...fromKnown, ...searchedVendors]) {
       merged.set(vendorStringId(v), v);
     }
     return Array.from(merged.values());
-  }, [vendorSearch, searchedVendors, vendors, value]);
+  }, [vendorSearch, searchedVendors, knownVendors, value]);
 
   const runVendorLookup = useCallback(
     async (groupKey: string, manual: ManualVendor | undefined) => {
@@ -428,14 +465,17 @@ export function PriceComparisonTable({
     onChange(value.filter((r) => !removeKeys.has(r._key)));
   };
 
-  const errors = useMemo(() => validatePriceComparison(value, vendors), [value, vendors]);
+  const errors = useMemo(
+    () => validatePriceComparison(value, knownVendors),
+    [value, knownVendors],
+  );
   const hasMin = value.length >= 1;
   const selectedCount = value.filter((r) => r.is_selected).length;
   const rowErrorMap = useMemo(() => {
     const m = new Map<string, RowFieldErrors>();
-    value.forEach((r) => m.set(r._key, computeRowFieldErrors(r, vendors)));
+    value.forEach((r) => m.set(r._key, computeRowFieldErrors(r, knownVendors)));
     return m;
-  }, [value, vendors]);
+  }, [value, knownVendors]);
 
   return (
     <div className="space-y-3">
