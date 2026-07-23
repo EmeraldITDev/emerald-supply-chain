@@ -7,6 +7,7 @@ import type { MRF, AvailableActions } from "@/types";
 import { toast } from "sonner";
 import { getMrfApiId } from "@/utils/displayId";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { hasEffectivePoIdentity } from "@/utils/poHelpers";
 
 interface MRFActionButtonsProps {
   mrf: MRF;
@@ -224,8 +225,8 @@ export const MRFActionButtons: React.FC<MRFActionButtonsProps> = ({
 
   // Delete PO - Only for Procurement managers
   if (onDeletePO && (getScmRole(user) === "procurement_manager" || getScmRole(user) === "procurement")) {
-    const hasPO = mrf.po_number || mrf.poNumber;
-    if (hasPO && hasPO !== "N/A") {
+    const hasPO = hasEffectivePoIdentity(mrf);
+    if (hasPO) {
       buttons.push(
         <Button
           key="delete-po"

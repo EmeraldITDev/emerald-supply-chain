@@ -117,7 +117,12 @@ import type { VendorRegistration, MRF, RFQ } from "@/types";
 import { OneDriveLink } from "@/components/OneDriveLink";
 import { formatMRFDate, formatDateLagos } from "@/utils/dateUtils";
 import { normalizeAttachments } from "@/utils/attachments";
-import { isPORevisionRequired, getRejectionReason } from "@/utils/poHelpers";
+import {
+  isPORevisionRequired,
+  getRejectionReason,
+  getEffectivePoNumber,
+  hasEffectivePoIdentity,
+} from "@/utils/poHelpers";
 import {
   Select,
   SelectContent,
@@ -678,7 +683,7 @@ const Procurement = () => {
   const getMRFPOUrl = (mrf: MRF) => mrf.unsigned_po_url || mrf.unsignedPOUrl;
   const getMRFRejectionReason = (mrf: MRF) =>
     mrf.po_rejection_reason || mrf.poRejectionReason;
-  const getMRFPONumber = (mrf: MRF) => mrf.po_number || mrf.poNumber;
+  const getMRFPONumber = (mrf: MRF) => getEffectivePoNumber(mrf) || "";
   const getMRFPOVersion = (mrf: MRF) => mrf.po_version || mrf.poVersion || 1;
   const getMRFPOShareUrl = (mrf: MRF) =>
     mrf.unsigned_po_share_url || mrf.unsignedPOShareUrl || getMRFPOUrl(mrf);
@@ -1905,8 +1910,7 @@ const Procurement = () => {
     }
     try {
       const hasGeneratedPo = Boolean(
-        mrf.po_number ||
-        mrf.poNumber ||
+        hasEffectivePoIdentity(mrf) ||
         getMRFPOUrl(mrf) ||
         mrf.signed_po_url ||
         mrf.signedPOUrl,
@@ -4070,7 +4074,7 @@ const Procurement = () => {
                                   );
                                 })()
                               )}
-                              {poNumber && !isDraft && (
+                              {hasEffectivePoIdentity(mrf as MRF) && !isDraft && (
                                 <Button
                                   variant="outline"
                                   size="sm"

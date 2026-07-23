@@ -47,6 +47,7 @@ import { vendorApi } from '@/services/api';
 import { procurementApi, type GeneratePOResponse, type ResolvedVendorEntry } from '@/services/procurementApi';
 import { describeBackendError } from '@/utils/poStatus';
 import { pollForGeneratedPO, isPoReady } from '@/utils/pollPoGeneration';
+import { getEffectivePoNumber, hasEffectivePoIdentity } from '@/utils/poHelpers';
 import type { ApiResponse, MRF, Vendor } from '@/types';
 import type {
   POFormPayload,
@@ -413,10 +414,10 @@ export function CreatePOForm({
   // When opened in edit mode from the PO list, unlock the form for editing as
   // soon as the hydrated MRF reveals it is already finalised.
   useEffect(() => {
-    if (initialEditMode && mrf?.po_number && !editingFinalised) {
+    if (initialEditMode && hasEffectivePoIdentity(mrf) && !editingFinalised) {
       setEditingFinalised(true);
     }
-  }, [initialEditMode, mrf?.po_number, editingFinalised]);
+  }, [initialEditMode, mrf, editingFinalised]);
 
   // -------------------------------------------------------------------------
   // Hydrate MRF + price comparison
@@ -657,7 +658,7 @@ export function CreatePOForm({
   // -------------------------------------------------------------------------
   const isDraft =
     Boolean((mrf as MRF & { is_po_draft?: boolean })?.is_po_draft) ||
-    !mrf?.po_number;
+    !hasEffectivePoIdentity(mrf);
   /**
    * A PO is only truly "locked" once it has been SIGNED by the SCD.
    * Before that (draft, awaiting signature, rejected) the PM must still be
@@ -1133,7 +1134,7 @@ export function CreatePOForm({
       setFinalisedFastTracked(fastTrackedSuccess);
       setFinalisedMrf(resolvedMrf);
       setEditingFinalised(false);
-      const poNumber = resolvedMrf.po_number || resolvedMrf.poNumber || '—';
+      const poNumber = getEffectivePoNumber(resolvedMrf) || '—';
       const resolved =
         gen.resolvedVendors ?? gen.resolved_vendors ?? [];
       const vendorSummary = formatResolvedVendorsSummary(resolved);
@@ -1732,7 +1733,7 @@ export function CreatePOForm({
         <div className="rounded-md border border-success/40 bg-success/10 p-3 text-sm space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <span>
-              PO <strong>{finalisedMrf?.po_number || finalisedMrf?.poNumber || mrf?.po_number}</strong> generated.
+              PO <strong>{getEffectivePoNumber(finalisedMrf) || getEffectivePoNumber(mrf) || '—'}</strong> generated.
             </span>
             <div className="flex items-center gap-3 flex-shrink-0">
               <button
@@ -1778,7 +1779,7 @@ export function CreatePOForm({
             <span>
               Editing existing PO{' '}
               <strong>
-                {finalisedMrf?.po_number || finalisedMrf?.poNumber || mrf?.po_number}
+                {getEffectivePoNumber(finalisedMrf) || getEffectivePoNumber(mrf) || '—'}
               </strong>
               . Resubmitting will replace the version currently in the SCD's approval queue.
             </span>
