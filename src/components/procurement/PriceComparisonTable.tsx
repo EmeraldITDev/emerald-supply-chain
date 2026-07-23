@@ -621,10 +621,11 @@ export function PriceComparisonTable({
                             manual_vendor: undefined,
                           });
                           if (selectedVendor) {
+                            rememberVendors([selectedVendor]);
                             onVendorResolved?.(selectedVendor);
                           }
                         }}
-                        disabled={disabled || searchingVendors || loadingVendors}
+                        disabled={disabled || loadingVendors}
                       >
                         <SelectTrigger
                           className={cn('h-9', headFe.supplier && 'border-destructive')}
