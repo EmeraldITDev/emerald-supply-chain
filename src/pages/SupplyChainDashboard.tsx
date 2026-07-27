@@ -381,8 +381,56 @@ const SupplyChainDashboard = () => {
     [scdBuckets],
   );
 
-  const scdExtraPendingCount =
-    pendingDirectorSrfs.length + vendorRegistrations.length;
+  // Single source of truth for the "Pending Approvals" total — must match
+  // the sum of the 5 breakdown cards rendered below (Vendor Regs + MRF First
+  // Approvals + Trip Approvals + SRFs + Purchase Orders). Previously the top
+  // card used `scdBuckets.pending` (all MRFs in any SCD-owned stage) which
+  // double-counted and diverged from the visible breakdown.
+  const readDashCount = useCallback(
+    (key: string, fallback: number): number => {
+      const raw = scdDashRaw as Record<string, unknown> | null;
+      const stats = (raw?.stats as Record<string, unknown> | undefined) ?? undefined;
+      const candidates = [raw?.[key], stats?.[key]];
+      for (const v of candidates) {
+        if (typeof v === "number") return v;
+        if (Array.isArray(v)) return v.length;
+      }
+      return fallback;
+    },
+    [scdDashRaw],
+  );
+
+  const pendingBreakdownCounts = useMemo(
+    () => ({
+      vendors: readDashCount("pending_vendor_registrations", vendorRegistrations.length),
+      mrf: readDashCount("pending_mrf_scd_first_approval", pendingFirstApprovals.length),
+      trips: readDashCount("pending_trip_approvals", pendingTripApprovals.length),
+      srfs: readDashCount(
+        "pending_srf_scd_approval",
+        scdDashStats?.pendingSrfDirectorApprovals ?? pendingDirectorSrfs.length,
+      ),
+      pos: readDashCount("pending_purchase_orders", pendingPOs.length),
+    }),
+    [
+      readDashCount,
+      vendorRegistrations.length,
+      pendingFirstApprovals.length,
+      pendingTripApprovals.length,
+      scdDashStats?.pendingSrfDirectorApprovals,
+      pendingDirectorSrfs.length,
+      pendingPOs.length,
+    ],
+  );
+
+  const pendingBreakdownTotal = useMemo(
+    () =>
+      pendingBreakdownCounts.vendors +
+      pendingBreakdownCounts.mrf +
+      pendingBreakdownCounts.trips +
+      pendingBreakdownCounts.srfs +
+      pendingBreakdownCounts.pos,
+    [pendingBreakdownCounts],
+  );
 
   const openMrfDetails = useCallback(async (mrf: MRF) => {
     setSelectedMRFForDetails(mrf);
@@ -798,18 +846,22 @@ const SupplyChainDashboard = () => {
           <DashboardAlerts userRole="supply_chain" maxAlerts={5} />
 
           <DashboardSummaryStats
-            counts={scdBucketCounts}
-            extraPending={scdExtraPendingCount}
-            extraPendingLabel={`${pendingDirectorSrfs.length} SRF${pendingDirectorSrfs.length !== 1 ? "s" : ""}, ${vendorRegistrations.length} vendor registration${vendorRegistrations.length !== 1 ? "s" : ""}`}
+            counts={{
+              ...scdBucketCounts,
+              // Override pending to match the sum of the 5 breakdown cards below.
+              pending: pendingBreakdownTotal,
+            }}
+            extraPending={0}
+            extraPendingLabel={`${pendingBreakdownCounts.mrf} MRF, ${pendingBreakdownCounts.srfs} SRF, ${pendingBreakdownCounts.trips} trip, ${pendingBreakdownCounts.vendors} vendor, ${pendingBreakdownCounts.pos} PO`}
           />
 
           <Tabs defaultValue="pending" className="space-y-4">
             <TabsList className="flex flex-wrap h-auto gap-1">
               <TabsTrigger value="pending">
                 Pending
-                {(scdBuckets.pending.length + scdExtraPendingCount) > 0 && (
+                {pendingBreakdownTotal > 0 && (
                   <Badge variant="destructive" className="ml-2 text-xs">
-                    {scdBuckets.pending.length + scdExtraPendingCount}
+                    {pendingBreakdownTotal}
                   </Badge>
                 )}
               </TabsTrigger>
