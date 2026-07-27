@@ -384,6 +384,57 @@ const SupplyChainDashboard = () => {
   const scdExtraPendingCount =
     pendingDirectorSrfs.length + vendorRegistrations.length;
 
+  // Single source of truth for the "Pending Approvals" total — must match
+  // the sum of the 5 breakdown cards rendered below (Vendor Regs + MRF First
+  // Approvals + Trip Approvals + SRFs + Purchase Orders). Previously the top
+  // card used `scdBuckets.pending` (all MRFs in any SCD-owned stage) which
+  // double-counted and diverged from the visible breakdown.
+  const readDashCount = useCallback(
+    (key: string, fallback: number): number => {
+      const raw = scdDashRaw as Record<string, unknown> | null;
+      const stats = (raw?.stats as Record<string, unknown> | undefined) ?? undefined;
+      const candidates = [raw?.[key], stats?.[key]];
+      for (const v of candidates) {
+        if (typeof v === "number") return v;
+        if (Array.isArray(v)) return v.length;
+      }
+      return fallback;
+    },
+    [scdDashRaw],
+  );
+
+  const pendingBreakdownCounts = useMemo(
+    () => ({
+      vendors: readDashCount("pending_vendor_registrations", vendorRegistrations.length),
+      mrf: readDashCount("pending_mrf_scd_first_approval", pendingFirstApprovals.length),
+      trips: readDashCount("pending_trip_approvals", pendingTripApprovals.length),
+      srfs: readDashCount(
+        "pending_srf_scd_approval",
+        scdDashStats?.pendingSrfDirectorApprovals ?? pendingDirectorSrfs.length,
+      ),
+      pos: readDashCount("pending_purchase_orders", pendingPOs.length),
+    }),
+    [
+      readDashCount,
+      vendorRegistrations.length,
+      pendingFirstApprovals.length,
+      pendingTripApprovals.length,
+      scdDashStats?.pendingSrfDirectorApprovals,
+      pendingDirectorSrfs.length,
+      pendingPOs.length,
+    ],
+  );
+
+  const pendingBreakdownTotal = useMemo(
+    () =>
+      pendingBreakdownCounts.vendors +
+      pendingBreakdownCounts.mrf +
+      pendingBreakdownCounts.trips +
+      pendingBreakdownCounts.srfs +
+      pendingBreakdownCounts.pos,
+    [pendingBreakdownCounts],
+  );
+
   const openMrfDetails = useCallback(async (mrf: MRF) => {
     setSelectedMRFForDetails(mrf);
     setMrfFullDetails(null);
