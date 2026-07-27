@@ -849,18 +849,22 @@ const SupplyChainDashboard = () => {
           <DashboardAlerts userRole="supply_chain" maxAlerts={5} />
 
           <DashboardSummaryStats
-            counts={scdBucketCounts}
-            extraPending={scdExtraPendingCount}
-            extraPendingLabel={`${pendingDirectorSrfs.length} SRF${pendingDirectorSrfs.length !== 1 ? "s" : ""}, ${vendorRegistrations.length} vendor registration${vendorRegistrations.length !== 1 ? "s" : ""}`}
+            counts={{
+              ...scdBucketCounts,
+              // Override pending to match the sum of the 5 breakdown cards below.
+              pending: pendingBreakdownTotal,
+            }}
+            extraPending={0}
+            extraPendingLabel={`${pendingBreakdownCounts.mrf} MRF, ${pendingBreakdownCounts.srfs} SRF, ${pendingBreakdownCounts.trips} trip, ${pendingBreakdownCounts.vendors} vendor, ${pendingBreakdownCounts.pos} PO`}
           />
 
           <Tabs defaultValue="pending" className="space-y-4">
             <TabsList className="flex flex-wrap h-auto gap-1">
               <TabsTrigger value="pending">
                 Pending
-                {(scdBuckets.pending.length + scdExtraPendingCount) > 0 && (
+                {pendingBreakdownTotal > 0 && (
                   <Badge variant="destructive" className="ml-2 text-xs">
-                    {scdBuckets.pending.length + scdExtraPendingCount}
+                    {pendingBreakdownTotal}
                   </Badge>
                 )}
               </TabsTrigger>
