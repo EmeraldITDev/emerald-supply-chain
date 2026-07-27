@@ -381,9 +381,6 @@ const SupplyChainDashboard = () => {
     [scdBuckets],
   );
 
-  const scdExtraPendingCount =
-    pendingDirectorSrfs.length + vendorRegistrations.length;
-
   // Single source of truth for the "Pending Approvals" total — must match
   // the sum of the 5 breakdown cards rendered below (Vendor Regs + MRF First
   // Approvals + Trip Approvals + SRFs + Purchase Orders). Previously the top
