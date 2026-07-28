@@ -191,13 +191,6 @@ const SupplyChainDashboard = () => {
     return allTrips.filter((t: any) => isTripAwaitingDirectorApproval(t));
   }, [pendingTripApprovalsData]);
 
-  const scdDashStats = useMemo(
-    () =>
-      (scdDashRaw?.stats as { pendingSrfDirectorApprovals?: number } | undefined) ??
-      null,
-    [scdDashRaw],
-  );
-
   const fetchPendingDirectorSrfs = useCallback(
     () => refetchScdDash().then(() => undefined),
     [refetchScdDash],
@@ -381,42 +374,21 @@ const SupplyChainDashboard = () => {
     [scdBuckets],
   );
 
-  // Single source of truth for the "Pending Approvals" total — must match
-  // the sum of the 5 breakdown cards rendered below (Vendor Regs + MRF First
-  // Approvals + Trip Approvals + SRFs + Purchase Orders). Previously the top
-  // card used `scdBuckets.pending` (all MRFs in any SCD-owned stage) which
-  // double-counted and diverged from the visible breakdown.
-  const readDashCount = useCallback(
-    (key: string, fallback: number): number => {
-      const raw = scdDashRaw as Record<string, unknown> | null;
-      const stats = (raw?.stats as Record<string, unknown> | undefined) ?? undefined;
-      const candidates = [raw?.[key], stats?.[key]];
-      for (const v of candidates) {
-        if (typeof v === "number") return v;
-        if (Array.isArray(v)) return v.length;
-      }
-      return fallback;
-    },
-    [scdDashRaw],
-  );
-
+  // The rendered queues are the only source of truth for these counts. Do not
+  // let a later dashboard-stats response overwrite them with a stale aggregate;
+  // that race made the cards flash from correct values to incorrect ones.
   const pendingBreakdownCounts = useMemo(
     () => ({
-      vendors: readDashCount("pending_vendor_registrations", vendorRegistrations.length),
-      mrf: readDashCount("pending_mrf_scd_first_approval", pendingFirstApprovals.length),
-      trips: readDashCount("pending_trip_approvals", pendingTripApprovals.length),
-      srfs: readDashCount(
-        "pending_srf_scd_approval",
-        scdDashStats?.pendingSrfDirectorApprovals ?? pendingDirectorSrfs.length,
-      ),
-      pos: readDashCount("pending_purchase_orders", pendingPOs.length),
+      vendors: vendorRegistrations.length,
+      mrf: pendingFirstApprovals.length,
+      trips: pendingTripApprovals.length,
+      srfs: pendingDirectorSrfs.length,
+      pos: pendingPOs.length,
     }),
     [
-      readDashCount,
       vendorRegistrations.length,
       pendingFirstApprovals.length,
       pendingTripApprovals.length,
-      scdDashStats?.pendingSrfDirectorApprovals,
       pendingDirectorSrfs.length,
       pendingPOs.length,
     ],
@@ -880,16 +852,6 @@ const SupplyChainDashboard = () => {
               {(() => { return null; })()}
               {/* Pending action breakdown — 5 clickable summary cards bound to backend payload keys */}
               {(() => {
-                const readCount = (key: string, fallback: number): number => {
-                  const raw = scdDashRaw as Record<string, unknown> | null;
-                  const stats = (raw?.stats as Record<string, unknown> | undefined) ?? undefined;
-                  const candidates = [raw?.[key], stats?.[key]];
-                  for (const v of candidates) {
-                    if (typeof v === "number") return v;
-                    if (Array.isArray(v)) return v.length;
-                  }
-                  return fallback;
-                };
                 const cards: Array<{
                   key: "vendors" | "mrf" | "trips" | "srfs" | "pos";
                   label: string;
@@ -899,34 +861,31 @@ const SupplyChainDashboard = () => {
                     {
                       key: "vendors",
                       label: "Vendor Registrations",
-                      count: readCount("pending_vendor_registrations", vendorRegistrations.length),
+                      count: pendingBreakdownCounts.vendors,
                       icon: Building2,
                     },
                     {
                       key: "mrf",
                       label: "MRF First Approvals",
-                      count: readCount("pending_mrf_scd_first_approval", pendingFirstApprovals.length),
+                      count: pendingBreakdownCounts.mrf,
                       icon: FileText,
                     },
                     {
                       key: "trips",
                       label: "Trip Approvals",
-                      count: readCount("pending_trip_approvals", pendingTripApprovals.length),
+                      count: pendingBreakdownCounts.trips,
                       icon: Truck,
                     },
                     {
                       key: "srfs",
                       label: "Service Requests (SRFs)",
-                      count: readCount(
-                        "pending_srf_scd_approval",
-                        scdDashStats?.pendingSrfDirectorApprovals ?? pendingDirectorSrfs.length,
-                      ),
+                      count: pendingBreakdownCounts.srfs,
                       icon: ClipboardList,
                     },
                     {
                       key: "pos",
                       label: "Purchase Orders",
-                      count: readCount("pending_purchase_orders", pendingPOs.length),
+                      count: pendingBreakdownCounts.pos,
                       icon: ShoppingCart,
                     },
                   ];
