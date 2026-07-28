@@ -431,6 +431,53 @@ const SupplyChainDashboard = () => {
     }
   }, []);
 
+  /**
+   * Turn backend approval errors into a message that tells the SCD exactly
+   * what happened, especially the common "already approved by another
+   * approver" case which otherwise looks like the click was ignored.
+   */
+  const mapApprovalError = (
+    error: string | undefined,
+    label: "MRF" | "SRF" = "MRF",
+  ): string => {
+    const raw = (error || "").toLowerCase();
+    if (!raw) return `Failed to approve ${label}`;
+    if (
+      raw.includes("already approved") ||
+      raw.includes("already_approved") ||
+      raw.includes("already been approved")
+    ) {
+      return `This ${label} has already been approved. Refreshing the list…`;
+    }
+    if (raw.includes("not pending") || raw.includes("wrong stage")) {
+      return `This ${label} is no longer awaiting your approval.`;
+    }
+    if (raw.includes("403") || raw.includes("forbidden") || raw.includes("permission")) {
+      return "You do not have permission to approve this request.";
+    }
+    return error || `Failed to approve ${label}`;
+  };
+
+  /**
+   * Backend returns a 422 with "No unsigned PO found" when the PO record it
+   * expects to sign is either missing or was generated against a different
+   * MRF identifier. Give the SCD a next step instead of a raw error string.
+   */
+  const mapSignedPoError = (error: string | undefined): string => {
+    const raw = (error || "").toLowerCase();
+    if (!raw) return "Failed to upload signed PO";
+    if (raw.includes("no unsigned po") || raw.includes("po not found")) {
+      return "The unsigned Purchase Order could not be found on the server. Ask Procurement to regenerate the PO, then try attaching your signature again.";
+    }
+    if (raw.includes("already signed") || raw.includes("already_signed")) {
+      return "This Purchase Order has already been signed. Refresh to see the latest status.";
+    }
+    if (raw.includes("413") || raw.includes("too large")) {
+      return "The signed PO file is too large. Please compress the document and try again.";
+    }
+    return error || "Failed to upload signed PO";
+  };
+
   const handleFirstApprovalApprove = async (remarks: string) => {
     const target = mrfForFirstApproval;
     if (!target) return;
