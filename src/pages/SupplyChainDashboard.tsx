@@ -103,6 +103,36 @@ const SupplyChainDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const removeMrfFromScdDashboardCache = useCallback((mrfId: string | number | undefined) => {
+    const normalizedId = String(mrfId ?? "").trim();
+    if (!normalizedId) return;
+
+    queryClient.setQueryData<MRF[] | undefined>(
+      queryKeys.dashboard.scdMrfs(),
+      (prev) => {
+        if (!prev) return prev;
+        return prev.filter((m) => {
+          const currentId = String(m.id ?? (m as { mrf_id?: string }).mrf_id ?? "");
+          const formattedId = String(m.formatted_id ?? (m as { formattedId?: string }).formattedId ?? "");
+          return currentId !== normalizedId && formattedId !== normalizedId;
+        });
+      },
+    );
+  }, [queryClient]);
+
+  const refreshScdDashboardCaches = useCallback(async (mrfId?: string | number) => {
+    if (mrfId !== undefined && mrfId !== null && mrfId !== "") {
+      removeMrfFromScdDashboardCache(mrfId);
+    }
+
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.scdMrfs(), refetchType: "active" }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.supplyChainDirectorRaw(), refetchType: "active" }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all, refetchType: "active" }),
+    ]);
+  }, [queryClient, removeMrfFromScdDashboardCache]);
+
   const {
     data: mrfRequests = [],
     isLoading: loading,
@@ -488,9 +518,7 @@ const SupplyChainDashboard = () => {
       const response = await mrfApi.supplyChainDirectorApprove(mrfId, remarks);
       if (response.success) {
         toast.success("MRF approved - routed to Procurement");
-        await queryClient.invalidateQueries({
-          queryKey: queryKeys.dashboard.scdMrfs(),
-        });
+        await refreshScdDashboardCaches(mrfId);
       } else {
         toast.error(mapApprovalError(response.error, "MRF"));
       }
@@ -1450,7 +1478,7 @@ const SupplyChainDashboard = () => {
                                         await mrfApi.approveVendorSelection(
                                           mrf.id,
                                         );
-                                      if (approveResponse.success) {
+                                                                      if (approveResponse.success) {
                                         toast.success(
                                           "Vendor selection approved - Procurement can now generate PO based on the approved RFQ",
                                         );
@@ -1459,7 +1487,7 @@ const SupplyChainDashboard = () => {
                                             "Vendor invoice upload is now unlocked for this MRF (advance payment).",
                                           );
                                         }
-                                        await fetchMRFs();
+                                        await refreshScdDashboardCaches(mrf.id);
                                       } else {
                                         toast.error(
                                           approveResponse.error ||
@@ -1570,7 +1598,7 @@ const SupplyChainDashboard = () => {
                                         toast.success(
                                           "Final approval granted — Procurement can now generate PO",
                                         );
-                                        await fetchMRFs();
+                                        await refreshScdDashboardCaches(mrf.id);
                                       } else {
                                         toast.error(
                                           response.error || "Failed to approve",
