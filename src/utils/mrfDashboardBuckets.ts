@@ -11,7 +11,7 @@ export type MrfDashboardBucket = "pending" | "approved" | "rejected" | "complete
  * stays as the workflow_state until BOTH parallel approvers sign off).
  */
 function pendingForRoleFlag(mrf: MRF): boolean | undefined {
-  const v = (mrf as Record<string, unknown>)[PENDING_FOR_ROLE_FLAG];
+  const v = (mrf as unknown as Record<string, unknown>)[PENDING_FOR_ROLE_FLAG];
   return typeof v === "boolean" ? v : undefined;
 }
 
