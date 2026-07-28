@@ -1,6 +1,19 @@
 import type { MRF } from "@/types";
+import { PENDING_FOR_ROLE_FLAG } from "@/utils/fetchDashboardMrfs";
 
 export type MrfDashboardBucket = "pending" | "approved" | "rejected" | "completed";
+
+/**
+ * Backend-authoritative "pending for this role" signal. Set by
+ * {@link fetchDashboardMrfs}. When present it wins over stage/workflow_state
+ * heuristics — this is what keeps SCD/Executive dashboards from re-showing
+ * an MRF the current role already approved (e.g. `parallel_first_approval`
+ * stays as the workflow_state until BOTH parallel approvers sign off).
+ */
+function pendingForRoleFlag(mrf: MRF): boolean | undefined {
+  const v = (mrf as Record<string, unknown>)[PENDING_FOR_ROLE_FLAG];
+  return typeof v === "boolean" ? v : undefined;
+}
 
 export function getWorkflowState(mrf: MRF): string {
   return String(mrf.workflow_state || mrf.workflowState || "")
@@ -55,6 +68,9 @@ export function isMrfCompleted(mrf: MRF): boolean {
 
 /** Executive or parallel first approval awaiting executive action */
 export function isExecutivePendingApproval(mrf: MRF): boolean {
+  const flag = pendingForRoleFlag(mrf);
+  if (flag === false) return false;
+  if (flag === true) return true;
   const status = String(mrf.status || "").toLowerCase().trim();
   const currentStage = getCurrentStage(mrf);
   const workflowState = getWorkflowState(mrf);
@@ -112,6 +128,20 @@ export function getExecutiveApprovalDate(mrf: MRF): string | null {
 
 /** SCD first approval (parallel or legacy) */
 export function isScdPendingFirstApproval(mrf: MRF): boolean {
+  const flag = pendingForRoleFlag(mrf);
+  // Flag=false is only authoritative for the first-approval stage — SCD may
+  // still be expected to act later (vendor selection, PO signing, final
+  // approval) even when the parallel first-approval gate is done.
+  if (flag === false) {
+    const stage = getCurrentStage(mrf);
+    const ws = getWorkflowState(mrf);
+    if (
+      stage === "parallel_first_approval" ||
+      ws === "parallel_first_approval"
+    ) {
+      return false;
+    }
+  }
   const stage = getCurrentStage(mrf);
   const workflowState = getWorkflowState(mrf);
   return (
