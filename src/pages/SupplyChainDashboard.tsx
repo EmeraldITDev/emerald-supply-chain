@@ -431,18 +431,68 @@ const SupplyChainDashboard = () => {
     }
   }, []);
 
+  /**
+   * Turn backend approval errors into a message that tells the SCD exactly
+   * what happened, especially the common "already approved by another
+   * approver" case which otherwise looks like the click was ignored.
+   */
+  const mapApprovalError = (
+    error: string | undefined,
+    label: "MRF" | "SRF" = "MRF",
+  ): string => {
+    const raw = (error || "").toLowerCase();
+    if (!raw) return `Failed to approve ${label}`;
+    if (
+      raw.includes("already approved") ||
+      raw.includes("already_approved") ||
+      raw.includes("already been approved")
+    ) {
+      return `This ${label} has already been approved. Refreshing the list…`;
+    }
+    if (raw.includes("not pending") || raw.includes("wrong stage")) {
+      return `This ${label} is no longer awaiting your approval.`;
+    }
+    if (raw.includes("403") || raw.includes("forbidden") || raw.includes("permission")) {
+      return "You do not have permission to approve this request.";
+    }
+    return error || `Failed to approve ${label}`;
+  };
+
+  /**
+   * Backend returns a 422 with "No unsigned PO found" when the PO record it
+   * expects to sign is either missing or was generated against a different
+   * MRF identifier. Give the SCD a next step instead of a raw error string.
+   */
+  const mapSignedPoError = (error: string | undefined): string => {
+    const raw = (error || "").toLowerCase();
+    if (!raw) return "Failed to upload signed PO";
+    if (raw.includes("no unsigned po") || raw.includes("po not found")) {
+      return "The unsigned Purchase Order could not be found on the server. Ask Procurement to regenerate the PO, then try attaching your signature again.";
+    }
+    if (raw.includes("already signed") || raw.includes("already_signed")) {
+      return "This Purchase Order has already been signed. Refresh to see the latest status.";
+    }
+    if (raw.includes("413") || raw.includes("too large")) {
+      return "The signed PO file is too large. Please compress the document and try again.";
+    }
+    return error || "Failed to upload signed PO";
+  };
+
   const handleFirstApprovalApprove = async (remarks: string) => {
     const target = mrfForFirstApproval;
     if (!target) return;
 
-    const mrfId = target.id;
+    const mrfId = getMrfApiId(target) || target.id;
     setActionLoading(mrfId);
     try {
       const response = await mrfApi.supplyChainDirectorApprove(mrfId, remarks);
       if (response.success) {
         toast.success("MRF approved - routed to Procurement");
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.dashboard.scdMrfs(),
+        });
       } else {
-        toast.error(response.error || "Failed to approve MRF");
+        toast.error(mapApprovalError(response.error, "MRF"));
       }
     } catch (error) {
       toast.error("Failed to connect to server");
@@ -458,7 +508,7 @@ const SupplyChainDashboard = () => {
     const target = mrfForFirstApproval;
     if (!target) return;
 
-    const mrfId = target.id;
+    const mrfId = getMrfApiId(target) || target.id;
     setActionLoading(mrfId);
     try {
       const response = await mrfApi.supplyChainDirectorReject(mrfId, reason);
@@ -527,45 +577,43 @@ const SupplyChainDashboard = () => {
   };
 
   const handleUploadSignedPO = async (mrfId: string) => {
-    const file = signedPOs[mrfId];
+    const targetMrf = mrfRequests.find(
+      (m) => m.id === mrfId || getMrfApiId(m) === mrfId,
+    );
+    const localKey = targetMrf?.id ?? mrfId;
+    const apiId = targetMrf ? getMrfApiId(targetMrf) || mrfId : mrfId;
+    const file = signedPOs[localKey];
     if (!file) {
       toast.error("Please select a signed PO file");
       return;
     }
 
-    // Check available actions from backend before proceeding
-    try {
-      const response = await mrfApi.getAvailableActions(mrfId);
-      if (response.success && response.data) {
-        // Verify we can upload signed PO (check if unsigned PO exists)
-        const mrf = mrfRequests.find((m) => m.id === mrfId);
-        if (!mrf || (!mrf.unsigned_po_url && !mrf.unsignedPOUrl)) {
-          toast.error("PO document not available for signing");
-          return;
-        }
-      } else {
-        toast.error("Could not verify permissions. Please try again.");
-        return;
-      }
-    } catch (error) {
-      toast.error("Failed to check permissions. Please try again.");
+    if (targetMrf && !targetMrf.unsigned_po_url && !targetMrf.unsignedPOUrl) {
+      toast.error(
+        "The system could not locate the unsigned Purchase Order. Please refresh the page and try again, or contact your Procurement Manager to confirm the PO has been generated.",
+      );
       return;
     }
 
-    setActionLoading(mrfId);
+    setActionLoading(localKey);
 
     try {
-      // Call the real backend API endpoint
-      const response = await mrfApi.uploadSignedPO(mrfId, file);
+      // Call the real backend API endpoint. Use the resolved API id (prefers
+      // formatted_id, same as every other MRF mutation) so the backend can
+      // locate the same PO record that was generated for this MRF.
+      const response = await mrfApi.uploadSignedPO(apiId, file);
 
       if (response.success) {
         toast.success(
           "Signed PO uploaded successfully - Forwarded to Finance for payment processing",
         );
-        setSignedPOs((prev) => ({ ...prev, [mrfId]: null }));
+        setSignedPOs((prev) => ({ ...prev, [localKey]: null }));
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.dashboard.scdMrfs(),
+        });
         await fetchMRFs();
       } else {
-        toast.error(response.error || "Failed to upload signed PO");
+        toast.error(mapSignedPoError(response.error));
       }
     } catch (error) {
       toast.error("Failed to connect to server");
@@ -575,17 +623,22 @@ const SupplyChainDashboard = () => {
   };
 
   const handleAttachSignature = async (mrfId: string) => {
-    const override = attachSignatureFiles[mrfId] || null;
-    setActionLoading(mrfId);
+    const targetMrf = mrfRequests.find(
+      (m) => m.id === mrfId || getMrfApiId(m) === mrfId,
+    );
+    const localKey = targetMrf?.id ?? mrfId;
+    const apiId = targetMrf ? getMrfApiId(targetMrf) || mrfId : mrfId;
+    const override = attachSignatureFiles[localKey] || null;
+    setActionLoading(localKey);
     try {
-      const fullRes = await mrfApi.getById(mrfId);
+      const fullRes = await mrfApi.getById(apiId);
       if (!fullRes.success || !fullRes.data) {
         toast.error(fullRes.error || "Could not load MRF for signing");
         return;
       }
       const fullMrf = fullRes.data;
 
-      const pcRes = await procurementApi.getPriceComparison(mrfId);
+      const pcRes = await procurementApi.getPriceComparison(apiId);
       const rows = pcRes.success && pcRes.data ? pcRes.data : [];
 
       const selectedRow = rows.find(
@@ -677,13 +730,16 @@ const SupplyChainDashboard = () => {
         type: "application/pdf",
       });
 
-      const response = await mrfApi.uploadSignedPO(mrfId, file);
+      const response = await mrfApi.uploadSignedPO(apiId, file);
       if (response.success) {
         toast.success(
           "Signature attached — opening the signed Purchase Order.",
         );
-        setAttachSignatureFiles((prev) => ({ ...prev, [mrfId]: null }));
-        setSignedPOs((prev) => ({ ...prev, [mrfId]: null }));
+        setAttachSignatureFiles((prev) => ({ ...prev, [localKey]: null }));
+        setSignedPOs((prev) => ({ ...prev, [localKey]: null }));
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.dashboard.scdMrfs(),
+        });
         try {
           window.dispatchEvent(new Event("app:refresh"));
         } catch {
@@ -691,9 +747,9 @@ const SupplyChainDashboard = () => {
         }
         // Take the SCD straight to the PO detail view she just signed, where she
         // can immediately download the signed PO PDF (with her signature).
-        navigate(`/pos/${encodeURIComponent(mrfId)}?signed=1`);
+        navigate(`/pos/${encodeURIComponent(apiId)}?signed=1`);
       } else {
-        toast.error(response.error || "Failed to attach signature");
+        toast.error(mapSignedPoError(response.error));
       }
     } catch (e) {
       toast.error(
