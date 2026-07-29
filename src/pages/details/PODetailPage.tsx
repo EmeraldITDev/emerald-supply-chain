@@ -6,6 +6,8 @@ import { EntityDetailShell, DetailFields } from "./EntityDetailShell";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { getDashboardPath } from "@/utils/scmRole";
 
 /**
  * PO detail view. The PO is a derivative of its MRF, so we hydrate via mrfApi.
@@ -14,6 +16,8 @@ import { toast } from "sonner";
  */
 export default function PODetailPage() {
   const { id = "" } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const dashboardPath = getDashboardPath(user);
   const [searchParams] = useSearchParams();
   const [mrf, setMrf] = useState<MRF | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,8 +73,8 @@ export default function PODetailPage() {
       title={m?.po_number || m?.poNumber || "Purchase Order"}
       subtitle={m?.title || m?.description}
       status={m?.po_status || m?.poStatus || m?.status}
-      backTo="/procurement"
-      backLabel="Back to Procurement"
+      backTo={dashboardPath}
+      backLabel="Back to Dashboard"
       loading={loading}
       error={error}
       notFound={!loading && !error && !mrf}
