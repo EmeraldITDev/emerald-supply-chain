@@ -1799,9 +1799,19 @@ const SupplyChainDashboard = () => {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleDownloadPO(mrf)}
+                                      disabled={downloadingPoId === String(mrf.id)}
                                     >
-                                      <Download className="h-4 w-4 mr-2" />
-                                      Download PO
+                                      {downloadingPoId === String(mrf.id) ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Preparing...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Download className="h-4 w-4 mr-2" />
+                                          Download PO
+                                        </>
+                                      )}
                                     </Button>
                                     <ViewPoDocumentsButton
                                       mrfId={mrf.id}
