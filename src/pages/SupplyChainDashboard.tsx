@@ -170,6 +170,7 @@ const SupplyChainDashboard = () => {
   const [selectedTripForDetails, setSelectedTripForDetails] = useState<any | null>(null);
 
   const [approvingTripId, setApprovingTripId] = useState<string | null>(null);
+  const [downloadingPoId, setDownloadingPoId] = useState<string | null>(null);
   const [pendingFilter, setPendingFilter] = useState<
     "all" | "vendors" | "mrf" | "trips" | "srfs" | "pos"
   >("all");
@@ -793,17 +794,32 @@ const SupplyChainDashboard = () => {
   };
 
   const handleDownloadPO = async (mrf: MRF) => {
-    const { downloadMrfPurchaseOrderPdf } = await import(
-      "@/utils/downloadMrfPurchaseOrderPdf"
-    );
-    const res = await downloadMrfPurchaseOrderPdf(mrf);
-    if (res.success) {
-      toast.success("PO download started", {
-        description: "Emerald layout via server stream",
+    if (downloadingPoId) return;
+    setDownloadingPoId(String(mrf.id));
+    const loadingToast = toast.loading("Preparing PO download...");
+    try {
+      const { downloadMrfPurchaseOrderPdf } = await import(
+        "@/utils/downloadMrfPurchaseOrderPdf"
+      );
+      const res = await downloadMrfPurchaseOrderPdf(mrf);
+      if (res.success) {
+        toast.success("PO download started", {
+          id: loadingToast,
+          description: "Emerald layout via server stream",
+        });
+        return;
+      }
+      toast.error(res.error || "PO document not available for download", {
+        id: loadingToast,
       });
-      return;
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "PO document could not be downloaded",
+        { id: loadingToast },
+      );
+    } finally {
+      setDownloadingPoId(null);
     }
-    toast.error(res.error || "PO document not available for download");
   };
 
   // Handle reject vendor selection or PO
@@ -1783,9 +1799,19 @@ const SupplyChainDashboard = () => {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleDownloadPO(mrf)}
+                                      disabled={downloadingPoId === String(mrf.id)}
                                     >
-                                      <Download className="h-4 w-4 mr-2" />
-                                      Download PO
+                                      {downloadingPoId === String(mrf.id) ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Preparing...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Download className="h-4 w-4 mr-2" />
+                                          Download PO
+                                        </>
+                                      )}
                                     </Button>
                                     <ViewPoDocumentsButton
                                       mrfId={mrf.id}
