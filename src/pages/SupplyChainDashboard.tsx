@@ -794,17 +794,32 @@ const SupplyChainDashboard = () => {
   };
 
   const handleDownloadPO = async (mrf: MRF) => {
-    const { downloadMrfPurchaseOrderPdf } = await import(
-      "@/utils/downloadMrfPurchaseOrderPdf"
-    );
-    const res = await downloadMrfPurchaseOrderPdf(mrf);
-    if (res.success) {
-      toast.success("PO download started", {
-        description: "Emerald layout via server stream",
+    if (downloadingPoId) return;
+    setDownloadingPoId(String(mrf.id));
+    const loadingToast = toast.loading("Preparing PO download...");
+    try {
+      const { downloadMrfPurchaseOrderPdf } = await import(
+        "@/utils/downloadMrfPurchaseOrderPdf"
+      );
+      const res = await downloadMrfPurchaseOrderPdf(mrf);
+      if (res.success) {
+        toast.success("PO download started", {
+          id: loadingToast,
+          description: "Emerald layout via server stream",
+        });
+        return;
+      }
+      toast.error(res.error || "PO document not available for download", {
+        id: loadingToast,
       });
-      return;
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "PO document could not be downloaded",
+        { id: loadingToast },
+      );
+    } finally {
+      setDownloadingPoId(null);
     }
-    toast.error(res.error || "PO document not available for download");
   };
 
   // Handle reject vendor selection or PO
