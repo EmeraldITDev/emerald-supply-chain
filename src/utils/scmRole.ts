@@ -57,6 +57,21 @@ export function formatScmRoleLabel(role?: string | null): string {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1).replace(/_/g, " ");
 }
 
+/** Route of the dashboard that belongs to the given user's SCM role. */
+export function getDashboardPath(user?: ScmRoleFields | null): string {
+  switch (getScmRole(user)) {
+    case "executive":
+      return "/executive";
+    case "chairman":
+      return "/chairman";
+    case "supply_chain_director":
+    case "supply_chain":
+      return "/supply-chain";
+    default:
+      return "/dashboard";
+  }
+}
+
 /** Resolve SCM role from a User API record; never returns null. */
 export function getUserScmRole(user: Pick<User, "supply_chain_role" | "role">): string | undefined {
   const role = user.supply_chain_role ?? user.role;
