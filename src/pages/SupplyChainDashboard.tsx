@@ -170,6 +170,7 @@ const SupplyChainDashboard = () => {
   const [selectedTripForDetails, setSelectedTripForDetails] = useState<any | null>(null);
 
   const [approvingTripId, setApprovingTripId] = useState<string | null>(null);
+  const [downloadingPoId, setDownloadingPoId] = useState<string | null>(null);
   const [pendingFilter, setPendingFilter] = useState<
     "all" | "vendors" | "mrf" | "trips" | "srfs" | "pos"
   >("all");
