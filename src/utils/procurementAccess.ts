@@ -1,3 +1,4 @@
+import { hasAdminAccess } from "@/utils/scmRole";
 /** Roles with full procurement dashboard access (create, approve, PO, RFQ). */
 export const PROCUREMENT_FULL_ACCESS_ROLES = [
   "procurement",
@@ -11,7 +12,8 @@ export const PROCUREMENT_FULL_ACCESS_ROLES = [
 /** Logistics Manager — read-only Procurement Overview at /procurement */
 export const PROCUREMENT_OVERVIEW_ROLES = ["logistics_manager", "logistics"] as const;
 
-export function canAccessProcurementPage(role?: string | null): boolean {
+export function canAccessProcurementPage(role?: string | null, user?: { is_admin?: boolean } | null): boolean {
+  if (hasAdminAccess(user)) return true;
   if (!role) return false;
   return (
     (PROCUREMENT_FULL_ACCESS_ROLES as readonly string[]).includes(role) ||

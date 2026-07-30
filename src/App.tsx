@@ -75,7 +75,7 @@ const ProcurementRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!isAuthenticated) return <Navigate to="/auth" replace />;
   const scmRole = getScmRole(user);
-  if (!canAccessProcurementPage(scmRole)) {
+  if (!canAccessProcurementPage(scmRole, user)) {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
