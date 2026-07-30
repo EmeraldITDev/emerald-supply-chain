@@ -1,10 +1,10 @@
-import { 
-  LayoutDashboard, 
-  Package, 
-  Truck, 
-  Warehouse, 
-  ShoppingCart, 
-  Users, 
+import {
+  LayoutDashboard,
+  Package,
+  Truck,
+  Warehouse,
+  ShoppingCart,
+  Users,
   FileText,
   Settings,
   LogOut,
@@ -36,9 +36,17 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import logo from "@/assets/emerald-logo.png";
-import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import {
+  getScmRole,
+  formatScmRoleLabel,
+  hasAdminAccess,
+} from "@/utils/scmRole";
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
@@ -65,47 +73,86 @@ export function AppSidebar() {
   const fullProcurementNav = [
     {
       label: "Main",
-      items: [
-        { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-      ]
+      items: [{ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard }],
     },
     travelNavSection,
     {
       label: "Operations",
       items: [
-        { 
-          title: "Procurement", 
-          url: "/procurement", 
+        {
+          title: "Procurement",
+          url: "/procurement",
           icon: ShoppingCart,
           subItems: [
             { title: "Overview", url: "/procurement" },
             // MRF/SRF creation removed - only employees can create via Department Dashboard
-          ]
+          ],
         },
         { title: "Vendors", url: "/vendors", icon: Users },
         { title: "Logistics", url: "/logistics", icon: Truck },
         { title: "Inventory", url: "/inventory", icon: Package },
         { title: "Warehouse", url: "/warehouse", icon: Warehouse },
-      ]
+      ],
     },
     {
       label: "Analytics",
       items: [
         { title: "Reports", url: "/reports", icon: FileText },
-        { title: "Procurement Reports", url: "/reports/procurement", icon: BarChart3 },
-      ]
-    }
+        {
+          title: "Procurement Reports",
+          url: "/reports/procurement",
+          icon: BarChart3,
+        },
+      ],
+    },
   ];
 
   // Role-based navigation structure
   const getNavigationGroups = () => {
+    if (hasAdminAccess(user)) {
+      return [
+        {
+          label: "Main",
+          items: [
+            { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+          ],
+        },
+        travelNavSection,
+        {
+          label: "Operations",
+          items: [
+            {
+              title: "Procurement",
+              url: "/procurement",
+              icon: ShoppingCart,
+              subItems: [{ title: "Overview", url: "/procurement" }],
+            },
+            { title: "Vendors", url: "/vendors", icon: Users },
+            { title: "Logistics", url: "/logistics", icon: Truck },
+            { title: "Inventory", url: "/inventory", icon: Package },
+            { title: "Warehouse", url: "/warehouse", icon: Warehouse },
+          ],
+        },
+        {
+          label: "Analytics",
+          items: [
+            { title: "Reports", url: "/reports", icon: FileText },
+            {
+              title: "Procurement Reports",
+              url: "/reports/procurement",
+              icon: BarChart3,
+            },
+          ],
+        },
+      ];
+    }
     if (isEmployeeRole(getScmRole(user))) {
       return [
         {
           label: "Main",
           items: [
             { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-          ]
+          ],
         },
         {
           label: "Requests",
@@ -114,12 +161,19 @@ export function AppSidebar() {
             { title: "New MRF", url: "/new-mrf", icon: FileText },
             { title: "New SRF", url: "/new-srf", icon: FileText },
             { title: "Trip Request", url: "/trip-request", icon: MapPin },
-            { title: "Annual Planning", url: "/department?tab=annual", icon: Calendar },
-          ]
+            {
+              title: "Annual Planning",
+              url: "/department?tab=annual",
+              icon: Calendar,
+            },
+          ],
         },
         travelNavSection,
       ];
-    } else if (getScmRole(user) === "procurement" || getScmRole(user) === "procurement_manager") {
+    } else if (
+      getScmRole(user) === "procurement" ||
+      getScmRole(user) === "procurement_manager"
+    ) {
       // Procurement Manager: Full system, no approvals
       return fullProcurementNav;
     } else if (getScmRole(user) === "finance") {
@@ -128,24 +182,36 @@ export function AppSidebar() {
           label: "Main",
           items: [
             { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-          ]
+          ],
         },
         {
           label: "Finance",
           items: [
-            { title: "Accounts Payable", url: "/accounts-payable", icon: Receipt },
-            { title: "Accounts Receivable", url: "/accounts-receivable", icon: DollarSign },
+            {
+              title: "Accounts Payable",
+              url: "/accounts-payable",
+              icon: Receipt,
+            },
+            {
+              title: "Accounts Receivable",
+              url: "/accounts-receivable",
+              icon: DollarSign,
+            },
             { title: "Budget Control", url: "/budget", icon: BarChart3 },
-          ]
+          ],
         },
         travelNavSection,
         {
           label: "Analytics",
           items: [
             { title: "Reports", url: "/reports", icon: FileText },
-            { title: "Procurement Reports", url: "/reports/procurement", icon: BarChart3 },
-          ]
-        }
+            {
+              title: "Procurement Reports",
+              url: "/reports/procurement",
+              icon: BarChart3,
+            },
+          ],
+        },
       ];
     } else if (getScmRole(user) === "executive") {
       // Executive: Full procurement access + MRF approval authority
@@ -155,8 +221,8 @@ export function AppSidebar() {
           label: "Approvals",
           items: [
             { title: "MRF Approvals", url: "/executive", icon: FileText },
-          ]
-        }
+          ],
+        },
       ];
     } else if (getScmRole(user) === "chairman") {
       // Chairman: Full procurement access + high-value MRF & payment approvals
@@ -167,10 +233,13 @@ export function AppSidebar() {
           items: [
             { title: "High-Value MRFs", url: "/chairman", icon: FileText },
             { title: "Payment Approvals", url: "/chairman", icon: DollarSign },
-          ]
-        }
+          ],
+        },
       ];
-    } else if (getScmRole(user) === "supply_chain_director" || getScmRole(user) === "supply_chain") {
+    } else if (
+      getScmRole(user) === "supply_chain_director" ||
+      getScmRole(user) === "supply_chain"
+    ) {
       // Supply Chain Director: Full procurement access + PO signing
       // Note: Database may use "supply_chain" or "supply_chain_director" for this role
       return [
@@ -178,9 +247,13 @@ export function AppSidebar() {
         {
           label: "PO Management",
           items: [
-            { title: "Sign Purchase Orders", url: "/supply-chain", icon: FileText },
-          ]
-        }
+            {
+              title: "Sign Purchase Orders",
+              url: "/supply-chain",
+              icon: FileText,
+            },
+          ],
+        },
       ];
     } else if (getScmRole(user) === "logistics_manager") {
       // Logistics Manager: full logistics ops + create own MRF/SRF + read-only procurement
@@ -189,7 +262,7 @@ export function AppSidebar() {
           label: "Main",
           items: [
             { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-          ]
+          ],
         },
         {
           label: "Requests",
@@ -198,8 +271,12 @@ export function AppSidebar() {
             { title: "New MRF", url: "/new-mrf", icon: FileText },
             { title: "New SRF", url: "/new-srf", icon: FileText },
             { title: "Trip Request", url: "/trip-request", icon: MapPin },
-            { title: "Annual Planning", url: "/department?tab=annual", icon: Calendar },
-          ]
+            {
+              title: "Annual Planning",
+              url: "/department?tab=annual",
+              icon: Calendar,
+            },
+          ],
         },
         travelNavSection,
         {
@@ -208,26 +285,33 @@ export function AppSidebar() {
             { title: "Logistics", url: "/logistics", icon: Truck },
             { title: "Vendors", url: "/vendors", icon: Users },
             { title: "Inventory", url: "/inventory", icon: Package },
-          ]
+          ],
         },
         {
           label: "Procurement",
           items: [
-            { title: "Procurement Overview", url: "/procurement", icon: ShoppingCart },
-          ]
+            {
+              title: "Procurement Overview",
+              url: "/procurement",
+              icon: ShoppingCart,
+            },
+          ],
         },
         {
           label: "Analytics",
-          items: [
-            { title: "Reports", url: "/reports", icon: FileText },
-          ]
-        }
+          items: [{ title: "Reports", url: "/reports", icon: FileText }],
+        },
       ];
-    } else if (getScmRole(user) === "logistics" || getScmRole(user) === "logistics_officer") {
+    } else if (
+      getScmRole(user) === "logistics" ||
+      getScmRole(user) === "logistics_officer"
+    ) {
       return [
         {
           label: "Main",
-          items: [{ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard }],
+          items: [
+            { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+          ],
         },
         travelNavSection,
         {
@@ -248,11 +332,19 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2 px-2 py-3">
-          <img src={logo} alt="Emerald Industrial" className="h-8 w-8 object-contain" />
+          <img
+            src={logo}
+            alt="Emerald Industrial"
+            className="h-8 w-8 object-contain"
+          />
           {open && (
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground">Emerald SCM</span>
-              <span className="text-xs text-sidebar-foreground/60">Supply Chain ERP</span>
+              <span className="text-sm font-semibold text-sidebar-foreground">
+                Emerald SCM
+              </span>
+              <span className="text-xs text-sidebar-foreground/60">
+                Supply Chain ERP
+              </span>
             </div>
           )}
         </div>
@@ -265,7 +357,9 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {
-                  const withSub = item as typeof item & { subItems?: { title: string; url: string }[] };
+                  const withSub = item as typeof item & {
+                    subItems?: { title: string; url: string }[];
+                  };
                   if (withSub.subItems) {
                     return (
                       <Collapsible key={item.title} asChild defaultOpen={false}>

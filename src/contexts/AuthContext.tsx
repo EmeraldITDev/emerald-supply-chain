@@ -38,6 +38,7 @@ export interface AuthUser {
   department: string | null;
   employeeId?: number;
   signature_url?: string | null;
+  is_admin?: boolean;
 }
 
 function mapAuthUserFromApi(data: User): AuthUser {
@@ -55,6 +56,7 @@ function mapAuthUserFromApi(data: User): AuthUser {
     department: data.department ?? null,
     employeeId: data.employeeId,
     signature_url: d.signature_url ?? d.signatureUrl ?? null,
+    is_admin: !!(data as any).is_admin,
   };
 }
 

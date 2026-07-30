@@ -87,3 +87,7 @@ export function getUserScmRoleOrDefault(
 ): string {
   return getUserScmRole(user) ?? fallback;
 }
+
+export function hasAdminAccess(user?: { is_admin?: boolean } | null): boolean {
+  return !!(user?.is_admin);
+}
