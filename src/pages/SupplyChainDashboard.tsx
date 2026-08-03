@@ -1232,7 +1232,8 @@ const SupplyChainDashboard = () => {
                                   onClick={async () => {
                                     setApprovingTripId(tid);
                                     const res = await tripRequestApi.directorApprove(tid);
-                                    if (res.success) {
+                                    const stale = !res.success && isStaleTripStateError(res);
+                                    if (res.success || stale) {
                                       toast.success(
                                         "Trip approved. The Logistics Manager has been notified.",
                                       );
