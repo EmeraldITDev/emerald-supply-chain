@@ -151,6 +151,17 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [selectedTripRequest, setSelectedTripRequest] = useState<StaffTripRequest | null>(null);
   const [loadingTripRequest, setLoadingTripRequest] = useState(false);
 
+  // Accommodation & escort (security) details for the edit dialog
+  const [accommodation, setAccommodation] = useState({
+    required: false,
+    name: "",
+    address: "",
+    contact: "",
+    details: "",
+    estimatedCost: "",
+  });
+  const [escort, setEscort] = useState({ required: false, description: "" });
+
   // When a trip request row (TRQ-*) is opened in the details dialog, fetch the
   // underlying StaffTripRequest so trip-request workflow buttons (Forward,
   // Request changes, Reject) can render.
@@ -496,6 +507,18 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               license_number: externalDriver.license_number.trim() || undefined,
             }
           : undefined,
+        accommodation_required: accommodation.required,
+        accommodation_name: accommodation.required ? accommodation.name.trim() || undefined : undefined,
+        accommodation_address: accommodation.required ? accommodation.address.trim() || undefined : undefined,
+        accommodation_contact: accommodation.required ? accommodation.contact.trim() || undefined : undefined,
+        accommodation_details: accommodation.required ? accommodation.details.trim() || undefined : undefined,
+        accommodation_estimated_cost:
+          accommodation.required && accommodation.estimatedCost.trim() !== "" &&
+          !Number.isNaN(Number(accommodation.estimatedCost))
+            ? Number(accommodation.estimatedCost)
+            : undefined,
+        escort_required: escort.required,
+        escort_description: escort.required ? escort.description.trim() || undefined : undefined,
       };
 
       const response = await tripsApi.create(tripPayload as any);
@@ -778,6 +801,20 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       cargo: trip.cargo,
     });
     setSelectedPassengers(trip.passengers?.map(p => p.staffId) || []);
+    const acc = trip as any;
+    const accCost = acc.accommodationEstimatedCost ?? acc.accommodation_estimated_cost;
+    setAccommodation({
+      required: Boolean(acc.accommodationRequired ?? acc.accommodation_required),
+      name: String(acc.accommodationName ?? acc.accommodation_name ?? ""),
+      address: String(acc.accommodationAddress ?? acc.accommodation_address ?? ""),
+      contact: String(acc.accommodationContact ?? acc.accommodation_contact ?? ""),
+      details: String(acc.accommodationDetails ?? acc.accommodation_details ?? ""),
+      estimatedCost: accCost == null ? "" : String(accCost),
+    });
+    setEscort({
+      required: Boolean(acc.escortRequired ?? acc.escort_required),
+      description: String(acc.escortDescription ?? acc.escort_description ?? ""),
+    });
     // Detect external driver: trip carries driver name/phone but no internal driver id
     const tAny = trip as any;
     const extName = tAny.external_driver?.name || (!tAny.driver_id && trip.driverName) || "";
@@ -2004,6 +2041,101 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   setFormData(prev => ({ ...prev, notes: e.target.value }))
                 }
               />
+            </div>
+
+            {/* Accommodation */}
+            <div className="space-y-3 rounded-md border p-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="edit-accommodation-required"
+                  checked={accommodation.required}
+                  onCheckedChange={(v) => setAccommodation((a) => ({ ...a, required: v }))}
+                />
+                <Label htmlFor="edit-accommodation-required" className="cursor-pointer">
+                  Accommodation required
+                </Label>
+              </div>
+              <div
+                className={
+                  accommodation.required
+                    ? "grid gap-3 sm:grid-cols-2"
+                    : "grid gap-3 sm:grid-cols-2 opacity-60"
+                }
+              >
+                <div className="space-y-1">
+                  <Label className="text-xs">Hotel / accommodation name</Label>
+                  <Input
+                    value={accommodation.name}
+                    disabled={!accommodation.required}
+                    placeholder="e.g. Transcorp Hilton"
+                    onChange={(e) => setAccommodation((a) => ({ ...a, name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Address</Label>
+                  <Input
+                    value={accommodation.address}
+                    disabled={!accommodation.required}
+                    placeholder="Street, city"
+                    onChange={(e) => setAccommodation((a) => ({ ...a, address: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Contact</Label>
+                  <Input
+                    value={accommodation.contact}
+                    disabled={!accommodation.required}
+                    placeholder="Phone or email"
+                    onChange={(e) => setAccommodation((a) => ({ ...a, contact: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Estimated cost (₦)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={accommodation.estimatedCost}
+                    disabled={!accommodation.required}
+                    placeholder="Optional"
+                    onChange={(e) =>
+                      setAccommodation((a) => ({ ...a, estimatedCost: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-xs">Additional details</Label>
+                  <Textarea
+                    value={accommodation.details}
+                    disabled={!accommodation.required}
+                    placeholder="Room type, nights, special requirements"
+                    onChange={(e) => setAccommodation((a) => ({ ...a, details: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Escort / Security */}
+            <div className="space-y-3 rounded-md border p-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="edit-escort-required"
+                  checked={escort.required}
+                  onCheckedChange={(v) => setEscort((s) => ({ ...s, required: v }))}
+                />
+                <Label htmlFor="edit-escort-required" className="cursor-pointer">
+                  Escort / security required
+                </Label>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Escort details</Label>
+                <Textarea
+                  value={escort.description}
+                  disabled={!escort.required}
+                  className={escort.required ? "" : "opacity-60"}
+                  placeholder="Number of escorts, armed/unarmed, agency, pickup point"
+                  onChange={(e) => setEscort((s) => ({ ...s, description: e.target.value }))}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
