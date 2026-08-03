@@ -63,6 +63,10 @@ export function canScdApprove(trip: {
   if (actions && actions.length > 0) {
     return actions.some((a) => SCD_APPROVE_ACTIONS.includes(a));
   }
+  // Legacy API fallback (contract): only when the API omits available_actions.
+  const stage = norm(trip.workflowStage ?? trip.workflow_stage);
+  const approval = norm(trip.approvalStatus ?? trip.approval_status);
+  if (stage) return stage === "scd_review" && approval !== "approved";
   const explicit = trip.requiresScdApproval ?? trip.requires_scd_approval;
   if (typeof explicit === "boolean") return explicit;
   return isTripAwaitingDirectorApproval(trip);
