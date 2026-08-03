@@ -507,6 +507,18 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               license_number: externalDriver.license_number.trim() || undefined,
             }
           : undefined,
+        accommodation_required: accommodation.required,
+        accommodation_name: accommodation.required ? accommodation.name.trim() || undefined : undefined,
+        accommodation_address: accommodation.required ? accommodation.address.trim() || undefined : undefined,
+        accommodation_contact: accommodation.required ? accommodation.contact.trim() || undefined : undefined,
+        accommodation_details: accommodation.required ? accommodation.details.trim() || undefined : undefined,
+        accommodation_estimated_cost:
+          accommodation.required && accommodation.estimatedCost.trim() !== "" &&
+          !Number.isNaN(Number(accommodation.estimatedCost))
+            ? Number(accommodation.estimatedCost)
+            : undefined,
+        escort_required: escort.required,
+        escort_description: escort.required ? escort.description.trim() || undefined : undefined,
       };
 
       const response = await tripsApi.create(tripPayload as any);
