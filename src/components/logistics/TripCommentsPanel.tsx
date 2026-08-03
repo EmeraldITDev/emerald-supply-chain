@@ -105,7 +105,7 @@ export function TripCommentsPanel({
       if (useLogisticsApi) {
         const res = await tripsApi.getComments(String(entityId));
         if (res.success && res.data) {
-          setComments(res.data.comments.map(normalizeComment));
+          setComments((res.data.comments ?? []).map(normalizeComment));
           setCanCommentFromApi(res.data.canComment);
         } else {
           setComments([]);
@@ -113,7 +113,7 @@ export function TripCommentsPanel({
       } else if (tripRequestId) {
         const res = await tripRequestApi.getComments(tripRequestId);
         if (res.success && res.data?.comments) {
-          setComments(res.data.comments.map(normalizeComment));
+          setComments((res.data.comments ?? []).map(normalizeComment));
           setCanCommentFromApi(res.data.canComment);
         } else {
           setComments([]);
