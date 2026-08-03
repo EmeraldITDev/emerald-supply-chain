@@ -159,7 +159,11 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
             disabled={busy}
             onClick={() =>
               run(
-                () => tripRequestApi.directorApprove(String(trip.id)),
+                async () => {
+                  const res = await tripRequestApi.directorApprove(String(trip.id));
+                  if (res.success) markTripDirectorApproved(trip.id);
+                  return res;
+                },
                 "Trip approved. The Logistics Manager has been notified.",
               )
             }
