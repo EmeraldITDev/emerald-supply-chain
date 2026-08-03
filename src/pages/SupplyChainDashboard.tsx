@@ -63,6 +63,8 @@ import {
   canScdApprove,
   isTripAwaitingDirectorApproval,
   tripStatusPlainLabel,
+  resolveTripDisplayStatus,
+  markTripDirectorApproved,
 } from "@/utils/tripApprovalState";
 import { resolveTripWorkflowError, isStaleTripStateError } from "@/utils/tripApprovalErrors";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
