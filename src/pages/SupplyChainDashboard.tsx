@@ -59,7 +59,12 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import { authApi, mrfApi, vendorApi, dashboardApi, srfApi, tripRequestApi } from "@/services/api";
-import { isTripAwaitingDirectorApproval, tripStatusPlainLabel } from "@/utils/tripApprovalState";
+import {
+  canScdApprove,
+  isTripAwaitingDirectorApproval,
+  tripStatusPlainLabel,
+} from "@/utils/tripApprovalState";
+import { resolveTripWorkflowError } from "@/utils/tripApprovalErrors";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { queryKeys } from "@/lib/queryKeys";
@@ -1220,6 +1225,7 @@ const SupplyChainDashboard = () => {
                                 >
                                   View Details
                                 </Button>
+                                {canScdApprove(t) && (
                                 <Button
                                   size="sm"
                                   disabled={approvingTripId === tid}
@@ -1227,7 +1233,9 @@ const SupplyChainDashboard = () => {
                                     setApprovingTripId(tid);
                                     const res = await tripRequestApi.directorApprove(tid);
                                     if (res.success) {
-                                      toast.success("Trip request approved");
+                                      toast.success(
+                                        "Trip approved. The Logistics Manager has been notified.",
+                                      );
                                       // Optimistically drop the row from the cached
                                       // SCD dashboard payload — avoids a full refetch flicker.
                                       queryClient.setQueryData<Record<string, unknown> | null>(
@@ -1256,13 +1264,14 @@ const SupplyChainDashboard = () => {
                                       void fetchPendingDirectorSrfs();
                                       window.dispatchEvent(new CustomEvent("app:refresh"));
                                     } else {
-                                      toast.error(res.error || "Failed to approve trip");
+                                      toast.error(resolveTripWorkflowError(res));
                                     }
                                     setApprovingTripId(null);
                                   }}
                                 >
                                   {approvingTripId === tid ? "Approving…" : "Approve"}
                                 </Button>
+                                )}
                               </div>
                             </div>
                           );
