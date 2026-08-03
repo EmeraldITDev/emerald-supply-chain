@@ -7,7 +7,6 @@ import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
 import { getWorkflowStageLabel } from "@/utils/workflowStageLabels";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { TripRequestWorkflowActions } from "@/components/logistics/TripRequestWorkflowActions";
 import { TripRequestDetailDialog } from "@/components/logistics/TripRequestDetailDialog";
 import { TripRequestDialog } from "@/components/logistics/TripRequestDialog";
 import {
