@@ -146,10 +146,10 @@ export function VendorProfileEditDialog({
         postalCode: form.postalCode.trim() || undefined,
         taxId: form.taxId.trim() || undefined,
         status: form.status || undefined,
-        categories: form.categories.length ? form.categories : undefined,
+        categories: form.categories,
         categoryOther: form.categories.includes(OTHERS_VENDOR_CATEGORY)
-          ? form.categoryOther.trim() || undefined
-          : undefined,
+          ? form.categoryOther.trim()
+          : "",
         annualRevenue: form.annualRevenue.trim() || undefined,
         numberOfEmployees: form.numberOfEmployees.trim() || undefined,
         yearEstablished: form.yearEstablished
