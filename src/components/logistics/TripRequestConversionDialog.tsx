@@ -375,7 +375,7 @@ export function TripRequestConversionDialog({
             {/* Read-only summary carried forward from the trip request */}
             <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">
               <div className="font-medium">
-                {detail?.tripNumber ?? detail?.trip_number ?? request?.tripNumber ?? "Trip request"}
+                {detail?.tripCode ?? detail?.trip_code ?? request?.tripCode ?? "Trip request"}
               </div>
               <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2 text-muted-foreground">
                 <span>Origin: {detail?.origin || "—"}</span>
