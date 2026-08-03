@@ -22,22 +22,53 @@ interface TripCommentsPanelProps {
   className?: string;
 }
 
+/** Pick the first non-empty string from a list of possible API shapes. */
+function firstString(...values: unknown[]): string {
+  for (const v of values) {
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
 function normalizeComment(c: Comment) {
+  const raw = c as unknown as Record<string, any>;
+  const authorObj = (raw.author ?? raw.user ?? raw.created_by ?? raw.createdBy ?? {}) as Record<string, any>;
+  const firstLast = firstString(
+    [authorObj.first_name ?? authorObj.firstName, authorObj.last_name ?? authorObj.lastName]
+      .filter(Boolean)
+      .join(" "),
+    [raw.first_name ?? raw.firstName, raw.last_name ?? raw.lastName].filter(Boolean).join(" "),
+  );
   return {
     id: String(c.id),
     body: c.body,
-    author:
-      (c as TripRequestComment).authorName ??
-      (c as TripRequestComment).author_name ??
-      (c as LogisticsTripComment).authorName ??
-      (c as LogisticsTripComment).author_name ??
-      "Staff",
-    role:
-      (c as TripRequestComment).authorRole ??
-      (c as TripRequestComment).author_role ??
-      (c as LogisticsTripComment).authorRole ??
-      (c as LogisticsTripComment).author_role ??
-      "",
+    author: firstString(
+      raw.authorName,
+      raw.author_name,
+      typeof raw.author === "string" ? raw.author : undefined,
+      authorObj.name,
+      authorObj.full_name,
+      authorObj.fullName,
+      authorObj.display_name,
+      authorObj.displayName,
+      firstLast,
+      raw.user_name,
+      raw.userName,
+      raw.created_by_name,
+      raw.createdByName,
+      raw.staff_name,
+      raw.commenter_name,
+      authorObj.email,
+      raw.author_email,
+    ) || "Unknown user",
+    role: firstString(
+      raw.authorRole,
+      raw.author_role,
+      authorObj.role,
+      authorObj.role_name,
+      raw.user_role,
+      raw.userRole,
+    ),
     createdAt:
       (c as TripRequestComment).createdAt ??
       (c as TripRequestComment).created_at ??
