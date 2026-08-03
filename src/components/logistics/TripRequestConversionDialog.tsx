@@ -22,6 +22,7 @@ import {
 import { Loader2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi, vendorApi } from "@/services/api";
+import { resolveTripWorkflowError } from "@/utils/tripApprovalErrors";
 import { fleetApi } from "@/services/logisticsApi";
 import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
 import type { StaffTripRequest } from "@/types/trip-request";
@@ -62,6 +63,7 @@ export function TripRequestConversionDialog({
   const [externalName, setExternalName] = useState("");
   const [externalPhone, setExternalPhone] = useState("");
   const [externalEmail, setExternalEmail] = useState("");
+  const [externalLicence, setExternalLicence] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -173,6 +175,28 @@ export function TripRequestConversionDialog({
     return Boolean(vehicleId);
   }, [passengerIds, driverType, driverUserId, externalName, fulfillmentType, vendorId, vehicleType, estimatedCost, vehicleId]);
 
+  /** Canonical driver object contract shared with the backend. */
+  const buildDriverPayload = () => {
+    if (driverType === "internal") {
+      return {
+        driver_type: "existing" as const,
+        driver_id: parseInt(driverUserId, 10),
+        driver_name: null,
+        driver_phone: null,
+        driver_licence: null,
+        driver_source: "system" as const,
+      };
+    }
+    return {
+      driver_type: "external" as const,
+      driver_id: null,
+      driver_name: externalName.trim(),
+      driver_phone: externalPhone.trim() || null,
+      driver_licence: externalLicence.trim() || null,
+      driver_source: "manual" as const,
+    };
+  };
+
   const handleSubmit = async () => {
     if (!request || !canSubmit) return;
     setSubmitting(true);
@@ -182,6 +206,7 @@ export function TripRequestConversionDialog({
         passenger_user_ids: passengerIds.map((id) => parseInt(id, 10)).filter((n) => !Number.isNaN(n)),
         external_passengers: request.externalPassengers ?? request.external_passengers,
         notes: notes || undefined,
+        driver: buildDriverPayload(),
         driver_type: driverType,
         driver_user_id: driverType === "internal" ? parseInt(driverUserId, 10) : undefined,
         external_driver:
@@ -190,6 +215,7 @@ export function TripRequestConversionDialog({
               name: externalName.trim(),
               phone: externalPhone.trim() || undefined,
               email: externalEmail.trim() || undefined,
+              licence: externalLicence.trim() || undefined,
             }
             : undefined,
         ...(fulfillmentType === "external_vendor"
@@ -201,7 +227,10 @@ export function TripRequestConversionDialog({
           : { vehicle_id: parseInt(vehicleId, 10) }),
       };
 
-      const res = await tripRequestApi.convert(String(request.id), payload);
+      const res = await tripRequestApi.convert(
+        String(request.id),
+        payload as unknown as Parameters<typeof tripRequestApi.convert>[1],
+      );
       if (res.success) {
         toast({ title: "Converted", description: "Trip request converted to logistics request." });
         onOpenChange(false);
@@ -209,7 +238,11 @@ export function TripRequestConversionDialog({
         const logisticsId = data?.logistics_trip_id ?? data?.logisticsTripId;
         onConverted?.(logisticsId as string | number | undefined);
       } else {
-        toast({ title: "Conversion failed", description: res.error, variant: "destructive" });
+        toast({
+          title: "Conversion failed",
+          description: resolveTripWorkflowError(res),
+          variant: "destructive",
+        });
       }
     } finally {
       setSubmitting(false);
@@ -360,20 +393,24 @@ export function TripRequestConversionDialog({
 
             <div className="space-y-2">
               <Label>Driver</Label>
-              <RadioGroup
-                value={driverType}
-                onValueChange={(v) => setDriverType(v as "internal" | "external")}
-                className="flex gap-4"
-              >
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="internal" id="drv-int" />
-                  <Label htmlFor="drv-int">System user</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="external" id="drv-ext" />
-                  <Label htmlFor="drv-ext">External driver</Label>
-                </div>
-              </RadioGroup>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={driverType === "internal" ? "default" : "outline"}
+                  onClick={() => setDriverType("internal")}
+                >
+                  Select from system
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={driverType === "external" ? "default" : "outline"}
+                  onClick={() => setDriverType("external")}
+                >
+                  Enter manually
+                </Button>
+              </div>
               {driverType === "internal" ? (
                 <EligiblePassengerPicker
                   selectedPassengerIds={driverUserId ? [driverUserId] : []}
@@ -386,9 +423,32 @@ export function TripRequestConversionDialog({
                 />
               ) : (
                 <div className="grid gap-2">
-                  <Input placeholder="Driver name" value={externalName} onChange={(e) => setExternalName(e.target.value)} />
-                  <Input placeholder="Phone" value={externalPhone} onChange={(e) => setExternalPhone(e.target.value)} />
-                  <Input placeholder="Email" value={externalEmail} onChange={(e) => setExternalEmail(e.target.value)} />
+                  <Input
+                    placeholder="Driver name *"
+                    value={externalName}
+                    onChange={(e) => setExternalName(e.target.value)}
+                    required
+                  />
+                  <Input
+                    placeholder="Phone number (optional)"
+                    value={externalPhone}
+                    onChange={(e) => setExternalPhone(e.target.value)}
+                  />
+                  <Input
+                    placeholder="Licence number (optional)"
+                    value={externalLicence}
+                    onChange={(e) => setExternalLicence(e.target.value)}
+                  />
+                  <Input
+                    placeholder="Email (optional)"
+                    value={externalEmail}
+                    onChange={(e) => setExternalEmail(e.target.value)}
+                  />
+                  {!externalName.trim() && (
+                    <p className="text-xs text-muted-foreground">
+                      Driver name is required for manually entered drivers.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
