@@ -1234,9 +1234,15 @@ const SupplyChainDashboard = () => {
                                     const res = await tripRequestApi.directorApprove(tid);
                                     const stale = !res.success && isStaleTripStateError(res);
                                     if (res.success || stale) {
-                                      toast.success(
-                                        "Trip approved. The Logistics Manager has been notified.",
-                                      );
+                                      if (stale) {
+                                        // Backend already moved this trip on — clear the
+                                        // stale row instead of leaving a dead button.
+                                        toast.info(resolveTripWorkflowError(res));
+                                      } else {
+                                        toast.success(
+                                          "Trip approved. The Logistics Manager has been notified.",
+                                        );
+                                      }
                                       // Optimistically drop the row from the cached
                                       // SCD dashboard payload — avoids a full refetch flicker.
                                       queryClient.setQueryData<Record<string, unknown> | null>(
