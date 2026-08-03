@@ -51,6 +51,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import type { PaginationMeta } from "@/types/pagination";
 import { VENDOR_DIRECTORY_EXPORT_ROLES } from "@/utils/vendorDirectoryExport";
+import { VendorProfileEditDialog } from "@/components/VendorProfileEditDialog";
 
 const VendorDirectoryExportDialog = lazy(() =>
   import("@/components/vendors/VendorDirectoryExportDialog").then((module) => ({
@@ -107,7 +108,7 @@ const Vendors = () => {
   const [debouncedDirectorySearch, setDebouncedDirectorySearch] = useState("");
 
   // Admin profile-edit dialog (backfill of legacy NULL fields)
-  const [editVendor, setEditVendor] = useState<{ id: number; name: string } | null>(null);
+  const [editVendor, setEditVendor] = useState<{ id: number | string; name: string } | null>(null);
   
   // Rating and comments state
   const [vendorComments, setVendorComments] = useState<Array<{ id: string; comment: string; rating: number; createdAt: string; createdBy: string | { id: number; name: string; email: string } }>>([]);
@@ -1594,6 +1595,21 @@ const Vendors = () => {
 
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-2 pt-4 border-t">
+                {canEditProfileDetails && (
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() =>
+                      setEditVendor({
+                        id: selectedVendor.uuid || selectedVendor.vendorId || selectedVendor.id,
+                        name: selectedVendor.name || selectedVendor.company_name || "Vendor",
+                      })
+                    }
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Edit Profile
+                  </Button>
+                )}
                 <Button
                   className="flex-1"
                   onClick={() => {
