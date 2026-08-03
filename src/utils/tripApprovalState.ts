@@ -39,6 +39,105 @@ function norm(v: unknown): string {
   return String(v ?? "").toLowerCase().trim().replace(/\s+/g, "_");
 }
 
+/**
+ * Session-scoped registry of trips this browser has already acted on.
+ * The list endpoints occasionally return a stale row right after an approval;
+ * this keeps the approved trip from reappearing in the SCD queue.
+ */
+const ACTED_KEY = "scm:trips:director-approved";
+
+function readActed(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(ACTED_KEY);
+    return new Set<string>(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+export function markTripDirectorApproved(id: string | number): void {
+  try {
+    const set = readActed();
+    set.add(String(id));
+    sessionStorage.setItem(ACTED_KEY, JSON.stringify([...set]));
+  } catch {
+    /* storage unavailable — non-fatal */
+  }
+}
+
+export function wasTripDirectorApproved(id: string | number | undefined): boolean {
+  if (id == null) return false;
+  return readActed().has(String(id));
+}
+
+const APPROVED_TIMESTAMP_KEYS = [
+  "director_approved_at",
+  "directorApprovedAt",
+  "scd_approved_at",
+  "scdApprovedAt",
+  "approved_at",
+  "approvedAt",
+];
+
+/**
+ * True when the record carries any evidence the Supervising Director already
+ * acted — approval flags, approval timestamps, terminal stage/status, or a
+ * linked logistics trip. Used so a stale stage label can never resurrect the
+ * Approve button.
+ */
+export function isTripDirectorApproved(trip: Record<string, unknown>): boolean {
+  const approval = norm(trip.approvalStatus ?? trip.approval_status);
+  if (approval === "approved") return true;
+  if (APPROVED_TIMESTAMP_KEYS.some((k) => trip[k])) return true;
+  const stage = norm(trip.workflowStage ?? trip.workflow_stage);
+  const status = norm(trip.status);
+  const approvedStages = new Set([
+    "approved",
+    "director_approved",
+    "scd_approved",
+    "logistics_processing",
+    "vendor_sourcing",
+    "converted",
+    "converted_to_logistics",
+    "logistics_created",
+    "completed",
+  ]);
+  if (approvedStages.has(stage) || approvedStages.has(status)) return true;
+  if (trip.logistics_trip_id ?? trip.logisticsTripId) return true;
+  return wasTripDirectorApproved(trip.id as string | number | undefined);
+}
+
+/** True once the trip has been turned into a logistics trip record. */
+export function isTripConverted(trip: Record<string, unknown>): boolean {
+  const stage = norm(trip.workflowStage ?? trip.workflow_stage);
+  const status = norm(trip.status);
+  const convertedStates = new Set([
+    "converted",
+    "converted_to_logistics",
+    "logistics_created",
+    "logistics_processing",
+    "completed",
+  ]);
+  if (convertedStates.has(stage) || convertedStates.has(status)) return true;
+  return Boolean(trip.logistics_trip_id ?? trip.logisticsTripId);
+}
+
+/**
+ * Convert is only offered when the backend says so, or — when
+ * `available_actions` is absent — while the trip sits at `scd_approved` and has
+ * not already been converted.
+ */
+export function canConvertToLogistics(trip: Record<string, unknown>): boolean {
+  const actions = readActions(trip as never);
+  if (actions && actions.length > 0) {
+    return actions.some((a) => CONVERT_ACTIONS.includes(a));
+  }
+  if (isTripConverted(trip)) return false;
+  const stage = norm(trip.workflowStage ?? trip.workflow_stage);
+  const status = norm(trip.status);
+  return stage === "scd_approved" || status === "scd_approved";
+}
+
 function readActions(trip: {
   availableActions?: unknown;
   available_actions?: unknown;
@@ -94,6 +193,9 @@ export function isTripAwaitingDirectorApproval(trip: {
   const stage = norm(trip.workflowStage ?? trip.workflow_stage);
   const actions = readActions(trip);
   const approval = norm(trip.approvalStatus ?? trip.approval_status);
+
+  // Any evidence of a completed director decision wins over stale stage labels.
+  if (isTripDirectorApproved(trip as Record<string, unknown>)) return false;
 
   // Terminal states — never eligible regardless of stale stage labels.
   if (TRIP_TERMINAL_STATUSES.has(status)) return false;
