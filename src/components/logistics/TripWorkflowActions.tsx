@@ -13,7 +13,6 @@ import {
 import { Loader2, UserPlus, Users2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi } from "@/services/api";
-import { fleetApi, logisticsVendorsApi } from "@/services/logisticsApi";
 import { TripRequestConversionDialog } from "./TripRequestConversionDialog";
 import type { StaffTripRequest } from "@/types/trip-request";
 import type { Trip, TripWorkflowStage } from "@/types/logistics";
