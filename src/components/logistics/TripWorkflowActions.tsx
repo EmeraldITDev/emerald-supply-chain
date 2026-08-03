@@ -143,10 +143,7 @@ export function TripWorkflowActions({
           <Button
             size="sm"
             disabled={busy}
-            onClick={() => {
-              setConvertOpen(true);
-              loadConvertOptions();
-            }}
+            onClick={() => setConvertOpen(true)}
           >
             Convert to logistics request
           </Button>
