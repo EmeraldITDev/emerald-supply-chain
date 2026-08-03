@@ -1,85 +1,104 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Warehouse as WarehouseIcon, Package, CheckCircle, MapPin, Receipt as ReceiptIcon, ClipboardList } from "lucide-react";
+import { Receipt as ReceiptIcon, ClipboardList } from "lucide-react";
 import { GRNModule } from "@/components/GRNModule";
 import { DailyMaterialsConsumption } from "@/components/warehouse/DailyMaterialsConsumption";
+import { WarehouseDashboardPanel } from "@/components/warehouse/WarehouseDashboardPanel";
+import { WarehouseStructureManager } from "@/components/warehouse/WarehouseStructureManager";
+import { ItemCatalogue } from "@/components/warehouse/ItemCatalogue";
+import { InventoryTable } from "@/components/warehouse/InventoryTable";
+import { StockMovements } from "@/components/warehouse/StockMovements";
+import { StockCountsPanel } from "@/components/warehouse/StockCountsPanel";
+import { LowStockAlerts } from "@/components/warehouse/LowStockAlerts";
+import { WarehouseReports } from "@/components/warehouse/WarehouseReports";
 import { useAuth } from "@/contexts/AuthContext";
-import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { getScmRole } from "@/utils/scmRole";
+import {
+  canAccessWarehouse,
+  canManageWarehouse,
+  canRaiseMrfFromWarehouse,
+  canViewInventoryValuation,
+} from "@/utils/warehouseAccess";
 
 const Warehouse = () => {
   const { user } = useAuth();
+  const canManage = canManageWarehouse(user);
+  const canValuation = canViewInventoryValuation(user);
+
+  if (!canAccessWarehouse(user)) {
+    return (
+      <DashboardLayout>
+        <Card>
+          <CardHeader>
+            <CardTitle>Warehouse Management</CardTitle>
+            <CardDescription>You do not have access to the warehouse module.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Contact an administrator if you need warehouse or inventory access.
+            </p>
+          </CardContent>
+        </Card>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Warehouse Management</h1>
-            <p className="text-muted-foreground mt-2">Manage storage, receipts, dispatch, and EHS compliance</p>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Warehouse &amp; Inventory</h1>
+          <p className="text-muted-foreground mt-2">
+            Structure, stock, goods receipt, counting and reporting across every Emerald location
+          </p>
+        </div>
+
+        <Tabs defaultValue="overview" className="space-y-4">
+          <div className="overflow-x-auto">
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="inventory">Inventory</TabsTrigger>
+              <TabsTrigger value="catalogue">Item Catalogue</TabsTrigger>
+              <TabsTrigger value="structure">Structure</TabsTrigger>
+              <TabsTrigger value="movements">Movements</TabsTrigger>
+              <TabsTrigger value="counts">Counting</TabsTrigger>
+              <TabsTrigger value="grn" className="gap-2">
+                <ReceiptIcon className="h-4 w-4" />
+                Goods Receipt
+              </TabsTrigger>
+              <TabsTrigger value="consumption" className="gap-2">
+                <ClipboardList className="h-4 w-4" />
+                Consumption
+              </TabsTrigger>
+              <TabsTrigger value="reports">Reports</TabsTrigger>
+            </TabsList>
           </div>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Storage Locations</CardTitle>
-              <MapPin className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">No locations configured</p>
-            </CardContent>
-          </Card>
+          <TabsContent value="overview" className="space-y-4">
+            <WarehouseDashboardPanel canViewValuation={canValuation} />
+            <LowStockAlerts canRaiseMrf={canRaiseMrfFromWarehouse(user)} />
+          </TabsContent>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Capacity Used</CardTitle>
-              <WarehouseIcon className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">0%</div>
-              <p className="text-xs text-muted-foreground">Total capacity</p>
-            </CardContent>
-          </Card>
+          <TabsContent value="inventory" className="space-y-4">
+            <InventoryTable />
+          </TabsContent>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Receipts</CardTitle>
-              <Package className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Awaiting processing</p>
-            </CardContent>
-          </Card>
+          <TabsContent value="catalogue" className="space-y-4">
+            <ItemCatalogue canManage={canManage} />
+          </TabsContent>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">EHS Compliance</CardTitle>
-              <CheckCircle className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">—</div>
-              <p className="text-xs text-muted-foreground">No records yet</p>
-            </CardContent>
-          </Card>
-        </div>
+          <TabsContent value="structure" className="space-y-4">
+            <WarehouseStructureManager canManage={canManage} />
+          </TabsContent>
 
-        <Tabs defaultValue="grn" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="grn" className="gap-2">
-              <ReceiptIcon className="h-4 w-4" />
-              GRN Management
-            </TabsTrigger>
-            <TabsTrigger value="consumption" className="gap-2">
-              <ClipboardList className="h-4 w-4" />
-              Materials Consumption
-            </TabsTrigger>
-            <TabsTrigger value="locations">Storage Locations</TabsTrigger>
-            <TabsTrigger value="dispatch">Goods Dispatch</TabsTrigger>
-            <TabsTrigger value="ehs">EHS Compliance</TabsTrigger>
-          </TabsList>
+          <TabsContent value="movements" className="space-y-4">
+            <StockMovements canManage={canManage} />
+          </TabsContent>
+
+          <TabsContent value="counts" className="space-y-4">
+            <StockCountsPanel canManage={canManage} />
+          </TabsContent>
 
           <TabsContent value="grn" className="space-y-4">
             <GRNModule userRole={getScmRole(user) || 'employee'} />
@@ -89,40 +108,8 @@ const Warehouse = () => {
             <DailyMaterialsConsumption />
           </TabsContent>
 
-          <TabsContent value="locations" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Storage Locations</CardTitle>
-                <CardDescription>Warehouse space and capacity management</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground text-center py-8">No storage locations configured yet.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="dispatch" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Goods Dispatch</CardTitle>
-                <CardDescription>Outgoing material movements and tracking</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground text-center py-8">No dispatch records yet.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="ehs" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>EHS Compliance</CardTitle>
-                <CardDescription>Environment, Health & Safety records</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground text-center py-8">No EHS records yet.</p>
-              </CardContent>
-            </Card>
+          <TabsContent value="reports" className="space-y-4">
+            <WarehouseReports canViewValuation={canValuation} />
           </TabsContent>
         </Tabs>
       </div>
