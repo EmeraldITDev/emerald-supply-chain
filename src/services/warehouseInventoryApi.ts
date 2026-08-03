@@ -189,12 +189,17 @@ export const warehouseInventoryApi = {
     return (res.data ?? {}) as WarehouseDashboardSummary;
   },
   async getReport(report: WarehouseReportKey, filters: WarehouseReportFilters = {}) {
-    const res = await apiRequest<unknown>(`/warehouse/reports/${report.replace(/_/g, '-')}${qs(filters)}`);
+    const res = await apiRequest<unknown>(
+      `/warehouse/reports/${report.replace(/_/g, '-')}${qs({ ...filters })}`,
+    );
     if (!res.success) throw new Error(res.error || 'Failed to load report');
     const data = res.data as { rows?: Record<string, unknown>[] } | Record<string, unknown>[] | undefined;
     return Array.isArray(data) ? data : (data?.rows ?? []);
   },
   /** Server-side export — mirrors the existing reports export convention. */
-  reportExportUrl: (report: WarehouseReportKey, format: 'pdf' | 'xlsx' | 'csv', filters: WarehouseReportFilters = {}) =>
-    `${API_BASE_URL}/warehouse/reports/${report.replace(/_/g, '-')}/export${qs({ format, ...filters })}`,
+  reportExportUrl: (
+    report: WarehouseReportKey,
+    format: 'pdf' | 'xlsx' | 'csv',
+    filters: WarehouseReportFilters = {},
+  ) => `${API_BASE_URL}/warehouse/reports/${report.replace(/_/g, '-')}/export${qs({ format, ...filters })}`,
 };
