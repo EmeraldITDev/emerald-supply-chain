@@ -3292,7 +3292,6 @@ export const vendorApi = {
       ['country', 'country', data.country],
       ['postal_code', 'postalCode', data.postalCode],
       ['tax_id', 'taxId', data.taxId],
-      ['categories', 'categories', data.categories],
       ['category_other', 'categoryOther', data.categoryOther],
       ['status', 'status', data.status],
       ['annual_revenue', 'annualRevenue', data.annualRevenue],
@@ -3309,9 +3308,12 @@ export const vendorApi = {
       body[snake] = value;
       if (camel !== snake) body[camel] = value;
     }
-    // Backend also accepts the first category as `category` on legacy records.
-    if (Array.isArray(data.categories) && data.categories.length > 0) {
-      body.category = data.categories.join(', ');
+    // Categories: the backend persists a single comma-separated `category` string.
+    // Always send it (plus the array form) whenever categories were provided.
+    if (Array.isArray(data.categories)) {
+      const joined = data.categories.join(', ');
+      body.category = joined;
+      body.categories = data.categories;
     }
     return apiRequest<Vendor>(`/vendors/${id}`, {
       method: 'PUT',
