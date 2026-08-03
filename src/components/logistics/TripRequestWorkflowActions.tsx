@@ -19,7 +19,7 @@ import { getScmRole } from "@/utils/scmRole";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { canScdApprove, canScdReject } from "@/utils/tripApprovalState";
-import { resolveTripWorkflowError } from "@/utils/tripApprovalErrors";
+import { resolveTripWorkflowError, isStaleTripStateError } from "@/utils/tripApprovalErrors";
 
 interface TripRequestWorkflowActionsProps {
   trip: StaffTripRequest;
@@ -60,8 +60,13 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
     setBusy(true);
     try {
       const res = await fn();
-      if (res.success) {
-        toast({ title: successMsg });
+      const stale = !res.success && isStaleTripStateError(res);
+      if (res.success || stale) {
+        toast(
+          stale
+            ? { title: "Already processed", description: resolveTripWorkflowError(res) }
+            : { title: successMsg },
+        );
         // Invalidate trip + dashboard queries so widgets update instantly
         void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         void queryClient.invalidateQueries({ queryKey: ["trips"] });
