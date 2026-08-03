@@ -20,7 +20,6 @@ export const MRNDetail = lazyPage(() => import("@/pages/MRNDetail"));
 export const NewAnnualPlan = lazyPage(() => import("@/pages/NewAnnualPlan"));
 export const NewSRF = lazyPage(() => import("@/pages/NewSRF"));
 export const Logistics = lazyPage(() => import("@/pages/Logistics"));
-export const Inventory = lazyPage(() => import("@/pages/Inventory"));
 export const Warehouse = lazyPage(() => import("@/pages/Warehouse"));
 export const Vendors = lazyPage(() => import("@/pages/Vendors"));
 export const VendorRegistrationReview = lazyPage(() => import("@/pages/VendorRegistrationReview"));

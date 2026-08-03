@@ -480,7 +480,7 @@ const Dashboard = () => {
                     <p className="font-medium text-xs sm:text-sm">Logistics</p>
                   </CardContent>
                 </Card>
-                <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/inventory")}>
+                <Card className="cursor-pointer hover:bg-accent transition-colors" onClick={() => navigate("/warehouse")}>
                   <CardContent className="p-3 sm:p-4 flex flex-col items-center text-center">
                     <Warehouse className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-1 sm:mb-2" />
                     <p className="font-medium text-xs sm:text-sm">Inventory</p>
