@@ -63,7 +63,7 @@ export default function TripRequestDetailPage() {
     setTrip(t);
     const progressSteps =
       progressRes.data?.steps ?? t.progress?.steps ?? FALLBACK_STEPS;
-    setSteps(progressSteps.length ? progressSteps : FALLBACK_STEPS);
+    setSteps(Array.isArray(progressSteps) && progressSteps.length ? progressSteps : FALLBACK_STEPS);
 
     const logisticsId = resolveLogisticsTripId(t);
     if (logisticsId) {
@@ -116,8 +116,9 @@ export default function TripRequestDetailPage() {
     });
   }
   const logisticsId = resolveLogisticsTripId(trip);
-  const passengers = trip?.passengers ?? [];
-  const externalPassengers = trip?.externalPassengers ?? trip?.external_passengers ?? [];
+  const passengers = Array.isArray(trip?.passengers) ? trip!.passengers! : [];
+  const rawExternalPassengers = trip?.externalPassengers ?? trip?.external_passengers;
+  const externalPassengers = Array.isArray(rawExternalPassengers) ? rawExternalPassengers : [];
   const editAccess = trip ? resolveRequesterEditAccess(trip, user) : { canEdit: false, expiresAt: null };
   const editTimeLeft = formatRequesterEditTimeRemaining(editAccess.expiresAt);
 
@@ -321,7 +322,8 @@ export default function TripRequestDetailPage() {
           })()}
 
           {(() => {
-            const trail = trip.auditTrail ?? trip.audit_trail ?? [];
+            const rawTrail = trip.auditTrail ?? trip.audit_trail;
+            const trail = Array.isArray(rawTrail) ? rawTrail : [];
             if (!trail.length) return null;
             return (
               <div>
@@ -380,7 +382,7 @@ export default function TripRequestDetailPage() {
           <div>
             <h3 className="text-sm font-semibold mb-2">Progress</h3>
             <SimpleProgressStepper
-              steps={steps.map((s) => ({
+              steps={(Array.isArray(steps) ? steps : []).map((s) => ({
                 key: s.key,
                 label: s.label,
                 status: s.status,
