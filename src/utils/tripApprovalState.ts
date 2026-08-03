@@ -159,6 +159,8 @@ export function canScdApprove(trip: {
   available_actions?: unknown;
 }): boolean {
   const actions = readActions(trip);
+  // A locally recorded approval always wins over a stale server payload.
+  if (wasTripDirectorApproved((trip as { id?: string | number }).id)) return false;
   if (actions && actions.length > 0) {
     return actions.some((a) => SCD_APPROVE_ACTIONS.includes(a));
   }
@@ -237,4 +239,15 @@ export function tripStatusPlainLabel(trip: {
   if (s === "returned") return "Returned for revision";
   if (s === "completed") return "Completed";
   return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Label for list rows: reflects a director decision even when the list payload
+ * still carries the pre-approval stage string.
+ */
+export function resolveTripDisplayStatus(trip: Record<string, unknown>): string {
+  if (isTripConverted(trip)) return "Converted to Logistics Request";
+  if (isTripDirectorApproved(trip)) return "Approved by Supply Chain Director";
+  if (isTripAwaitingDirectorApproval(trip)) return "Awaiting Supply Chain Director";
+  return tripStatusPlainLabel(trip);
 }
