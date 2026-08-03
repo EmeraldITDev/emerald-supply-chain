@@ -870,3 +870,100 @@ None blocking. Future-facing: add `X-Total-Count` to any still-unbounded list en
 - `src/components/logistics/TripRequestForm.tsx`: added always-visible Accommodation section (required flag + hotel, address, contact, estimated ₦ cost, details) and Escort section (required flag + description), Trip Type select, "Save as draft" secondary action. Payload includes all new fields plus `save_as_draft` and `international_transport_mode`; origin defaults to Office. Edit mode hydrates the same fields.
 - `src/components/logistics/TripRequestWorkflowActions.tsx`: Forward / Request Changes / Reject buttons now call the unified `logisticsReview` endpoint. Request-changes dialog exposes optional review comments and updated estimated cost fields. React Query caches for dashboard/trips/trip-requests are invalidated on success.
 - `src/pages/details/TripRequestDetailPage.tsx`: renders approval status badge, booking-rules guidance info block, trip type, accommodation block, escort block, and chronological audit trail (field, before → after, editor, timestamp, reason). Existing read-only fallback for uninvolved staff preserved.
+
+---
+
+## Trip & Journey Workflow — Backend Contract (Logistics Overhaul)
+
+All endpoints are JSON over the existing `/api` base with the standard bearer token.
+Responses may be wrapped in `{ success, data }`; the frontend unwraps both shapes.
+
+### 1. `GET /api/trip-requests/{id}` — enriched trip detail
+Roles: requester (own), logistics_officer, logistics_manager, supply_chain_director, executive, admin.
+
+Response `trip` must include, in addition to the existing base fields:
+```
+id, trip_code, status, workflow_stage, approval_status,
+origin, destination, purpose, trip_type, booking_scope,
+international_transport_mode, scheduled_departure_at, scheduled_arrival_at,
+requester: { id, name, email, department },
+passengers: [ { id, user_id, name, email, department, phone } ],
+external_passengers: [ { name, email, phone } ],
+accommodation_required, accommodation_name, accommodation_address,
+accommodation_contact, accommodation_details, accommodation_estimated_cost,
+escort_required, escort_description, escort_estimated_cost,
+logistics_trip_id, logistics: { vehicle, vendor, driver, estimated_cost, notes },
+available_actions: string[],   // e.g. ["approve","return","reject"] | ["convert"] | ["assign_vehicle"] | []
+next_actor: string|null,
+audit_trail: [ { action, actor_name, actor_role, remarks, created_at } ],
+progress: { steps: [ { key, label, status, completed_at } ] }
+```
+Frontend use: the detail page fetches this fresh on every mount. `available_actions`
+is the only gate for rendering workflow buttons — if it is present and empty, a
+read-only status banner is shown instead. Conversion and edit dialogs hydrate from
+this payload so no previously entered information is ever re-typed.
+
+### 2. `POST /api/trip-requests/{id}/convert` — convert to logistics request
+Roles: logistics_officer, logistics_manager, admin.
+
+Request:
+```
+fulfillment_type: "internal_vehicle" | "external_vendor",
+passenger_user_ids: number[],
+external_passengers: [ { name, email?, phone? } ],
+driver?: { driver_type: "existing"|"external", driver_id: number|null,
+           driver_name: string|null, driver_phone: string|null,
+           driver_licence: string|null, driver_source: "system"|"manual" },
+vehicle_id?: number,                      // internal_vehicle
+vendor_id?: number,                       // external_vendor
+vehicle_type?: string|null,               // external_vendor
+estimated_vendor_cost?: number|null,      // external_vendor
+accommodation_required: boolean,
+accommodation_name|address|contact: string|null,
+accommodation_estimated_cost: number|null,
+escort_required: boolean,
+escort_description: string|null,
+escort_estimated_cost: number|null,
+total_estimated_cost: number|null,
+notes?: string
+```
+Response: `{ logistics_trip_id, trip: <enriched trip as in 1> }`.
+Errors use `code` (`ALREADY_CONVERTED`, `INVALID_STATE`) so the UI can clean up stale rows.
+Frontend use: on success the convert action is removed immediately and the trip
+detail is refetched; the driver is optional at this stage.
+
+### 3. `GET /api/journeys` — journey list with relations
+Roles: logistics roles, supply_chain_director, executive, admin.
+
+Each journey must embed its originating trip data so the list needs no second call:
+```
+id, journey_number, status, trip_id, trip_request_id,
+origin, destination, scheduled_departure_at, scheduled_arrival_at,
+driver: { id, name, phone, licence, source },
+vehicle: { id, plate_number, make, model },
+vendor: { id, name },
+passenger_count, total_distance, total_duration
+```
+Missing values may be `null`; the frontend renders a grey dash with the tooltip
+"This information has not been provided yet." — never an error state.
+
+### 4. `GET /api/journeys/{id}` — full journey detail
+Same shape as 3 plus `passengers[]`, `checkpoints[]`, `incidents[]`,
+`materials[]`, `audit_trail[]`, and `feedback_summary: { count, average_rating }`.
+
+### 5. `POST /api/journeys/{id}/feedback` — submit passenger feedback
+Roles: any authenticated passenger on the journey (deep-linked from the
+completion email to `/journeys/{id}/feedback` using the numeric journey id).
+
+Request: `{ rating: 1..5, status: "completed"|"partially_completed"|"not_completed", comments?: string }`
+Response: `{ feedback: { id, passenger_name, rating, status, comments, created_at } }`.
+
+### 6. `GET /api/journeys/{id}/feedback` — list feedback
+Roles: logistics roles, supply_chain_director, executive, admin.
+Response: `{ feedback: [ { id, passenger_name, rating, status, comments, created_at } ] }`.
+Frontend use: rendered in the journey detail dialog with a CSV export.
+
+### Notifications (backend responsibility)
+- SCD approval (`/scd-approve`) must notify the logistics manager in-app and by email,
+  with `next_actor: "logistics_manager"` in the response.
+- Journey completion must email each passenger a link to `/journeys/{id}/feedback`.
