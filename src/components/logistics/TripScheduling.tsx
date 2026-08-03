@@ -2042,6 +2042,101 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 }
               />
             </div>
+
+            {/* Accommodation */}
+            <div className="space-y-3 rounded-md border p-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="edit-accommodation-required"
+                  checked={accommodation.required}
+                  onCheckedChange={(v) => setAccommodation((a) => ({ ...a, required: v }))}
+                />
+                <Label htmlFor="edit-accommodation-required" className="cursor-pointer">
+                  Accommodation required
+                </Label>
+              </div>
+              <div
+                className={
+                  accommodation.required
+                    ? "grid gap-3 sm:grid-cols-2"
+                    : "grid gap-3 sm:grid-cols-2 opacity-60"
+                }
+              >
+                <div className="space-y-1">
+                  <Label className="text-xs">Hotel / accommodation name</Label>
+                  <Input
+                    value={accommodation.name}
+                    disabled={!accommodation.required}
+                    placeholder="e.g. Transcorp Hilton"
+                    onChange={(e) => setAccommodation((a) => ({ ...a, name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Address</Label>
+                  <Input
+                    value={accommodation.address}
+                    disabled={!accommodation.required}
+                    placeholder="Street, city"
+                    onChange={(e) => setAccommodation((a) => ({ ...a, address: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Contact</Label>
+                  <Input
+                    value={accommodation.contact}
+                    disabled={!accommodation.required}
+                    placeholder="Phone or email"
+                    onChange={(e) => setAccommodation((a) => ({ ...a, contact: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Estimated cost (₦)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={accommodation.estimatedCost}
+                    disabled={!accommodation.required}
+                    placeholder="Optional"
+                    onChange={(e) =>
+                      setAccommodation((a) => ({ ...a, estimatedCost: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-xs">Additional details</Label>
+                  <Textarea
+                    value={accommodation.details}
+                    disabled={!accommodation.required}
+                    placeholder="Room type, nights, special requirements"
+                    onChange={(e) => setAccommodation((a) => ({ ...a, details: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Escort / Security */}
+            <div className="space-y-3 rounded-md border p-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="edit-escort-required"
+                  checked={escort.required}
+                  onCheckedChange={(v) => setEscort((s) => ({ ...s, required: v }))}
+                />
+                <Label htmlFor="edit-escort-required" className="cursor-pointer">
+                  Escort / security required
+                </Label>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Escort details</Label>
+                <Textarea
+                  value={escort.description}
+                  disabled={!escort.required}
+                  className={escort.required ? "" : "opacity-60"}
+                  placeholder="Number of escorts, armed/unarmed, agency, pickup point"
+                  onChange={(e) => setEscort((s) => ({ ...s, description: e.target.value }))}
+                />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
