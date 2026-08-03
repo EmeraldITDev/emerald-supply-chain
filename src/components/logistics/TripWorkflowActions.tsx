@@ -3,13 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -21,7 +14,6 @@ import { Loader2, UserPlus, Users2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi } from "@/services/api";
 import { fleetApi, logisticsVendorsApi } from "@/services/logisticsApi";
-import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
 import { TripRequestConversionDialog } from "./TripRequestConversionDialog";
 import type { StaffTripRequest } from "@/types/trip-request";
 import type { Trip, TripWorkflowStage } from "@/types/logistics";
@@ -58,12 +50,6 @@ export function TripWorkflowActions({
   const [convertOpen, setConvertOpen] = useState(false);
   const [poOpen, setPoOpen] = useState(false);
   const [signedPoOpen, setSignedPoOpen] = useState(false);
-  const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
-  const [vehicles, setVehicles] = useState<Array<{ id: string; name: string }>>([]);
-  const [vendorId, setVendorId] = useState("");
-  const [vehicleId, setVehicleId] = useState("");
-  const [passengerIds, setPassengerIds] = useState<string[]>([]);
-  const [driverUserId, setDriverUserId] = useState<string | undefined>();
   const [poNumber, setPoNumber] = useState("");
   const [unsignedPoUrl, setUnsignedPoUrl] = useState("");
   const [signedPoUrl, setSignedPoUrl] = useState("");
@@ -82,31 +68,6 @@ export function TripWorkflowActions({
 
   const canConvert =
     isLogistics && (stage === "trip_request" || stage === "logistics_review");
-
-  const loadConvertOptions = async () => {
-    const [vRes, fleetRes] = await Promise.all([
-      logisticsVendorsApi.getAll(),
-      fleetApi.getAll(),
-    ]);
-    if (vRes.success && vRes.data) {
-      const arr = Array.isArray(vRes.data) ? vRes.data : [];
-      setVendors(
-        arr.map((v: { id?: string | number; name?: string; company_name?: string }) => ({
-          id: String(v.id),
-          name: v.name || v.company_name || `Vendor ${v.id}`,
-        })),
-      );
-    }
-    if (fleetRes.success && fleetRes.data) {
-      const arr = Array.isArray(fleetRes.data) ? fleetRes.data : [];
-      setVehicles(
-        arr.map((v: { id?: string | number; name?: string; plate?: string }) => ({
-          id: String(v.id),
-          name: v.name || v.plate || `Vehicle ${v.id}`,
-        })),
-      );
-    }
-  };
 
   const run = async (fn: () => Promise<{ success: boolean; error?: string }>, successMsg: string) => {
     setBusy(true);
