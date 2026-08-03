@@ -44,6 +44,7 @@ import type {
   MaterialJCCPrefillItem,
   MaterialMovementSummary,
 } from '@/types/logistics';
+import type { JourneyFeedback, JourneyFeedbackPayload } from '@/types/logistics';
 import type { ApiResponse } from '@/types';
 
 // Use same API URL logic as main api.ts
@@ -474,6 +475,45 @@ export const journeysApi = {
     return apiRequest<Journey>(`/journeys/${id}/incidents`, {
       method: 'POST',
       body: JSON.stringify(incident),
+    });
+  },
+
+  /** Full journey detail by journey id (enriched with trip/vehicle/driver relations). */
+  getDetail: async (id: string | number): Promise<ApiResponse<Journey>> => {
+    const res = await apiRequest<Journey | Record<string, unknown>>(`/journeys/${id}`);
+    if (res.success && res.data) {
+      const wrapped = res.data as Record<string, unknown>;
+      const journey = (wrapped.journey ?? wrapped.data ?? wrapped) as Journey;
+      return { ...res, data: journey };
+    }
+    return res as ApiResponse<Journey>;
+  },
+
+  /** Passenger feedback for a completed journey. */
+  listFeedback: async (
+    id: string | number,
+  ): Promise<ApiResponse<JourneyFeedback[]>> => {
+    const res = await apiRequest<JourneyFeedback[] | Record<string, unknown>>(
+      `/journeys/${id}/feedback`,
+    );
+    if (res.success && res.data) {
+      if (Array.isArray(res.data)) return { ...res, data: res.data };
+      const wrapped = res.data as Record<string, unknown>;
+      const list = (wrapped.feedback ?? wrapped.data ?? wrapped.items) as
+        | JourneyFeedback[]
+        | undefined;
+      if (Array.isArray(list)) return { ...res, data: list };
+    }
+    return { success: false, error: res.error || 'Feedback unavailable', data: [] };
+  },
+
+  submitFeedback: async (
+    id: string | number,
+    payload: JourneyFeedbackPayload,
+  ): Promise<ApiResponse<JourneyFeedback>> => {
+    return apiRequest<JourneyFeedback>(`/journeys/${id}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
 };

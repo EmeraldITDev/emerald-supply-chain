@@ -49,6 +49,7 @@ import {
   RFQDetailPage,
   TripDetailPage,
   TripRequestDetailPage,
+  JourneyFeedbackPage,
   FleetDetailPage,
   DriverDetailPage,
   VendorDetailPage,
@@ -125,6 +126,8 @@ const AppRoutes = () => {
           <Route path="/rfqs/:id" element={<ProtectedRoute><RFQDetailPage /></ProtectedRoute>} />
           <Route path="/trip-requests/:id" element={<ProtectedRoute><TripRequestDetailPage /></ProtectedRoute>} />
           <Route path="/trips/:id" element={<ProtectedRoute><TripDetailPage /></ProtectedRoute>} />
+          {/* Public-after-auth deep link used by the passenger feedback notification. */}
+          <Route path="/journeys/:id/feedback" element={<ProtectedRoute><JourneyFeedbackPage /></ProtectedRoute>} />
           <Route path="/fleet/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
           <Route path="/drivers/:id" element={<ProtectedRoute><DriverDetailPage /></ProtectedRoute>} />
           <Route path="/vendors/:id" element={<ProtectedRoute><VendorDetailPage /></ProtectedRoute>} />

@@ -70,6 +70,37 @@ export function wasTripDirectorApproved(id: string | number | undefined): boolea
   return readActed().has(String(id));
 }
 
+/**
+ * Secondary, optimistic-only registry of trips converted in this browser
+ * session. Cleared on refresh by design — `available_actions` from the API is
+ * always the primary gate.
+ */
+const CONVERTED_KEY = "scm:trips:converted";
+
+function readConverted(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(CONVERTED_KEY);
+    return new Set<string>(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+export function markTripConverted(id: string | number): void {
+  try {
+    const set = readConverted();
+    set.add(String(id));
+    sessionStorage.setItem(CONVERTED_KEY, JSON.stringify([...set]));
+  } catch {
+    /* storage unavailable — non-fatal */
+  }
+}
+
+export function wasTripConvertedLocally(id: string | number | undefined): boolean {
+  if (id == null) return false;
+  return readConverted().has(String(id));
+}
+
 const APPROVED_TIMESTAMP_KEYS = [
   "director_approved_at",
   "directorApprovedAt",
@@ -119,19 +150,22 @@ export function isTripConverted(trip: Record<string, unknown>): boolean {
     "completed",
   ]);
   if (convertedStates.has(stage) || convertedStates.has(status)) return true;
-  return Boolean(trip.logistics_trip_id ?? trip.logisticsTripId);
+  if (trip.logistics_trip_id ?? trip.logisticsTripId) return true;
+  return wasTripConvertedLocally(trip.id as string | number | undefined);
 }
 
 /**
- * Convert is only offered when the backend says so, or — when
- * `available_actions` is absent — while the trip sits at `scd_approved` and has
- * not already been converted.
+ * `available_actions` from the API is the primary and final gate: when it is
+ * present and does not offer a convert action, the button never renders,
+ * whatever the local session registry says. The registry and the converted
+ * heuristics are only consulted when the API omits `available_actions`.
  */
 export function canConvertToLogistics(trip: Record<string, unknown>): boolean {
   const actions = readActions(trip as never);
-  if (actions && actions.length > 0) {
+  if (actions) {
     return actions.some((a) => CONVERT_ACTIONS.includes(a));
   }
+  // Optimistic secondary layer — only when the backend told us nothing.
   if (isTripConverted(trip)) return false;
   const stage = norm(trip.workflowStage ?? trip.workflow_stage);
   const status = norm(trip.status);

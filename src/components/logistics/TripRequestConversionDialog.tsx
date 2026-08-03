@@ -20,6 +20,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, Search } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi, vendorApi } from "@/services/api";
 import { resolveTripWorkflowError } from "@/utils/tripApprovalErrors";
@@ -67,6 +78,20 @@ export function TripRequestConversionDialog({
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  /** Full server record — list payloads are partial. */
+  const [detail, setDetail] = useState<StaffTripRequest | null>(null);
+  const [externalPassengers, setExternalPassengers] = useState<
+    Array<{ name: string; email?: string; phone?: string }>
+  >([]);
+  const [accommodationRequired, setAccommodationRequired] = useState(false);
+  const [accommodationName, setAccommodationName] = useState("");
+  const [accommodationAddress, setAccommodationAddress] = useState("");
+  const [accommodationContact, setAccommodationContact] = useState("");
+  const [accommodationCost, setAccommodationCost] = useState("");
+  const [escortRequired, setEscortRequired] = useState(false);
+  const [escortDescription, setEscortDescription] = useState("");
+  const [escortCost, setEscortCost] = useState("");
+  const [softWarning, setSoftWarning] = useState<string | null>(null);
 
   const seedPassengers = useCallback((trip: StaffTripRequest) => {
     const ids: (string | number)[] =
@@ -79,9 +104,46 @@ export function TripRequestConversionDialog({
     setPassengerIds(ids.map(String));
   }, []);
 
+  // Always hydrate the full record on open — the list payload omits
+  // accommodation, escort and external passenger details.
   useEffect(() => {
     if (!open || !request) return;
+    let cancelled = false;
     seedPassengers(request);
+    setLoading(true);
+    void (async () => {
+      const res = await tripRequestApi.getById(String(request.id));
+      if (cancelled) return;
+      const full = res.success && res.data?.trip ? res.data.trip : request;
+      setDetail(full);
+      seedPassengers(full);
+      const ext = full.externalPassengers ?? full.external_passengers ?? [];
+      setExternalPassengers(
+        (Array.isArray(ext) ? ext : []).map((p) => ({
+          name: p.name ?? "",
+          email: p.email ?? "",
+          phone: p.phone ?? "",
+        })),
+      );
+      setAccommodationRequired(
+        Boolean(full.accommodationRequired ?? full.accommodation_required),
+      );
+      setAccommodationName(String(full.accommodationName ?? full.accommodation_name ?? ""));
+      setAccommodationAddress(
+        String(full.accommodationAddress ?? full.accommodation_address ?? ""),
+      );
+      setAccommodationContact(
+        String(full.accommodationContact ?? full.accommodation_contact ?? ""),
+      );
+      const accCost = full.accommodationEstimatedCost ?? full.accommodation_estimated_cost;
+      setAccommodationCost(accCost != null ? String(accCost) : "");
+      setEscortRequired(Boolean(full.escortRequired ?? full.escort_required));
+      setEscortDescription(String(full.escortDescription ?? full.escort_description ?? ""));
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [open, request, seedPassengers]);
 
   // Fetch fleet vehicles the moment the user picks Internal Vehicle (not on
@@ -165,18 +227,41 @@ export function TripRequestConversionDialog({
     });
   }, [vehicles, vehicleSearch]);
 
+  // At least one passenger, and either a fleet vehicle or a transport vendor.
+  // Everything else (driver, costs, accommodation, escort) is optional here.
   const canSubmit = useMemo(() => {
-    if (passengerIds.length === 0) return false;
-    if (driverType === "internal" && !driverUserId) return false;
-    if (driverType === "external" && !externalName.trim()) return false;
-    if (fulfillmentType === "external_vendor") {
-      return Boolean(vendorId && vehicleType.trim() && estimatedCost);
+    const hasPassenger =
+      passengerIds.length > 0 || externalPassengers.some((p) => p.name.trim());
+    if (!hasPassenger) return false;
+    return fulfillmentType === "external_vendor" ? Boolean(vendorId) : Boolean(vehicleId);
+  }, [passengerIds, externalPassengers, fulfillmentType, vendorId, vehicleId]);
+
+  const totalEstimatedCost = useMemo(() => {
+    const nums = [estimatedCost, accommodationCost, escortCost]
+      .map((v) => Number(v))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    return nums.reduce((a, b) => a + b, 0);
+  }, [estimatedCost, accommodationCost, escortCost]);
+
+  /** Soft check — the requester flagged a need the plan no longer covers. */
+  const softWarningMessage = (): string | null => {
+    const accNeeded = Boolean(
+      detail?.accommodationRequired ?? detail?.accommodation_required,
+    );
+    const escNeeded = Boolean(detail?.escortRequired ?? detail?.escort_required);
+    if (accNeeded && !accommodationName.trim()) {
+      return "Accommodation was marked as required but no details are filled. Continue anyway?";
     }
-    return Boolean(vehicleId);
-  }, [passengerIds, driverType, driverUserId, externalName, fulfillmentType, vendorId, vehicleType, estimatedCost, vehicleId]);
+    if (escNeeded && !escortDescription.trim()) {
+      return "An escort was marked as required but no escort details are filled. Continue anyway?";
+    }
+    return null;
+  };
 
   /** Canonical driver object contract shared with the backend. */
   const buildDriverPayload = () => {
+    if (driverType === "internal" && !driverUserId) return undefined;
+    if (driverType === "external" && !externalName.trim()) return undefined;
     if (driverType === "internal") {
       return {
         driver_type: "existing" as const,
@@ -197,14 +282,36 @@ export function TripRequestConversionDialog({
     };
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (skipSoftCheck = false) => {
     if (!request || !canSubmit) return;
+    if (!skipSoftCheck) {
+      const warning = softWarningMessage();
+      if (warning) {
+        setSoftWarning(warning);
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       const payload = {
         fulfillment_type: fulfillmentType,
         passenger_user_ids: passengerIds.map((id) => parseInt(id, 10)).filter((n) => !Number.isNaN(n)),
-        external_passengers: request.externalPassengers ?? request.external_passengers,
+        external_passengers: externalPassengers
+          .filter((p) => p.name.trim())
+          .map((p) => ({
+            name: p.name.trim(),
+            email: p.email?.trim() || undefined,
+            phone: p.phone?.trim() || undefined,
+          })),
+        accommodation_required: accommodationRequired,
+        accommodation_name: accommodationName.trim() || null,
+        accommodation_address: accommodationAddress.trim() || null,
+        accommodation_contact: accommodationContact.trim() || null,
+        accommodation_estimated_cost: accommodationCost ? Number(accommodationCost) : null,
+        escort_required: escortRequired,
+        escort_description: escortDescription.trim() || null,
+        escort_estimated_cost: escortCost ? Number(escortCost) : null,
+        total_estimated_cost: totalEstimatedCost || null,
         notes: notes || undefined,
         driver: buildDriverPayload(),
         driver_type: driverType,
@@ -221,8 +328,8 @@ export function TripRequestConversionDialog({
         ...(fulfillmentType === "external_vendor"
           ? {
             vendor_id: parseInt(vendorId, 10),
-            vehicle_type: vehicleType.trim(),
-            estimated_vendor_cost: parseFloat(estimatedCost),
+            vehicle_type: vehicleType.trim() || null,
+            estimated_vendor_cost: estimatedCost ? parseFloat(estimatedCost) : null,
           }
           : { vehicle_id: parseInt(vehicleId, 10) }),
       };
@@ -251,7 +358,7 @@ export function TripRequestConversionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Convert to logistics request</DialogTitle>
           <DialogDescription>
@@ -265,6 +372,26 @@ export function TripRequestConversionDialog({
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Read-only summary carried forward from the trip request */}
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">
+              <div className="font-medium">
+                {detail?.tripNumber ?? detail?.trip_number ?? request?.tripNumber ?? "Trip request"}
+              </div>
+              <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2 text-muted-foreground">
+                <span>Origin: {detail?.origin || "—"}</span>
+                <span>Destination: {detail?.destination || "—"}</span>
+                <span>
+                  Departure:{" "}
+                  {detail?.scheduledDepartureAt ?? detail?.scheduled_departure_at
+                    ? new Date(
+                      String(detail?.scheduledDepartureAt ?? detail?.scheduled_departure_at),
+                    ).toLocaleString()
+                    : "—"}
+                </span>
+                <span>Purpose: {detail?.purpose || "—"}</span>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Transport option</Label>
               <RadioGroup
@@ -457,6 +584,136 @@ export function TripRequestConversionDialog({
               <Label>Notes</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
             </div>
+
+            {/* External passengers carried forward from the request */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>External passengers</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setExternalPassengers((prev) => [...prev, { name: "", email: "", phone: "" }])
+                  }
+                >
+                  Add
+                </Button>
+              </div>
+              {externalPassengers.length === 0 ? (
+                <p className="text-xs text-muted-foreground">None on this request.</p>
+              ) : (
+                externalPassengers.map((p, idx) => (
+                  <div key={idx} className="grid gap-2 sm:grid-cols-3">
+                    <Input
+                      placeholder="Name"
+                      value={p.name}
+                      onChange={(e) =>
+                        setExternalPassengers((prev) =>
+                          prev.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)),
+                        )
+                      }
+                    />
+                    <Input
+                      placeholder="Email"
+                      value={p.email ?? ""}
+                      onChange={(e) =>
+                        setExternalPassengers((prev) =>
+                          prev.map((x, i) => (i === idx ? { ...x, email: e.target.value } : x)),
+                        )
+                      }
+                    />
+                    <Input
+                      placeholder="Phone"
+                      value={p.phone ?? ""}
+                      onChange={(e) =>
+                        setExternalPassengers((prev) =>
+                          prev.map((x, i) => (i === idx ? { ...x, phone: e.target.value } : x)),
+                        )
+                      }
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Accommodation */}
+            <div className="space-y-2 rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="conv-acc"
+                  checked={accommodationRequired}
+                  onCheckedChange={(v) => setAccommodationRequired(Boolean(v))}
+                />
+                <Label htmlFor="conv-acc" className="font-normal cursor-pointer">
+                  Accommodation required
+                </Label>
+              </div>
+              {accommodationRequired && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input
+                    placeholder="Hotel / accommodation name"
+                    value={accommodationName}
+                    onChange={(e) => setAccommodationName(e.target.value)}
+                  />
+                  <Input
+                    placeholder="Address"
+                    value={accommodationAddress}
+                    onChange={(e) => setAccommodationAddress(e.target.value)}
+                  />
+                  <Input
+                    placeholder="Contact"
+                    value={accommodationContact}
+                    onChange={(e) => setAccommodationContact(e.target.value)}
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Estimated cost (₦)"
+                    value={accommodationCost}
+                    onChange={(e) => setAccommodationCost(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Escort / security */}
+            <div className="space-y-2 rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="conv-escort"
+                  checked={escortRequired}
+                  onCheckedChange={(v) => setEscortRequired(Boolean(v))}
+                />
+                <Label htmlFor="conv-escort" className="font-normal cursor-pointer">
+                  Security escort required
+                </Label>
+              </div>
+              {escortRequired && (
+                <div className="grid gap-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="Escort arrangement details"
+                    value={escortDescription}
+                    onChange={(e) => setEscortDescription(e.target.value)}
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="Escort estimated cost (₦)"
+                    value={escortCost}
+                    onChange={(e) => setEscortCost(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+
+            {totalEstimatedCost > 0 && (
+              <div className="flex items-center justify-between rounded-lg border bg-muted/40 p-3 text-sm">
+                <span className="text-muted-foreground">Total estimated cost</span>
+                <span className="font-semibold">₦{totalEstimatedCost.toLocaleString()}</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -464,11 +721,31 @@ export function TripRequestConversionDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
+          <Button onClick={() => handleSubmit()} disabled={!canSubmit || submitting}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Convert
           </Button>
         </DialogFooter>
+
+        <AlertDialog open={softWarning != null} onOpenChange={(o) => !o && setSoftWarning(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm conversion</AlertDialogTitle>
+              <AlertDialogDescription>{softWarning}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Go back</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setSoftWarning(null);
+                  void handleSubmit(true);
+                }}
+              >
+                Continue anyway
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );

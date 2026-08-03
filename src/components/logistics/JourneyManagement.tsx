@@ -45,12 +45,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { journeysApi, tripsApi } from "@/services/logisticsApi";
-import type { Journey, JourneyStatus, JourneyCheckpoint, JourneyIncident, Trip } from "@/types/logistics";
+import type {
+  Journey,
+  JourneyStatus,
+  JourneyCheckpoint,
+  JourneyIncident,
+  Trip,
+  JourneyFeedback,
+} from "@/types/logistics";
 import { TripCommentsPanel } from "./TripCommentsPanel";
 import { useNavigate } from "react-router-dom";
+import { exportToCSV } from "@/utils/exportData";
 
 interface JourneyWithTrip extends Journey {
   linkedTrip?: Trip;
@@ -97,6 +106,27 @@ function journeyStatusKey(status?: string | null): JourneyStatus {
   return "not_started";
 }
 
+/**
+ * Missing data is *not* an error — render a muted dash with an explanatory
+ * tooltip rather than a red state.
+ */
+const MissingValue = () => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <span className="text-muted-foreground cursor-help">—</span>
+    </TooltipTrigger>
+    <TooltipContent>This information has not been provided yet.</TooltipContent>
+  </Tooltip>
+);
+
+/** Renders a value or the grey dash placeholder when it is genuinely absent. */
+function fieldValue(value: unknown): React.ReactNode {
+  if (value == null) return <MissingValue />;
+  const s = String(value).trim();
+  if (!s || s.toLowerCase() === "n/a") return <MissingValue />;
+  return s;
+}
+
 export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -119,6 +149,27 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   const [incidentDescription, setIncidentDescription] = useState("");
   const [incidentSeverity, setIncidentSeverity] = useState<string>("low");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<JourneyFeedback[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+
+  // Passenger feedback for the journey currently open in the detail dialog.
+  useEffect(() => {
+    if (!viewDialogOpen || !selectedJourney?.id) {
+      setFeedback([]);
+      return;
+    }
+    let cancelled = false;
+    setFeedbackLoading(true);
+    void (async () => {
+      const res = await journeysApi.listFeedback(selectedJourney.id);
+      if (cancelled) return;
+      setFeedback(res.success && Array.isArray(res.data) ? res.data : []);
+      setFeedbackLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewDialogOpen, selectedJourney?.id]);
 
   // Fetch journeys from API — tied to the same trip records created at request/approval
   const fetchJourneys = async () => {
@@ -586,7 +637,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                 <div>
                   <Label className="text-muted-foreground">Current Location</Label>
                   <p className="font-medium">
-                    {selectedJourney.currentLocation || "Unknown"}
+                    {fieldValue(selectedJourney.currentLocation)}
                   </p>
                 </div>
                 <div>
@@ -594,7 +645,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   <p className="font-medium">
                     {selectedJourney.lastUpdatedAt
                       ? new Date(selectedJourney.lastUpdatedAt).toLocaleString()
-                      : "N/A"}
+                      : <MissingValue />}
                   </p>
                 </div>
               </div>
@@ -606,9 +657,9 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <Label className="text-muted-foreground">Route</Label>
-                      <p>
-                        {selectedJourney.linkedTrip.origin} →{" "}
-                        {selectedJourney.linkedTrip.destination}
+                      <p className="flex items-center gap-1">
+                        {fieldValue(selectedJourney.linkedTrip.origin)} →{" "}
+                        {fieldValue(selectedJourney.linkedTrip.destination)}
                       </p>
                     </div>
                     <div>
@@ -619,14 +670,15 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                     </div>
                     <div>
                       <Label className="text-muted-foreground">Driver</Label>
-                      <p>{selectedJourney.linkedTrip.driverName || "—"}</p>
+                      <p>{fieldValue(selectedJourney.linkedTrip.driverName)}</p>
                     </div>
                     <div>
                       <Label className="text-muted-foreground">Vehicle</Label>
                       <p>
-                        {selectedJourney.linkedTrip.vehiclePlate ||
-                          selectedJourney.linkedTrip.vehicleType ||
-                          "—"}
+                        {fieldValue(
+                          selectedJourney.linkedTrip.vehiclePlate ??
+                            selectedJourney.linkedTrip.vehicleType,
+                        )}
                       </p>
                     </div>
                   </div>
@@ -705,16 +757,71 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                 </div>
               )}
 
+              {/* Passenger feedback */}
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-muted-foreground">Passenger feedback</Label>
+                  {feedback.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        exportToCSV(
+                          feedback.map((f) => ({
+                            passenger: f.passengerName ?? f.passenger_name ?? "",
+                            rating: f.rating ?? "",
+                            status: String(f.status ?? "").replace(/_/g, " "),
+                            comments: f.comments ?? "",
+                            submitted_at: f.createdAt ?? f.created_at ?? "",
+                          })),
+                          `journey-${selectedJourney.id}-feedback`,
+                        )
+                      }
+                    >
+                      Export CSV
+                    </Button>
+                  )}
+                </div>
+                {feedbackLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : feedback.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No passenger feedback submitted yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {feedback.map((f, i) => (
+                      <div key={f.id ?? i} className="rounded-lg border p-3 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-medium">
+                            {fieldValue(f.passengerName ?? f.passenger_name)}
+                          </span>
+                          <span className="text-muted-foreground capitalize">
+                            {f.rating != null ? `${f.rating}/5` : "—"}
+                            {f.status ? ` · ${String(f.status).replace(/_/g, " ")}` : ""}
+                          </span>
+                        </div>
+                        {f.comments && <p className="mt-1">{f.comments}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Metrics */}
               {(selectedJourney.totalDistance || selectedJourney.totalDuration) && (
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                   <div>
                     <Label className="text-muted-foreground">Total Distance</Label>
-                    <p className="font-medium">{selectedJourney.totalDistance || "N/A"} km</p>
+                    <p className="font-medium">
+                      {selectedJourney.totalDistance ? `${selectedJourney.totalDistance} km` : <MissingValue />}
+                    </p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Total Duration</Label>
-                    <p className="font-medium">{selectedJourney.totalDuration || "N/A"}</p>
+                    <p className="font-medium">{fieldValue(selectedJourney.totalDuration)}</p>
                   </div>
                 </div>
               )}
