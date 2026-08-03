@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Boxes, PackageCheck, AlertTriangle, Wallet } from 'lucide-react';
 import { warehouseInventoryApi } from '@/services/warehouseInventoryApi';
-import { formatCurrency } from '@/utils/currency';
+import { formatPoAmount } from '@/utils/currency';
 
 const StatCard = ({
   title,
@@ -50,7 +50,7 @@ export const WarehouseDashboardPanel = ({ canViewValuation }: { canViewValuation
         {canViewValuation && (
           <StatCard
             title="Inventory Value"
-            value={formatCurrency(summary.total_inventory_value ?? 0)}
+            value={formatPoAmount(summary.total_inventory_value ?? 0, 'NGN')}
             hint="Total valuation at current cost"
             icon={Wallet}
             loading={isLoading}
