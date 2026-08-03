@@ -119,7 +119,7 @@ export function GlobalSearch() {
     if (t === "srf")
       return `/procurement?tab=srf&srf=${encodeURIComponent(displayId)}`;
     if (t === "vendor") return `/vendors/${encodeURIComponent(r.id)}`;
-    if (t === "item") return `/inventory?id=${encodeURIComponent(r.id)}`;
+    if (t === "item") return `/warehouse?id=${encodeURIComponent(r.id)}`;
     if (["shipment", "trip"].includes(t))
       return `/trips/${encodeURIComponent(r.id)}`;
     return "/dashboard";

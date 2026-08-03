@@ -29,7 +29,6 @@ import {
   NewAnnualPlan,
   NewSRF,
   Logistics,
-  Inventory,
   Warehouse,
   Vendors,
   VendorRegistrationReview,
@@ -109,7 +108,6 @@ const AppRoutes = () => {
           <Route path="/procurement/mrf/new" element={<ProtectedRoute><NewMRF /></ProtectedRoute>} />
           <Route path="/procurement/srf/new" element={<ProtectedRoute><NewSRF /></ProtectedRoute>} />
           <Route path="/logistics" element={<ProtectedRoute><Logistics /></ProtectedRoute>} />
-          <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
           <Route path="/warehouse" element={<ProtectedRoute><Warehouse /></ProtectedRoute>} />
           <Route path="/vendors" element={<ProtectedRoute><Vendors /></ProtectedRoute>} />
           <Route path="/vendors/registration/:id" element={<ProtectedRoute><VendorRegistrationReview /></ProtectedRoute>} />
