@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,10 @@ import { TripRequestConversionDialog } from "./TripRequestConversionDialog";
 import type { StaffTripRequest } from "@/types/trip-request";
 import type { Trip, TripWorkflowStage } from "@/types/logistics";
 import { getTripWorkflowStageLabel } from "@/utils/workflowStageLabels";
+import {
+  isTripConverted,
+  markTripConverted,
+} from "@/utils/tripApprovalState";
 
 const LOGISTICS_ROLES = new Set([
   "logistics_manager",
@@ -49,6 +53,9 @@ export function TripWorkflowActions({
   const [convertOpen, setConvertOpen] = useState(false);
   const [poOpen, setPoOpen] = useState(false);
   const [signedPoOpen, setSignedPoOpen] = useState(false);
+  const [converted, setConverted] = useState(() =>
+    isTripConverted(trip as unknown as Record<string, unknown>),
+  );
   const [poNumber, setPoNumber] = useState("");
   const [unsignedPoUrl, setUnsignedPoUrl] = useState("");
   const [signedPoUrl, setSignedPoUrl] = useState("");
@@ -65,8 +72,14 @@ export function TripWorkflowActions({
   const isProcurement = userRole && PROCUREMENT_ROLES.has(userRole);
   const isScd = userRole && SCD_ROLES.has(userRole);
 
+  useEffect(() => {
+    setConverted(isTripConverted(trip as unknown as Record<string, unknown>));
+  }, [trip]);
+
   const canConvert =
-    isLogistics && (stage === "trip_request" || stage === "logistics_review");
+    isLogistics &&
+    !converted &&
+    (stage === "trip_request" || stage === "logistics_review");
 
   const run = async (fn: () => Promise<{ success: boolean; error?: string }>, successMsg: string) => {
     setBusy(true);
@@ -180,6 +193,8 @@ export function TripWorkflowActions({
         open={convertOpen}
         onOpenChange={setConvertOpen}
         onConverted={() => {
+          markTripConverted(trip.id);
+          setConverted(true);
           setConvertOpen(false);
           onUpdated?.();
         }}
