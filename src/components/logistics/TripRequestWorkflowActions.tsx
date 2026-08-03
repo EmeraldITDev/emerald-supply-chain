@@ -18,7 +18,13 @@ import { TripRequestConversionDialog } from "./TripRequestConversionDialog";
 import { getScmRole } from "@/utils/scmRole";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
-import { canScdApprove, canScdReject } from "@/utils/tripApprovalState";
+import {
+  canScdApprove,
+  canScdReject,
+  canConvertToLogistics,
+  isTripConverted,
+  markTripDirectorApproved,
+} from "@/utils/tripApprovalState";
 import { resolveTripWorkflowError, isStaleTripStateError } from "@/utils/tripApprovalErrors";
 
 interface TripRequestWorkflowActionsProps {
@@ -93,15 +99,10 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
   const showForward = isLm && actions.includes("forward");
   const showReject = isLm && actions.includes("reject");
   const showChanges = isLm && actions.includes("request_changes");
-  const stage = String(trip.workflowStage ?? trip.workflow_stage ?? trip.status ?? "")
-    .toLowerCase()
-    .replace(/\s+/g, "_");
-  const showConvert =
-    isLm &&
-    (actions.includes("convert") ||
-      actions.includes("convert_to_logistics") ||
-      (actions.length === 0 &&
-        (stage === "scd_approved" || stage === "logistics_processing")));
+  // Convert disappears the moment the trip has a logistics record or the
+  // backend stops offering the action.
+  const showConvert = isLm && !isTripConverted(trip as unknown as Record<string, unknown>) &&
+    canConvertToLogistics(trip as unknown as Record<string, unknown>);
   const showDirectorApprove = isDirector && approveAllowed;
   const showDirectorReject = isDirector && rejectAllowed;
   const showDirectorReturn =
