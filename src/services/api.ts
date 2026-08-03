@@ -3250,27 +3250,72 @@ export const vendorApi = {
     });
   },
 
-  // Admin update for vendor profile fields missing on legacy registrations.
-  // Backend whitelists exactly these four snake_case fields; others are ignored.
-  // Admin update for vendor profile fields missing on legacy registrations.
-  // This version maps camelCase frontend fields to the snake_case backend fields.
+  // Admin update for the full vendor profile (Procurement Manager / SCD).
+  // Sends snake_case (canonical) plus camelCase aliases for backend tolerance.
   updateAdmin: async (
-    id: string | number, 
-    data: { 
-      annualRevenue?: string; 
-      numberOfEmployees?: string; 
-      yearEstablished?: number; 
+    id: string | number,
+    data: {
+      companyName?: string;
+      contactPerson?: string;
+      contactPersonTitle?: string;
+      email?: string;
+      phone?: string;
+      alternatePhone?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      country?: string;
+      postalCode?: string;
+      taxId?: string;
+      categories?: string[];
+      categoryOther?: string;
+      status?: string;
+      annualRevenue?: string;
+      numberOfEmployees?: string;
+      yearEstablished?: number;
       website?: string;
+      bankName?: string;
+      accountName?: string;
+      accountNumber?: string;
     }
   ): Promise<ApiResponse<Vendor>> => {
+    const map: Array<[string, string, unknown]> = [
+      ['company_name', 'companyName', data.companyName],
+      ['contact_person', 'contactPerson', data.contactPerson],
+      ['contact_person_title', 'contactPersonTitle', data.contactPersonTitle],
+      ['email', 'email', data.email],
+      ['phone', 'phone', data.phone],
+      ['alternate_phone', 'alternatePhone', data.alternatePhone],
+      ['address', 'address', data.address],
+      ['city', 'city', data.city],
+      ['state', 'state', data.state],
+      ['country', 'country', data.country],
+      ['postal_code', 'postalCode', data.postalCode],
+      ['tax_id', 'taxId', data.taxId],
+      ['categories', 'categories', data.categories],
+      ['category_other', 'categoryOther', data.categoryOther],
+      ['status', 'status', data.status],
+      ['annual_revenue', 'annualRevenue', data.annualRevenue],
+      ['number_of_employees', 'numberOfEmployees', data.numberOfEmployees],
+      ['year_established', 'yearEstablished', data.yearEstablished],
+      ['website', 'website', data.website],
+      ['bank_name', 'bankName', data.bankName],
+      ['account_name', 'accountName', data.accountName],
+      ['account_number', 'accountNumber', data.accountNumber],
+    ];
+    const body: Record<string, unknown> = {};
+    for (const [snake, camel, value] of map) {
+      if (value === undefined) continue;
+      body[snake] = value;
+      if (camel !== snake) body[camel] = value;
+    }
+    // Backend also accepts the first category as `category` on legacy records.
+    if (Array.isArray(data.categories) && data.categories.length > 0) {
+      body.category = data.categories.join(', ');
+    }
     return apiRequest<Vendor>(`/vendors/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({
-        annual_revenue: data.annualRevenue,
-        number_of_employees: data.numberOfEmployees,
-        year_established: data.yearEstablished,
-        website: data.website,
-      }),
+      body: JSON.stringify(body),
     });
   },
 
