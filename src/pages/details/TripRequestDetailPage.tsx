@@ -165,6 +165,11 @@ export default function TripRequestDetailPage() {
             {showWorkflowActions && (
               <TripRequestWorkflowActions trip={trip} onUpdated={() => void load()} />
             )}
+            {showReadOnlyStatusBanner && (
+              <Badge variant="secondary" className="capitalize">
+                No actions available at this stage
+              </Badge>
+            )}
             {editAccess.canEdit && (
               <Button
                 size="sm"
