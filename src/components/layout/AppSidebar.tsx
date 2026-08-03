@@ -90,8 +90,7 @@ export function AppSidebar() {
         },
         { title: "Vendors", url: "/vendors", icon: Users },
         { title: "Logistics", url: "/logistics", icon: Truck },
-        { title: "Inventory", url: "/inventory", icon: Package },
-        { title: "Warehouse", url: "/warehouse", icon: Warehouse },
+        { title: "Warehouse & Inventory", url: "/warehouse", icon: Warehouse },
       ],
     },
     {
@@ -129,8 +128,7 @@ export function AppSidebar() {
             },
             { title: "Vendors", url: "/vendors", icon: Users },
             { title: "Logistics", url: "/logistics", icon: Truck },
-            { title: "Inventory", url: "/inventory", icon: Package },
-            { title: "Warehouse", url: "/warehouse", icon: Warehouse },
+            { title: "Warehouse & Inventory", url: "/warehouse", icon: Warehouse },
           ],
         },
         {
@@ -284,7 +282,7 @@ export function AppSidebar() {
           items: [
             { title: "Logistics", url: "/logistics", icon: Truck },
             { title: "Vendors", url: "/vendors", icon: Users },
-            { title: "Inventory", url: "/inventory", icon: Package },
+            { title: "Warehouse & Inventory", url: "/warehouse", icon: Warehouse },
           ],
         },
         {
