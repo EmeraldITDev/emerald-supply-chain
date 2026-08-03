@@ -18,6 +18,8 @@ import { TripRequestConversionDialog } from "./TripRequestConversionDialog";
 import { getScmRole } from "@/utils/scmRole";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
+import { canScdApprove, canScdReject } from "@/utils/tripApprovalState";
+import { resolveTripWorkflowError } from "@/utils/tripApprovalErrors";
 
 interface TripRequestWorkflowActionsProps {
   trip: StaffTripRequest;
@@ -46,31 +48,15 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
     role === "director" ||
     role === "admin";
 
-  const stage = String(
-    trip.workflowStage ?? trip.workflow_stage ?? trip.status ?? "",
-  )
-    .toLowerCase()
-    .replace(/\s+/g, "_");
-  const isPendingDirector =
-    stage.includes("director") &&
-    (stage.includes("pending") || stage.includes("forward") || stage.includes("review")) ||
-    stage === "forwarded" ||
-    stage === "pending_director_approval";
+  // Backend `available_actions` is the single source of truth; the helpers fall
+  // back to canonical workflow states only when the API omits it.
+  const approveAllowed = canScdApprove(trip);
+  const rejectAllowed = canScdReject(trip);
 
-  // Debug: verify what role/status the frontend is seeing
-  if (typeof window !== "undefined") {
-    // eslint-disable-next-line no-console
-    console.debug("[TripRequestWorkflowActions]", {
-      role,
-      status: trip.status,
-      workflowStage: trip.workflowStage ?? trip.workflow_stage,
-      availableActions: actions,
-      isDirector,
-      isPendingDirector,
-    });
-  }
-
-  const run = async (fn: () => Promise<{ success: boolean; error?: string }>, successMsg: string) => {
+  const run = async (
+    fn: () => Promise<{ success: boolean; error?: string; code?: string }>,
+    successMsg: string,
+  ) => {
     setBusy(true);
     try {
       const res = await fn();
@@ -84,7 +70,11 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
         window.dispatchEvent(new CustomEvent("app:refresh"));
         onUpdated?.();
       } else {
-        toast({ title: "Action failed", description: res.error, variant: "destructive" });
+        toast({
+          title: "Action failed",
+          description: resolveTripWorkflowError(res),
+          variant: "destructive",
+        });
       }
     } finally {
       setBusy(false);
@@ -98,15 +88,19 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
   const showForward = isLm && actions.includes("forward");
   const showReject = isLm && actions.includes("reject");
   const showChanges = isLm && actions.includes("request_changes");
-  const showConvert = isLm && actions.includes("convert");
-  // Fall back to status-derived visibility when the backend omits availableActions
-  // for director-stage trips (common when status="pending_director_approval").
-  const showDirectorApprove =
-    isDirector && (actions.includes("director_approve") || isPendingDirector);
-  const showDirectorReject =
-    isDirector && (actions.includes("director_reject") || isPendingDirector);
+  const stage = String(trip.workflowStage ?? trip.workflow_stage ?? trip.status ?? "")
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+  const showConvert =
+    isLm &&
+    (actions.includes("convert") ||
+      actions.includes("convert_to_logistics") ||
+      (actions.length === 0 &&
+        (stage === "scd_approved" || stage === "logistics_processing")));
+  const showDirectorApprove = isDirector && approveAllowed;
+  const showDirectorReject = isDirector && rejectAllowed;
   const showDirectorReturn =
-    isDirector && (actions.includes("director_return") || isPendingDirector);
+    isDirector && (actions.includes("director_return") || approveAllowed);
 
   if (
     !showForward &&
@@ -157,7 +151,12 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
           <Button
             size="sm"
             disabled={busy}
-            onClick={() => run(() => tripRequestApi.directorApprove(String(trip.id)), "Trip request approved")}
+            onClick={() =>
+              run(
+                () => tripRequestApi.directorApprove(String(trip.id)),
+                "Trip approved. The Logistics Manager has been notified.",
+              )
+            }
           >
             <CheckCircle className="mr-2 h-4 w-4" />
             Approve
@@ -241,7 +240,7 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
                   );
                 } else if (reasonOpen === "return") {
                   void run(() => tripRequestApi.directorReturn(String(trip.id), reason), "Returned to employee");
-                } else if (reasonOpen === "reject" && isDirector && actions.includes("director_reject")) {
+                } else if (reasonOpen === "reject" && isDirector && rejectAllowed) {
                   void run(() => tripRequestApi.directorReject(String(trip.id), reason), "Trip request rejected");
                 } else {
                   void run(
