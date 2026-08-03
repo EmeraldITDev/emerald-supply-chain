@@ -801,6 +801,20 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       cargo: trip.cargo,
     });
     setSelectedPassengers(trip.passengers?.map(p => p.staffId) || []);
+    const acc = trip as any;
+    const accCost = acc.accommodationEstimatedCost ?? acc.accommodation_estimated_cost;
+    setAccommodation({
+      required: Boolean(acc.accommodationRequired ?? acc.accommodation_required),
+      name: String(acc.accommodationName ?? acc.accommodation_name ?? ""),
+      address: String(acc.accommodationAddress ?? acc.accommodation_address ?? ""),
+      contact: String(acc.accommodationContact ?? acc.accommodation_contact ?? ""),
+      details: String(acc.accommodationDetails ?? acc.accommodation_details ?? ""),
+      estimatedCost: accCost == null ? "" : String(accCost),
+    });
+    setEscort({
+      required: Boolean(acc.escortRequired ?? acc.escort_required),
+      description: String(acc.escortDescription ?? acc.escort_description ?? ""),
+    });
     // Detect external driver: trip carries driver name/phone but no internal driver id
     const tAny = trip as any;
     const extName = tAny.external_driver?.name || (!tAny.driver_id && trip.driverName) || "";
