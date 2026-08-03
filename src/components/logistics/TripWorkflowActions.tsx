@@ -210,84 +210,20 @@ export function TripWorkflowActions({
         )}
       </div>
 
-      <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Convert to logistics request</DialogTitle>
-            <DialogDescription>Assign vendor, vehicle, passengers, and optional driver.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Vendor *</Label>
-              <Select value={vendorId} onValueChange={setVendorId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select vendor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vendors.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Vehicle *</Label>
-              <Select value={vehicleId} onValueChange={setVehicleId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select vehicle" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vehicles.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <EligiblePassengerPicker
-              selectedPassengerIds={passengerIds}
-              onPassengersChange={setPassengerIds}
-              driverUserId={driverUserId}
-              onDriverChange={setDriverUserId}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              disabled={busy || !vendorId || !vehicleId}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  const conversionBody: import("@/types/logistics").TripConversionData = {
-                    vendor_id: parseInt(vendorId, 10),
-                    vehicle_id: parseInt(vehicleId, 10),
-                    passenger_user_ids: passengerIds.map((id) => parseInt(id, 10)),
-                    ...(driverUserId ? { driver_user_id: parseInt(driverUserId, 10) } : {}),
-                  };
-                  const res = await tripRequestApi.convertToLogisticsRequest(
-                    String(trip.id),
-                    conversionBody,
-                  );
-                  if (res.success) {
-                    toast({ title: "Converted", description: "Procurement has been notified." });
-                    setConvertOpen(false);
-                    onUpdated?.();
-                  } else {
-                    toast({ title: "Failed", description: res.error, variant: "destructive" });
-                  }
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Submit
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TripRequestConversionDialog
+        request={
+          {
+            ...(trip as unknown as StaffTripRequest),
+            id: trip.id,
+          } as StaffTripRequest
+        }
+        open={convertOpen}
+        onOpenChange={setConvertOpen}
+        onConverted={() => {
+          setConvertOpen(false);
+          onUpdated?.();
+        }}
+      />
 
       <Dialog open={poOpen} onOpenChange={setPoOpen}>
         <DialogContent>
