@@ -63,6 +63,8 @@ import {
   canScdApprove,
   isTripAwaitingDirectorApproval,
   tripStatusPlainLabel,
+  resolveTripDisplayStatus,
+  markTripDirectorApproved,
 } from "@/utils/tripApprovalState";
 import { resolveTripWorkflowError, isStaleTripStateError } from "@/utils/tripApprovalErrors";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
@@ -1197,9 +1199,9 @@ const SupplyChainDashboard = () => {
                           const dep =
                             (t.scheduledDepartureAt as string | undefined) ??
                             (t.scheduled_departure_at as string | undefined);
-                          const stageLabel =
-                            (t.workflowStageLabel as string | undefined) ??
-                            "Pending Director Approval";
+                          const stageLabel = resolveTripDisplayStatus(
+                            t as Record<string, unknown>,
+                          );
                           return (
                             <div
                               key={tid}
@@ -1234,6 +1236,9 @@ const SupplyChainDashboard = () => {
                                     const res = await tripRequestApi.directorApprove(tid);
                                     const stale = !res.success && isStaleTripStateError(res);
                                     if (res.success || stale) {
+                                      // Record locally so a stale list payload
+                                      // cannot resurrect this row on refetch.
+                                      markTripDirectorApproved(tid);
                                       if (stale) {
                                         // Backend already moved this trip on — clear the
                                         // stale row instead of leaving a dead button.

@@ -1772,7 +1772,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               />
               
               {/* Trip Request Workflow Actions */}
-              {selectedTripRequest && (selectedTripRequest.availableActions?.length ?? 0) > 0 && (
+              {selectedTripRequest && (
                 <div className="rounded-lg border p-4 bg-muted/30">
                   <p className="text-sm font-medium mb-3">Trip Request Actions</p>
                   <TripRequestWorkflowActions

@@ -353,7 +353,7 @@ export function TripRequestDetailDialog({
                 </div>
               </div>
             )}
-            {trip && (trip.availableActions?.length ?? 0) > 0 && (
+            {trip && (
               <TripRequestWorkflowActions
                 trip={trip}
                 onUpdated={() => {
