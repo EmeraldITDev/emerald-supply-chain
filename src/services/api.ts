@@ -4383,11 +4383,25 @@ export const tripRequestApi = {
     }>;
   },
 
-  directorApprove: async (id: string) => {
-    return apiRequest(`/trip-requests/${encodeURIComponent(id)}/director-approve`, {
+  /**
+   * SCD approval — POST /api/trip-requests/{id}/scd-approve
+   * Falls back to the legacy `/director-approve` route for older backends.
+   */
+  directorApprove: async (id: string, remarks?: string) => {
+    const body = JSON.stringify({ action: 'approve', remarks: remarks ?? '' });
+    const res = await apiRequest(`/trip-requests/${encodeURIComponent(id)}/scd-approve`, {
       method: 'POST',
-      body: JSON.stringify({}),
+      body,
     });
+    if (res.success) return res;
+    const msg = String(res.error ?? '').toLowerCase();
+    if (msg.includes('404') || msg.includes('not found') || msg.includes('405')) {
+      return apiRequest(`/trip-requests/${encodeURIComponent(id)}/director-approve`, {
+        method: 'POST',
+        body,
+      });
+    }
+    return res;
   },
 
   directorReject: async (id: string, reason?: string) => {
