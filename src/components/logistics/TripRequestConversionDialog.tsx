@@ -22,6 +22,7 @@ import {
 import { Loader2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi, vendorApi } from "@/services/api";
+import { resolveTripWorkflowError } from "@/utils/tripApprovalErrors";
 import { fleetApi } from "@/services/logisticsApi";
 import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
 import type { StaffTripRequest } from "@/types/trip-request";
