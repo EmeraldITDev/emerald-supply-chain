@@ -151,6 +151,17 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [selectedTripRequest, setSelectedTripRequest] = useState<StaffTripRequest | null>(null);
   const [loadingTripRequest, setLoadingTripRequest] = useState(false);
 
+  // Accommodation & escort (security) details for the edit dialog
+  const [accommodation, setAccommodation] = useState({
+    required: false,
+    name: "",
+    address: "",
+    contact: "",
+    details: "",
+    estimatedCost: "",
+  });
+  const [escort, setEscort] = useState({ required: false, description: "" });
+
   // When a trip request row (TRQ-*) is opened in the details dialog, fetch the
   // underlying StaffTripRequest so trip-request workflow buttons (Forward,
   // Request changes, Reject) can render.
