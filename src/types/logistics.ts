@@ -982,3 +982,31 @@ export interface TripComment {
   createdAt?: string;
   created_at?: string;
 }
+
+/** Status a passenger reports when giving feedback on a completed journey. */
+export type JourneyFeedbackStatus =
+  | 'satisfactory'
+  | 'excellent'
+  | 'still_ongoing'
+  | 'took_longer_than_expected';
+
+export interface JourneyFeedback {
+  id: string | number;
+  journeyId?: string | number;
+  journey_id?: string | number;
+  passengerName?: string;
+  passenger_name?: string;
+  passengerEmail?: string;
+  passenger_email?: string;
+  rating?: number;
+  status?: JourneyFeedbackStatus | string;
+  comments?: string | null;
+  createdAt?: string;
+  created_at?: string;
+}
+
+export interface JourneyFeedbackPayload {
+  rating: number;
+  status: JourneyFeedbackStatus;
+  comments?: string;
+}

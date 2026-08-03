@@ -40,6 +40,7 @@ export const PODetailPage = lazyPage(() => import("@/pages/details/PODetailPage"
 export const RFQDetailPage = lazyPage(() => import("@/pages/details/RFQDetailPage"));
 export const TripDetailPage = lazyPage(() => import("@/pages/details/TripDetailPage"));
 export const TripRequestDetailPage = lazyPage(() => import("@/pages/details/TripRequestDetailPage"));
+export const JourneyFeedbackPage = lazyPage(() => import("@/pages/details/JourneyFeedbackPage"));
 export const FleetDetailPage = lazyPage(() => import("@/pages/details/FleetDetailPage"));
 export const DriverDetailPage = lazyPage(() => import("@/pages/details/DriverDetailPage"));
 export const VendorDetailPage = lazyPage(() => import("@/pages/details/VendorDetailPage"));

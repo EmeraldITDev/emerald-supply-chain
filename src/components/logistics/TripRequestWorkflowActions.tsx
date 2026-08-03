@@ -24,6 +24,7 @@ import {
   canConvertToLogistics,
   isTripConverted,
   markTripDirectorApproved,
+  markTripConverted,
 } from "@/utils/tripApprovalState";
 import { resolveTripWorkflowError, isStaleTripStateError } from "@/utils/tripApprovalErrors";
 
@@ -274,7 +275,10 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
         request={trip}
         open={convertOpen}
         onOpenChange={setConvertOpen}
-        onConverted={() => onUpdated?.()}
+        onConverted={() => {
+          markTripConverted(trip.id);
+          onUpdated?.();
+        }}
       />
     </>
   );

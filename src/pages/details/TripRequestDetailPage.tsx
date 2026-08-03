@@ -96,10 +96,18 @@ export default function TripRequestDetailPage() {
     trip?.workflowStage ?? trip?.workflow_stage ?? trip?.status ?? "",
   ).toLowerCase();
   const isDirectorStage = stageStr.includes("director") || stageStr === "forwarded";
+  // `available_actions` from the fresh detail fetch is the source of truth.
+  // Only when the backend omits the field entirely do we fall back to stage
+  // inference, so a stage with no permitted actions never shows buttons.
+  const hasActionContract = Array.isArray(trip?.availableActions);
   const showWorkflowActions =
     !!trip &&
     (isLogisticsRole || isDirectorRole) &&
-    ((trip.availableActions?.length ?? 0) > 0 || (isDirectorRole && isDirectorStage));
+    (hasActionContract
+      ? (trip!.availableActions?.length ?? 0) > 0
+      : isDirectorRole && isDirectorStage);
+  const showReadOnlyStatusBanner =
+    !!trip && (isLogisticsRole || isDirectorRole) && !showWorkflowActions;
 
   // Debug log to verify the role/status strings coming through
   if (trip && typeof window !== "undefined") {
@@ -156,6 +164,11 @@ export default function TripRequestDetailPage() {
             )}
             {showWorkflowActions && (
               <TripRequestWorkflowActions trip={trip} onUpdated={() => void load()} />
+            )}
+            {showReadOnlyStatusBanner && (
+              <Badge variant="secondary" className="capitalize">
+                No actions available at this stage
+              </Badge>
             )}
             {editAccess.canEdit && (
               <Button

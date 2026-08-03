@@ -86,8 +86,23 @@ export function TripRequestForm({
 
   const isEdit = mode === "edit" && trip != null;
 
+  /**
+   * Fields the user has explicitly interacted with. On edit we send a partial
+   * PUT containing exactly these fields — including empty/null values when the
+   * user deliberately cleared them — and omit everything untouched, so the
+   * backend can tell "not changed" from "intentionally cleared".
+   */
+  const [dirtyFields, setDirtyFields] = useState<Set<string>>(() => new Set());
+  const touch = (...names: string[]) =>
+    setDirtyFields((prev) => {
+      const next = new Set(prev);
+      names.forEach((n) => next.add(n));
+      return next;
+    });
+
   useEffect(() => {
     if (!isEdit || !trip) return;
+    setDirtyFields(new Set());
     setDestination(trip.destination || "");
     setPurpose(trip.purpose || "");
     setOrigin(trip.origin || "HQ");
@@ -199,6 +214,11 @@ export function TripRequestForm({
   void missingReasons; // surfaced in UI below
 
   const submit = async (asDraft: boolean) => {
+    if (isEdit && dirtyFields.size === 0) {
+      toast({ title: "No changes to save" });
+      onSuccess?.();
+      return;
+    }
     if (!destination.trim() || !purpose.trim() || !origin.trim() || !departureAt) {
       toast({
         title: "Validation error",
@@ -280,8 +300,44 @@ export function TripRequestForm({
         save_as_draft: asDraft || undefined,
       };
 
+      // On edit, send only the fields the user actually touched. Cleared fields
+      // are sent explicitly as null/empty so the backend does not mistake them
+      // for "unchanged".
+      const editPayload: Record<string, unknown> = {
+        destination: destination.trim(),
+        purpose: purpose.trim(),
+        origin: origin.trim() || null,
+        scheduled_departure_at: departureAt ? new Date(departureAt).toISOString() : null,
+        scheduled_arrival_at: arrivalAt ? new Date(arrivalAt).toISOString() : null,
+        passenger_user_ids: passengerIds
+          .map((id) => parseInt(id, 10))
+          .filter((n) => !Number.isNaN(n)),
+        bookingScope,
+        external_passengers: validExternal,
+        international_transport_mode:
+          bookingScope === "international" ? internationalTransportMode : null,
+        trip_type: tripType || null,
+        accommodation_required: accommodationRequired,
+        accommodation_name: accommodationName.trim() || null,
+        accommodation_address: accommodationAddress.trim() || null,
+        accommodation_contact: accommodationContact.trim() || null,
+        accommodation_details: accommodationDetails.trim() || null,
+        accommodation_estimated_cost:
+          accommodationCostNumber != null && !Number.isNaN(accommodationCostNumber)
+            ? accommodationCostNumber
+            : null,
+        escort_required: escortRequired,
+        escort_description: escortDescription.trim() || null,
+      };
+      const partialPayload = Object.fromEntries(
+        Object.entries(editPayload).filter(([key]) => dirtyFields.has(key)),
+      );
+
       const res = isEdit
-        ? await tripRequestApi.update(String(trip!.id), payload)
+        ? await tripRequestApi.update(
+            String(trip!.id),
+            partialPayload as unknown as typeof payload,
+          )
         : await tripRequestApi.create(payload);
 
       if (res.success) {
@@ -349,7 +405,7 @@ export function TripRequestForm({
         ) : (
           <RadioGroup
             value={bookingScope}
-            onValueChange={(v) => setBookingScope(v as TripBookingScope)}
+            onValueChange={(v) => { touch("bookingScope"); setBookingScope(v as TripBookingScope); }}
             className="grid gap-2"
           >
             {rules.map((r) => (
@@ -373,9 +429,10 @@ export function TripRequestForm({
           <Label>Transport Mode</Label>
           <Select
             value={internationalTransportMode ?? ""}
-            onValueChange={(v) =>
-              setInternationalTransportMode((v || null) as InternationalTransportMode | null)
-            }
+            onValueChange={(v) => {
+              touch("international_transport_mode");
+              setInternationalTransportMode((v || null) as InternationalTransportMode | null);
+            }}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select transport mode (optional)" />
@@ -393,14 +450,14 @@ export function TripRequestForm({
 
       <div className="space-y-2">
         <Label>Origin *</Label>
-        <Input value={origin} onChange={(e) => setOrigin(e.target.value)} />
+        <Input value={origin} onChange={(e) => { touch("origin"); setOrigin(e.target.value); }} />
       </div>
       <div className="space-y-2">
         <Label>Destination *</Label>
         <Input
           placeholder="e.g. Lagos Airport"
           value={destination}
-          onChange={(e) => setDestination(e.target.value)}
+          onChange={(e) => { touch("destination"); setDestination(e.target.value); }}
         />
       </div>
       <div className="space-y-2">
@@ -408,7 +465,7 @@ export function TripRequestForm({
         <Input
           placeholder="e.g. Client meeting"
           value={purpose}
-          onChange={(e) => setPurpose(e.target.value)}
+          onChange={(e) => { touch("purpose"); setPurpose(e.target.value); }}
         />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -417,7 +474,7 @@ export function TripRequestForm({
           <Input
             type="datetime-local"
             value={departureAt}
-            onChange={(e) => setDepartureAt(e.target.value)}
+            onChange={(e) => { touch("scheduled_departure_at"); setDepartureAt(e.target.value); }}
           />
         </div>
         <div className="space-y-2">
@@ -425,7 +482,7 @@ export function TripRequestForm({
           <Input
             type="datetime-local"
             value={arrivalAt}
-            onChange={(e) => setArrivalAt(e.target.value)}
+            onChange={(e) => { touch("scheduled_arrival_at"); setArrivalAt(e.target.value); }}
           />
         </div>
       </div>
@@ -454,13 +511,13 @@ export function TripRequestForm({
 
       <EligiblePassengerPicker
         selectedPassengerIds={passengerIds}
-        onPassengersChange={setPassengerIds}
+        onPassengersChange={(ids) => { touch("passenger_user_ids"); setPassengerIds(ids); }}
         showDriver={false}
       />
 
       <div className="space-y-2">
         <Label>Trip type</Label>
-        <Select value={tripType} onValueChange={setTripType}>
+        <Select value={tripType} onValueChange={(v) => { touch("trip_type"); setTripType(v); }}>
           <SelectTrigger>
             <SelectValue placeholder="Select trip type (optional)" />
           </SelectTrigger>
@@ -480,7 +537,7 @@ export function TripRequestForm({
           <Checkbox
             id="accommodation-required"
             checked={accommodationRequired}
-            onCheckedChange={(v) => setAccommodationRequired(Boolean(v))}
+            onCheckedChange={(v) => { touch("accommodation_required"); setAccommodationRequired(Boolean(v)); }}
           />
           <Label htmlFor="accommodation-required" className="cursor-pointer">
             Accommodation required
@@ -491,7 +548,7 @@ export function TripRequestForm({
             <Label className="text-xs">Hotel / Venue name (optional)</Label>
             <Input
               value={accommodationName}
-              onChange={(e) => setAccommodationName(e.target.value)}
+              onChange={(e) => { touch("accommodation_name"); setAccommodationName(e.target.value); }}
               disabled={!accommodationRequired}
             />
           </div>
@@ -499,7 +556,7 @@ export function TripRequestForm({
             <Label className="text-xs">Address (optional)</Label>
             <Input
               value={accommodationAddress}
-              onChange={(e) => setAccommodationAddress(e.target.value)}
+              onChange={(e) => { touch("accommodation_address"); setAccommodationAddress(e.target.value); }}
               disabled={!accommodationRequired}
             />
           </div>
@@ -507,7 +564,7 @@ export function TripRequestForm({
             <Label className="text-xs">Contact number</Label>
             <Input
               value={accommodationContact}
-              onChange={(e) => setAccommodationContact(e.target.value)}
+              onChange={(e) => { touch("accommodation_contact"); setAccommodationContact(e.target.value); }}
               disabled={!accommodationRequired}
             />
           </div>
@@ -517,7 +574,7 @@ export function TripRequestForm({
               type="number"
               min={0}
               value={accommodationEstimatedCost}
-              onChange={(e) => setAccommodationEstimatedCost(e.target.value)}
+              onChange={(e) => { touch("accommodation_estimated_cost"); setAccommodationEstimatedCost(e.target.value); }}
               disabled={!accommodationRequired}
             />
           </div>
@@ -526,7 +583,7 @@ export function TripRequestForm({
             <Textarea
               rows={2}
               value={accommodationDetails}
-              onChange={(e) => setAccommodationDetails(e.target.value)}
+              onChange={(e) => { touch("accommodation_details"); setAccommodationDetails(e.target.value); }}
               disabled={!accommodationRequired}
             />
           </div>
@@ -538,7 +595,7 @@ export function TripRequestForm({
           <Checkbox
             id="escort-required"
             checked={escortRequired}
-            onCheckedChange={(v) => setEscortRequired(Boolean(v))}
+            onCheckedChange={(v) => { touch("escort_required"); setEscortRequired(Boolean(v)); }}
           />
           <Label htmlFor="escort-required" className="cursor-pointer">
             Escort / security required
@@ -549,7 +606,7 @@ export function TripRequestForm({
           <Textarea
             rows={2}
             value={escortDescription}
-            onChange={(e) => setEscortDescription(e.target.value)}
+            onChange={(e) => { touch("escort_description"); setEscortDescription(e.target.value); }}
             disabled={!escortRequired}
             placeholder="Optional — leave blank if you don't know yet; Logistics will fill this in during review"
           />
@@ -563,9 +620,10 @@ export function TripRequestForm({
             type="button"
             size="sm"
             variant="outline"
-            onClick={() =>
-              setExternalPassengers((prev) => [...prev, { name: "", email: "", phone: "" }])
-            }
+            onClick={() => {
+              touch("external_passengers");
+              setExternalPassengers((prev) => [...prev, { name: "", email: "", phone: "" }]);
+            }}
           >
             <Plus className="h-4 w-4 mr-1" /> Add
           </Button>
@@ -583,11 +641,12 @@ export function TripRequestForm({
                   <Label className="text-xs">Name *</Label>
                   <Input
                     value={p.name}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      touch("external_passengers");
                       setExternalPassengers((prev) =>
                         prev.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)),
-                      )
-                    }
+                      );
+                    }}
                   />
                 </div>
                 <div className="col-span-4 space-y-1">
@@ -595,22 +654,24 @@ export function TripRequestForm({
                   <Input
                     type="email"
                     value={p.email}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      touch("external_passengers");
                       setExternalPassengers((prev) =>
                         prev.map((x, i) => (i === idx ? { ...x, email: e.target.value } : x)),
-                      )
-                    }
+                      );
+                    }}
                   />
                 </div>
                 <div className="col-span-3 space-y-1">
                   <Label className="text-xs">Phone</Label>
                   <Input
                     value={p.phone}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      touch("external_passengers");
                       setExternalPassengers((prev) =>
                         prev.map((x, i) => (i === idx ? { ...x, phone: e.target.value } : x)),
-                      )
-                    }
+                      );
+                    }}
                   />
                 </div>
                 <div className="col-span-1 flex justify-end">
@@ -618,9 +679,10 @@ export function TripRequestForm({
                     type="button"
                     size="icon"
                     variant="ghost"
-                    onClick={() =>
-                      setExternalPassengers((prev) => prev.filter((_, i) => i !== idx))
-                    }
+                    onClick={() => {
+                      touch("external_passengers");
+                      setExternalPassengers((prev) => prev.filter((_, i) => i !== idx));
+                    }}
                     aria-label="Remove external passenger"
                   >
                     <Trash2 className="h-4 w-4" />
