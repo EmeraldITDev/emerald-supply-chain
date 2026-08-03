@@ -64,7 +64,7 @@ import {
   isTripAwaitingDirectorApproval,
   tripStatusPlainLabel,
 } from "@/utils/tripApprovalState";
-import { resolveTripWorkflowError } from "@/utils/tripApprovalErrors";
+import { resolveTripWorkflowError, isStaleTripStateError } from "@/utils/tripApprovalErrors";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { queryKeys } from "@/lib/queryKeys";
