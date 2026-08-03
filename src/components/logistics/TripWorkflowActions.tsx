@@ -3,13 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -20,8 +13,8 @@ import {
 import { Loader2, UserPlus, Users2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi } from "@/services/api";
-import { fleetApi, logisticsVendorsApi } from "@/services/logisticsApi";
-import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
+import { TripRequestConversionDialog } from "./TripRequestConversionDialog";
+import type { StaffTripRequest } from "@/types/trip-request";
 import type { Trip, TripWorkflowStage } from "@/types/logistics";
 import { getTripWorkflowStageLabel } from "@/utils/workflowStageLabels";
 
@@ -56,12 +49,6 @@ export function TripWorkflowActions({
   const [convertOpen, setConvertOpen] = useState(false);
   const [poOpen, setPoOpen] = useState(false);
   const [signedPoOpen, setSignedPoOpen] = useState(false);
-  const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
-  const [vehicles, setVehicles] = useState<Array<{ id: string; name: string }>>([]);
-  const [vendorId, setVendorId] = useState("");
-  const [vehicleId, setVehicleId] = useState("");
-  const [passengerIds, setPassengerIds] = useState<string[]>([]);
-  const [driverUserId, setDriverUserId] = useState<string | undefined>();
   const [poNumber, setPoNumber] = useState("");
   const [unsignedPoUrl, setUnsignedPoUrl] = useState("");
   const [signedPoUrl, setSignedPoUrl] = useState("");
@@ -80,31 +67,6 @@ export function TripWorkflowActions({
 
   const canConvert =
     isLogistics && (stage === "trip_request" || stage === "logistics_review");
-
-  const loadConvertOptions = async () => {
-    const [vRes, fleetRes] = await Promise.all([
-      logisticsVendorsApi.getAll(),
-      fleetApi.getAll(),
-    ]);
-    if (vRes.success && vRes.data) {
-      const arr = Array.isArray(vRes.data) ? vRes.data : [];
-      setVendors(
-        arr.map((v: { id?: string | number; name?: string; company_name?: string }) => ({
-          id: String(v.id),
-          name: v.name || v.company_name || `Vendor ${v.id}`,
-        })),
-      );
-    }
-    if (fleetRes.success && fleetRes.data) {
-      const arr = Array.isArray(fleetRes.data) ? fleetRes.data : [];
-      setVehicles(
-        arr.map((v: { id?: string | number; name?: string; plate?: string }) => ({
-          id: String(v.id),
-          name: v.name || v.plate || `Vehicle ${v.id}`,
-        })),
-      );
-    }
-  };
 
   const run = async (fn: () => Promise<{ success: boolean; error?: string }>, successMsg: string) => {
     setBusy(true);
@@ -141,10 +103,7 @@ export function TripWorkflowActions({
           <Button
             size="sm"
             disabled={busy}
-            onClick={() => {
-              setConvertOpen(true);
-              loadConvertOptions();
-            }}
+            onClick={() => setConvertOpen(true)}
           >
             Convert to logistics request
           </Button>
@@ -211,84 +170,20 @@ export function TripWorkflowActions({
         )}
       </div>
 
-      <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Convert to logistics request</DialogTitle>
-            <DialogDescription>Assign vendor, vehicle, passengers, and optional driver.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Vendor *</Label>
-              <Select value={vendorId} onValueChange={setVendorId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select vendor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vendors.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Vehicle *</Label>
-              <Select value={vehicleId} onValueChange={setVehicleId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select vehicle" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vehicles.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <EligiblePassengerPicker
-              selectedPassengerIds={passengerIds}
-              onPassengersChange={setPassengerIds}
-              driverUserId={driverUserId}
-              onDriverChange={setDriverUserId}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              disabled={busy || !vendorId || !vehicleId}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  const conversionBody: import("@/types/logistics").TripConversionData = {
-                    vendor_id: parseInt(vendorId, 10),
-                    vehicle_id: parseInt(vehicleId, 10),
-                    passenger_user_ids: passengerIds.map((id) => parseInt(id, 10)),
-                    ...(driverUserId ? { driver_user_id: parseInt(driverUserId, 10) } : {}),
-                  };
-                  const res = await tripRequestApi.convertToLogisticsRequest(
-                    String(trip.id),
-                    conversionBody,
-                  );
-                  if (res.success) {
-                    toast({ title: "Converted", description: "Procurement has been notified." });
-                    setConvertOpen(false);
-                    onUpdated?.();
-                  } else {
-                    toast({ title: "Failed", description: res.error, variant: "destructive" });
-                  }
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Submit
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TripRequestConversionDialog
+        request={
+          {
+            ...(trip as unknown as StaffTripRequest),
+            id: trip.id,
+          } as StaffTripRequest
+        }
+        open={convertOpen}
+        onOpenChange={setConvertOpen}
+        onConverted={() => {
+          setConvertOpen(false);
+          onUpdated?.();
+        }}
+      />
 
       <Dialog open={poOpen} onOpenChange={setPoOpen}>
         <DialogContent>
