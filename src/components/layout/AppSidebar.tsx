@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  Package,
   Truck,
   Warehouse,
   ShoppingCart,
