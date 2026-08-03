@@ -1601,7 +1601,7 @@ const Vendors = () => {
                     className="flex-1"
                     onClick={() =>
                       setEditVendor({
-                        id: selectedVendor.uuid || selectedVendor.vendorId || selectedVendor.id,
+                        id: selectedVendor.id,
                         name: selectedVendor.name || selectedVendor.company_name || "Vendor",
                       })
                     }
@@ -1856,6 +1856,27 @@ const Vendors = () => {
             hasActiveFilters={hasDirectoryFilters}
           />
         </Suspense>
+      )}
+
+      {editVendor && (
+        <VendorProfileEditDialog
+          open={!!editVendor}
+          vendorId={editVendor.id}
+          vendorName={editVendor.name}
+          onClose={() => setEditVendor(null)}
+          onSaved={async () => {
+            if (selectedVendor?.id) {
+              const res = await vendorApi.getById(selectedVendor.id);
+              if (res.success && res.data) {
+                setSelectedVendor((prev: any) => ({ ...prev, ...res.data }));
+              }
+            }
+            await Promise.all([
+              refetchVendorDirectory(),
+              invalidateVendorLists(queryClient),
+            ]);
+          }}
+        />
       )}
     </DashboardLayout>
   );
