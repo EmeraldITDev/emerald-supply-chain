@@ -22,6 +22,8 @@ import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi } from "@/services/api";
 import { fleetApi, logisticsVendorsApi } from "@/services/logisticsApi";
 import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
+import { TripRequestConversionDialog } from "./TripRequestConversionDialog";
+import type { StaffTripRequest } from "@/types/trip-request";
 import type { Trip, TripWorkflowStage } from "@/types/logistics";
 import { getTripWorkflowStageLabel } from "@/utils/workflowStageLabels";
 
