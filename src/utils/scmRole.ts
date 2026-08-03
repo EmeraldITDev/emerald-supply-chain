@@ -28,6 +28,7 @@ export const CANONICAL_SCM_ROLES = new Set([
   "logistics_manager",
   "logistics_officer",
   "logistics",           // legacy: kept working, hidden from picker
+  "warehouse_manager",
 ]);
 
 /**
