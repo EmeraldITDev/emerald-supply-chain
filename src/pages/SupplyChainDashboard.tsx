@@ -64,7 +64,7 @@ import {
   isTripAwaitingDirectorApproval,
   tripStatusPlainLabel,
 } from "@/utils/tripApprovalState";
-import { resolveTripWorkflowError } from "@/utils/tripApprovalErrors";
+import { resolveTripWorkflowError, isStaleTripStateError } from "@/utils/tripApprovalErrors";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { queryKeys } from "@/lib/queryKeys";
@@ -1232,10 +1232,17 @@ const SupplyChainDashboard = () => {
                                   onClick={async () => {
                                     setApprovingTripId(tid);
                                     const res = await tripRequestApi.directorApprove(tid);
-                                    if (res.success) {
-                                      toast.success(
-                                        "Trip approved. The Logistics Manager has been notified.",
-                                      );
+                                    const stale = !res.success && isStaleTripStateError(res);
+                                    if (res.success || stale) {
+                                      if (stale) {
+                                        // Backend already moved this trip on — clear the
+                                        // stale row instead of leaving a dead button.
+                                        toast.info(resolveTripWorkflowError(res));
+                                      } else {
+                                        toast.success(
+                                          "Trip approved. The Logistics Manager has been notified.",
+                                        );
+                                      }
                                       // Optimistically drop the row from the cached
                                       // SCD dashboard payload — avoids a full refetch flicker.
                                       queryClient.setQueryData<Record<string, unknown> | null>(
