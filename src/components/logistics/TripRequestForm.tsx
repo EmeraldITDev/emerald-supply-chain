@@ -29,6 +29,7 @@ import {
   formatMinimumTripDateHint,
   validateTripBookingLeadTime,
 } from "@/utils/tripBookingValidation";
+import { resolveTripWorkflowError } from "@/utils/tripApprovalErrors";
 
 interface TripRequestFormProps {
   mode?: "create" | "edit";
