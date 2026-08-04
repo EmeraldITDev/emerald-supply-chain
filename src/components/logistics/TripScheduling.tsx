@@ -866,7 +866,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <TripRequestDialog userRole={getScmRole(user)} onCreated={fetchTrips} />
           <Button variant="outline" onClick={() => setCsvImportOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
             CSV Import
