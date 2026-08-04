@@ -244,6 +244,7 @@ export function CreatePOForm({
   onDraftSaved,
   onRequestClose,
   initialEditMode = false,
+  preloaded = null,
 }: CreatePOFormProps) {
   /** Urgent / direct procurement: Purchase Orders tab or “no RFQ” path — still uses full price comparison, not vendor-ID shortcuts. */
   const isDirectProcurement = fastTrack || allowMissingRfq;
