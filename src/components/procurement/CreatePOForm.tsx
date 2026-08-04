@@ -106,6 +106,12 @@ export interface CreatePOFormProps {
    * Used by the "Edit PO" entry point in the Purchase Orders list.
    */
   initialEditMode?: boolean;
+  /**
+   * Pre-populated logistics PO payload (from an approved trip). When provided,
+   * the form seeds the supplier rows / totals from the trip's approved
+   * quotations instead of starting blank.
+   */
+  preloaded?: import('@/types/trip-request').TripPoPayload | null;
 }
 
 const BLOCKED_EMAIL = 'douglas.anuforo@emeraldcfze.com';
