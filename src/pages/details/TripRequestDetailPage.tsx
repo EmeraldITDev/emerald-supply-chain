@@ -6,6 +6,8 @@ import { EntityDetailShell, DetailFields } from "./EntityDetailShell";
 import { TripCommentsPanel } from "@/components/logistics/TripCommentsPanel";
 import { JourneyManagement } from "@/components/logistics/JourneyManagement";
 import { TripRequestWorkflowActions } from "@/components/logistics/TripRequestWorkflowActions";
+import { EditCountdown } from "@/components/logistics/EditCountdown";
+import { TripQuotationsPanel } from "@/components/logistics/TripQuotationsPanel";
 import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepper";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
