@@ -4234,11 +4234,62 @@ export const tripRequestApi = {
     });
   },
 
-  // Supply Chain Director approve
-  scdApprove: async (tripId: string): Promise<ApiResponse<any>> => {
-    return apiRequest(`/trips/${tripId}/scd-approve`, {
+  /**
+   * Supply Chain Director approve / reject for a trip request.
+   * Canonical endpoint: POST /api/trip-requests/{id}/scd-approve
+   */
+  scdApprove: async (
+    tripId: string,
+    payload?: {
+      action?: 'approve' | 'reject';
+      remarks?: string | null;
+      approved_vendor_ids?: number[];
+    },
+  ): Promise<ApiResponse<any>> => {
+    return apiRequest(`/trip-requests/${encodeURIComponent(tripId)}/scd-approve`, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'approve', ...(payload ?? {}) }),
+    });
+  },
+
+  /** Promote a draft to submitted — POST /api/trip-requests/{id}/submit */
+  submit: async (id: string | number): Promise<ApiResponse<any>> => {
+    return apiRequest(`/trip-requests/${encodeURIComponent(String(id))}/submit`, {
       method: 'POST',
     });
+  },
+
+  /** Vendor quotations for a trip — GET /api/trip-requests/{id}/rfqs */
+  getRfqs: async (
+    tripId: string | number,
+  ): Promise<ApiResponse<import('@/types/trip-request').TripRfq[]>> => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/trip-requests/${encodeURIComponent(String(tripId))}/rfqs`,
+    );
+    if (res.success) {
+      const raw = (res.data ?? {}) as Record<string, unknown>;
+      const rfqs = (Array.isArray(res.data)
+        ? res.data
+        : (raw.rfqs as unknown[]) ?? (raw.data as unknown[]) ?? []) as
+        import('@/types/trip-request').TripRfq[];
+      return { ...res, data: rfqs };
+    }
+    return res as unknown as ApiResponse<import('@/types/trip-request').TripRfq[]>;
+  },
+
+  /** Pre-populated PO payload — GET /api/logistics-trips/{id}/po-payload */
+  getPoPayload: async (
+    tripId: string | number,
+  ): Promise<ApiResponse<import('@/types/trip-request').TripPoPayload>> => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/logistics-trips/${encodeURIComponent(String(tripId))}/po-payload`,
+    );
+    if (res.success && res.data) {
+      const raw = res.data as Record<string, unknown>;
+      const payload = (raw.data ?? raw) as import('@/types/trip-request').TripPoPayload;
+      return { ...res, data: payload };
+    }
+    return res as unknown as ApiResponse<import('@/types/trip-request').TripPoPayload>;
   },
 
   // Generate trip PO
