@@ -44,7 +44,7 @@ interface TripRequestConversionDialogProps {
   request: StaffTripRequest | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConverted?: (logisticsTripId?: string | number) => void;
+  onConverted?: (result: TripConversionResult) => void;
 }
 
 export function TripRequestConversionDialog({
