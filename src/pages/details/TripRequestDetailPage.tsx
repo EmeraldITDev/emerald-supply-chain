@@ -154,6 +154,20 @@ export default function TripRequestDetailPage() {
             </Alert>
           )}
 
+          {stageBanner && (
+            <Alert
+              className={
+                stageBanner.tone === "warning"
+                  ? "border-amber-500/50 text-amber-700 dark:text-amber-400"
+                  : stageBanner.tone === "error"
+                    ? "border-destructive/50 text-destructive"
+                    : undefined
+              }
+            >
+              <AlertDescription>{stageBanner.title}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="flex flex-wrap gap-2 items-center">
             <Badge variant="outline">{bookingScopeLabel(trip)}</Badge>
             <Badge variant="secondary" className="capitalize">
