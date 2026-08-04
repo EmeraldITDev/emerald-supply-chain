@@ -17,6 +17,12 @@ export type RequesterEditableRecord = {
   canRequesterEdit?: boolean | null;
   requester_edit_expires_at?: string | null;
   requesterEditExpiresAt?: string | null;
+  can_be_edited_by_requester?: boolean | null;
+  canBeEditedByRequester?: boolean | null;
+  edit_deadline?: string | null;
+  editDeadline?: string | null;
+  is_draft?: boolean | null;
+  isDraft?: boolean | null;
 };
 
 export function getRecordCreatedAt(record: RequesterEditableRecord): string | null {
