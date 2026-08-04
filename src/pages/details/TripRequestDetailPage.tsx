@@ -399,6 +399,8 @@ export default function TripRequestDetailPage() {
             </div>
           )}
 
+          <TripQuotationsPanel tripId={id!} />
+
           <div>
             <h3 className="text-sm font-semibold mb-2">Progress</h3>
             <SimpleProgressStepper
