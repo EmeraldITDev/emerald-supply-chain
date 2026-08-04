@@ -4229,6 +4229,7 @@ const Procurement = () => {
                 fastTrack={createPOFastTrack}
                 allowMissingRfq={createPOAllowMissingRfq}
                 initialEditMode={createPOEditMode}
+                preloaded={logisticsPoPayload}
                 onFinalised={async () => {
                   await refreshPoListAfterSave();
                   void fetchMRFs();
@@ -4243,6 +4244,7 @@ const Procurement = () => {
                   setCreatePOFastTrack(false);
                   setCreatePOAllowMissingRfq(false);
                   setCreatePOEditMode(false);
+                  setLogisticsPoPayload(null);
                 }}
               />
             </div>
