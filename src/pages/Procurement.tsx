@@ -2319,7 +2319,22 @@ const Procurement = () => {
                 <span className="hidden sm:inline">Purchase Orders</span>
                 <span className="sm:hidden">PO</span>
               </TabsTrigger>
+              <TabsTrigger
+                value="logistics-po"
+                className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3"
+              >
+                <span className="hidden sm:inline">Logistics POs</span>
+                <span className="sm:hidden">Trips</span>
+              </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="logistics-po" className="space-y-4">
+              <LogisticsPoQueue
+                enabled={tab === "logistics-po"}
+                preparingTripId={preparingTripPoId}
+                onCreatePo={(tripId) => void startLogisticsPo(tripId)}
+              />
+            </TabsContent>
 
             {/* RFQ Management Tab */}
             <TabsContent value="rfq" className="space-y-4">
