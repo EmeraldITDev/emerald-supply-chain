@@ -65,6 +65,8 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { POGenerationDialog } from "@/components/POGenerationDialog";
 import { CreatePOForm, ManualPOQuickStartDialog } from "@/components/procurement";
+import { LogisticsPoQueue } from "@/components/procurement/LogisticsPoQueue";
+import type { TripPoPayload } from "@/types/trip-request";
 import {
   Dialog as CreatePODialog,
   DialogContent as CreatePODialogContent,
