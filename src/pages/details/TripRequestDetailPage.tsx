@@ -6,6 +6,8 @@ import { EntityDetailShell, DetailFields } from "./EntityDetailShell";
 import { TripCommentsPanel } from "@/components/logistics/TripCommentsPanel";
 import { JourneyManagement } from "@/components/logistics/JourneyManagement";
 import { TripRequestWorkflowActions } from "@/components/logistics/TripRequestWorkflowActions";
+import { EditCountdown } from "@/components/logistics/EditCountdown";
+import { TripQuotationsPanel } from "@/components/logistics/TripQuotationsPanel";
 import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepper";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -171,15 +173,20 @@ export default function TripRequestDetailPage() {
               </Badge>
             )}
             {editAccess.canEdit && (
-              <Button
-                size="sm"
-                variant="outline"
-                title={editTimeLeft ?? undefined}
-                onClick={() => setEditOpen(true)}
-              >
-                <Edit className="mr-2 h-4 w-4" />
-                Edit request
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  title={editTimeLeft ?? undefined}
+                  onClick={() => setEditOpen(true)}
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit request
+                </Button>
+                {editAccess.expiresAt && (
+                  <EditCountdown deadline={editAccess.expiresAt} />
+                )}
+              </>
             )}
             {logisticsId && (
               <Button size="sm" variant="outline" asChild>
@@ -391,6 +398,8 @@ export default function TripRequestDetailPage() {
               </div>
             </div>
           )}
+
+          <TripQuotationsPanel tripId={id!} />
 
           <div>
             <h3 className="text-sm font-semibold mb-2">Progress</h3>

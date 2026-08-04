@@ -18,6 +18,8 @@ import { TripRequestConversionDialog } from "./TripRequestConversionDialog";
 import { getScmRole } from "@/utils/scmRole";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { TripQuotationsPanel } from "./TripQuotationsPanel";
 import {
   canScdApprove,
   canScdReject,
@@ -45,6 +47,9 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
   const [reviewComments, setReviewComments] = useState("");
   const [reviewEstimatedCost, setReviewEstimatedCost] = useState("");
   const [convertOpen, setConvertOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [approveRemarks, setApproveRemarks] = useState("");
+  const [selectedVendorIds, setSelectedVendorIds] = useState<number[]>([]);
 
   const isLm =
     role === "logistics_manager" || role === "logistics_officer" || role === "logistics" || role === "admin";
@@ -105,6 +110,17 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
   const showConvert = isLm && !isTripConverted(trip as unknown as Record<string, unknown>) &&
     canConvertToLogistics(trip as unknown as Record<string, unknown>);
   const showDirectorApprove = isDirector && approveAllowed;
+
+  // Quotations decide whether vendor selection is mandatory on SCD approval.
+  const { data: rfqs = [] } = useQuery({
+    queryKey: ["trip-request-rfqs", String(trip.id)],
+    queryFn: async () => {
+      const res = await tripRequestApi.getRfqs(trip.id);
+      return res.success && Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: showDirectorApprove,
+  });
+  const vendorSelectionRequired = rfqs.length > 0;
   const showDirectorReject = isDirector && rejectAllowed;
   const showDirectorReturn =
     isDirector && (actions.includes("director_return") || approveAllowed);
@@ -155,20 +171,7 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
           </Button>
         )}
         {showDirectorApprove && (
-          <Button
-            size="sm"
-            disabled={busy}
-            onClick={() =>
-              run(
-                async () => {
-                  const res = await tripRequestApi.directorApprove(String(trip.id));
-                  if (res.success) markTripDirectorApproved(trip.id);
-                  return res;
-                },
-                "Trip approved. The Logistics Manager has been notified.",
-              )
-            }
-          >
+          <Button size="sm" disabled={busy} onClick={() => setApproveOpen(true)}>
             <CheckCircle className="mr-2 h-4 w-4" />
             Approve
           </Button>
@@ -193,6 +196,73 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
         )}
       </div>
 
+      <Dialog open={approveOpen} onOpenChange={(o) => !o && setApproveOpen(false)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Approve trip request</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {vendorSelectionRequired ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Select the vendor quotation(s) you are approving. Procurement will
+                  raise the purchase order against your selection.
+                </p>
+                <TripQuotationsPanel
+                  tripId={trip.id}
+                  selectable
+                  selectedVendorIds={selectedVendorIds}
+                  onToggleVendor={(rfq, checked) =>
+                    setSelectedVendorIds((prev) =>
+                      checked
+                        ? [...new Set([...prev, rfq.vendor_id])]
+                        : prev.filter((v) => v !== rfq.vendor_id),
+                    )
+                  }
+                />
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No vendor quotations were attached to this request.
+              </p>
+            )}
+            <div className="space-y-2">
+              <Label>Remarks (optional)</Label>
+              <Textarea
+                value={approveRemarks}
+                onChange={(e) => setApproveRemarks(e.target.value)}
+                placeholder="Add any approval notes for logistics"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApproveOpen(false)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                busy || (vendorSelectionRequired && selectedVendorIds.length === 0)
+              }
+              onClick={() => {
+                setApproveOpen(false);
+                void run(async () => {
+                  const res = await tripRequestApi.scdApprove(String(trip.id), {
+                    action: "approve",
+                    remarks: approveRemarks.trim() || null,
+                    approved_vendor_ids: selectedVendorIds,
+                  });
+                  if (res.success) markTripDirectorApproved(trip.id);
+                  return res;
+                }, "Trip approved. The Logistics Manager has been notified.");
+                setApproveRemarks("");
+              }}
+            >
+              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm approval
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={reasonOpen !== null} onOpenChange={(o) => !o && setReasonOpen(null)}>
         <DialogContent>
           <DialogHeader>

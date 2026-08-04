@@ -41,6 +41,48 @@ export interface TripProgressSummary {
   progressPercent?: number;
 }
 
+export interface TripRfq {
+  id: number;
+  service_type: 'transport' | 'accommodation' | 'escort' | string;
+  vendor_id: number;
+  vendor_name: string;
+  vendor_phone: string | null;
+  status: 'sent' | 'quotation_received' | string;
+  quoted_price: number | null;
+  currency: string;
+  vendor_notes: string | null;
+  document_url: string | null;
+  valid_until: string | null;
+  is_recommended: boolean;
+  logistics_recommendation_note: string | null;
+  scd_approved: boolean;
+  sent_at: string | null;
+  responded_at: string | null;
+}
+
+export interface TripPoLineItem {
+  description: string;
+  vendor_id: number;
+  vendor_name: string;
+  unit_price: number;
+  quantity: number;
+  total: number;
+  currency: string;
+  rfq_id: number;
+  document_url: string | null;
+}
+
+export interface TripPoPayload {
+  trip_reference: string;
+  trip_id: number;
+  destination?: string;
+  service_period?: { from: string; to: string };
+  line_items: TripPoLineItem[];
+  total_amount: number;
+  currency: string;
+  supporting_docs?: string[];
+}
+
 export interface TripProgressStep {
   key: string;
   label: string;
@@ -148,6 +190,18 @@ export interface StaffTripRequest {
   createdAt?: string;
   canDelete?: boolean;
   isDraft?: boolean;
+  is_draft?: boolean;
+  edit_deadline?: string | null;
+  editDeadline?: string | null;
+  can_be_edited_by_requester?: boolean;
+  canBeEditedByRequester?: boolean;
+  submitted_at?: string | null;
+  submittedAt?: string | null;
+  rfqs?: TripRfq[];
+  total_estimated_cost?: number | null;
+  totalEstimatedCost?: number | null;
+  logistics_recommendation?: string | null;
+  logisticsRecommendation?: string | null;
   ui?: TripRequestUi;
   /** Linked logistics trip id once approved/assigned */
   trip_id?: string | number;

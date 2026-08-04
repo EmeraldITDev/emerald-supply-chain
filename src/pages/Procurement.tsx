@@ -65,6 +65,8 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { POGenerationDialog } from "@/components/POGenerationDialog";
 import { CreatePOForm, ManualPOQuickStartDialog } from "@/components/procurement";
+import { LogisticsPoQueue } from "@/components/procurement/LogisticsPoQueue";
+import type { TripPoPayload } from "@/types/trip-request";
 import {
   Dialog as CreatePODialog,
   DialogContent as CreatePODialogContent,
@@ -104,6 +106,7 @@ import {
   vendorApi,
   poApi,
   srfApi,
+  tripRequestApi,
 } from "@/services/api";
 import { procurementApi } from "@/services/procurementApi";
 import {
@@ -314,6 +317,29 @@ const Procurement = () => {
   const vendorFilter = vendorFromState || vendorFromQuery || undefined;
 
   const [tab, setTab] = useState<string>(vendorFilter ? "po" : "mrf");
+
+  /** Logistics trip → PO handoff: payload is fetched, then a backing MRF is created. */
+  const [preparingTripPoId, setPreparingTripPoId] = useState<string | null>(null);
+  const [logisticsPoPayload, setLogisticsPoPayload] = useState<TripPoPayload | null>(null);
+
+  const startLogisticsPo = async (tripId: string) => {
+    setPreparingTripPoId(tripId);
+    try {
+      const res = await tripRequestApi.getPoPayload(tripId);
+      if (!res.success || !res.data) {
+        toast({
+          title: "Could not load trip PO details",
+          description: res.error || "The trip has no approved quotations yet.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setLogisticsPoPayload(res.data);
+      setManualPOOpen(true);
+    } finally {
+      setPreparingTripPoId(null);
+    }
+  };
 
   const [mrfSearchDebounced, setMrfSearchDebounced] = useState("");
   const [poSearchDebounced, setPoSearchDebounced] = useState("");
@@ -2319,7 +2345,22 @@ const Procurement = () => {
                 <span className="hidden sm:inline">Purchase Orders</span>
                 <span className="sm:hidden">PO</span>
               </TabsTrigger>
+              <TabsTrigger
+                value="logistics-po"
+                className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3"
+              >
+                <span className="hidden sm:inline">Logistics POs</span>
+                <span className="sm:hidden">Trips</span>
+              </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="logistics-po" className="space-y-4">
+              <LogisticsPoQueue
+                enabled={tab === "logistics-po"}
+                preparingTripId={preparingTripPoId}
+                onCreatePo={(tripId) => void startLogisticsPo(tripId)}
+              />
+            </TabsContent>
 
             {/* RFQ Management Tab */}
             <TabsContent value="rfq" className="space-y-4">
@@ -4188,6 +4229,7 @@ const Procurement = () => {
                 fastTrack={createPOFastTrack}
                 allowMissingRfq={createPOAllowMissingRfq}
                 initialEditMode={createPOEditMode}
+                preloaded={logisticsPoPayload}
                 onFinalised={async () => {
                   await refreshPoListAfterSave();
                   void fetchMRFs();
@@ -4202,6 +4244,7 @@ const Procurement = () => {
                   setCreatePOFastTrack(false);
                   setCreatePOAllowMissingRfq(false);
                   setCreatePOEditMode(false);
+                  setLogisticsPoPayload(null);
                 }}
               />
             </div>
