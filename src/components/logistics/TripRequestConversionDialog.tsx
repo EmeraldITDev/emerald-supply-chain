@@ -339,11 +339,27 @@ export function TripRequestConversionDialog({
         payload as unknown as Parameters<typeof tripRequestApi.convert>[1],
       );
       if (res.success) {
-        toast({ title: "Converted", description: "Trip request converted to logistics request." });
+        const data = (res.data ?? {}) as Record<string, unknown>;
+        const result: TripConversionResult = {
+          tripRequestId: request.id,
+          logisticsTripId: (data.logistics_trip_id ??
+            data.logisticsTripId ??
+            data.logistics_request_id) as string | number | undefined,
+          journeyId: (data.journey_id ?? data.journeyId) as string | number | undefined,
+          journeyReference: (data.journey_reference ?? data.journeyReference) as
+            | string
+            | undefined,
+          quotationRequired: Boolean(data.quotation_required ?? data.quotationRequired),
+          workflowState: (data.workflow_state ?? data.workflowState) as string | undefined,
+        };
+        toast({
+          title: "Converted",
+          description: result.quotationRequired
+            ? "Pending Vendor Quotation — Send RFQ to vendors to continue."
+            : "Awaiting Supply Chain Director Approval.",
+        });
         onOpenChange(false);
-        const data = res.data as Record<string, unknown> | undefined;
-        const logisticsId = data?.logistics_trip_id ?? data?.logisticsTripId;
-        onConverted?.(logisticsId as string | number | undefined);
+        onConverted?.(result);
       } else {
         toast({
           title: "Conversion failed",
