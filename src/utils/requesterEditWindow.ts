@@ -112,9 +112,33 @@ export function resolveRequesterEditAccess(
   nowMs: number = Date.now(),
 ): RequesterEditAccess {
   const expiresAt =
+    record.edit_deadline ||
+    record.editDeadline ||
     record.requester_edit_expires_at ||
     record.requesterEditExpiresAt ||
     requesterEditExpiresAt(getRecordCreatedAt(record));
+
+  // Drafts have no edit window and never show a countdown — they are edited
+  // freely until submitted.
+  const isDraft =
+    record.is_draft ?? record.isDraft ?? String(record.status ?? '') === 'draft';
+  if (isDraft) {
+    return { canEdit: true, expiresAt: null };
+  }
+
+  // Backend is authoritative when it tells us directly.
+  const backendEditable =
+    record.can_be_edited_by_requester ?? record.canBeEditedByRequester;
+  if (backendEditable === true) {
+    return { canEdit: true, expiresAt };
+  }
+  if (backendEditable === false) {
+    return {
+      canEdit: false,
+      expiresAt: null,
+      reason: 'The edit window has closed or this request can no longer be edited.',
+    };
+  }
 
   const backendFlag = record.can_requester_edit ?? record.canRequesterEdit;
   if (backendFlag === true) {
