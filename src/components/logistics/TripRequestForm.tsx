@@ -759,23 +759,42 @@ export function TripRequestForm({
         {!isEdit && (
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             onClick={handleSaveDraft}
             disabled={submitting}
           >
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save as draft
+            Save as Draft
           </Button>
         )}
-        <Button
-          type="button"
-          onClick={handleSubmit}
-          disabled={submitting}
-          title={missingReasons.length ? `Missing: ${missingReasons.join(", ")}` : undefined}
-        >
-          {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isEdit ? "Save changes" : "Submit Request"}
-        </Button>
+        {isEdit && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
+          </Button>
+        )}
+        {isDraftRecord && (
+          <Button type="button" onClick={handleSubmitDraft} disabled={submitting}>
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Submit Trip Request
+          </Button>
+        )}
+        {!isEdit && (
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            title={missingReasons.length ? `Missing: ${missingReasons.join(", ")}` : undefined}
+          >
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Submit Trip Request
+          </Button>
+        )}
       </div>
     </div>
   );
