@@ -310,7 +310,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       ]);
 
       const scheduled = tripsRes.success && tripsRes.data
-        ? tripsRes.data.items.map(normalizeTrip)
+        ? tripsRes.data.items
+            .map(normalizeTrip)
+            // Converted requests live on as journeys — never list them twice.
+            .filter((t) => !isConvertedTripRow(t as unknown as Record<string, unknown>))
         : [];
       const scheduledIds = new Set(
         scheduled
@@ -326,6 +329,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           const code = r.tripCode ?? r.trip_code ?? "";
           if (linkedTripId && scheduledIds.has(String(linkedTripId))) continue;
           if (code && scheduledIds.has(code)) continue;
+          // Exclude anything the backend has already converted.
+          if (isConvertedTripRow(r as unknown as Record<string, unknown>)) continue;
+          if (r.journey_id ?? r.journeyId) continue;
+          if (linkedTripId) continue;
           requestOnly.push(
             normalizeTrip({
               id: r.id,
