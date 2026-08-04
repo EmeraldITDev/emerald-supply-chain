@@ -24,6 +24,7 @@ import {
   resolveRequesterEditAccess,
 } from "@/utils/requesterEditWindow";
 import { resolveTripBookingScopeLabel } from "@/utils/tripBookingValidation";
+import { resolveTripStageBanner } from "@/utils/tripApprovalState";
 
 const FALLBACK_STEPS: TripProgressStep[] = [
   { key: "submitted", label: "Submitted", status: "in_progress", step: 1 },
@@ -126,6 +127,9 @@ export default function TripRequestDetailPage() {
     });
   }
   const logisticsId = resolveLogisticsTripId(trip);
+  const stageBanner = trip
+    ? resolveTripStageBanner(trip as unknown as Record<string, unknown>)
+    : null;
   const passengers = Array.isArray(trip?.passengers) ? trip!.passengers! : [];
   const rawExternalPassengers = trip?.externalPassengers ?? trip?.external_passengers;
   const externalPassengers = Array.isArray(rawExternalPassengers) ? rawExternalPassengers : [];
@@ -151,6 +155,20 @@ export default function TripRequestDetailPage() {
               <AlertDescription>
                 You are viewing this trip in read-only mode. Workflow actions and comments are hidden unless you are involved in this trip or hold a logistics or supervising director role.
               </AlertDescription>
+            </Alert>
+          )}
+
+          {stageBanner && (
+            <Alert
+              className={
+                stageBanner.tone === "warning"
+                  ? "border-amber-500/50 text-amber-700 dark:text-amber-400"
+                  : stageBanner.tone === "error"
+                    ? "border-destructive/50 text-destructive"
+                    : undefined
+              }
+            >
+              <AlertDescription>{stageBanner.title}</AlertDescription>
             </Alert>
           )}
 

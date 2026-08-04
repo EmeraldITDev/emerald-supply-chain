@@ -14,6 +14,7 @@ import { Loader2, UserPlus, Users2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi } from "@/services/api";
 import { TripRequestConversionDialog } from "./TripRequestConversionDialog";
+import type { TripConversionResult } from "./TripRequestConversionDialog";
 import type { StaffTripRequest } from "@/types/trip-request";
 import type { Trip, TripWorkflowStage } from "@/types/logistics";
 import { getTripWorkflowStageLabel } from "@/utils/workflowStageLabels";
@@ -37,6 +38,7 @@ interface TripWorkflowActionsProps {
   trip: Trip;
   userRole?: string;
   onUpdated?: () => void;
+  onConverted?: (result: TripConversionResult) => void;
   onAssignVendor?: () => void;
   onCompareVendors?: () => void;
 }
@@ -45,6 +47,7 @@ export function TripWorkflowActions({
   trip,
   userRole,
   onUpdated,
+  onConverted,
   onAssignVendor,
   onCompareVendors,
 }: TripWorkflowActionsProps) {
@@ -192,11 +195,12 @@ export function TripWorkflowActions({
         }
         open={convertOpen}
         onOpenChange={setConvertOpen}
-        onConverted={() => {
+        onConverted={(result) => {
           markTripConverted(trip.id);
           setConverted(true);
           setConvertOpen(false);
-          onUpdated?.();
+          if (onConverted) onConverted(result);
+          else onUpdated?.();
         }}
       />
 

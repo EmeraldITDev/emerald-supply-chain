@@ -967,3 +967,47 @@ Frontend use: rendered in the journey detail dialog with a CSV export.
 - SCD approval (`/scd-approve`) must notify the logistics manager in-app and by email,
   with `next_actor: "logistics_manager"` in the response.
 - Journey completion must email each passenger a link to `/journeys/{id}/feedback`.
+
+## Trip Conversion Duplicate Fix + Post-Conversion Workflow Routing (Aug 2026)
+
+Frontend changes:
+- `src/utils/tripApprovalState.ts` — added `isConvertedTripRow()` (hides rows where `status === 'converted'` or `workflow_state` is `converted_to_logistics_request` / `converted_to_journey`) and `resolveTripStageBanner()` (status banner derived from `workflow_state` + `quotation_required`). Converted/terminal state sets and plain labels extended for the new states.
+- `src/components/logistics/TripScheduling.tsx` — Scheduled Trips list filters out converted records from both the trips endpoint and the merged trip-request payload; after a successful conversion the originating row is removed optimistically (no refresh wait) and, when the response carries `journey_id`, the user is navigated to the journeys view.
+- `src/components/logistics/TripRequestConversionDialog.tsx` — exports `TripConversionResult` and now surfaces `quotation_required`, `journey_id`, `journey_reference`, `workflow_state` from the convert response; toast text branches on `quotation_required`.
+- `src/components/logistics/TripWorkflowActions.tsx` — forwards the conversion result to the parent.
+- `src/pages/details/TripRequestDetailPage.tsx` — renders the post-conversion status banner; action buttons remain driven exclusively by `available_actions`.
+- `src/pages/Logistics.tsx` — honours `?tab=` so deep-links can land on the journeys tab.
+
+### Backend contract
+
+**POST `/api/trip-requests/{id}/convert`** — roles: logistics_manager, admin.
+Request: existing conversion payload (`fulfillment_type`, `transport_option`, `vendor_id?`, `vehicle_id?`, driver object, passengers, accommodation/escort fields, costs, `notes?`).
+Response:
+```json
+{ "success": true, "data": {
+  "trip_id": 36,
+  "workflow_state": "pending_scd_approval | pending_vendor_quotation",
+  "quotation_required": false,
+  "logistics_request_id": 41,
+  "journey_id": null,
+  "journey_reference": null,
+  "available_actions": ["view"]
+}, "message": "Converted" }
+```
+The originating `logistics_trips` row must be updated in the same transaction to `workflow_state = converted_to_logistics_request`, `status = converted`, and must be excluded from the Scheduled Trips list query. The frontend removes the row optimistically, shows the banner keyed on `quotation_required`, and navigates to the journey when `journey_id` is present.
+
+**POST `/api/logistics-requests/{id}/approve`** — roles: supply_chain_director.
+Request: `{ "comments": "string?", "selected_vendor_ids": number[]? }`.
+Response: `{ "success": true, "data": { "trip_id": 36, "workflow_state": "converted_to_journey", "journey_id": 12, "journey_reference": "TRIP-XXXXXXXX", "available_actions": ["view"] }, "message": "Approved. Journey created successfully." }`.
+The frontend reads `journey_id` and navigates straight to the journey detail view.
+
+**POST `/api/logistics-requests/{id}/reject`** — roles: supply_chain_director.
+Request: `{ "reason": "string (required)" }`.
+Response: `{ "success": true, "data": { "trip_id": 36, "workflow_state": "scd_rejected", "rejection_reason": "string", "available_actions": ["view", "revise"] } }`.
+The frontend shows the reason prominently and renders `revise` only when present in `available_actions`.
+
+**GET `/api/logistics-requests/{id}`** — roles: logistics, SCD, requester, admin.
+Response must include: `id`, `trip_code`, `workflow_state`, `status`, `quotation_required` (bool), `logistics_request_id`, `journey_id`, `journey_reference`, all trip/accommodation/escort/driver/vehicle/passenger fields, and `available_actions` (string[]). Buttons are rendered only from `available_actions`.
+
+**GET `/api/journeys/{id}`** — roles: logistics, SCD, requester, passengers, admin.
+Response: journey reference, originating `trip_code`, origin, destination, purpose, `scheduled_departure_at`, `scheduled_arrival_at`, vehicle (make/model/plate), driver (name/phone/source), vendor, accommodation fields, escort fields, `passengers[]`, `status`, `documents[]`, `available_actions`. Powers the journey detail view the frontend navigates to after conversion/approval.

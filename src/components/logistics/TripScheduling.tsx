@@ -84,6 +84,9 @@ import { VendorJMPSubmission } from "./VendorJMPSubmission";
 import { PassengerNotification } from "./PassengerNotification";
 import { CSVImportPreview, type CSVColumn } from "./CSVImportPreview";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { isConvertedTripRow } from "@/utils/tripApprovalState";
+import type { TripConversionResult } from "./TripRequestConversionDialog";
+import { useNavigate } from "react-router-dom";
 
 interface TripSchedulingProps {
   onViewTrip?: (trip: Trip) => void;
@@ -128,6 +131,7 @@ interface VendorItem {
 export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [tripPage, setTripPage] = useState(1);
   const [tripPagination, setTripPagination] = useState<PaginationMeta | null>(null);
@@ -306,7 +310,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       ]);
 
       const scheduled = tripsRes.success && tripsRes.data
-        ? tripsRes.data.items.map(normalizeTrip)
+        ? tripsRes.data.items
+            .map(normalizeTrip)
+            // Converted requests live on as journeys — never list them twice.
+            .filter((t) => !isConvertedTripRow(t as unknown as Record<string, unknown>))
         : [];
       const scheduledIds = new Set(
         scheduled
@@ -322,6 +329,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           const code = r.tripCode ?? r.trip_code ?? "";
           if (linkedTripId && scheduledIds.has(String(linkedTripId))) continue;
           if (code && scheduledIds.has(code)) continue;
+          // Exclude anything the backend has already converted.
+          if (isConvertedTripRow(r as unknown as Record<string, unknown>)) continue;
+          if (r.journey_id ?? r.journeyId) continue;
+          if (linkedTripId) continue;
           requestOnly.push(
             normalizeTrip({
               id: r.id,
@@ -1797,6 +1808,18 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 trip={selectedTrip}
                 userRole={getScmRole(user)}
                 onUpdated={fetchTrips}
+                onConverted={(result: TripConversionResult) => {
+                  // Optimistically drop the originating request row — no refresh wait.
+                  setTrips((prev) =>
+                    prev.filter((t) => String(t.id) !== String(result.tripRequestId)),
+                  );
+                  setViewDialogOpen(false);
+                  if (result.journeyId) {
+                    navigate(`/logistics?tab=journeys&journey=${result.journeyId}`);
+                    return;
+                  }
+                  fetchTrips();
+                }}
                 onAssignVendor={() => {
                   openAssignVendorDialog(selectedTrip);
                   setViewDialogOpen(false);
