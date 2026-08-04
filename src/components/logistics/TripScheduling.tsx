@@ -69,7 +69,7 @@ import { formatPoAmount } from "@/utils/currency";
 import { tripsApi, logisticsDashboardApi, logisticsVendorsApi } from "@/services/logisticsApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { tripRequestApi } from "@/services/api";
-import { TripRequestDialog } from "./TripRequestDialog";
+
 import { TripWorkflowActions } from "./TripWorkflowActions";
 import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
 import type { StaffTripRequest } from "@/types/trip-request";
@@ -866,7 +866,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <TripRequestDialog userRole={getScmRole(user)} onCreated={fetchTrips} />
           <Button variant="outline" onClick={() => setCsvImportOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
             CSV Import
