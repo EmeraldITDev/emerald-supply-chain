@@ -208,6 +208,16 @@ export interface StaffTripRequest {
   tripId?: string | number;
   logisticsTripId?: string | number;
   logistics_trip_id?: string | number;
+  logistics_request_id?: string | number;
+  logisticsRequestId?: string | number;
+  journey_id?: string | number;
+  journeyId?: string | number;
+  journey_reference?: string;
+  journeyReference?: string;
+  quotation_required?: boolean;
+  quotationRequired?: boolean;
+  workflow_state?: string;
+  workflowState?: string;
   requester_name?: string;
   requesterName?: string;
   requester_department?: string;
