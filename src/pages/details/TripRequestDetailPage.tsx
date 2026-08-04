@@ -126,6 +126,9 @@ export default function TripRequestDetailPage() {
     });
   }
   const logisticsId = resolveLogisticsTripId(trip);
+  const stageBanner = trip
+    ? resolveTripStageBanner(trip as unknown as Record<string, unknown>)
+    : null;
   const passengers = Array.isArray(trip?.passengers) ? trip!.passengers! : [];
   const rawExternalPassengers = trip?.externalPassengers ?? trip?.external_passengers;
   const externalPassengers = Array.isArray(rawExternalPassengers) ? rawExternalPassengers : [];
