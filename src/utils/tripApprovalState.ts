@@ -23,6 +23,8 @@ export const TRIP_TERMINAL_STATUSES = new Set([
   "vendor_sourcing",
   "converted",
   "converted_to_logistics",
+  "converted_to_logistics_request",
+  "converted_to_journey",
   "logistics_created",
   "completed",
   "rejected",
@@ -145,13 +147,64 @@ export function isTripConverted(trip: Record<string, unknown>): boolean {
   const convertedStates = new Set([
     "converted",
     "converted_to_logistics",
+    "converted_to_logistics_request",
+    "converted_to_journey",
     "logistics_created",
     "logistics_processing",
     "completed",
   ]);
   if (convertedStates.has(stage) || convertedStates.has(status)) return true;
   if (trip.logistics_trip_id ?? trip.logisticsTripId) return true;
+  if (trip.journey_id ?? trip.journeyId) return true;
   return wasTripConvertedLocally(trip.id as string | number | undefined);
+}
+
+/**
+ * True when a row must be hidden from the active Scheduled Trips directory
+ * because the backend has already converted it into a logistics request or a
+ * journey. Mirrors the backend exclusion on the list query.
+ */
+export function isConvertedTripRow(trip: Record<string, unknown>): boolean {
+  const stage = norm(trip.workflowStage ?? trip.workflow_stage);
+  const status = norm(trip.status);
+  return (
+    status === "converted" ||
+    stage === "converted" ||
+    stage === "converted_to_logistics_request" ||
+    stage === "converted_to_journey" ||
+    status === "converted_to_logistics_request" ||
+    status === "converted_to_journey"
+  );
+}
+
+/**
+ * Post-conversion status banner driven purely by backend fields
+ * (`quotation_required` + `workflow_state`), never by role.
+ */
+export function resolveTripStageBanner(
+  trip: Record<string, unknown>,
+): { title: string; tone: "info" | "warning" | "success" | "error" } | null {
+  const stage = norm(trip.workflowStage ?? trip.workflow_stage ?? trip.workflow_state);
+  const quotationRequired = trip.quotation_required ?? trip.quotationRequired;
+  if (stage === "pending_vendor_quotation" || quotationRequired === true) {
+    return {
+      title: "Pending Vendor Quotation — Send RFQ to vendors to continue",
+      tone: "warning",
+    };
+  }
+  if (stage === "pending_scd_approval") {
+    return { title: "Awaiting Supply Chain Director Approval", tone: "info" };
+  }
+  if (stage === "scd_rejected") {
+    return { title: "Rejected by the Supply Chain Director", tone: "error" };
+  }
+  if (stage === "converted_to_journey") {
+    return { title: "Journey created — this request is now a journey", tone: "success" };
+  }
+  if (stage === "converted_to_logistics_request") {
+    return { title: "Converted to a logistics request", tone: "success" };
+  }
+  return null;
 }
 
 /**
@@ -266,7 +319,15 @@ export function tripStatusPlainLabel(trip: {
   if (s === "scd_rejected") return "Rejected by Supply Chain Director";
   if (s === "logistics_processing") return "Logistics Processing";
   if (s === "vendor_sourcing") return "Sourcing External Vendor";
-  if (s === "converted" || s === "converted_to_logistics" || s === "logistics_created")
+  if (s === "pending_scd_approval") return "Awaiting Supply Chain Director Approval";
+  if (s === "pending_vendor_quotation") return "Pending Vendor Quotation";
+  if (s === "converted_to_journey") return "Converted to Journey";
+  if (
+    s === "converted" ||
+    s === "converted_to_logistics" ||
+    s === "converted_to_logistics_request" ||
+    s === "logistics_created"
+  )
     return "Converted to Logistics Request";
   if (s === "rejected") return "Rejected";
   if (s === "cancelled") return "Cancelled";
