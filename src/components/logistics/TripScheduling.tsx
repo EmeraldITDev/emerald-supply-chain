@@ -1808,6 +1808,18 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 trip={selectedTrip}
                 userRole={getScmRole(user)}
                 onUpdated={fetchTrips}
+                onConverted={(result: TripConversionResult) => {
+                  // Optimistically drop the originating request row — no refresh wait.
+                  setTrips((prev) =>
+                    prev.filter((t) => String(t.id) !== String(result.tripRequestId)),
+                  );
+                  setViewDialogOpen(false);
+                  if (result.journeyId) {
+                    navigate(`/journeys/${result.journeyId}`);
+                    return;
+                  }
+                  fetchTrips();
+                }}
                 onAssignVendor={() => {
                   openAssignVendorDialog(selectedTrip);
                   setViewDialogOpen(false);
