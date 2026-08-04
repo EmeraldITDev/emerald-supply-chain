@@ -84,6 +84,9 @@ import { VendorJMPSubmission } from "./VendorJMPSubmission";
 import { PassengerNotification } from "./PassengerNotification";
 import { CSVImportPreview, type CSVColumn } from "./CSVImportPreview";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { isConvertedTripRow } from "@/utils/tripApprovalState";
+import type { TripConversionResult } from "./TripRequestConversionDialog";
+import { useNavigate } from "react-router-dom";
 
 interface TripSchedulingProps {
   onViewTrip?: (trip: Trip) => void;
@@ -128,6 +131,7 @@ interface VendorItem {
 export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [tripPage, setTripPage] = useState(1);
   const [tripPagination, setTripPagination] = useState<PaginationMeta | null>(null);
