@@ -190,6 +190,18 @@ export interface StaffTripRequest {
   createdAt?: string;
   canDelete?: boolean;
   isDraft?: boolean;
+  is_draft?: boolean;
+  edit_deadline?: string | null;
+  editDeadline?: string | null;
+  can_be_edited_by_requester?: boolean;
+  canBeEditedByRequester?: boolean;
+  submitted_at?: string | null;
+  submittedAt?: string | null;
+  rfqs?: TripRfq[];
+  total_estimated_cost?: number | null;
+  totalEstimatedCost?: number | null;
+  logistics_recommendation?: string | null;
+  logisticsRecommendation?: string | null;
   ui?: TripRequestUi;
   /** Linked logistics trip id once approved/assigned */
   trip_id?: string | number;
