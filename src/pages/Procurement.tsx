@@ -317,6 +317,29 @@ const Procurement = () => {
 
   const [tab, setTab] = useState<string>(vendorFilter ? "po" : "mrf");
 
+  /** Logistics trip → PO handoff: payload is fetched, then a backing MRF is created. */
+  const [preparingTripPoId, setPreparingTripPoId] = useState<string | null>(null);
+  const [logisticsPoPayload, setLogisticsPoPayload] = useState<TripPoPayload | null>(null);
+
+  const startLogisticsPo = async (tripId: string) => {
+    setPreparingTripPoId(tripId);
+    try {
+      const res = await tripRequestApi.getPoPayload(tripId);
+      if (!res.success || !res.data) {
+        toast({
+          title: "Could not load trip PO details",
+          description: res.error || "The trip has no approved quotations yet.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setLogisticsPoPayload(res.data);
+      setManualPOOpen(true);
+    } finally {
+      setPreparingTripPoId(null);
+    }
+  };
+
   const [mrfSearchDebounced, setMrfSearchDebounced] = useState("");
   const [poSearchDebounced, setPoSearchDebounced] = useState("");
   const prevMrfSearchDebounced = useRef(mrfSearchDebounced);
