@@ -40,6 +40,16 @@ import type { StaffTripRequest } from "@/types/trip-request";
 import type { FleetVehicle } from "@/types/logistics";
 import type { Vendor } from "@/types";
 
+/** Shape the backend returns from POST /api/trip-requests/{id}/convert. */
+export interface TripConversionResult {
+  tripRequestId: string | number;
+  logisticsTripId?: string | number;
+  journeyId?: string | number;
+  journeyReference?: string;
+  quotationRequired: boolean;
+  workflowState?: string;
+}
+
 interface TripRequestConversionDialogProps {
   request: StaffTripRequest | null;
   open: boolean;
