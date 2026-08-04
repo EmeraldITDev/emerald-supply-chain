@@ -171,15 +171,20 @@ export default function TripRequestDetailPage() {
               </Badge>
             )}
             {editAccess.canEdit && (
-              <Button
-                size="sm"
-                variant="outline"
-                title={editTimeLeft ?? undefined}
-                onClick={() => setEditOpen(true)}
-              >
-                <Edit className="mr-2 h-4 w-4" />
-                Edit request
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  title={editTimeLeft ?? undefined}
+                  onClick={() => setEditOpen(true)}
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit request
+                </Button>
+                {editAccess.expiresAt && (
+                  <EditCountdown deadline={editAccess.expiresAt} />
+                )}
+              </>
             )}
             {logisticsId && (
               <Button size="sm" variant="outline" asChild>
