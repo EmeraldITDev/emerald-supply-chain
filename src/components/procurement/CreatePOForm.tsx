@@ -620,6 +620,42 @@ export function CreatePOForm({
     void hydrate();
   }, [hydrate]);
 
+  // Seed the form from an approved trip's PO payload once hydration settles.
+  const preloadAppliedRef = useRef(false);
+  useEffect(() => {
+    if (hydrating || !preloaded || preloadAppliedRef.current) return;
+    const items = Array.isArray(preloaded.line_items) ? preloaded.line_items : [];
+    if (items.length === 0) return;
+    preloadAppliedRef.current = true;
+    setForm((prev) => ({
+      ...prev,
+      po_type: 'logistics',
+      currency: preloaded.currency || prev.currency,
+      ship_to_address: preloaded.destination || prev.ship_to_address,
+      remarks:
+        prev.remarks ||
+        `Logistics services for trip ${preloaded.trip_reference}${
+          preloaded.destination ? ` — ${preloaded.destination}` : ''
+        }`,
+    }));
+    setRows(
+      items.map((item) =>
+        hydrateRow(
+          {
+            vendor_id: String(item.vendor_id),
+            vendor_name: item.vendor_name,
+            item_description: item.description,
+            unit_price: item.unit_price,
+            quantity: item.quantity,
+            is_selected: true,
+            selection_reason: 'Approved by Supply Chain Director',
+          } as PriceComparisonEntry,
+          `v:${item.vendor_id}`,
+        ),
+      ),
+    );
+  }, [hydrating, preloaded]);
+
   // -------------------------------------------------------------------------
   // Vendors — async search only (no mount preload).
   // Directory selects type-to-search via PriceComparisonTable →
