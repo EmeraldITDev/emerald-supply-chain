@@ -196,9 +196,6 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
         )}
       </div>
 
-      <Dialog open={reasonOpen !== null} onOpenChange={(o) => !o && setReasonOpen(null)}>
-        <></>
-      </Dialog>
       <Dialog open={approveOpen} onOpenChange={(o) => !o && setApproveOpen(false)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
