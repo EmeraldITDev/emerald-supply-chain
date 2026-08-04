@@ -213,10 +213,38 @@ export function TripRequestForm({
   }
   void missingReasons; // surfaced in UI below
 
-  const submit = async (asDraft: boolean) => {
-    if (isEdit && dirtyFields.size === 0) {
+  const submitDraftRecord = async (): Promise<boolean> => {
+    const res = await tripRequestApi.submit(String(trip!.id));
+    if (res.success) {
+      toast({
+        title: "Trip request submitted",
+        description: "Your request has been sent to logistics for review.",
+      });
+      window.dispatchEvent(new Event("app:refresh"));
+      onSuccess?.();
+      return true;
+    }
+    toast({
+      title: "Submission failed",
+      description: resolveTripWorkflowError(res, "Could not submit this draft."),
+      variant: "destructive",
+    });
+    return false;
+  };
+
+  const submit = async (asDraft: boolean, thenSubmitDraft = false) => {
+    if (isEdit && dirtyFields.size === 0 && !thenSubmitDraft) {
       toast({ title: "No changes to save" });
       onSuccess?.();
+      return;
+    }
+    if (isEdit && dirtyFields.size === 0 && thenSubmitDraft) {
+      setSubmitting(true);
+      try {
+        await submitDraftRecord();
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
     if (!destination.trim() || !purpose.trim() || !origin.trim() || !departureAt) {
@@ -341,11 +369,15 @@ export function TripRequestForm({
         : await tripRequestApi.create(payload);
 
       if (res.success) {
+        if (isEdit && thenSubmitDraft) {
+          await submitDraftRecord();
+          return;
+        }
         toast({
           title: isEdit
-            ? "Trip request updated"
+            ? "Changes saved"
             : asDraft
-              ? "Draft saved"
+              ? "Draft saved. You can submit it when ready."
               : "Trip request submitted",
           description: isEdit
             ? "Your changes were saved. Logistics and other reviewers will see the updated trip."
@@ -380,7 +412,10 @@ export function TripRequestForm({
       } else {
         toast({
           title: isEdit ? "Update failed" : "Submission failed",
-          description: res.error || `Could not ${isEdit ? "update" : "create"} trip request`,
+          description: resolveTripWorkflowError(
+            res as { error?: string; code?: string },
+            `Could not ${isEdit ? "update" : "create"} trip request`,
+          ),
           variant: "destructive",
         });
       }
@@ -391,6 +426,10 @@ export function TripRequestForm({
 
   const handleSubmit = () => submit(false);
   const handleSaveDraft = () => submit(true);
+  const handleSubmitDraft = () => submit(false, true);
+  const isDraftRecord = Boolean(
+    isEdit && (trip?.is_draft ?? trip?.isDraft ?? trip?.status === "draft"),
+  );
 
   const selectedRule = rules.find((r) => r.value === bookingScope);
 
