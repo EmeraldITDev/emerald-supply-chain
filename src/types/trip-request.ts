@@ -83,12 +83,6 @@ export interface TripPoPayload {
   supporting_docs?: string[];
 }
 
-interface TripProgressSummaryLegacy {
-  currentStepKey?: string;
-  currentStepLabel?: string;
-  progressPercent?: number;
-}
-
 export interface TripProgressStep {
   key: string;
   label: string;
