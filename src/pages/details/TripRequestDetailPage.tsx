@@ -24,6 +24,7 @@ import {
   resolveRequesterEditAccess,
 } from "@/utils/requesterEditWindow";
 import { resolveTripBookingScopeLabel } from "@/utils/tripBookingValidation";
+import { resolveTripStageBanner } from "@/utils/tripApprovalState";
 
 const FALLBACK_STEPS: TripProgressStep[] = [
   { key: "submitted", label: "Submitted", status: "in_progress", step: 1 },
