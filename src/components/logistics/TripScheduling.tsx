@@ -1815,7 +1815,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   );
                   setViewDialogOpen(false);
                   if (result.journeyId) {
-                    navigate(`/journeys/${result.journeyId}`);
+                    navigate(`/logistics?tab=journeys&journey=${result.journeyId}`);
                     return;
                   }
                   fetchTrips();
