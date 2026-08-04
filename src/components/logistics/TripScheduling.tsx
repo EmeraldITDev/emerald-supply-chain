@@ -69,7 +69,7 @@ import { formatPoAmount } from "@/utils/currency";
 import { tripsApi, logisticsDashboardApi, logisticsVendorsApi } from "@/services/logisticsApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { tripRequestApi } from "@/services/api";
-import { TripRequestDialog } from "./TripRequestDialog";
+
 import { TripWorkflowActions } from "./TripWorkflowActions";
 import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
 import type { StaffTripRequest } from "@/types/trip-request";
