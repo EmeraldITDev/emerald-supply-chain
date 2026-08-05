@@ -116,6 +116,8 @@ export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) 
               trip.createdAt ??
               trip.created_at;
             const isDraft = trip.isDraft ?? trip.status === "draft";
+            const submitted =
+              trip.submittedAt ?? trip.submitted_at ?? trip.createdAt ?? trip.created_at;
             const editAccess = resolveRequesterEditAccess(trip, user);
             const editTimeLeft = formatRequesterEditTimeRemaining(editAccess.expiresAt);
 
