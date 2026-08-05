@@ -224,13 +224,32 @@ const SupplyChainDashboard = () => {
   });
 
   const pendingTripApprovals = useMemo<any[]>(() => {
-    if (!pendingTripApprovalsData) return [];
-    const data = pendingTripApprovalsData as any;
-    const allTrips = Array.isArray(data) ? data : data.trips || data.items || data.data || [];
+    const data = (pendingTripApprovalsData ?? {}) as any;
+    const listTrips = Array.isArray(data)
+      ? data
+      : data.trips || data.trip_requests || data.items || data.data || [];
+
+    // Second source: the SCD dashboard payload exposes its own pending queue.
+    const raw = (scdDashRaw ?? {}) as Record<string, any>;
+    const dashTrips: any[] = [
+      raw.pending_trip_approvals,
+      raw.pendingTripApprovals,
+      raw.tripsAwaitingSupplyChainDirectorApproval,
+      raw.trips_awaiting_scd_approval,
+    ].find((c) => Array.isArray(c)) ?? [];
+
+    const merged = [...dashTrips, ...listTrips];
+    const seen = new Set<string>();
+    const allTrips = merged.filter((t: any) => {
+      const key = String(t?.id ?? t?.trip_id ?? t?.request_number ?? JSON.stringify(t));
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     // Single source of truth — never surface trips the backend has already
     // approved, rejected, or moved past the SCD stage.
     return allTrips.filter((t: any) => isTripAwaitingDirectorApproval(t));
-  }, [pendingTripApprovalsData]);
+  }, [pendingTripApprovalsData, scdDashRaw]);
 
   const fetchPendingDirectorSrfs = useCallback(
     () => refetchScdDash().then(() => undefined),
