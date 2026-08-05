@@ -17,9 +17,8 @@ import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
 import { TripLogisticsDetailsPanel } from "./TripLogisticsDetailsPanel";
 import { resolveTripBookingScopeLabel } from "@/utils/tripBookingValidation";
 import { Separator } from "@/components/ui/separator";
-import { CalendarClock, MapPin, Plane, Car, Users, BedDouble, ShieldCheck } from "lucide-react";
+import { CalendarClock, MapPin, Plane, Car, Users } from "lucide-react";
 import type { ReactNode } from "react";
-import { formatPoAmount } from "@/utils/currency";
 
 function formatDateTime(value?: string | null): string {
   if (!value) return "—";
@@ -115,16 +114,6 @@ export function TripRequestDetailDialog({
   const externalPassengers = trip?.externalPassengers ?? trip?.external_passengers ?? [];
   const totalPassengers = passengers.length + externalPassengers.length;
 
-  const accommodationRequired = Boolean(
-    trip?.accommodationRequired ?? trip?.accommodation_required,
-  );
-  const accName = trip?.accommodationName ?? trip?.accommodation_name ?? null;
-  const accAddress = trip?.accommodationAddress ?? trip?.accommodation_address ?? null;
-  const accContact = trip?.accommodationContact ?? trip?.accommodation_contact ?? null;
-  const accDetails = trip?.accommodationDetails ?? trip?.accommodation_details ?? null;
-  const accCost = trip?.accommodationEstimatedCost ?? trip?.accommodation_estimated_cost ?? null;
-  const escortRequired = Boolean(trip?.escortRequired ?? trip?.escort_required);
-  const escortDescription = trip?.escortDescription ?? trip?.escort_description ?? null;
   const auditTrail = trip?.auditTrail ?? trip?.audit_trail ?? [];
   const approvalStatus = trip?.approvalStatus ?? trip?.approval_status ?? null;
 
