@@ -122,6 +122,9 @@ const APPROVED_TIMESTAMP_KEYS = [
  */
 export function isTripDirectorApproved(trip: Record<string, unknown>): boolean {
   const approval = norm(trip.approvalStatus ?? trip.approval_status);
+  // A trip explicitly routed to the SCD is by definition not yet approved,
+  // even if a stale stage/status label says otherwise.
+  if (isAwaitingScdState(trip)) return false;
   if (approval === "approved") return true;
   if (APPROVED_TIMESTAMP_KEYS.some((k) => trip[k])) return true;
   const stage = norm(trip.workflowStage ?? trip.workflow_stage);
