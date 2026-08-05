@@ -464,8 +464,8 @@ export function tripStatusPlainLabel(trip: {
  * still carries the pre-approval stage string.
  */
 export function resolveTripDisplayStatus(trip: Record<string, unknown>): string {
+  if (isTripAwaitingDirectorApproval(trip)) return "Awaiting Supply Chain Director";
   if (isTripConverted(trip)) return "Converted to Logistics Request";
   if (isTripDirectorApproved(trip)) return "Approved by Supply Chain Director";
-  if (isTripAwaitingDirectorApproval(trip)) return "Awaiting Supply Chain Director";
   return tripStatusPlainLabel(trip);
 }
