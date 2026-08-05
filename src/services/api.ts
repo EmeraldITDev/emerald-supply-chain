@@ -4032,20 +4032,66 @@ export const tripRequestApi = {
     const res = await apiRequest<Record<string, unknown>>(`/trip-requests?${qs.toString()}`);
     if (res.success) {
       const data = (res.data ?? {}) as Record<string, unknown>;
-      const trips = (
-        (data.trips as import('@/types/trip-request').StaffTripRequest[]) ??
-        (Array.isArray(res.data) ? res.data : []) ??
-        []
-      ) as import('@/types/trip-request').StaffTripRequest[];
+      const nested = (data.data ?? {}) as Record<string, unknown>;
+      const candidates = [
+        Array.isArray(res.data) ? res.data : null,
+        data.trips,
+        data.trip_requests,
+        data.tripRequests,
+        data.items,
+        data.results,
+        data.data,
+        nested.trips,
+        nested.trip_requests,
+      ];
+      const trips = ((candidates.find((c) => Array.isArray(c)) ??
+        []) as unknown) as import('@/types/trip-request').StaffTripRequest[];
       return {
         ...res,
         data: {
           trips,
-          pagination: data.pagination as import('@/types/trip-request').TripRequestsListResponse['pagination'],
+          pagination: (data.pagination ?? nested.pagination) as import('@/types/trip-request').TripRequestsListResponse['pagination'],
         },
       };
     }
     return res as unknown as ApiResponse<import('@/types/trip-request').TripRequestsListResponse>;
+  },
+
+  /**
+   * Every trip the signed-in employee submitted, at any workflow stage.
+   * No status filter is sent. If the personal endpoint returns nothing we fall
+   * back to the org-wide list and match on requester identity client-side.
+   */
+  listMine: async (identity?: {
+    id?: string | number;
+    name?: string;
+    email?: string;
+  }): Promise<ApiResponse<import('@/types/trip-request').TripRequestsListResponse>> => {
+    const res = await tripRequestApi.list({ limit: 100 });
+    if (res.success && (res.data?.trips?.length ?? 0) > 0) return res;
+
+    const all = await tripRequestApi.listAll({ limit: 100 });
+    if (!all.success) return res;
+
+    const norm = (v: unknown) => String(v ?? '').trim().toLowerCase();
+    const wantedId = identity?.id != null ? String(identity.id) : null;
+    const wantedName = norm(identity?.name);
+    const wantedEmail = norm(identity?.email);
+
+    const mine = (all.data?.trips ?? []).filter((t) => {
+      const raw = t as unknown as Record<string, unknown>;
+      const ids = [raw.requester_id, raw.requesterId, raw.created_by, raw.createdBy, raw.user_id, raw.userId]
+        .filter((v) => v != null)
+        .map((v) => String(v));
+      if (wantedId && ids.includes(wantedId)) return true;
+      const names = [raw.requester_name, raw.requesterName, raw.created_by_name].map(norm);
+      if (wantedName && names.includes(wantedName)) return true;
+      const emails = [raw.requester_email, raw.requesterEmail, raw.created_by_email].map(norm);
+      if (wantedEmail && emails.includes(wantedEmail)) return true;
+      return false;
+    });
+
+    return { ...all, data: { trips: mine, pagination: all.data?.pagination } };
   },
 
   delete: async (
