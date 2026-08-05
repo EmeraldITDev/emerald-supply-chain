@@ -8,6 +8,8 @@ export const DIRECTOR_PENDING_STATUSES = new Set([
   "submitted",
   "forwarded",
   "scd_review",
+  "pending_scd_approval",
+  "awaiting_scd_approval",
   "pending_approval",
   "pending_director_approval",
   "director_review",
