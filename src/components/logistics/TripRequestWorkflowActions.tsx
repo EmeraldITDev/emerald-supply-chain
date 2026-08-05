@@ -353,7 +353,10 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
               old
                 ? {
                     ...old,
-                    workflow_state: "logistics_processing",
+                    workflow_state:
+                      (result as Record<string, unknown> | undefined)?.workflow_state ??
+                      (result as Record<string, unknown> | undefined)?.workflowState ??
+                      "logistics_processing",
                     status: "scheduled",
                     logistics_journey_id: result?.journeyId ?? null,
                     availableActions: ["view"],
@@ -363,6 +366,7 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
           );
           queryClient.invalidateQueries({ queryKey: ["trips"] });
           queryClient.invalidateQueries({ queryKey: ["trip-requests"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboard"] });
           onUpdated?.();
         }}
       />
