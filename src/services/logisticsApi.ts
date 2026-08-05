@@ -110,6 +110,79 @@ function vendorAssignmentPayload(vendorId: string): Record<string, string | numb
   return { vendor_id: vid, vendorId: vid };
 }
 
+type AnyRecord = Record<string, unknown>;
+
+function pickJourneyValue<T = unknown>(source: AnyRecord | undefined, ...keys: string[]): T | undefined {
+  if (!source) return undefined;
+  for (const key of keys) {
+    const value = source[key];
+    if (value !== undefined && value !== null) return value as T;
+  }
+  return undefined;
+}
+
+function normalizeJourney(raw: unknown): Journey {
+  const payload = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as AnyRecord) : {};
+  const journeyPayload = (payload.journey ?? payload) as AnyRecord;
+  const tripPayload = (journeyPayload.trip as AnyRecord) ?? undefined;
+
+  const get = <T = unknown>(...keys: string[]): T | undefined => {
+    const fromJourney = pickJourneyValue<T>(journeyPayload, ...keys);
+    if (fromJourney !== undefined) return fromJourney;
+    return pickJourneyValue<T>(tripPayload, ...keys);
+  };
+
+  const getTrip = <T = unknown>(...keys: string[]): T | undefined => pickJourneyValue<T>(tripPayload, ...keys);
+
+  return {
+    id: String(pickJourneyValue<string>(journeyPayload, 'id', 'journey_id', 'uuid') ?? ''),
+    tripId: String(get<string>('tripId', 'trip_id') ?? getTrip('id') ?? ''),
+    tripNumber: String(get<string>('tripNumber', 'trip_number', 'journey_reference') ?? ''),
+    status: (get<string>('status') ?? 'not_started') as JourneyStatus,
+    departedAt: get<string>('departedAt', 'departed_at'),
+    departedFrom: get<string>('departedFrom', 'departed_from'),
+    arrivedAt: get<string>('arrivedAt', 'arrived_at'),
+    arrivedTo: get<string>('arrivedTo', 'arrived_to'),
+    checkpoints: (get<JourneyCheckpoint[]>('checkpoints') ?? []) as JourneyCheckpoint[],
+    currentLocation: get<string>('currentLocation', 'current_location'),
+    lastUpdatedAt: get<string>('lastUpdatedAt', 'last_updated_at'),
+    updatedBy: get<string>('updatedBy', 'updated_by'),
+    totalDistance: get<number>('totalDistance', 'total_distance'),
+    totalDuration: get<string>('totalDuration', 'total_duration'),
+    delayMinutes: get<number>('delayMinutes', 'delay_minutes'),
+    incidents: (get<JourneyIncident[]>('incidents') ?? []) as JourneyIncident[],
+    createdAt: String(get<string>('createdAt', 'created_at') ?? new Date().toISOString()),
+    origin: get<string>('origin'),
+    destination: get<string>('destination'),
+    purpose: get<string>('purpose'),
+    scheduledDepartureAt: get<string>('scheduledDepartureAt', 'scheduled_departure_at'),
+    scheduledArrivalAt: get<string>('scheduledArrivalAt', 'scheduled_arrival_at'),
+    vendorId: get<string>('vendorId', 'vendor_id'),
+    vendorName: get<string>('vendorName', 'vendor_name'),
+    vendorType: get<string>('vendorType', 'vendor_type') as LogisticsVendorType,
+    vehicleId: get<string>('vehicleId', 'vehicle_id'),
+    vehiclePlate: get<string>('vehiclePlate', 'vehicle_plate'),
+    vehicleType: get<string>('vehicleType', 'vehicle_type'),
+    vehicleMake: get<string>('vehicleMake', 'vehicle_make'),
+    vehicleModel: get<string>('vehicleModel', 'vehicle_model'),
+    driverId: get<string>('driverId', 'driver_id'),
+    driverName: get<string>('driverName', 'driver_name'),
+    driverPhone: get<string>('driverPhone', 'driver_phone'),
+    driverType: get<string>('driverType', 'driver_type', 'driver_source'),
+    bookingScope: get<string>('bookingScope', 'booking_scope'),
+    bookingScopeLabel: get<string>('bookingScopeLabel', 'booking_scope_label'),
+    passengers: get<TripPassenger[]>('passengers'),
+    externalPassengers: get<Array<{ name: string; email?: string; phone?: string }>>('externalPassengers', 'external_passengers'),
+    accommodationRequired: get<boolean>('accommodationRequired', 'accommodation_required'),
+    accommodationName: get<string>('accommodationName', 'accommodation_name'),
+    accommodationAddress: get<string>('accommodationAddress', 'accommodation_address'),
+    accommodationContact: get<string>('accommodationContact', 'accommodation_contact'),
+    accommodationEstimatedCost: get<number>('accommodationEstimatedCost', 'accommodation_estimated_cost'),
+    escortRequired: get<boolean>('escortRequired', 'escort_required'),
+    escortDescription: get<string>('escortDescription', 'escort_description'),
+  };
+}
+
 // Helper function for API calls
 async function apiRequest<T>(
   endpoint: string,
@@ -410,40 +483,52 @@ export const journeysApi = {
   list: async (): Promise<ApiResponse<Journey[]>> => {
     const res = await apiRequest<Journey[] | Record<string, unknown>>('/journeys');
     if (res.success && res.data) {
-      if (Array.isArray(res.data)) return { ...res, data: res.data };
+      if (Array.isArray(res.data)) return { ...res, data: res.data.map(normalizeJourney) };
       const wrapped = res.data as Record<string, unknown>;
       const journeys = (wrapped.journeys ?? wrapped.data) as Journey[] | undefined;
-      if (Array.isArray(journeys)) return { ...res, data: journeys };
+      if (Array.isArray(journeys)) return { ...res, data: journeys.map(normalizeJourney) };
     }
     return { success: false, error: res.error || 'Journey list unavailable', data: [] };
   },
 
   // Get journey for a trip
   getByTripId: async (tripId: string): Promise<ApiResponse<Journey>> => {
-    return apiRequest<Journey>(`/journeys/${tripId}`);
+    const res = await apiRequest<Journey>(`/journeys/${tripId}`);
+    if (res.success && res.data) {
+      return { ...res, data: normalizeJourney(res.data) };
+    }
+    return res;
   },
 
   // Create journey for trip
   create: async (tripId: string): Promise<ApiResponse<Journey>> => {
-    return apiRequest<Journey>('/journeys', {
+    const res = await apiRequest<Journey>('/journeys', {
       method: 'POST',
       body: JSON.stringify({ tripId }),
     });
+    if (res.success && res.data) {
+      return { ...res, data: normalizeJourney(res.data) };
+    }
+    return res;
   },
 
   // Update journey (used by vendors/drivers)
   update: async (id: string, data: UpdateJourneyData): Promise<ApiResponse<Journey>> => {
-    return apiRequest<Journey>(`/journeys/${id}`, {
+    const res = await apiRequest<Journey>(`/journeys/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+    if (res.success && res.data) {
+      return { ...res, data: normalizeJourney(res.data) };
+    }
+    return res;
   },
 
   // Update journey status
   // Backend expects: status (uppercase: DEPARTED, EN_ROUTE, ARRIVED, COMPLETED, CANCELLED), timestamp, location
   // Triggers JourneyStatusUpdatedNotification to relevant parties
   updateStatus: async (id: string, status: string, location?: string, timestamp?: string): Promise<ApiResponse<Journey>> => {
-    return apiRequest<Journey>(`/journeys/${id}/update-status`, {
+    const res = await apiRequest<Journey>(`/journeys/${id}/update-status`, {
       method: 'POST',
       body: JSON.stringify({ 
         status: status.toUpperCase(), 
@@ -451,6 +536,10 @@ export const journeysApi = {
         timestamp: timestamp || new Date().toISOString().replace('T', ' ').substring(0, 19),
       }),
     });
+    if (res.success && res.data) {
+      return { ...res, data: normalizeJourney(res.data) };
+    }
+    return res;
   },
 
   // Add checkpoint
@@ -459,10 +548,14 @@ export const journeysApi = {
     notes?: string;
     gpsCoordinates?: { latitude: number; longitude: number };
   }): Promise<ApiResponse<Journey>> => {
-    return apiRequest<Journey>(`/journeys/${id}/checkpoints`, {
+    const res = await apiRequest<Journey>(`/journeys/${id}/checkpoints`, {
       method: 'POST',
       body: JSON.stringify(checkpoint),
     });
+    if (res.success && res.data) {
+      return { ...res, data: normalizeJourney(res.data) };
+    }
+    return res;
   },
 
   // Report incident
@@ -472,10 +565,14 @@ export const journeysApi = {
     location?: string;
     severity: string;
   }): Promise<ApiResponse<Journey>> => {
-    return apiRequest<Journey>(`/journeys/${id}/incidents`, {
+    const res = await apiRequest<Journey>(`/journeys/${id}/incidents`, {
       method: 'POST',
       body: JSON.stringify(incident),
     });
+    if (res.success && res.data) {
+      return { ...res, data: normalizeJourney(res.data) };
+    }
+    return res;
   },
 
   /** Full journey detail by journey id (enriched with trip/vehicle/driver relations). */
@@ -483,8 +580,8 @@ export const journeysApi = {
     const res = await apiRequest<Journey | Record<string, unknown>>(`/journeys/${id}`);
     if (res.success && res.data) {
       const wrapped = res.data as Record<string, unknown>;
-      const journey = (wrapped.journey ?? wrapped.data ?? wrapped) as Journey;
-      return { ...res, data: journey };
+      const journey = wrapped.journey ?? wrapped.data ?? wrapped;
+      return { ...res, data: normalizeJourney(journey) };
     }
     return res as ApiResponse<Journey>;
   },

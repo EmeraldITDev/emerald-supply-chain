@@ -214,6 +214,36 @@ export interface Journey {
   
   // Issues/Incidents
   incidents?: JourneyIncident[];
+
+  // Optional meta fields merged from the linked trip payload.
+  origin?: string;
+  destination?: string;
+  purpose?: string;
+  scheduledDepartureAt?: string;
+  scheduledArrivalAt?: string;
+  vendorId?: string;
+  vendorName?: string;
+  vendorType?: LogisticsVendorType;
+  vehicleId?: string;
+  vehiclePlate?: string;
+  vehicleType?: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  driverId?: string;
+  driverName?: string;
+  driverPhone?: string;
+  driverType?: string;
+  bookingScope?: string;
+  bookingScopeLabel?: string;
+  passengers?: TripPassenger[];
+  externalPassengers?: Array<{ name: string; email?: string; phone?: string }>;
+  accommodationRequired?: boolean;
+  accommodationName?: string;
+  accommodationAddress?: string;
+  accommodationContact?: string;
+  accommodationEstimatedCost?: number;
+  escortRequired?: boolean;
+  escortDescription?: string;
   
   createdAt: string;
 }
