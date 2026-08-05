@@ -10,6 +10,11 @@ import type {
   CreateTripData,
   BulkTripUploadResult,
   Journey,
+  JourneyStatus,
+  JourneyCheckpoint,
+  JourneyIncident,
+  TripPassenger,
+  LogisticsVendorType,
   UpdateJourneyData,
   Material,
   BulkMaterialUploadResult,
@@ -123,8 +128,10 @@ function pickJourneyValue<T = unknown>(source: AnyRecord | undefined, ...keys: s
 
 function normalizeJourney(raw: unknown): Journey {
   const payload = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as AnyRecord) : {};
-  const journeyPayload = (payload.journey ?? payload) as AnyRecord;
-  const tripPayload = (journeyPayload.trip as AnyRecord) ?? undefined;
+  const journeyPayload = (payload.journey ?? payload.data ?? payload) as AnyRecord;
+  const tripPayload =
+    ((journeyPayload.trip as AnyRecord) ?? (payload.trip as AnyRecord) ?? ((payload.data as AnyRecord)?.trip as AnyRecord)) ??
+    undefined;
 
   const get = <T = unknown>(...keys: string[]): T | undefined => {
     const fromJourney = pickJourneyValue<T>(journeyPayload, ...keys);
@@ -134,10 +141,28 @@ function normalizeJourney(raw: unknown): Journey {
 
   const getTrip = <T = unknown>(...keys: string[]): T | undefined => pickJourneyValue<T>(tripPayload, ...keys);
 
+  const resolveVehicleField = <T = unknown>(...keys: string[]) => {
+    const direct = get<T>(...keys);
+    if (direct !== undefined) return direct;
+    const vehicleObj = (pickJourneyValue<AnyRecord>(journeyPayload, 'vehicle') ?? pickJourneyValue<AnyRecord>(tripPayload ?? {}, 'vehicle')) as AnyRecord | undefined;
+    return vehicleObj ? pickJourneyValue<T>(vehicleObj, 'plateNumber', 'plate_number', 'plate', 'make', 'model', 'type', 'vehicleType' as any) : undefined;
+  };
+
+  const resolveDriverField = <T = unknown>(...keys: string[]) => {
+    const direct = get<T>(...keys);
+    if (direct !== undefined) return direct;
+    const externalDriverObj = (pickJourneyValue<AnyRecord>(journeyPayload, 'externalDriver') ?? pickJourneyValue<AnyRecord>(tripPayload ?? {}, 'externalDriver') ?? pickJourneyValue<AnyRecord>(tripPayload ?? {}, 'external_driver')) as AnyRecord | undefined;
+    return externalDriverObj ? pickJourneyValue<T>(externalDriverObj, 'name', 'phone', 'email') : undefined;
+  };
+
   return {
     id: String(pickJourneyValue<string>(journeyPayload, 'id', 'journey_id', 'uuid') ?? ''),
     tripId: String(get<string>('tripId', 'trip_id') ?? getTrip('id') ?? ''),
-    tripNumber: String(get<string>('tripNumber', 'trip_number', 'journey_reference') ?? ''),
+    tripNumber: String(
+      get<string>('tripNumber', 'trip_number', 'tripCode', 'trip_code', 'journey_reference', 'journeyReference') ??
+      getTrip<string>('tripNumber', 'trip_number', 'tripCode', 'trip_code') ??
+      ''
+    ),
     status: (get<string>('status') ?? 'not_started') as JourneyStatus,
     departedAt: get<string>('departedAt', 'departed_at'),
     departedFrom: get<string>('departedFrom', 'departed_from'),
@@ -161,14 +186,14 @@ function normalizeJourney(raw: unknown): Journey {
     vendorName: get<string>('vendorName', 'vendor_name'),
     vendorType: get<string>('vendorType', 'vendor_type') as LogisticsVendorType,
     vehicleId: get<string>('vehicleId', 'vehicle_id'),
-    vehiclePlate: get<string>('vehiclePlate', 'vehicle_plate'),
-    vehicleType: get<string>('vehicleType', 'vehicle_type'),
-    vehicleMake: get<string>('vehicleMake', 'vehicle_make'),
-    vehicleModel: get<string>('vehicleModel', 'vehicle_model'),
+    vehiclePlate: resolveVehicleField<string>('vehiclePlate', 'vehicle_plate'),
+    vehicleType: resolveVehicleField<string>('vehicleType', 'vehicle_type'),
+    vehicleMake: resolveVehicleField<string>('vehicleMake', 'vehicle_make'),
+    vehicleModel: resolveVehicleField<string>('vehicleModel', 'vehicle_model'),
     driverId: get<string>('driverId', 'driver_id'),
-    driverName: get<string>('driverName', 'driver_name'),
-    driverPhone: get<string>('driverPhone', 'driver_phone'),
-    driverType: get<string>('driverType', 'driver_type', 'driver_source'),
+    driverName: resolveDriverField<string>('driverName', 'driver_name'),
+    driverPhone: resolveDriverField<string>('driverPhone', 'driver_phone'),
+    driverType: get<string>('driverType', 'driver_type', 'driver_source') ?? (resolveDriverField<string>('name') ? 'external' : undefined),
     bookingScope: get<string>('bookingScope', 'booking_scope'),
     bookingScopeLabel: get<string>('bookingScopeLabel', 'booking_scope_label'),
     passengers: get<TripPassenger[]>('passengers'),
@@ -580,8 +605,7 @@ export const journeysApi = {
     const res = await apiRequest<Journey | Record<string, unknown>>(`/journeys/${id}`);
     if (res.success && res.data) {
       const wrapped = res.data as Record<string, unknown>;
-      const journey = wrapped.journey ?? wrapped.data ?? wrapped;
-      return { ...res, data: normalizeJourney(journey) };
+      return { ...res, data: normalizeJourney(wrapped) };
     }
     return res as ApiResponse<Journey>;
   },

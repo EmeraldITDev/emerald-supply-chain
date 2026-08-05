@@ -132,8 +132,16 @@ type JourneyPassengerItem = {
 function getJourneyPassengerList(trip?: Trip | Journey): JourneyPassengerItem[] {
   if (!trip) return [];
 
-  const internalPassengers: JourneyPassengerItem[] = Array.isArray((trip as any).passengers)
-    ? (trip as any).passengers.map((p: any, index: number) => ({
+  const root = trip as any;
+  const linkedTrip = root.linkedTrip as any | undefined;
+  const passengersSource = Array.isArray(root.passengers)
+    ? root.passengers
+    : Array.isArray(linkedTrip?.passengers)
+    ? linkedTrip.passengers
+    : [];
+
+  const internalPassengers: JourneyPassengerItem[] = Array.isArray(passengersSource)
+    ? passengersSource.map((p: any, index: number) => ({
         key: `int-${String(p.id ?? p.staffId ?? index)}`,
         name: (() => {
           const raw = p.name ?? p.fullName ?? p.full_name ?? p.user_name ?? p.email ?? null;
@@ -151,17 +159,23 @@ function getJourneyPassengerList(trip?: Trip | Journey): JourneyPassengerItem[] 
       }))
     : [];
 
-  const passengerUserIds = Array.isArray((trip as any).passengerUserIds)
-    ? (trip as any).passengerUserIds
-    : Array.isArray((trip as any).passenger_user_ids)
-    ? (trip as any).passenger_user_ids
+  const passengerUserIds = Array.isArray(root.passengerUserIds)
+    ? root.passengerUserIds
+    : Array.isArray(root.passenger_user_ids)
+    ? root.passenger_user_ids
     : [];
-  const includedUsers = Array.isArray((trip as any).includedUsers)
-    ? (trip as any).includedUsers
-    : Array.isArray((trip as any).included_users)
-    ? (trip as any).included_users
-    : Array.isArray((trip as any).users)
-    ? (trip as any).users
+  const includedUsers = Array.isArray(root.includedUsers)
+    ? root.includedUsers
+    : Array.isArray(root.included_users)
+    ? root.included_users
+    : Array.isArray(root.users)
+    ? root.users
+    : Array.isArray(linkedTrip?.includedUsers)
+    ? linkedTrip.includedUsers
+    : Array.isArray(linkedTrip?.included_users)
+    ? linkedTrip.included_users
+    : Array.isArray(linkedTrip?.users)
+    ? linkedTrip.users
     : [];
 
   const resolvedInternalFromIds = passengerUserIds.map((userId: unknown, index: number) => {
@@ -183,10 +197,10 @@ function getJourneyPassengerList(trip?: Trip | Journey): JourneyPassengerItem[] 
     };
   });
 
-  const externalPassengers = Array.isArray((trip as any).externalPassengers)
-    ? (trip as any).externalPassengers
-    : Array.isArray((trip as any).external_passengers)
-    ? (trip as any).external_passengers
+  const externalPassengers = Array.isArray(root.externalPassengers)
+    ? root.externalPassengers
+    : Array.isArray(root.external_passengers)
+    ? root.external_passengers
     : [];
   const resolvedExternalPassengers = externalPassengers.map((p: any, index: number) => ({
     key: `ext-${index}`,
@@ -573,7 +587,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm">{journey.tripNumber}</span>
+                        <span className="font-mono text-sm">{journey.tripNumber || journey.linkedTrip?.tripNumber}</span>
                         <Badge className={cn(statusColors[journeyStatusKey(journey.status)], "capitalize")}>
                           {statusIcons[journeyStatusKey(journey.status)]}
                           <span className="ml-1">{formatJourneyStatus(journey.status)}</span>
@@ -716,7 +730,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Journey Details - {selectedJourney?.tripNumber}</DialogTitle>
+            <DialogTitle>Journey Details - {selectedJourney?.tripNumber ?? selectedJourney?.linkedTrip?.tripNumber}</DialogTitle>
           </DialogHeader>
           {selectedJourney && (
             <div className="space-y-6">
@@ -911,11 +925,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                       </p>
                     </div>
                   </div>
-                  {(selectedJourney.passengers ?? selectedJourney.linkedTrip?.passengers)?.length > 0 && (
+                  {getJourneyPassengerList(selectedJourney).length > 0 && (
                       <div>
                         <Label className="text-muted-foreground">Passengers</Label>
                         <p className="text-sm">
-                          {(selectedJourney.passengers ?? selectedJourney.linkedTrip?.passengers)
+                          {getJourneyPassengerList(selectedJourney)
                             .map((p) => p.name)
                             .join(", ")}
                         </p>
