@@ -135,9 +135,18 @@ function getJourneyPassengerList(trip?: Trip): JourneyPassengerItem[] {
   const internalPassengers: JourneyPassengerItem[] = Array.isArray((trip as any).passengers)
     ? (trip as any).passengers.map((p: any, index: number) => ({
         key: `int-${String(p.id ?? p.staffId ?? index)}`,
-        name: String(p.name ?? p.fullName ?? p.full_name ?? p.user_name ?? p.email ?? "—"),
-        department: String(p.department ?? p.department_name ?? p.departmentName ?? "") || undefined,
-        email: String(p.email ?? p.email_address ?? p.emailAddress ?? "") || undefined,
+        name: (() => {
+          const raw = p.name ?? p.fullName ?? p.full_name ?? p.user_name ?? p.email ?? null;
+          return raw == null || String(raw).trim() === "" ? String(p.id ?? p.staffId ?? index) : String(raw);
+        })(),
+        department: (() => {
+          const raw = p.department ?? p.department_name ?? p.departmentName ?? null;
+          return raw == null ? undefined : String(raw);
+        })(),
+        email: (() => {
+          const raw = p.email ?? p.email_address ?? p.emailAddress ?? null;
+          return raw == null ? undefined : String(raw);
+        })(),
         external: false,
       }))
     : [];
@@ -159,16 +168,17 @@ function getJourneyPassengerList(trip?: Trip): JourneyPassengerItem[] {
     const user = includedUsers.find(
       (item: any) => String(item.id ?? item.user_id ?? item.userId) === String(userId),
     );
+    const nameRaw = user?.name ?? user?.fullName ?? user?.full_name ?? user?.displayName ?? user?.display_name ?? null;
+    const name = nameRaw == null || String(nameRaw).trim() === "" ? String(userId) : String(nameRaw);
+    const deptRaw = user?.department ?? user?.department_name ?? user?.departmentName ?? null;
+    const department = deptRaw == null ? undefined : String(deptRaw);
+    const emailRaw = user?.email ?? user?.email_address ?? user?.emailAddress ?? null;
+    const email = emailRaw == null ? undefined : String(emailRaw);
     return {
       key: `int-id-${String(userId)}-${index}`,
-      name:
-        String(
-          user?.name ?? user?.fullName ?? user?.full_name ?? user?.displayName ?? user?.display_name ?? userId,
-        ) || String(userId),
-      department:
-        String(user?.department ?? user?.department_name ?? user?.departmentName ?? "") || undefined,
-      email:
-        String(user?.email ?? user?.email_address ?? user?.emailAddress ?? "") || undefined,
+      name,
+      department,
+      email,
       external: false,
     };
   });

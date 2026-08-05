@@ -125,14 +125,18 @@ export function TripLogisticsDetailsPanel({
     const user = includedUsers.find(
       (item) => String(item.id ?? item.user_id ?? item.userId) === String(userId),
     );
+    const nameRaw =
+      user?.name ?? user?.fullName ?? user?.full_name ?? user?.displayName ?? user?.display_name;
+    const name = nameRaw == null || String(nameRaw).trim() === "" ? String(userId) : String(nameRaw);
+    const deptRaw = user?.department ?? user?.department_name ?? user?.departmentName ?? null;
+    const department = deptRaw == null ? undefined : String(deptRaw);
+    const emailRaw = user?.email ?? user?.email_address ?? user?.emailAddress ?? null;
+    const email = emailRaw == null ? undefined : String(emailRaw);
     return {
       key: `int-${userId}-${index}`,
-      name:
-        String(
-          user?.name ?? user?.fullName ?? user?.full_name ?? user?.displayName ?? user?.display_name,
-        ) || String(userId),
-      department: String(user?.department ?? user?.department_name ?? user?.departmentName ?? "") || undefined,
-      email: String(user?.email ?? user?.email_address ?? user?.emailAddress ?? "") || undefined,
+      name,
+      department,
+      email,
       external: false,
     };
   });
