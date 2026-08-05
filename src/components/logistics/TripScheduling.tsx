@@ -1274,11 +1274,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                               const stage =
                                 (trip as Trip & { workflow_stage?: string }).workflow_stage ||
                                 (trip as Trip & { workflowStage?: string }).workflowStage;
-                              const isLogistics =
-                                getScmRole(user) &&
-                                ["logistics_manager", "logistics_officer", "logistics", "admin"].includes(
-                                  getScmRole(user),
-                                );
                               const isProcurement =
                                 getScmRole(user) &&
                                 ["procurement", "procurement_manager"].includes(getScmRole(user));
