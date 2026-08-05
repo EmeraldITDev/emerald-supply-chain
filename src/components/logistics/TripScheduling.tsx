@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,7 +68,7 @@ import { cn } from "@/lib/utils";
 import { formatPoAmount } from "@/utils/currency";
 import { tripsApi, logisticsDashboardApi, logisticsVendorsApi } from "@/services/logisticsApi";
 import { useAuth } from "@/contexts/AuthContext";
-import { tripRequestApi } from "@/services/api";
+import { tripRequestApi, apiRequestFull } from "@/services/api";
 
 import { TripWorkflowActions } from "./TripWorkflowActions";
 import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
@@ -225,6 +225,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   
   const [vendorList, setVendorList] = useState<VendorItem[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
+
+  // Cache resolved user objects to avoid repeated network calls for the same IDs
+  const userCache = useRef<Record<string, Record<string, unknown>>>({});
 
   // Safe date formatter — returns fallback string for null/invalid dates
   const formatDate = (dateStr: string | undefined | null, opts?: Intl.DateTimeFormatOptions) => {
@@ -878,9 +881,48 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           tripsApi.getById(String(trip.id)),
         ]);
         if (tripRes.success && tripRes.data) {
-          setSelectedTrip((prev) =>
-            prev && String(prev.id) === String(trip.id) ? { ...prev, ...tripRes.data } : prev,
-          );
+          // If backend returned passenger IDs but not resolved user objects,
+          // resolve them here and attach `includedUsers` to the trip payload.
+          const incoming = tripRes.data as Record<string, unknown>;
+          const ids: unknown[] = (incoming.passengerUserIds ?? incoming.passenger_user_ids) as unknown[] ?? [];
+          const hasIncluded = Array.isArray(incoming.includedUsers) || Array.isArray(incoming.included_users) || Array.isArray(incoming.passengers);
+          if (Array.isArray(ids) && ids.length > 0 && !hasIncluded) {
+            const missingIds = ids.map(String).filter((id) => !userCache.current[id]);
+            if (missingIds.length > 0) {
+              try {
+                const fetched = await Promise.all(
+                  missingIds.map(async (id) => {
+                    const res = await apiRequestFull(`/users/${encodeURIComponent(id)}`);
+                    if (res.success && res.body) {
+                      const body = res.body as Record<string, unknown>;
+                      const payload = ('data' in body && (body as any).data) ? (body as any).data : body;
+                      if (payload && typeof payload === 'object') {
+                        const keys = Object.keys(payload);
+                        if (keys.length === 1 && typeof (payload as any)[keys[0]] === 'object') {
+                          return (payload as any)[keys[0]] as Record<string, unknown>;
+                        }
+                      }
+                      return payload as Record<string, unknown>;
+                    }
+                    return null;
+                  }),
+                );
+                for (let i = 0; i < missingIds.length; i++) {
+                  if (fetched[i]) userCache.current[missingIds[i]] = fetched[i] as Record<string, unknown>;
+                }
+              } catch (err) {
+                console.warn('Failed to resolve passenger user objects', err);
+              }
+            }
+            const included = (ids.map((id) => userCache.current[String(id)]).filter(Boolean) as Record<string, unknown>[]);
+            setSelectedTrip((prev) =>
+              prev && String(prev.id) === String(trip.id) ? { ...prev, ...tripRes.data, includedUsers: included } : { ...tripRes.data, includedUsers: included },
+            );
+          } else {
+            setSelectedTrip((prev) =>
+              prev && String(prev.id) === String(trip.id) ? { ...prev, ...tripRes.data } : prev,
+            );
+          }
         }
         if (detailRes.success && detailRes.data?.trip) {
           setSelectedTripRequest(detailRes.data.trip);
