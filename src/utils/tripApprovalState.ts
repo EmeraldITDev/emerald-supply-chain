@@ -43,6 +43,53 @@ function norm(v: unknown): string {
   return String(v ?? "").toLowerCase().trim().replace(/\s+/g, "_");
 }
 
+const SCD_DECIDED_TIMESTAMP_KEYS = [
+  "scd_approved_at",
+  "scdApprovedAt",
+  "director_approved_at",
+  "directorApprovedAt",
+  "scd_rejected_at",
+  "scdRejectedAt",
+];
+
+const CONVERTED_AWAITING_SCD_STATES = new Set([
+  "converted",
+  "converted_to_logistics",
+  "converted_to_logistics_request",
+  "logistics_created",
+]);
+
+/**
+ * The backend `logistics_trips` table has no `workflow_state` column: a trip
+ * request converted to a logistics request is simply written as
+ * `status = converted`. That record still needs the Supply Chain Director's
+ * approval, so treat a converted trip with no recorded SCD decision as
+ * awaiting the director.
+ */
+export function isConvertedAwaitingScd(trip: Record<string, unknown>): boolean {
+  const status = norm(trip.status);
+  const state = norm(trip.workflow_state ?? trip.workflowState);
+  const stage = norm(trip.workflowStage ?? trip.workflow_stage);
+  const isConvertedRecord =
+    CONVERTED_AWAITING_SCD_STATES.has(status) ||
+    CONVERTED_AWAITING_SCD_STATES.has(state) ||
+    CONVERTED_AWAITING_SCD_STATES.has(stage);
+  if (!isConvertedRecord) return false;
+
+  const approval = norm(trip.approvalStatus ?? trip.approval_status);
+  if (approval === "approved" || approval === "rejected") return false;
+  if (SCD_DECIDED_TIMESTAMP_KEYS.some((k) => trip[k])) return false;
+  if (
+    ["scd_approved", "scd_rejected", "director_approved", "approved", "rejected"].some(
+      (s) => s === state || s === stage,
+    )
+  ) {
+    return false;
+  }
+  if (wasTripDirectorApproved(trip.id as string | number | undefined)) return false;
+  return true;
+}
+
 /**
  * True when any backend state field explicitly marks the trip as awaiting the
  * Supply Chain Director. Reads `workflow_state` too — post-conversion Branch A
@@ -59,9 +106,14 @@ export function isAwaitingScdState(trip: Record<string, unknown>): boolean {
   ].map(norm);
   const approval = norm(trip.approvalStatus ?? trip.approval_status);
   if (approval === "approved" || approval === "rejected") return false;
-  return fields.some(
+  if (
+    fields.some(
     (f) => f === "pending_scd_approval" || f === "awaiting_scd_approval" || f === "scd_review",
-  );
+    )
+  ) {
+    return true;
+  }
+  return isConvertedAwaitingScd(trip);
 }
 
 /**
@@ -412,8 +464,8 @@ export function tripStatusPlainLabel(trip: {
  * still carries the pre-approval stage string.
  */
 export function resolveTripDisplayStatus(trip: Record<string, unknown>): string {
+  if (isTripAwaitingDirectorApproval(trip)) return "Awaiting Supply Chain Director";
   if (isTripConverted(trip)) return "Converted to Logistics Request";
   if (isTripDirectorApproved(trip)) return "Approved by Supply Chain Director";
-  if (isTripAwaitingDirectorApproval(trip)) return "Awaiting Supply Chain Director";
   return tripStatusPlainLabel(trip);
 }
