@@ -4320,20 +4320,48 @@ export const tripRequestApi = {
     if (params?.q) qs.set('q', params.q);
     const limit = params?.limit ?? params?.per_page ?? 50;
     qs.set('limit', String(Math.min(100, Math.max(1, limit))));
-    const res = await apiRequest<Record<string, unknown>>(`/trip-requests/all?${qs.toString()}`);
-    if (res.success) {
+    const pick = (res: ApiResponse<Record<string, unknown>>) => {
       const data = (res.data ?? {}) as Record<string, unknown>;
-      const trips = (
-        (data.trips as import('@/types/trip-request').StaffTripRequest[]) ??
-        (Array.isArray(res.data) ? res.data : []) ??
-        []
-      ) as import('@/types/trip-request').StaffTripRequest[];
+      const nested = (data.data ?? {}) as Record<string, unknown>;
+      const candidates = [
+        Array.isArray(res.data) ? res.data : null,
+        data.trips,
+        data.trip_requests,
+        data.tripRequests,
+        data.items,
+        data.results,
+        data.data,
+        nested.trips,
+        nested.trip_requests,
+      ];
+      const found = candidates.find((c) => Array.isArray(c)) as
+        | import('@/types/trip-request').StaffTripRequest[]
+        | undefined;
+      return {
+        trips: found ?? [],
+        pagination: (data.pagination ?? nested.pagination) as
+          import('@/types/trip-request').TripRequestsListResponse['pagination'],
+      };
+    };
+
+    let res = await apiRequest<Record<string, unknown>>(`/trip-requests/all?${qs.toString()}`);
+    let parsed = res.success ? pick(res) : { trips: [], pagination: undefined };
+    // Some deployments don't expose /trip-requests/all — fall back to the
+    // standard list endpoint so the SCD queue is never silently empty.
+    if (!res.success || parsed.trips.length === 0) {
+      const fallback = await apiRequest<Record<string, unknown>>(`/trip-requests?${qs.toString()}`);
+      if (fallback.success) {
+        const fbParsed = pick(fallback);
+        if (fbParsed.trips.length > 0 || !res.success) {
+          res = fallback;
+          parsed = fbParsed;
+        }
+      }
+    }
+    if (res.success) {
       return {
         ...res,
-        data: {
-          trips,
-          pagination: data.pagination as import('@/types/trip-request').TripRequestsListResponse['pagination'],
-        },
+        data: parsed,
       };
     }
     return res as unknown as ApiResponse<import('@/types/trip-request').TripRequestsListResponse>;
