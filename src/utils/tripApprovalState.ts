@@ -333,6 +333,8 @@ export function isTripAwaitingDirectorApproval(trip: {
   status?: unknown;
   workflow_stage?: unknown;
   workflowStage?: unknown;
+  workflow_state?: unknown;
+  workflowState?: unknown;
   approval_status?: unknown;
   approvalStatus?: unknown;
   availableActions?: unknown;
@@ -340,8 +342,15 @@ export function isTripAwaitingDirectorApproval(trip: {
 }): boolean {
   const status = norm(trip.status);
   const stage = norm(trip.workflowStage ?? trip.workflow_stage);
+  const state = norm(trip.workflow_state ?? trip.workflowState);
   const actions = readActions(trip);
   const approval = norm(trip.approvalStatus ?? trip.approval_status);
+
+  // Explicit SCD routing wins over every other signal.
+  if (isAwaitingScdState(trip as Record<string, unknown>)) {
+    if (wasTripDirectorApproved((trip as { id?: string | number }).id)) return false;
+    return true;
+  }
 
   // Any evidence of a completed director decision wins over stale stage labels.
   if (isTripDirectorApproved(trip as Record<string, unknown>)) return false;
@@ -359,6 +368,7 @@ export function isTripAwaitingDirectorApproval(trip: {
   return (
     DIRECTOR_PENDING_STATUSES.has(status) ||
     DIRECTOR_PENDING_STATUSES.has(stage) ||
+    DIRECTOR_PENDING_STATUSES.has(state) ||
     stage.includes("director")
   );
 }
