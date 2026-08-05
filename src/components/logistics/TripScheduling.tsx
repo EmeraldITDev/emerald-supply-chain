@@ -72,6 +72,7 @@ import { tripRequestApi } from "@/services/api";
 
 import { TripWorkflowActions } from "./TripWorkflowActions";
 import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
+import { TripLogisticsDetailsPanel } from "./TripLogisticsDetailsPanel";
 import type { StaffTripRequest } from "@/types/trip-request";
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import type { PaginationMeta } from "@/types/pagination";
