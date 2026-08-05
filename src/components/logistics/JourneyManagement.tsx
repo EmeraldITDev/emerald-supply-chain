@@ -178,10 +178,21 @@ function getJourneyPassengerList(trip?: Trip | Journey): JourneyPassengerItem[] 
     ? linkedTrip.users
     : [];
 
-  const resolvedInternalFromIds = passengerUserIds.map((userId: unknown, index: number) => {
-    const user = includedUsers.find(
-      (item: any) => String(item.id ?? item.user_id ?? item.userId) === String(userId),
+  const userMatchesId = (item: any, userId: unknown): boolean => {
+    if (!item || typeof item !== "object") return false;
+    const idValues = [item.id, item.user_id, item.userId, item.staffId, item.staff_id];
+    return idValues.some((candidate) => String(candidate) === String(userId));
+  };
+
+  const resolveUserById = (userId: unknown): any => {
+    return (
+      includedUsers.find((item: any) => userMatchesId(item, userId)) ??
+      passengersSource.find((item: any) => userMatchesId(item, userId))
     );
+  };
+
+  const resolvedInternalFromIds = passengerUserIds.map((userId: unknown, index: number) => {
+    const user = resolveUserById(userId);
     const nameRaw = user?.name ?? user?.fullName ?? user?.full_name ?? user?.displayName ?? user?.display_name ?? null;
     const name = nameRaw == null || String(nameRaw).trim() === "" ? String(userId) : String(nameRaw);
     const deptRaw = user?.department ?? user?.department_name ?? user?.departmentName ?? null;

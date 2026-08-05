@@ -121,12 +121,30 @@ export function TripLogisticsDetailsPanel({
     "users",
   ) ?? pick<AnyRecord[]>(lt, "includedUsers", "included_users", "users") ?? []) as AnyRecord[];
 
-  const resolvedInternalPassengers: PassengerItem[] = passengerUserIds.map((userId, index) => {
-    const user = includedUsers.find(
-      (item) => String(item.id ?? item.user_id ?? item.userId) === String(userId),
+  const userMatchesId = (item: AnyRecord | unknown, userId: unknown): boolean => {
+    if (!item || typeof item !== "object") return false;
+    const idValues = [
+      (item as AnyRecord).id,
+      (item as AnyRecord).user_id,
+      (item as AnyRecord).userId,
+      (item as AnyRecord).staffId,
+      (item as AnyRecord).staff_id,
+    ];
+    return idValues.some((candidate) => String(candidate) === String(userId));
+  };
+
+  const resolveUserById = (userId: unknown): AnyRecord | undefined => {
+    return (
+      includedUsers.find((item) => userMatchesId(item, userId)) ??
+      passengers.find((item) => userMatchesId(item, userId))
     );
+  };
+
+  const resolvedInternalPassengers: PassengerItem[] = passengerUserIds.map((userId, index) => {
+    const user = resolveUserById(userId);
     const nameRaw =
-      user?.name ?? user?.fullName ?? user?.full_name ?? user?.displayName ?? user?.display_name;
+      user?.name ?? user?.fullName ?? user?.full_name ?? user?.displayName ?? user?.display_name ??
+      user?.firstName ?? user?.first_name ?? user?.lastName ?? user?.last_name ?? null;
     const name = nameRaw == null || String(nameRaw).trim() === "" ? String(userId) : String(nameRaw);
     const deptRaw = user?.department ?? user?.department_name ?? user?.departmentName ?? null;
     const department = deptRaw == null ? undefined : String(deptRaw);
