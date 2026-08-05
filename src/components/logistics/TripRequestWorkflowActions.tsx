@@ -345,8 +345,24 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
         request={trip}
         open={convertOpen}
         onOpenChange={setConvertOpen}
-        onConverted={() => {
+        onConverted={(result) => {
           markTripConverted(trip.id);
+          queryClient.setQueryData(
+            ["trip-request", String(trip.id)],
+            (old: Record<string, unknown> | undefined) =>
+              old
+                ? {
+                    ...old,
+                    workflow_state: "logistics_processing",
+                    status: "scheduled",
+                    logistics_journey_id: result?.journeyId ?? null,
+                    availableActions: ["view"],
+                    available_actions: ["view"],
+                  }
+                : old,
+          );
+          queryClient.invalidateQueries({ queryKey: ["trips"] });
+          queryClient.invalidateQueries({ queryKey: ["trip-requests"] });
           onUpdated?.();
         }}
       />

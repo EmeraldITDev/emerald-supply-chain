@@ -167,13 +167,19 @@ export function isTripConverted(trip: Record<string, unknown>): boolean {
 export function isConvertedTripRow(trip: Record<string, unknown>): boolean {
   const stage = norm(trip.workflowStage ?? trip.workflow_stage);
   const status = norm(trip.status);
+  const state = norm(trip.workflow_state ?? trip.workflowState);
+  const convertedStates = new Set([
+    "converted",
+    "converted_to_logistics_request",
+    "converted_to_journey",
+    "logistics_processing",
+    "logistics_created",
+  ]);
+  if (convertedStates.has(state)) return true;
+  if (trip.logistics_journey_id ?? trip.logisticsJourneyId) return true;
+  if (wasTripConvertedLocally(trip.id as string | number | undefined)) return true;
   return (
-    status === "converted" ||
-    stage === "converted" ||
-    stage === "converted_to_logistics_request" ||
-    stage === "converted_to_journey" ||
-    status === "converted_to_logistics_request" ||
-    status === "converted_to_journey"
+    convertedStates.has(status) || convertedStates.has(stage)
   );
 }
 
@@ -186,6 +192,14 @@ export function resolveTripStageBanner(
 ): { title: string; tone: "info" | "warning" | "success" | "error" } | null {
   const stage = norm(trip.workflowStage ?? trip.workflow_stage ?? trip.workflow_state);
   const quotationRequired = trip.quotation_required ?? trip.quotationRequired;
+  if (stage === "logistics_processing") {
+    return {
+      title: `Converted to Logistics Request — status: ${String(
+        trip.status ?? "scheduled",
+      )}. The logistics team is now processing this request.`,
+      tone: "success",
+    };
+  }
   if (stage === "pending_vendor_quotation" || quotationRequired === true) {
     return {
       title: "Pending Vendor Quotation — Send RFQ to vendors to continue",
@@ -214,14 +228,34 @@ export function resolveTripStageBanner(
  * heuristics are only consulted when the API omits `available_actions`.
  */
 export function canConvertToLogistics(trip: Record<string, unknown>): boolean {
+  // 1. Session registry — fastest check, immune to stale payloads.
+  if (wasTripConvertedLocally(trip.id as string | number | undefined)) return false;
+
+  // 2. Hard stops from backend state — these win over available_actions.
+  const status = norm(trip.status);
+  const state = norm(trip.workflow_state ?? trip.workflowState);
+  const stage = norm(trip.workflowStage ?? trip.workflow_stage);
+  if (status === "converted" || status === "scheduled") return false;
+  const convertedStates = new Set([
+    "logistics_processing",
+    "converted",
+    "converted_to_logistics_request",
+    "converted_to_journey",
+    "logistics_created",
+  ]);
+  if (convertedStates.has(state) || convertedStates.has(stage)) return false;
+  if (trip.logistics_journey_id ?? trip.logisticsJourneyId) return false;
+  if (trip.logistics_request_id ?? trip.logisticsRequestId) return false;
+  if (trip.logistics_trip_id ?? trip.logisticsTripId) return false;
+  if (trip.journey_id ?? trip.journeyId) return false;
+
+  // 3. available_actions is the source of truth when present.
   const actions = readActions(trip as never);
   if (actions) {
     return actions.some((a) => CONVERT_ACTIONS.includes(a));
   }
-  // Optimistic secondary layer — only when the backend told us nothing.
+  // 4. Fallback only when the backend told us nothing.
   if (isTripConverted(trip)) return false;
-  const stage = norm(trip.workflowStage ?? trip.workflow_stage);
-  const status = norm(trip.status);
   return stage === "scd_approved" || status === "scd_approved";
 }
 
