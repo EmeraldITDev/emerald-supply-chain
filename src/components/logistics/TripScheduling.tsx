@@ -72,6 +72,7 @@ import { tripRequestApi } from "@/services/api";
 
 import { TripWorkflowActions } from "./TripWorkflowActions";
 import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
+import { TripLogisticsDetailsPanel } from "./TripLogisticsDetailsPanel";
 import type { StaffTripRequest } from "@/types/trip-request";
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import type { PaginationMeta } from "@/types/pagination";
@@ -852,6 +853,40 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     setAssignVendorDialogOpen(true);
   };
 
+  /**
+   * Open the detail dialog and hydrate the full server record so the Logistics
+   * Manager sees passengers, accommodation, escort, vehicle and driver data.
+   */
+  const openViewDialog = (trip: Trip) => {
+    setSelectedTrip(trip);
+    setSelectedTripRequest(null);
+    setViewDialogOpen(true);
+
+    const raw = trip as Trip & Record<string, unknown>;
+    const requestId =
+      raw.trip_request_id ?? raw.tripRequestId ?? raw.request_id ?? raw.requestId ?? trip.id;
+
+    setLoadingTripRequest(true);
+    void (async () => {
+      try {
+        const [detailRes, tripRes] = await Promise.all([
+          tripRequestApi.getById(String(requestId)),
+          tripsApi.getById(String(trip.id)),
+        ]);
+        if (tripRes.success && tripRes.data) {
+          setSelectedTrip((prev) =>
+            prev && String(prev.id) === String(trip.id) ? { ...prev, ...tripRes.data } : prev,
+          );
+        }
+        if (detailRes.success && detailRes.data?.trip) {
+          setSelectedTripRequest(detailRes.data.trip);
+        }
+      } finally {
+        setLoadingTripRequest(false);
+      }
+    })();
+  };
+
   const resetForm = () => {
     setFormData({
       type: "personnel",
@@ -1263,10 +1298,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => {
-                              setSelectedTrip(trip);
-                              setViewDialogOpen(true);
-                            }}>
+                            <DropdownMenuItem onClick={() => openViewDialog(trip)}>
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
@@ -1554,7 +1586,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
 
       {/* View Trip Details Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Trip Details - {selectedTrip?.tripNumber}</DialogTitle>
           </DialogHeader>
@@ -1617,45 +1649,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   )}
                 </div>
 
-                {/* Passengers Section - Always show for visibility */}
-                <Separator />
-                <div>
-                  {(() => {
-                    // Get passengers from StaffTripRequest if available, otherwise from Trip
-                    const internalPassengers = selectedTripRequest?.passengers ?? selectedTrip.passengers ?? [];
-                    const externalPassengers = selectedTripRequest?.externalPassengers ?? selectedTripRequest?.external_passengers ?? [];
-                    const totalPassengers = internalPassengers.length + externalPassengers.length;
-                    
-                    return (
-                      <>
-                        <Label className="text-xs text-muted-foreground font-medium uppercase mb-1.5 block">
-                          Passengers ({totalPassengers})
-                        </Label>
-                        {totalPassengers > 0 ? (
-                          <div className="mt-2 space-y-2">
-                            {internalPassengers.map((passenger, idx) => (
-                              <div key={passenger.id ?? `p-${idx}`} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
-                                <Users className="h-4 w-4" />
-                                <span>{passenger.name}</span>
-                                {passenger.department && <span className="text-muted-foreground">({passenger.department})</span>}
-                              </div>
-                            ))}
-                            {externalPassengers.map((passenger, idx) => (
-                              <div key={`ext-${idx}`} className="flex items-center gap-2 text-sm p-2 bg-muted rounded border border-border/40">
-                                <Users className="h-4 w-4" />
-                                <span>{passenger.name}</span>
-                                <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">External</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground italic mt-1">No passengers assigned yet</p>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-
                 {/* Staff Trip Request Information - Loading or Loaded */}
                 {(selectedTripRequest || loadingTripRequest) && (
                   <>
@@ -1696,77 +1689,20 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                           )}
                         </div>
 
-                        {/* Accommodation & Escort Section */}
-                        {(selectedTripRequest?.accommodationRequired || selectedTripRequest?.escortRequired) && (
-                          <>
-                            <Separator />
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {selectedTripRequest?.accommodationRequired && (
-                                <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
-                                  <div className="flex items-center gap-1.5 text-sm font-medium">
-                                    <BedDouble className="h-4 w-4 text-primary" />
-                                    Accommodation Requested
-                                  </div>
-                                  {selectedTripRequest.accommodationName ||
-                                  selectedTripRequest.accommodationAddress ||
-                                  selectedTripRequest.accommodationContact ||
-                                  selectedTripRequest.accommodationDetails ||
-                                  selectedTripRequest.accommodationEstimatedCost ? (
-                                    <div className="space-y-1 text-xs text-muted-foreground">
-                                      {selectedTripRequest.accommodationName && (
-                                        <div>
-                                          <span className="font-medium text-foreground">Hotel:</span> {selectedTripRequest.accommodationName}
-                                        </div>
-                                      )}
-                                      {selectedTripRequest.accommodationAddress && (
-                                        <div>
-                                          <span className="font-medium text-foreground">Address:</span> {selectedTripRequest.accommodationAddress}
-                                        </div>
-                                      )}
-                                      {selectedTripRequest.accommodationContact && (
-                                        <div>
-                                          <span className="font-medium text-foreground">Contact:</span> {selectedTripRequest.accommodationContact}
-                                        </div>
-                                      )}
-                                      {selectedTripRequest.accommodationDetails && (
-                                        <div>
-                                          <span className="font-medium text-foreground">Notes:</span> {selectedTripRequest.accommodationDetails}
-                                        </div>
-                                      )}
-                                      {selectedTripRequest.accommodationEstimatedCost != null && (
-                                        <div>
-                                          <span className="font-medium text-foreground">Est. Cost:</span>{" "}
-                                          {formatPoAmount(Number(selectedTripRequest.accommodationEstimatedCost), "NGN")}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <p className="text-xs text-muted-foreground italic">
-                                      Requester did not specify a hotel. Logistics will arrange accommodation.
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                              {selectedTripRequest?.escortRequired && (
-                                <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
-                                  <div className="flex items-center gap-1.5 text-sm font-medium">
-                                    <ShieldCheck className="h-4 w-4 text-primary" />
-                                    Escort Requested
-                                  </div>
-                                  {selectedTripRequest.escortDescription ? (
-                                    <p className="text-xs text-muted-foreground">{selectedTripRequest.escortDescription}</p>
-                                  ) : (
-                                    <p className="text-xs text-muted-foreground italic">
-                                      Requester did not specify escort details. Logistics will assign one.
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
                       </>
                     )}
+                  </>
+                )}
+
+                {/* Full logistics record: passengers, vehicle, driver, vendors,
+                    accommodation, escort, documents and estimated costs. */}
+                {!loadingTripRequest && (
+                  <>
+                    <Separator />
+                    <TripLogisticsDetailsPanel
+                      trip={selectedTripRequest ?? (selectedTrip as unknown as Record<string, unknown>)}
+                      logisticsTrip={selectedTrip as unknown as Record<string, unknown>}
+                    />
                   </>
                 )}
 
