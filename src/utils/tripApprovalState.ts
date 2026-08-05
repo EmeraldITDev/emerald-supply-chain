@@ -44,6 +44,27 @@ function norm(v: unknown): string {
 }
 
 /**
+ * True when any backend state field explicitly marks the trip as awaiting the
+ * Supply Chain Director. Reads `workflow_state` too — post-conversion Branch A
+ * routing sets `workflow_state = pending_scd_approval` while `status` may still
+ * read `scheduled` / `logistics_processing`.
+ */
+export function isAwaitingScdState(trip: Record<string, unknown>): boolean {
+  const fields = [
+    trip.workflow_state,
+    trip.workflowState,
+    trip.workflowStage,
+    trip.workflow_stage,
+    trip.status,
+  ].map(norm);
+  const approval = norm(trip.approvalStatus ?? trip.approval_status);
+  if (approval === "approved" || approval === "rejected") return false;
+  return fields.some(
+    (f) => f === "pending_scd_approval" || f === "awaiting_scd_approval" || f === "scd_review",
+  );
+}
+
+/**
  * Session-scoped registry of trips this browser has already acted on.
  * The list endpoints occasionally return a stale row right after an approval;
  * this keeps the approved trip from reappearing in the SCD queue.
