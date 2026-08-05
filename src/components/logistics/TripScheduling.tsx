@@ -155,6 +155,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [selectedTripRequest, setSelectedTripRequest] = useState<StaffTripRequest | null>(null);
   const [loadingTripRequest, setLoadingTripRequest] = useState(false);
+  const [loadingTripDetails, setLoadingTripDetails] = useState(false);
+  const [tripDetailError, setTripDetailError] = useState<string | null>(null);
 
   // Accommodation & escort (security) details for the edit dialog
   const [accommodation, setAccommodation] = useState({
@@ -860,12 +862,14 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const openViewDialog = (trip: Trip) => {
     setSelectedTrip(trip);
     setSelectedTripRequest(null);
+    setTripDetailError(null);
     setViewDialogOpen(true);
 
     const raw = trip as Trip & Record<string, unknown>;
     const requestId =
       raw.trip_request_id ?? raw.tripRequestId ?? raw.request_id ?? raw.requestId ?? trip.id;
 
+    setLoadingTripDetails(true);
     setLoadingTripRequest(true);
     void (async () => {
       try {
@@ -881,7 +885,15 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         if (detailRes.success && detailRes.data?.trip) {
           setSelectedTripRequest(detailRes.data.trip);
         }
+        if (!tripRes.success && !detailRes.success) {
+          setTripDetailError(
+            `Unable to load trip details: ${detailRes.error || tripRes.error || "Please try again."}`,
+          );
+        }
+      } catch (error) {
+        setTripDetailError("Unable to load trip details. Please refresh and try again.");
       } finally {
+        setLoadingTripDetails(false);
         setLoadingTripRequest(false);
       }
     })();
@@ -1590,7 +1602,16 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           <DialogHeader>
             <DialogTitle>Trip Details - {selectedTrip?.tripNumber}</DialogTitle>
           </DialogHeader>
-          {selectedTrip && (
+          {tripDetailError ? (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-6 text-sm text-destructive">
+              <p className="font-semibold">Unable to load trip details</p>
+              <p className="mt-2">{tripDetailError}</p>
+            </div>
+          ) : loadingTripDetails ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : selectedTrip ? (
             <div className="space-y-4">
               <div className="flex flex-wrap gap-2 text-sm items-center">
                 <Badge className={cn(statusColors[selectedTrip.status], "capitalize")}>
@@ -1761,7 +1782,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 </div>
               )}
             </div>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
 

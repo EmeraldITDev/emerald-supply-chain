@@ -14,6 +14,15 @@ import {
 import { formatPoAmount } from "@/utils/currency";
 import type { StaffTripRequest, TripRfq } from "@/types/trip-request";
 
+interface PassengerItem {
+  key: string;
+  name: string;
+  department?: string;
+  email?: string;
+  phone?: string;
+  external?: boolean;
+}
+
 type AnyRecord = Record<string, unknown>;
 
 /** Read the first defined value across snake_case / camelCase aliases. */
@@ -100,6 +109,43 @@ export function TripLogisticsDetailsPanel({
     "externalPassengers",
     "external_passengers",
   ) ?? pick<AnyRecord[]>(lt, "externalPassengers", "external_passengers") ?? []) as AnyRecord[];
+  const passengerUserIds = (pick<number[]>(
+    t,
+    "passengerUserIds",
+    "passenger_user_ids",
+  ) ?? pick<number[]>(lt, "passengerUserIds", "passenger_user_ids") ?? []) as number[];
+  const includedUsers = (pick<AnyRecord[]>(
+    t,
+    "includedUsers",
+    "included_users",
+    "users",
+  ) ?? pick<AnyRecord[]>(lt, "includedUsers", "included_users", "users") ?? []) as AnyRecord[];
+
+  const resolvedInternalPassengers: PassengerItem[] = passengerUserIds.map((userId, index) => {
+    const user = includedUsers.find(
+      (item) => String(item.id ?? item.user_id ?? item.userId) === String(userId),
+    );
+    return {
+      key: `int-${userId}-${index}`,
+      name:
+        String(
+          user?.name ?? user?.fullName ?? user?.full_name ?? user?.displayName ?? user?.display_name,
+        ) || String(userId),
+      department: String(user?.department ?? user?.department_name ?? user?.departmentName ?? "") || undefined,
+      email: String(user?.email ?? user?.email_address ?? user?.emailAddress ?? "") || undefined,
+      external: false,
+    };
+  });
+
+  const resolvedExternalPassengers: PassengerItem[] = externalPassengers.map((p, index) => ({
+    key: `ext-${index}`,
+    name: String(p.name ?? p.full_name ?? p.fullName ?? "—"),
+    phone: String(p.phone ?? "") || undefined,
+    email: String(p.email ?? "") || undefined,
+    external: true,
+  }));
+
+  const unifiedPassengers = [...resolvedInternalPassengers, ...resolvedExternalPassengers];
 
   // --- Vehicle -------------------------------------------------------------
   const vehicleObj = (pick<AnyRecord>(t, "vehicle") ?? pick<AnyRecord>(lt, "vehicle")) as
@@ -184,41 +230,33 @@ export function TripLogisticsDetailsPanel({
     <div className="space-y-3">
       {showPassengers && (
         <Section
-          title={`Passengers (${passengers.length + externalPassengers.length})`}
+          title={`Passengers (${unifiedPassengers.length})`}
           icon={<Users className="h-4 w-4 text-primary" />}
         >
-          {passengers.length + externalPassengers.length === 0 ? (
+          {unifiedPassengers.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No passengers assigned yet.</p>
           ) : (
             <div className="space-y-1.5">
-              {passengers.map((p, i) => (
+              {unifiedPassengers.map((p) => (
                 <div
-                  key={String(p.id ?? `p-${i}`)}
-                  className="flex flex-wrap items-center gap-2 rounded bg-muted/50 px-2 py-1.5 text-sm"
-                >
-                  <span className="font-medium">{String(p.name ?? "—")}</span>
-                  {p.department ? (
-                    <span className="text-xs text-muted-foreground">{String(p.department)}</span>
-                  ) : null}
-                  {p.email ? (
-                    <span className="text-xs text-muted-foreground">{String(p.email)}</span>
-                  ) : null}
-                </div>
-              ))}
-              {externalPassengers.map((p, i) => (
-                <div
-                  key={`ext-${i}`}
+                  key={p.key}
                   className="flex flex-wrap items-center gap-2 rounded border border-border/40 bg-muted/30 px-2 py-1.5 text-sm"
                 >
-                  <span className="font-medium">{String(p.name ?? "—")}</span>
-                  <Badge variant="outline" className="text-[10px]">
-                    External
-                  </Badge>
+                  <span className="font-medium">{p.name}</span>
+                  {p.external ? (
+                    <Badge variant="outline" className="text-[10px]">
+                      External
+                    </Badge>
+                  ) : (
+                    p.department ? (
+                      <span className="text-xs text-muted-foreground">{p.department}</span>
+                    ) : null
+                  )}
                   {p.phone ? (
-                    <span className="text-xs text-muted-foreground">{String(p.phone)}</span>
+                    <span className="text-xs text-muted-foreground">{p.phone}</span>
                   ) : null}
                   {p.email ? (
-                    <span className="text-xs text-muted-foreground">{String(p.email)}</span>
+                    <span className="text-xs text-muted-foreground">{p.email}</span>
                   ) : null}
                 </div>
               ))}
