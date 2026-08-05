@@ -354,8 +354,10 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
                 ? {
                     ...old,
                     workflow_state:
-                      (result as Record<string, unknown> | undefined)?.workflow_state ??
-                      (result as Record<string, unknown> | undefined)?.workflowState ??
+                      (result as unknown as Record<string, unknown> | undefined)
+                        ?.workflow_state ??
+                      (result as unknown as Record<string, unknown> | undefined)
+                        ?.workflowState ??
                       "logistics_processing",
                     status: "scheduled",
                     logistics_journey_id: result?.journeyId ?? null,
