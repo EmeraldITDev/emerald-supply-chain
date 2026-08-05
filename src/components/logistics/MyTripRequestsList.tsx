@@ -44,7 +44,12 @@ export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await tripRequestApi.list({ limit: 50 });
+      // Every trip the requester submitted, at any workflow stage — no status filter.
+      const res = await tripRequestApi.listMine({
+        id: user?.id,
+        name: user?.name,
+        email: user?.email,
+      });
       if (res.success && res.data) {
         setTrips(res.data.trips ?? []);
       } else {
@@ -53,7 +58,7 @@ export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) 
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id, user?.name, user?.email]);
 
   useEffect(() => {
     load();
@@ -111,6 +116,8 @@ export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) 
               trip.createdAt ??
               trip.created_at;
             const isDraft = trip.isDraft ?? trip.status === "draft";
+            const submitted =
+              trip.submittedAt ?? trip.submitted_at ?? trip.createdAt ?? trip.created_at;
             const editAccess = resolveRequesterEditAccess(trip, user);
             const editTimeLeft = formatRequesterEditTimeRemaining(editAccess.expiresAt);
 
@@ -145,6 +152,19 @@ export function MyTripRequestsList({ refreshKey = 0 }: MyTripRequestsListProps) 
                         {new Date(dep).toLocaleString(undefined, {
                           dateStyle: "medium",
                           timeStyle: "short",
+                        })}
+                      </p>
+                    )}
+                    {trip.purpose && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        Purpose: {trip.purpose}
+                      </p>
+                    )}
+                    {submitted && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Submitted:{" "}
+                        {new Date(submitted).toLocaleDateString(undefined, {
+                          dateStyle: "medium",
                         })}
                       </p>
                     )}
