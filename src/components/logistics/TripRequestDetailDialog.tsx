@@ -14,6 +14,7 @@ import { SimpleProgressStepper } from "@/components/progress/SimpleProgressStepp
 import { DeleteTripDraftButton } from "./DeleteTripDraftButton";
 import { TripCommentsPanel } from "./TripCommentsPanel";
 import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
+import { TripLogisticsDetailsPanel } from "./TripLogisticsDetailsPanel";
 import { resolveTripBookingScopeLabel } from "@/utils/tripBookingValidation";
 import { Separator } from "@/components/ui/separator";
 import { CalendarClock, MapPin, Plane, Car, Users, BedDouble, ShieldCheck } from "lucide-react";
@@ -134,7 +135,7 @@ export function TripRequestDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{trip?.destination ?? "Trip request"}</DialogTitle>
           <DialogDescription>
@@ -299,30 +300,10 @@ export function TripRequestDetailDialog({
                     <DetailRow label="Approval Status" value={<span className="capitalize">{approvalStatus.replace(/_/g, " ")}</span>} />
                   </>
                 )}
-                {(passengers.length > 0 || externalPassengers.length > 0) && (
-                  <>
-                    <Separator />
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
-                        Passengers
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {passengers.map((p, i) => (
-                          <Badge key={p.id ?? `p-${i}`} variant="secondary" className="font-normal">
-                            {p.name}
-                            {p.department ? ` · ${p.department}` : ""}
-                          </Badge>
-                        ))}
-                        {externalPassengers.map((p, i) => (
-                          <Badge key={`ext-${i}`} variant="outline" className="font-normal">
-                            {p.name} (external)
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
               </div>
+            )}
+            {trip && (
+              <TripLogisticsDetailsPanel trip={trip} />
             )}
             {auditTrail.length > 0 && (
               <div>
