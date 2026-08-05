@@ -1274,33 +1274,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                               const stage =
                                 (trip as Trip & { workflow_stage?: string }).workflow_stage ||
                                 (trip as Trip & { workflowStage?: string }).workflowStage;
-                              const isLogistics =
-                                getScmRole(user) &&
-                                ["logistics_manager", "logistics_officer", "logistics", "admin"].includes(
-                                  getScmRole(user),
-                                );
                               const isProcurement =
                                 getScmRole(user) &&
                                 ["procurement", "procurement_manager"].includes(getScmRole(user));
                               const isScd =
                                 getScmRole(user) &&
                                 ["supply_chain_director", "supply_chain"].includes(getScmRole(user));
-                              if (
-                                isLogistics &&
-                                (stage === "trip_request" || stage === "logistics_review" || !stage)
-                              ) {
-                                return (
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setSelectedTrip(trip);
-                                      setViewDialogOpen(true);
-                                    }}
-                                  >
-                                    <Truck className="mr-2 h-4 w-4" />
-                                    Review trip request
-                                  </DropdownMenuItem>
-                                );
-                              }
                               if (
                                 isProcurement &&
                                 (stage === "vendor_selection" || stage === "procurement_review")
