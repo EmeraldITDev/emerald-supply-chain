@@ -1688,77 +1688,20 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                           )}
                         </div>
 
-                        {/* Accommodation & Escort Section */}
-                        {(selectedTripRequest?.accommodationRequired || selectedTripRequest?.escortRequired) && (
-                          <>
-                            <Separator />
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {selectedTripRequest?.accommodationRequired && (
-                                <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
-                                  <div className="flex items-center gap-1.5 text-sm font-medium">
-                                    <BedDouble className="h-4 w-4 text-primary" />
-                                    Accommodation Requested
-                                  </div>
-                                  {selectedTripRequest.accommodationName ||
-                                  selectedTripRequest.accommodationAddress ||
-                                  selectedTripRequest.accommodationContact ||
-                                  selectedTripRequest.accommodationDetails ||
-                                  selectedTripRequest.accommodationEstimatedCost ? (
-                                    <div className="space-y-1 text-xs text-muted-foreground">
-                                      {selectedTripRequest.accommodationName && (
-                                        <div>
-                                          <span className="font-medium text-foreground">Hotel:</span> {selectedTripRequest.accommodationName}
-                                        </div>
-                                      )}
-                                      {selectedTripRequest.accommodationAddress && (
-                                        <div>
-                                          <span className="font-medium text-foreground">Address:</span> {selectedTripRequest.accommodationAddress}
-                                        </div>
-                                      )}
-                                      {selectedTripRequest.accommodationContact && (
-                                        <div>
-                                          <span className="font-medium text-foreground">Contact:</span> {selectedTripRequest.accommodationContact}
-                                        </div>
-                                      )}
-                                      {selectedTripRequest.accommodationDetails && (
-                                        <div>
-                                          <span className="font-medium text-foreground">Notes:</span> {selectedTripRequest.accommodationDetails}
-                                        </div>
-                                      )}
-                                      {selectedTripRequest.accommodationEstimatedCost != null && (
-                                        <div>
-                                          <span className="font-medium text-foreground">Est. Cost:</span>{" "}
-                                          {formatPoAmount(Number(selectedTripRequest.accommodationEstimatedCost), "NGN")}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <p className="text-xs text-muted-foreground italic">
-                                      Requester did not specify a hotel. Logistics will arrange accommodation.
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                              {selectedTripRequest?.escortRequired && (
-                                <div className="rounded-md border border-border/40 bg-background/60 p-3 space-y-1.5">
-                                  <div className="flex items-center gap-1.5 text-sm font-medium">
-                                    <ShieldCheck className="h-4 w-4 text-primary" />
-                                    Escort Requested
-                                  </div>
-                                  {selectedTripRequest.escortDescription ? (
-                                    <p className="text-xs text-muted-foreground">{selectedTripRequest.escortDescription}</p>
-                                  ) : (
-                                    <p className="text-xs text-muted-foreground italic">
-                                      Requester did not specify escort details. Logistics will assign one.
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
                       </>
                     )}
+                  </>
+                )}
+
+                {/* Full logistics record: passengers, vehicle, driver, vendors,
+                    accommodation, escort, documents and estimated costs. */}
+                {!loadingTripRequest && (
+                  <>
+                    <Separator />
+                    <TripLogisticsDetailsPanel
+                      trip={selectedTripRequest ?? (selectedTrip as unknown as Record<string, unknown>)}
+                      logisticsTrip={selectedTrip as unknown as Record<string, unknown>}
+                    />
                   </>
                 )}
 
