@@ -21,6 +21,8 @@ import { getTripWorkflowStageLabel } from "@/utils/workflowStageLabels";
 import {
   isTripConverted,
   markTripConverted,
+  canConvertToLogistics,
+  resolveTripStageBanner,
 } from "@/utils/tripApprovalState";
 
 const LOGISTICS_ROLES = new Set([
@@ -80,9 +82,11 @@ export function TripWorkflowActions({
   }, [trip]);
 
   const canConvert =
-    isLogistics &&
+    Boolean(isLogistics) &&
     !converted &&
-    (stage === "trip_request" || stage === "logistics_review");
+    canConvertToLogistics(trip as unknown as Record<string, unknown>);
+
+  const stageBanner = resolveTripStageBanner(trip as unknown as Record<string, unknown>);
 
   const run = async (fn: () => Promise<{ success: boolean; error?: string }>, successMsg: string) => {
     setBusy(true);
@@ -113,6 +117,15 @@ export function TripWorkflowActions({
         <p className="text-sm font-medium">Trip workflow</p>
         <p className="text-sm text-muted-foreground">{getTripWorkflowStageLabel(stage)}</p>
       </div>
+
+      {(converted || stageBanner) && (
+        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+          <p className="font-medium">
+            {stageBanner?.title ?? "Converted to Logistics Request"}
+          </p>
+          <p className="text-xs opacity-80">Status: {trip.status}</p>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {canConvert && (
