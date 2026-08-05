@@ -8,6 +8,8 @@ export const DIRECTOR_PENDING_STATUSES = new Set([
   "submitted",
   "forwarded",
   "scd_review",
+  "pending_scd_approval",
+  "awaiting_scd_approval",
   "pending_approval",
   "pending_director_approval",
   "director_review",
@@ -39,6 +41,27 @@ export const CONVERT_ACTIONS = ["convert_to_logistics", "convert"];
 
 function norm(v: unknown): string {
   return String(v ?? "").toLowerCase().trim().replace(/\s+/g, "_");
+}
+
+/**
+ * True when any backend state field explicitly marks the trip as awaiting the
+ * Supply Chain Director. Reads `workflow_state` too — post-conversion Branch A
+ * routing sets `workflow_state = pending_scd_approval` while `status` may still
+ * read `scheduled` / `logistics_processing`.
+ */
+export function isAwaitingScdState(trip: Record<string, unknown>): boolean {
+  const fields = [
+    trip.workflow_state,
+    trip.workflowState,
+    trip.workflowStage,
+    trip.workflow_stage,
+    trip.status,
+  ].map(norm);
+  const approval = norm(trip.approvalStatus ?? trip.approval_status);
+  if (approval === "approved" || approval === "rejected") return false;
+  return fields.some(
+    (f) => f === "pending_scd_approval" || f === "awaiting_scd_approval" || f === "scd_review",
+  );
 }
 
 /**
@@ -120,6 +143,9 @@ const APPROVED_TIMESTAMP_KEYS = [
  */
 export function isTripDirectorApproved(trip: Record<string, unknown>): boolean {
   const approval = norm(trip.approvalStatus ?? trip.approval_status);
+  // A trip explicitly routed to the SCD is by definition not yet approved,
+  // even if a stale stage/status label says otherwise.
+  if (isAwaitingScdState(trip)) return false;
   if (approval === "approved") return true;
   if (APPROVED_TIMESTAMP_KEYS.some((k) => trip[k])) return true;
   const stage = norm(trip.workflowStage ?? trip.workflow_stage);
@@ -288,6 +314,7 @@ export function canScdApprove(trip: {
   // Legacy API fallback (contract): only when the API omits available_actions.
   const stage = norm(trip.workflowStage ?? trip.workflow_stage);
   const approval = norm(trip.approvalStatus ?? trip.approval_status);
+  if (isAwaitingScdState(trip as Record<string, unknown>)) return true;
   if (stage) return stage === "scd_review" && approval !== "approved";
   const explicit = trip.requiresScdApproval ?? trip.requires_scd_approval;
   if (typeof explicit === "boolean") return explicit;
@@ -307,6 +334,8 @@ export function isTripAwaitingDirectorApproval(trip: {
   status?: unknown;
   workflow_stage?: unknown;
   workflowStage?: unknown;
+  workflow_state?: unknown;
+  workflowState?: unknown;
   approval_status?: unknown;
   approvalStatus?: unknown;
   availableActions?: unknown;
@@ -314,8 +343,15 @@ export function isTripAwaitingDirectorApproval(trip: {
 }): boolean {
   const status = norm(trip.status);
   const stage = norm(trip.workflowStage ?? trip.workflow_stage);
+  const state = norm(trip.workflow_state ?? trip.workflowState);
   const actions = readActions(trip);
   const approval = norm(trip.approvalStatus ?? trip.approval_status);
+
+  // Explicit SCD routing wins over every other signal.
+  if (isAwaitingScdState(trip as Record<string, unknown>)) {
+    if (wasTripDirectorApproved((trip as { id?: string | number }).id)) return false;
+    return true;
+  }
 
   // Any evidence of a completed director decision wins over stale stage labels.
   if (isTripDirectorApproved(trip as Record<string, unknown>)) return false;
@@ -333,6 +369,7 @@ export function isTripAwaitingDirectorApproval(trip: {
   return (
     DIRECTOR_PENDING_STATUSES.has(status) ||
     DIRECTOR_PENDING_STATUSES.has(stage) ||
+    DIRECTOR_PENDING_STATUSES.has(state) ||
     stage.includes("director")
   );
 }

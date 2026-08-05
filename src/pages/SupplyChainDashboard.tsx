@@ -218,6 +218,9 @@ const SupplyChainDashboard = () => {
       return res.success && res.data ? res.data : null;
     },
     ...WORKFLOW_QUERY_OPTIONS,
+    staleTime: 10_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 30_000,
   });
 
   const pendingTripApprovals = useMemo<any[]>(() => {
