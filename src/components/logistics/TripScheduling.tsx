@@ -886,12 +886,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     })();
   };
 
-  const openAssignVendorDialogLegacy = (trip: Trip) => {
-    setSelectedTrip(trip);
-    setSelectedVendorId(trip.vendorId || "");
-    setAssignVendorDialogOpen(true);
-  };
-
   const resetForm = () => {
     setFormData({
       type: "personnel",
