@@ -852,6 +852,46 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     setAssignVendorDialogOpen(true);
   };
 
+  /**
+   * Open the detail dialog and hydrate the full server record so the Logistics
+   * Manager sees passengers, accommodation, escort, vehicle and driver data.
+   */
+  const openViewDialog = (trip: Trip) => {
+    setSelectedTrip(trip);
+    setSelectedTripRequest(null);
+    setViewDialogOpen(true);
+
+    const raw = trip as Trip & Record<string, unknown>;
+    const requestId =
+      raw.trip_request_id ?? raw.tripRequestId ?? raw.request_id ?? raw.requestId ?? trip.id;
+
+    setLoadingTripRequest(true);
+    void (async () => {
+      try {
+        const [detailRes, tripRes] = await Promise.all([
+          tripRequestApi.getById(String(requestId)),
+          tripsApi.getById(String(trip.id)),
+        ]);
+        if (tripRes.success && tripRes.data) {
+          setSelectedTrip((prev) =>
+            prev && String(prev.id) === String(trip.id) ? { ...prev, ...tripRes.data } : prev,
+          );
+        }
+        if (detailRes.success && detailRes.data?.trip) {
+          setSelectedTripRequest(detailRes.data.trip);
+        }
+      } finally {
+        setLoadingTripRequest(false);
+      }
+    })();
+  };
+
+  const openAssignVendorDialogLegacy = (trip: Trip) => {
+    setSelectedTrip(trip);
+    setSelectedVendorId(trip.vendorId || "");
+    setAssignVendorDialogOpen(true);
+  };
+
   const resetForm = () => {
     setFormData({
       type: "personnel",
