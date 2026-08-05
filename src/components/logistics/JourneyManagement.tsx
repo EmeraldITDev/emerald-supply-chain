@@ -129,7 +129,7 @@ type JourneyPassengerItem = {
   external?: boolean;
 };
 
-function getJourneyPassengerList(trip?: Trip): JourneyPassengerItem[] {
+function getJourneyPassengerList(trip?: Trip | Journey): JourneyPassengerItem[] {
   if (!trip) return [];
 
   const internalPassengers: JourneyPassengerItem[] = Array.isArray((trip as any).passengers)
@@ -490,12 +490,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
 
   const filteredJourneys = journeys.filter(journey => {
     const q = searchQuery.toLowerCase();
-    const trip = journey.linkedTrip;
     const matchesSearch =
       (journey.tripNumber || '').toLowerCase().includes(q) ||
       (journey.currentLocation || '').toLowerCase().includes(q) ||
-      (trip?.destination || '').toLowerCase().includes(q) ||
-      (trip?.driverName || '').toLowerCase().includes(q);
+      ((journey.destination ?? journey.linkedTrip?.destination) || '').toLowerCase().includes(q) ||
+      ((journey.driverName ?? journey.linkedTrip?.driverName) || '').toLowerCase().includes(q);
     const matchesStatus = statusFilter === "all" || journey.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -592,25 +591,25 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                           Current: {journey.currentLocation}
                         </p>
                       )}
-                      {journey.linkedTrip && (
+                      {((journey.origin ?? journey.destination ?? journey.purpose ?? journey.vehiclePlate ?? journey.vehicleMake ?? journey.vehicleType) || journey.linkedTrip) && (
                     <div className="grid gap-1 text-xs text-muted-foreground mt-2">
                       <p>
-                        <span className="font-medium">Route:</span> {journey.linkedTrip.origin ?? <MissingValue />} → {journey.linkedTrip.destination ?? <MissingValue />}
+                        <span className="font-medium">Route:</span> {(journey.origin ?? journey.linkedTrip?.origin) ?? <MissingValue />} → {(journey.destination ?? journey.linkedTrip?.destination) ?? <MissingValue />}
                       </p>
                       <p>
-                        <span className="font-medium">Purpose:</span> {journey.linkedTrip.purpose ?? <MissingValue />}
+                        <span className="font-medium">Purpose:</span> {(journey.purpose ?? journey.linkedTrip?.purpose) ?? <MissingValue />}
                       </p>
                       <p>
-                        <span className="font-medium">Departure:</span> {journey.linkedTrip.scheduledDepartureAt ? new Date(journey.linkedTrip.scheduledDepartureAt).toLocaleString() : <MissingValue />}
+                        <span className="font-medium">Departure:</span> {(journey.scheduledDepartureAt ?? journey.linkedTrip?.scheduledDepartureAt) ? new Date((journey.scheduledDepartureAt ?? journey.linkedTrip?.scheduledDepartureAt) as string).toLocaleString() : <MissingValue />}
                       </p>
                       <p>
-                        <span className="font-medium">Driver:</span> {journey.linkedTrip.driverName ?? <MissingValue />}
+                        <span className="font-medium">Driver:</span> {(journey.driverName ?? journey.linkedTrip?.driverName) ?? <MissingValue />}
                       </p>
                       <p>
-                        <span className="font-medium">Vehicle:</span> {journey.linkedTrip.vehiclePlate ?? journey.linkedTrip.vehicleMake ?? journey.linkedTrip.vehicleType ?? <MissingValue />}
+                        <span className="font-medium">Vehicle:</span> {(journey.vehiclePlate ?? journey.linkedTrip?.vehiclePlate ?? journey.vehicleMake ?? journey.linkedTrip?.vehicleMake ?? journey.vehicleType ?? journey.linkedTrip?.vehicleType) ?? <MissingValue />}
                       </p>
                       <p>
-                        <span className="font-medium">Passengers:</span> {getJourneyPassengerCount(journey.linkedTrip)}
+                        <span className="font-medium">Passengers:</span> {getJourneyPassengerCount(journey)}
                       </p>
                     </div>
                   )}
@@ -729,7 +728,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                     </p>
                     {selectedJourney.linkedTrip?.tripNumber && (
                       <p className="text-xs text-muted-foreground">
-                        Trip code: {selectedJourney.linkedTrip.tripNumber}
+                        Trip code: {selectedJourney.linkedTrip?.tripNumber ?? selectedJourney.tripNumber}
                       </p>
                     )}
                   </div>
@@ -747,35 +746,35 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <div className="rounded-lg border border-border/40 bg-muted/20 p-4 space-y-3">
                   <p className="text-sm font-semibold">Trip Summary</p>
-                  <SummaryField label="Origin" value={fieldValue(selectedJourney.linkedTrip?.origin)} />
-                  <SummaryField label="Destination" value={fieldValue(selectedJourney.linkedTrip?.destination)} />
-                  <SummaryField label="Purpose" value={fieldValue(selectedJourney.linkedTrip?.purpose)} />
+                  <SummaryField label="Origin" value={fieldValue(selectedJourney.origin ?? selectedJourney.linkedTrip?.origin)} />
+                  <SummaryField label="Destination" value={fieldValue(selectedJourney.destination ?? selectedJourney.linkedTrip?.destination)} />
+                  <SummaryField label="Purpose" value={fieldValue(selectedJourney.purpose ?? selectedJourney.linkedTrip?.purpose)} />
                   <SummaryField
                     label="Scheduled Departure"
-                    value={selectedJourney.linkedTrip?.scheduledDepartureAt ? new Date(selectedJourney.linkedTrip.scheduledDepartureAt).toLocaleString() : <MissingValue />}
+                    value={(selectedJourney.scheduledDepartureAt ?? selectedJourney.linkedTrip?.scheduledDepartureAt) ? new Date((selectedJourney.scheduledDepartureAt ?? selectedJourney.linkedTrip?.scheduledDepartureAt) as string).toLocaleString() : <MissingValue />}
                   />
                   <SummaryField
                     label="Scheduled Arrival"
-                    value={selectedJourney.linkedTrip?.scheduledArrivalAt ? new Date(selectedJourney.linkedTrip.scheduledArrivalAt).toLocaleString() : <MissingValue />}
+                    value={(selectedJourney.scheduledArrivalAt ?? selectedJourney.linkedTrip?.scheduledArrivalAt) ? new Date((selectedJourney.scheduledArrivalAt ?? selectedJourney.linkedTrip?.scheduledArrivalAt) as string).toLocaleString() : <MissingValue />}
                   />
                   <SummaryField
                     label="Booking Scope"
-                    value={fieldValue(selectedJourney.linkedTrip?.bookingScope ?? (selectedJourney.linkedTrip as any)?.booking_scope)}
+                    value={fieldValue(selectedJourney.bookingScope ?? selectedJourney.linkedTrip?.bookingScope ?? (selectedJourney.linkedTrip as any)?.booking_scope)}
                   />
                 </div>
                 <div className="rounded-lg border border-border/40 bg-muted/20 p-4 space-y-3">
                   <p className="text-sm font-semibold">Vehicle & Driver</p>
-                  <SummaryField label="Plate" value={fieldValue(selectedJourney.linkedTrip?.vehiclePlate)} />
-                  <SummaryField label="Make" value={fieldValue(selectedJourney.linkedTrip?.vehicleMake ?? (selectedJourney.linkedTrip as any)?.vehicle_make)} />
-                  <SummaryField label="Model" value={fieldValue(selectedJourney.linkedTrip?.vehicleModel ?? (selectedJourney.linkedTrip as any)?.vehicle_model)} />
-                  <SummaryField label="Type" value={fieldValue(selectedJourney.linkedTrip?.vehicleType ?? (selectedJourney.linkedTrip as any)?.vehicle_type)} />
-                  <SummaryField label="Driver" value={fieldValue(selectedJourney.linkedTrip?.driverName)} />
-                  <SummaryField label="Phone" value={fieldValue(selectedJourney.linkedTrip?.driverPhone)} />
+                  <SummaryField label="Plate" value={fieldValue(selectedJourney.vehiclePlate ?? selectedJourney.linkedTrip?.vehiclePlate)} />
+                  <SummaryField label="Make" value={fieldValue(selectedJourney.vehicleMake ?? selectedJourney.linkedTrip?.vehicleMake ?? selectedJourney.linkedTrip?.vehicle_make)} />
+                  <SummaryField label="Model" value={fieldValue(selectedJourney.vehicleModel ?? selectedJourney.linkedTrip?.vehicleModel ?? selectedJourney.linkedTrip?.vehicle_model)} />
+                  <SummaryField label="Type" value={fieldValue(selectedJourney.vehicleType ?? selectedJourney.linkedTrip?.vehicleType ?? selectedJourney.linkedTrip?.vehicle_type)} />
+                  <SummaryField label="Driver" value={fieldValue(selectedJourney.driverName ?? selectedJourney.linkedTrip?.driverName)} />
+                  <SummaryField label="Phone" value={fieldValue(selectedJourney.driverPhone ?? selectedJourney.linkedTrip?.driverPhone)} />
                   <SummaryField
                     label="Source"
-                    value={selectedJourney.linkedTrip?.driverName ? (
+                    value={(selectedJourney.driverName ?? selectedJourney.linkedTrip?.driverName) ? (
                       <Badge variant="outline" className="capitalize">
-                        {(selectedJourney.linkedTrip as any).driverType ?? (selectedJourney.linkedTrip as any).driver_source ?? (selectedJourney.linkedTrip?.driverId ? "internal" : "external")}
+                        {selectedJourney.driverType ?? (selectedJourney.linkedTrip as any).driverType ?? (selectedJourney.linkedTrip as any).driver_source ?? (selectedJourney.linkedTrip?.driverId ? "internal" : "external")}
                       </Badge>
                     ) : (
                       <MissingValue />
@@ -786,11 +785,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
 
               <div className="rounded-lg border border-border/40 bg-muted/20 p-4 space-y-3">
                 <p className="text-sm font-semibold">Passengers</p>
-                {getJourneyPassengerList(selectedJourney.linkedTrip).length === 0 ? (
+                {getJourneyPassengerList(selectedJourney).length === 0 ? (
                   <p className="text-sm text-muted-foreground">No passengers assigned yet.</p>
                 ) : (
                   <div className="space-y-2">
-                    {getJourneyPassengerList(selectedJourney.linkedTrip).map((p) => (
+                    {getJourneyPassengerList(selectedJourney).map((p) => (
                       <div key={p.key} className="flex flex-wrap items-center gap-2 rounded border border-border/40 bg-muted/30 px-3 py-2 text-sm">
                         <span className="font-medium">{p.name}</span>
                         {p.external ? (
@@ -815,34 +814,34 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   <p className="text-sm font-semibold">Accommodation</p>
                   <SummaryField
                     label="Required"
-                    value={fieldValue(selectedJourney.linkedTrip?.accommodationRequired ?? (selectedJourney.linkedTrip as any)?.accommodation_required ? "Yes" : "No")}
+                    value={fieldValue((selectedJourney.accommodationRequired ?? selectedJourney.linkedTrip?.accommodationRequired ?? (selectedJourney.linkedTrip as any)?.accommodation_required) ? "Yes" : "No")}
                   />
                   <SummaryField
                     label="Hotel"
-                    value={fieldValue(selectedJourney.linkedTrip?.accommodationName ?? (selectedJourney.linkedTrip as any)?.accommodation_name)}
+                    value={fieldValue(selectedJourney.accommodationName ?? selectedJourney.linkedTrip?.accommodationName ?? (selectedJourney.linkedTrip as any)?.accommodation_name)}
                   />
                   <SummaryField
                     label="Address"
-                    value={fieldValue(selectedJourney.linkedTrip?.accommodationAddress ?? (selectedJourney.linkedTrip as any)?.accommodation_address)}
+                    value={fieldValue(selectedJourney.accommodationAddress ?? selectedJourney.linkedTrip?.accommodationAddress ?? (selectedJourney.linkedTrip as any)?.accommodation_address)}
                   />
                   <SummaryField
                     label="Contact"
-                    value={fieldValue(selectedJourney.linkedTrip?.accommodationContact ?? (selectedJourney.linkedTrip as any)?.accommodation_contact)}
+                    value={fieldValue(selectedJourney.accommodationContact ?? selectedJourney.linkedTrip?.accommodationContact ?? (selectedJourney.linkedTrip as any)?.accommodation_contact)}
                   />
                   <SummaryField
                     label="Estimated Cost"
-                    value={fieldValue((selectedJourney.linkedTrip?.accommodationEstimatedCost ?? (selectedJourney.linkedTrip as any)?.accommodation_estimated_cost) ?? null)}
+                    value={fieldValue((selectedJourney.accommodationEstimatedCost ?? selectedJourney.linkedTrip?.accommodationEstimatedCost ?? (selectedJourney.linkedTrip as any)?.accommodation_estimated_cost) ?? null)}
                   />
                 </div>
                 <div className="rounded-lg border border-border/40 bg-muted/20 p-4 space-y-3">
                   <p className="text-sm font-semibold">Escort / Security</p>
                   <SummaryField
                     label="Required"
-                    value={fieldValue(selectedJourney.linkedTrip?.escortRequired ?? (selectedJourney.linkedTrip as any)?.escort_required ? "Yes" : "No")}
+                    value={fieldValue((selectedJourney.escortRequired ?? selectedJourney.linkedTrip?.escortRequired ?? (selectedJourney.linkedTrip as any)?.escort_required) ? "Yes" : "No")}
                   />
                   <SummaryField
                     label="Details"
-                    value={fieldValue(selectedJourney.linkedTrip?.escortDescription ?? (selectedJourney.linkedTrip as any)?.escort_description)}
+                    value={fieldValue(selectedJourney.escortDescription ?? selectedJourney.linkedTrip?.escortDescription ?? (selectedJourney.linkedTrip as any)?.escort_description)}
                   />
                 </div>
               </div>
@@ -881,43 +880,42 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
               </div>
 
               {/* Linked trip context */}
-              {selectedJourney.linkedTrip && (
+              {(selectedJourney.linkedTrip || selectedJourney.origin || selectedJourney.destination || selectedJourney.driverName || selectedJourney.vehiclePlate || selectedJourney.vehicleType) && (
                 <div className="rounded-lg border p-4 space-y-2 bg-muted/20">
                   <p className="text-sm font-medium">Trip assignment</p>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <Label className="text-muted-foreground">Route</Label>
                       <p className="flex items-center gap-1">
-                        {fieldValue(selectedJourney.linkedTrip.origin)} →{" "}
-                        {fieldValue(selectedJourney.linkedTrip.destination)}
+                        {fieldValue(selectedJourney.origin ?? selectedJourney.linkedTrip?.origin)} →{" "}
+                        {fieldValue(selectedJourney.destination ?? selectedJourney.linkedTrip?.destination)}
                       </p>
                     </div>
                     <div>
                       <Label className="text-muted-foreground">Status</Label>
                       <p className="capitalize">
-                        {formatJourneyStatus(selectedJourney.linkedTrip.status)}
+                        {formatJourneyStatus(selectedJourney.status)}
                       </p>
                     </div>
                     <div>
                       <Label className="text-muted-foreground">Driver</Label>
-                      <p>{fieldValue(selectedJourney.linkedTrip.driverName)}</p>
+                      <p>{fieldValue(selectedJourney.driverName ?? selectedJourney.linkedTrip?.driverName)}</p>
                     </div>
                     <div>
                       <Label className="text-muted-foreground">Vehicle</Label>
                       <p>
                         {fieldValue(
-                          selectedJourney.linkedTrip.vehiclePlate ??
-                            selectedJourney.linkedTrip.vehicleType,
+                          selectedJourney.vehiclePlate ?? selectedJourney.linkedTrip?.vehiclePlate ??
+                            selectedJourney.vehicleType ?? selectedJourney.linkedTrip?.vehicleType,
                         )}
                       </p>
                     </div>
                   </div>
-                  {selectedJourney.linkedTrip.passengers &&
-                    selectedJourney.linkedTrip.passengers.length > 0 && (
+                  {(selectedJourney.passengers ?? selectedJourney.linkedTrip?.passengers)?.length > 0 && (
                       <div>
                         <Label className="text-muted-foreground">Passengers</Label>
                         <p className="text-sm">
-                          {selectedJourney.linkedTrip.passengers
+                          {(selectedJourney.passengers ?? selectedJourney.linkedTrip?.passengers)
                             .map((p) => p.name)
                             .join(", ")}
                         </p>
