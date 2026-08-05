@@ -4067,10 +4067,25 @@ export const tripRequestApi = {
     name?: string;
     email?: string;
   }): Promise<ApiResponse<import('@/types/trip-request').TripRequestsListResponse>> => {
+    // TEMP DIAGNOSTIC — remove once the My Trips issue is confirmed fixed.
+    console.log('[MyTrips] identity from AuthContext:', identity);
+    console.log('[MyTrips] GET /api/trip-requests?limit=100 (no status filter)');
     const res = await tripRequestApi.list({ limit: 100 });
+    console.log('[MyTrips] /trip-requests response:', {
+      success: res.success,
+      error: res.error,
+      count: res.data?.trips?.length ?? 0,
+      pagination: res.data?.pagination,
+      trips: res.data?.trips,
+    });
     if (res.success && (res.data?.trips?.length ?? 0) > 0) return res;
 
     const all = await tripRequestApi.listAll({ limit: 100 });
+    console.log('[MyTrips] fallback /trip-requests/all response:', {
+      success: all.success,
+      count: all.data?.trips?.length ?? 0,
+      trips: all.data?.trips,
+    });
     if (!all.success) return res;
 
     const norm = (v: unknown) => String(v ?? '').trim().toLowerCase();
@@ -4091,6 +4106,7 @@ export const tripRequestApi = {
       return false;
     });
 
+    console.log('[MyTrips] matched by identity:', mine.length, mine);
     return { ...all, data: { trips: mine, pagination: all.data?.pagination } };
   },
 
