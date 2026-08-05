@@ -1297,10 +1297,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => {
-                              setSelectedTrip(trip);
-                              setViewDialogOpen(true);
-                            }}>
+                            <DropdownMenuItem onClick={() => openViewDialog(trip)}>
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
