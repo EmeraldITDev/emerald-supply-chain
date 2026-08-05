@@ -1011,3 +1011,32 @@ Response must include: `id`, `trip_code`, `workflow_state`, `status`, `quotation
 
 **GET `/api/journeys/{id}`** — roles: logistics, SCD, requester, passengers, admin.
 Response: journey reference, originating `trip_code`, origin, destination, purpose, `scheduled_departure_at`, `scheduled_arrival_at`, vehicle (make/model/plate), driver (name/phone/source), vendor, accommodation fields, escort fields, `passengers[]`, `status`, `documents[]`, `available_actions`. Powers the journey detail view the frontend navigates to after conversion/approval.
+
+## Trip Approvals — SCD dashboard state contract (Aug 2026)
+
+Root cause of "0 awaiting approval" after a Branch A conversion (internal vehicle +
+internal driver, no vendor): the SCD Trip Approvals card filtered rows through
+`isTripAwaitingDirectorApproval`, which (a) never read `workflow_state`, (b) did not
+know the `pending_scd_approval` value, and (c) treated `logistics_processing` /
+`scheduled` as terminal. Any trip routed to the SCD after conversion was discarded.
+
+Canonical contract (frontend + backend must agree):
+
+- `workflow_state = pending_scd_approval` is the ONE value that means "awaiting Supply
+  Chain Director approval". Accepted aliases on read: `awaiting_scd_approval`, `scd_review`.
+- `status` may legitimately remain `scheduled` and `workflow_stage` may remain
+  `logistics_processing` while `workflow_state = pending_scd_approval`. The
+  `workflow_state` field wins.
+- `available_actions` must include `scd_approve` (and `scd_reject`) on those records.
+
+Frontend changes:
+- `src/utils/tripApprovalState.ts`: new exported `isAwaitingScdState()` reading
+  `workflow_state` / `workflowState` / `workflow_stage` / `status`; it short-circuits
+  `isTripAwaitingDirectorApproval`, `canScdApprove`, and suppresses
+  `isTripDirectorApproved`. `pending_scd_approval` / `awaiting_scd_approval` added to
+  `DIRECTOR_PENDING_STATUSES`.
+- `src/pages/SupplyChainDashboard.tsx`: Trip Approvals query now uses
+  `staleTime: 10s`, `refetchOnWindowFocus`, `refetchInterval: 30s`.
+- `src/components/logistics/TripRequestWorkflowActions.tsx`: conversion success no
+  longer force-overwrites `workflow_state` when the API returns one, and invalidates
+  the `dashboard` query key so the SCD card updates immediately.
