@@ -1,8 +1,13 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { getScmRole } from "@/utils/scmRole";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -12,8 +17,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, ExternalLink, Loader2 } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { tripsApi } from "@/services/logisticsApi";
+import { TripLogisticsDetailsPanel } from "@/components/logistics/TripLogisticsDetailsPanel";
 import type { Trip } from "@/types/logistics";
 
 interface LogisticsPoQueueProps {
@@ -37,6 +43,12 @@ export function LogisticsPoQueue({
   onCreatePo,
   preparingTripId = null,
 }: LogisticsPoQueueProps) {
+  const { user } = useAuth();
+  const scmRole = getScmRole(user);
+  const canCreatePo = scmRole === "admin" || scmRole === "procurement_manager";
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [selectedTripForDetails, setSelectedTripForDetails] = useState<Trip | null>(null);
+
   const { data, isLoading } = useQuery({
     queryKey: ["logistics-po-queue"],
     queryFn: async () => {
@@ -111,11 +123,15 @@ export function LogisticsPoQueue({
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" asChild>
-                            <Link to={`/trips/${id}`}>
-                              <ExternalLink className="mr-2 h-3 w-3" />
-                              View
-                            </Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedTripForDetails(trip);
+                              setDetailDialogOpen(true);
+                            }}
+                          >
+                            View
                           </Button>
                           <Button
                             size="sm"
@@ -137,6 +153,88 @@ export function LogisticsPoQueue({
           </div>
         )}
       </CardContent>
+
+      <Dialog open={detailDialogOpen} onOpenChange={(open) => setDetailDialogOpen(open)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Trip Details{selectedTripForDetails ? ` - ${selectedTripForDetails.tripNumber ?? selectedTripForDetails.id}` : ""}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedTripForDetails ? (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground uppercase">Trip</Label>
+                  <p className="mt-1 text-sm font-medium">
+                    {selectedTripForDetails.tripNumber ?? selectedTripForDetails.id}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground uppercase">Destination</Label>
+                  <p className="mt-1 text-sm font-medium">
+                    {selectedTripForDetails.destination ?? "—"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground uppercase">Departure</Label>
+                  <p className="mt-1 text-sm font-medium">
+                    {selectedTripForDetails.scheduledDepartureAt
+                      ? new Date(selectedTripForDetails.scheduledDepartureAt).toLocaleString()
+                      : "—"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground uppercase">Status</Label>
+                  <p className="mt-1 text-sm font-medium capitalize">
+                    {String(selectedTripForDetails.status ?? "").replace(/_/g, " ") || "—"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground uppercase">Vendor</Label>
+                  <p className="mt-1 text-sm font-medium">
+                    {selectedTripForDetails.vendorName ?? "—"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground uppercase">Driver</Label>
+                  <p className="mt-1 text-sm font-medium">
+                    {selectedTripForDetails.driverName ?? "—"}
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <TripLogisticsDetailsPanel trip={selectedTripForDetails} />
+            </div>
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No trip selected.
+            </p>
+          )}
+
+          <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
+              Close
+            </Button>
+            <Button
+              onClick={() => selectedTripForDetails && onCreatePo(String(selectedTripForDetails.id))}
+              disabled={!selectedTripForDetails || preparingTripId === String(selectedTripForDetails?.id) || !canCreatePo}
+            >
+              {preparingTripId === String(selectedTripForDetails?.id) ? (
+                <>
+                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                  Creating PO...
+                </>
+              ) : (
+                "Create PO"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
