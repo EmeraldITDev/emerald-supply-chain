@@ -498,12 +498,12 @@ const UserManagement = () => {
             if (res.success) {
               const name = res.data?.designated_creator?.name;
               toast({
-                title: "Designated Creator Set",
-                description: name
-                  ? `${name} is now the designated requisition creator for ${dept}.`
-                  : `Updated designated creator for ${dept}.`,
+                title: "Saving...",
+                description: `Setting ${name} as designated creator for ${dept}. Refreshing in a moment.`,
               });
-              window.dispatchEvent(new CustomEvent("app:refresh"));
+              setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ['departments', 'requisition-creators'] });
+              }, 5000);
             } else {
               toast({
                 title: "Failed to Save",
