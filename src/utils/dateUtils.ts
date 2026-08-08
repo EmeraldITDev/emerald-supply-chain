@@ -193,3 +193,57 @@ export const toLagosDate = (dateString: string | null | undefined): Date | null 
     return null;
   }
 };
+
+/**
+ * Canonical Logistics timestamp renderer (WAT / Africa-Lagos).
+ * Backend timestamps are stored/served in UTC; every logistics surface must
+ * render them in Lagos time so departed/arrived times are not an hour behind.
+ */
+export const formatLagosDateTime = (
+  dateString: string | null | undefined,
+  fallback = '—',
+): string => {
+  if (!dateString) return fallback;
+  const out = formatDateLagos(dateString, { includeTime: true, format: 'medium' });
+  return out === 'N/A' || out === 'Invalid Date' ? fallback : out;
+};
+
+/** Time-only variant in WAT (e.g. journey departed/arrived clock times). */
+export const formatLagosTime = (
+  dateString: string | null | undefined,
+  fallback = '—',
+): string => {
+  const date = toLagosDate(dateString);
+  if (!date) return fallback;
+  return date.toLocaleTimeString('en-US', {
+    timeZone: 'Africa/Lagos',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
+const legacyToLagosDate = (dateString: string | null | undefined): Date | null => {
+  if (!dateString) return null;
+
+  try {
+    let date: Date;
+
+    if (dateString.includes('Z') || dateString.match(/[+-]\d{2}:\d{2}$/)) {
+      date = new Date(dateString);
+    } else if (dateString.includes('T')) {
+      date = new Date(dateString + 'Z');
+    } else {
+      date = new Date(dateString);
+    }
+
+    if (isNaN(date.getTime())) {
+      return null;
+    }
+
+    return date;
+  } catch (error) {
+    console.error('Error converting to Lagos date:', dateString, error);
+    return null;
+  }
+};
