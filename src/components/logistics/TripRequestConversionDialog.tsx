@@ -721,6 +721,31 @@ export function TripRequestConversionDialog({
                     value={accommodationCost}
                     onChange={(e) => setAccommodationCost(e.target.value)}
                   />
+                  <div className="sm:col-span-2 space-y-1">
+                    <Label className="text-xs text-muted-foreground">Accommodation vendor</Label>
+                    <Select value={accommodationVendorId} onValueChange={setAccommodationVendorId}>
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={vendorLoading ? "Loading vendors…" : "Select accommodation vendor"}
+                        />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="popper"
+                        side="bottom"
+                        avoidCollisions
+                        className="max-h-[40vh] overflow-y-auto"
+                      >
+                        {vendorResults.length === 0 && (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">No vendors found</div>
+                        )}
+                        {vendorResults.map((v) => (
+                          <SelectItem key={`acc-${String(v.id)}`} value={String(v.id)}>
+                            {v.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
             </div>
@@ -752,6 +777,31 @@ export function TripRequestConversionDialog({
                     value={escortCost}
                     onChange={(e) => setEscortCost(e.target.value)}
                   />
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Escort / security vendor</Label>
+                    <Select value={escortVendorId} onValueChange={setEscortVendorId}>
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={vendorLoading ? "Loading vendors…" : "Select escort vendor"}
+                        />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="popper"
+                        side="bottom"
+                        avoidCollisions
+                        className="max-h-[40vh] overflow-y-auto"
+                      >
+                        {vendorResults.length === 0 && (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">No vendors found</div>
+                        )}
+                        {vendorResults.map((v) => (
+                          <SelectItem key={`esc-${String(v.id)}`} value={String(v.id)}>
+                            {v.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
             </div>
