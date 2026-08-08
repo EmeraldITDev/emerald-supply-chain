@@ -68,8 +68,10 @@ const ALLOWED_TRANSITIONS: Record<JourneyStatus, JourneyStatus[]> = {
 };
 import { TripCommentsPanel } from "./TripCommentsPanel";
 import { TripLogisticsDetailsPanel } from "./TripLogisticsDetailsPanel";
-import { useNavigate } from "react-router-dom";
+import { JCCDialog } from "./JCCDialog";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { exportToCSV } from "@/utils/exportData";
+import { formatLagosDateTime, formatLagosTime } from "@/utils/dateUtils";
 
 interface JourneyWithTrip extends Journey {
   linkedTrip?: Trip;
@@ -123,11 +125,16 @@ function journeyStatusKey(status?: string | null): JourneyStatus {
 const MissingValue = () => (
   <Tooltip>
     <TooltipTrigger asChild>
-      <span className="text-muted-foreground cursor-help">—</span>
+      <span className="text-muted-foreground italic cursor-help">Not provided</span>
     </TooltipTrigger>
     <TooltipContent>This information has not been provided yet.</TooltipContent>
   </Tooltip>
 );
+
+/** A journey is finished when it has arrived at destination or been closed. */
+function isJourneyCompleted(status?: string | null): boolean {
+  return status === "arrived" || status === "closed" || status === "completed";
+}
 
 type JourneyPassengerItem = {
   key: string;
