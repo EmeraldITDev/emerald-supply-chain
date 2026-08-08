@@ -66,7 +66,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatPoAmount } from "@/utils/currency";
-import { tripsApi, logisticsDashboardApi, logisticsVendorsApi } from "@/services/logisticsApi";
+import { tripsApi, logisticsDashboardApi, logisticsVendorsApi, journeysApi } from "@/services/logisticsApi";
+import { formatLagosDateTime } from "@/utils/dateUtils";
+import type { Journey } from "@/types/logistics";
 import { useAuth } from "@/contexts/AuthContext";
 import { tripRequestApi, apiRequestFull } from "@/services/api";
 
@@ -87,7 +89,7 @@ import { CSVImportPreview, type CSVColumn } from "./CSVImportPreview";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 import { isConvertedTripRow } from "@/utils/tripApprovalState";
 import type { TripConversionResult } from "./TripRequestConversionDialog";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 interface TripSchedulingProps {
   onViewTrip?: (trip: Trip) => void;
@@ -115,11 +117,9 @@ const priorityColors: Record<string, string> = {
   urgent: "bg-destructive/10 text-destructive",
 };
 
+/** All logistics timestamps render in WAT (Africa/Lagos), not browser UTC. */
 function formatDateTime(value?: string | null): string {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString();
+  return formatLagosDateTime(value);
 }
 
 interface VendorItem {
@@ -136,6 +136,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [tripPage, setTripPage] = useState(1);
   const [tripPagination, setTripPagination] = useState<PaginationMeta | null>(null);
@@ -156,6 +157,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const [jccOpen, setJccOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  /** Journey linked to the trip open in the detail dialog (same DB record). */
+  const [activeJourney, setActiveJourney] = useState<Journey | null>(null);
   const [selectedTripRequest, setSelectedTripRequest] = useState<StaffTripRequest | null>(null);
   const [loadingTripRequest, setLoadingTripRequest] = useState(false);
   const [loadingTripDetails, setLoadingTripDetails] = useState(false);
@@ -200,6 +203,23 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       cancelled = true;
     };
   }, [viewDialogOpen, selectedTrip]);
+  // Resolve the journey attached to the open trip via the backend relationship
+  // so Trip Details and Journey Management always show the same record.
+  useEffect(() => {
+    if (!viewDialogOpen || !selectedTrip) {
+      setActiveJourney(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const res = await journeysApi.getByTripId(String(selectedTrip.id));
+      if (!cancelled) setActiveJourney(res.success && res.data ? res.data : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewDialogOpen, selectedTrip]);
+
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   const [selectedVendorService, setSelectedVendorService] = useState<"transport" | "accommodation" | "escort">("transport");
   const [accommodationDialogOpen, setAccommodationDialogOpen] = useState(false);
@@ -975,6 +995,22 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
    * Open the detail dialog and hydrate the full server record so the Logistics
    * Manager sees passengers, accommodation, escort, vehicle and driver data.
    */
+  /**
+   * Deep link: /logistics?tab=trips&trip=<id> opens that trip's detail view
+   * (used by "Open trip record" from Journey Management).
+   */
+  useEffect(() => {
+    const deepLinkId = searchParams.get("trip");
+    if (!deepLinkId || trips.length === 0) return;
+    const match = trips.find((t) => String(t.id) === String(deepLinkId));
+    if (!match) return;
+    openViewDialog(match);
+    const next = new URLSearchParams(searchParams);
+    next.delete("trip");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trips, searchParams]);
+
   const openViewDialog = (trip: Trip) => {
     setSelectedTrip(trip);
     setSelectedTripRequest(null);
@@ -1779,6 +1815,30 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 <Badge variant="outline" className={cn(priorityColors[selectedTrip.priority], "capitalize")}>
                   {selectedTrip.priority}
                 </Badge>
+                {activeJourney && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="ml-auto"
+                    onClick={() => {
+                      setViewDialogOpen(false);
+                      window.dispatchEvent(
+                        new CustomEvent("logistics:set-tab", { detail: "journeys" }),
+                      );
+                      setSearchParams(
+                        (prev) => {
+                          const next = new URLSearchParams(prev);
+                          next.set("tab", "journeys");
+                          next.set("journey", String(activeJourney.id));
+                          return next;
+                        },
+                        { replace: true },
+                      );
+                    }}
+                  >
+                    View active journey
+                  </Button>
+                )}
               </div>
               
               {/* Main Trip Information */}

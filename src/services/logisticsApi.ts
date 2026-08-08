@@ -516,15 +516,62 @@ export const journeysApi = {
     return { success: false, error: res.error || 'Journey list unavailable', data: [] };
   },
 
-  // Get journey for a trip
+  /**
+   * Resolve the journey that belongs to a trip.
+   *
+   * The legacy implementation called `/journeys/{tripId}` — i.e. it treated the
+   * trip id as a journey id, which returns 404 (or a different journey) and is
+   * the reason Trip Details showed a blank "Active Journey" while Journey
+   * Management showed real progress. We now walk the real relationship chain:
+   * trip → journey, with progressively looser fallbacks.
+   */
   getByTripId: async (tripId: string): Promise<ApiResponse<Journey>> => {
-    const res = await apiRequest<Journey>(`/journeys/${tripId}`);
-    if (res.success && res.data) {
-      return { ...res, data: normalizeJourney(res.data) };
-    }
-    return res;
-  },
+    const unwrap = (payload: unknown): Journey | undefined => {
+      if (!payload) return undefined;
+      if (Array.isArray(payload)) return payload[0] as Journey | undefined;
+      const rec = payload as Record<string, unknown>;
+      const nested = (rec.journey ?? rec.data ?? rec.journeys) as unknown;
+      if (Array.isArray(nested)) return nested[0] as Journey | undefined;
+      if (nested && typeof nested === 'object') return nested as Journey;
+      return rec.id != null ? (rec as unknown as Journey) : undefined;
+    };
 
+    const attempts = [
+      `/trips/${encodeURIComponent(tripId)}/journey`,
+      `/journeys?trip_id=${encodeURIComponent(tripId)}`,
+      `/journeys/${encodeURIComponent(tripId)}`,
+    ];
+
+    let lastError: string | undefined;
+    for (const path of attempts) {
+      const res = await apiRequest<unknown>(path);
+      if (res.success) {
+        const journey = unwrap(res.data);
+        if (journey) return { success: true, data: normalizeJourney(journey) };
+      } else {
+        lastError = res.error || lastError;
+      }
+    }
+
+    // Final fallback: scan the journey list for a matching trip relationship.
+    const listRes = await apiRequest<unknown>('/journeys');
+    if (listRes.success && listRes.data) {
+      const raw = listRes.data as Record<string, unknown>;
+      const rows = (Array.isArray(listRes.data)
+        ? listRes.data
+        : (raw.journeys ?? raw.data ?? [])) as Record<string, unknown>[];
+      const match = Array.isArray(rows)
+        ? rows.find((j) =>
+            [j.tripId, j.trip_id, j.logistics_request_id, j.logisticsRequestId].some(
+              (candidate) => candidate != null && String(candidate) === String(tripId),
+            ),
+          )
+        : undefined;
+      if (match) return { success: true, data: normalizeJourney(match as unknown as Journey) };
+    }
+
+    return { success: false, error: lastError || 'No journey linked to this trip' };
+  },
   // Create journey for trip
   create: async (tripId: string): Promise<ApiResponse<Journey>> => {
     const res = await apiRequest<Journey>('/journeys', {

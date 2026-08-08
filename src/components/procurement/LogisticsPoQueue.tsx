@@ -207,7 +207,7 @@ export function LogisticsPoQueue({
 
               <Separator />
 
-              <TripLogisticsDetailsPanel trip={selectedTripForDetails} />
+              <TripLogisticsDetailsPanel trip={selectedTripForDetails as unknown as Record<string, unknown>} />
             </div>
           ) : (
             <p className="py-8 text-center text-sm text-muted-foreground">

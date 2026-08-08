@@ -35,7 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi, vendorApi } from "@/services/api";
 import { resolveTripWorkflowError } from "@/utils/tripApprovalErrors";
 import { fleetApi } from "@/services/logisticsApi";
-import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
+import { EligiblePassengerPicker, type PreselectedPassenger } from "./EligiblePassengerPicker";
 import type { StaffTripRequest } from "@/types/trip-request";
 import type { FleetVehicle } from "@/types/logistics";
 import type { Vendor } from "@/types";
@@ -101,6 +101,9 @@ export function TripRequestConversionDialog({
   const [escortRequired, setEscortRequired] = useState(false);
   const [escortDescription, setEscortDescription] = useState("");
   const [escortCost, setEscortCost] = useState("");
+  const [accommodationVendorId, setAccommodationVendorId] = useState("");
+  const [escortVendorId, setEscortVendorId] = useState("");
+  const [seededPassengers, setSeededPassengers] = useState<PreselectedPassenger[]>([]);
   const [softWarning, setSoftWarning] = useState<string | null>(null);
 
   const seedPassengers = useCallback((trip: StaffTripRequest) => {
@@ -112,6 +115,20 @@ export function TripRequestConversionDialog({
         .filter((id): id is number => id != null)
         .map(String);
     setPassengerIds(ids.map(String));
+    // Keep the resolved passenger objects so the picker can render them even
+    // when the eligible-staff directory does not include them.
+    const known: PreselectedPassenger[] = (trip.passengers ?? [])
+      .map((p): PreselectedPassenger | null => {
+        const id = p.userId ?? p.user_id ?? p.id;
+        return id == null ? null : { id: String(id), name: p.name, department: p.department };
+      })
+      .filter((p): p is PreselectedPassenger => p !== null);
+    const knownIds = new Set(known.map((p) => String(p.id)));
+    const placeholders = ids
+      .map(String)
+      .filter((id) => !knownIds.has(id))
+      .map((id) => ({ id }));
+    setSeededPassengers([...known, ...placeholders]);
   }, []);
 
   // Always hydrate the full record on open — the list payload omits
@@ -186,8 +203,11 @@ export function TripRequestConversionDialog({
 
   // Vendor selector — fetch an initial slate on switching to external vendor
   // so the dropdown is populated immediately, then debounce further search.
+  const vendorsNeeded =
+    fulfillmentType === "external_vendor" || accommodationRequired || escortRequired;
+
   useEffect(() => {
-    if (!open || fulfillmentType !== "external_vendor") return;
+    if (!open || !vendorsNeeded) return;
 
     const handle = window.setTimeout(async () => {
       setVendorLoading(true);
@@ -214,7 +234,7 @@ export function TripRequestConversionDialog({
     }, vendorSearch.trim() ? 300 : 0);
 
     return () => window.clearTimeout(handle);
-  }, [vendorSearch, fulfillmentType, open]);
+  }, [vendorSearch, vendorsNeeded, open]);
 
   // Reset per-open state so a re-opened dialog re-fetches fresh data.
   useEffect(() => {
@@ -318,9 +338,16 @@ export function TripRequestConversionDialog({
         accommodation_address: accommodationAddress.trim() || null,
         accommodation_contact: accommodationContact.trim() || null,
         accommodation_estimated_cost: accommodationCost ? Number(accommodationCost) : null,
+        accommodation_vendor_id: accommodationVendorId ? parseInt(accommodationVendorId, 10) : null,
         escort_required: escortRequired,
         escort_description: escortDescription.trim() || null,
         escort_estimated_cost: escortCost ? Number(escortCost) : null,
+        escort_vendor_id: escortVendorId ? parseInt(escortVendorId, 10) : null,
+        service_vendors: {
+          transport: fulfillmentType === "external_vendor" && vendorId ? parseInt(vendorId, 10) : null,
+          accommodation: accommodationVendorId ? parseInt(accommodationVendorId, 10) : null,
+          escort: escortVendorId ? parseInt(escortVendorId, 10) : null,
+        },
         total_estimated_cost: totalEstimatedCost || null,
         notes: notes || undefined,
         driver: buildDriverPayload(),
@@ -445,6 +472,8 @@ export function TripRequestConversionDialog({
               <EligiblePassengerPicker
                 selectedPassengerIds={passengerIds}
                 onPassengersChange={setPassengerIds}
+                preselectedPassengers={seededPassengers}
+                emptyLabel="No passengers on this request yet — search to add staff."
               />
             </div>
 
@@ -463,9 +492,9 @@ export function TripRequestConversionDialog({
                   </div>
                   <Select value={vendorId} onValueChange={setVendorId}>
                     <SelectTrigger>
-                      <SelectValue placeholder={vendorLoading ? "Loading vendors…" : "Select vendor"} />
+                      <SelectValue placeholder={vendorLoading ? "Loading vendors…" : "Select transport vendor"} />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper" side="bottom" avoidCollisions className="max-h-[40vh] overflow-y-auto">
                       {vendorLoading && (
                         <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" /> Loading vendors…
@@ -518,7 +547,7 @@ export function TripRequestConversionDialog({
                       }
                     />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" side="bottom" avoidCollisions className="max-h-[40vh] overflow-y-auto">
                     {vehiclesLoading && (
                       <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" /> Loading vehicles…
@@ -699,6 +728,31 @@ export function TripRequestConversionDialog({
                     value={accommodationCost}
                     onChange={(e) => setAccommodationCost(e.target.value)}
                   />
+                  <div className="sm:col-span-2 space-y-1">
+                    <Label className="text-xs text-muted-foreground">Accommodation vendor</Label>
+                    <Select value={accommodationVendorId} onValueChange={setAccommodationVendorId}>
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={vendorLoading ? "Loading vendors…" : "Select accommodation vendor"}
+                        />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="popper"
+                        side="bottom"
+                        avoidCollisions
+                        className="max-h-[40vh] overflow-y-auto"
+                      >
+                        {vendorResults.length === 0 && (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">No vendors found</div>
+                        )}
+                        {vendorResults.map((v) => (
+                          <SelectItem key={`acc-${String(v.id)}`} value={String(v.id)}>
+                            {v.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
             </div>
@@ -730,6 +784,31 @@ export function TripRequestConversionDialog({
                     value={escortCost}
                     onChange={(e) => setEscortCost(e.target.value)}
                   />
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Escort / security vendor</Label>
+                    <Select value={escortVendorId} onValueChange={setEscortVendorId}>
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={vendorLoading ? "Loading vendors…" : "Select escort vendor"}
+                        />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="popper"
+                        side="bottom"
+                        avoidCollisions
+                        className="max-h-[40vh] overflow-y-auto"
+                      >
+                        {vendorResults.length === 0 && (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">No vendors found</div>
+                        )}
+                        {vendorResults.map((v) => (
+                          <SelectItem key={`esc-${String(v.id)}`} value={String(v.id)}>
+                            {v.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
             </div>

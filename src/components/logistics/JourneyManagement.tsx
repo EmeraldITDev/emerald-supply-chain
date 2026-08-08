@@ -68,8 +68,10 @@ const ALLOWED_TRANSITIONS: Record<JourneyStatus, JourneyStatus[]> = {
 };
 import { TripCommentsPanel } from "./TripCommentsPanel";
 import { TripLogisticsDetailsPanel } from "./TripLogisticsDetailsPanel";
-import { useNavigate } from "react-router-dom";
+import { JCCDialog } from "./JCCDialog";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { exportToCSV } from "@/utils/exportData";
+import { formatLagosDateTime, formatLagosTime } from "@/utils/dateUtils";
 
 interface JourneyWithTrip extends Journey {
   linkedTrip?: Trip;
@@ -123,11 +125,16 @@ function journeyStatusKey(status?: string | null): JourneyStatus {
 const MissingValue = () => (
   <Tooltip>
     <TooltipTrigger asChild>
-      <span className="text-muted-foreground cursor-help">—</span>
+      <span className="text-muted-foreground italic cursor-help">Not provided</span>
     </TooltipTrigger>
     <TooltipContent>This information has not been provided yet.</TooltipContent>
   </Tooltip>
 );
+
+/** A journey is finished when it has arrived at destination or been closed. */
+function isJourneyCompleted(status?: string | null): boolean {
+  return status === "arrived" || status === "closed" || status === "completed";
+}
 
 type JourneyPassengerItem = {
   key: string;
@@ -261,6 +268,7 @@ function fieldValue(value: unknown): React.ReactNode {
 export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [journeys, setJourneys] = useState<JourneyWithTrip[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -282,6 +290,8 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<JourneyFeedback[]>([]);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [jccOpen, setJccOpen] = useState(false);
+  const [jccTrip, setJccTrip] = useState<Trip | null>(null);
 
   // Passenger feedback for the journey currently open in the detail dialog.
   useEffect(() => {
@@ -302,6 +312,20 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
     };
   }, [viewDialogOpen, selectedJourney?.id]);
 
+  /**
+   * Commit a freshly fetched journey list AND re-sync the record currently open
+   * in the detail dialog. Without this the dialog kept rendering the stale
+   * snapshot captured when it was opened, so checkpoints/status never appeared.
+   */
+  const applyJourneys = (next: JourneyWithTrip[]) => {
+    setJourneys(next);
+    setSelectedJourney((current) => {
+      if (!current) return current;
+      const fresh = next.find((j) => String(j.id) === String(current.id));
+      return fresh ? { ...current, ...fresh } : current;
+    });
+  };
+
   // Fetch journeys from API — tied to the same trip records created at request/approval
   const fetchJourneys = async () => {
     setLoading(true);
@@ -312,14 +336,14 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
           tripsApi.getById(tripId),
         ]);
         if (journeyRes.success && journeyRes.data) {
-          setJourneys([
+          applyJourneys([
             {
               ...journeyRes.data,
               linkedTrip: tripRes.success ? tripRes.data : undefined,
             },
           ]);
         } else if (tripRes.success && tripRes.data) {
-          setJourneys([
+          applyJourneys([
             {
               id: tripId,
               tripId,
@@ -331,7 +355,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
             } as JourneyWithTrip,
           ]);
         } else {
-          setJourneys([]);
+          applyJourneys([]);
         }
         return;
       }
@@ -347,7 +371,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
             return j as JourneyWithTrip;
           }),
         );
-        setJourneys(journeysWithTrips);
+        applyJourneys(journeysWithTrips);
         return;
       }
 
@@ -380,13 +404,13 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
             } as JourneyWithTrip;
           }),
         );
-        setJourneys(withJourneys);
+        applyJourneys(withJourneys);
       } else {
-        setJourneys([]);
+        applyJourneys([]);
       }
     } catch (error) {
       console.error("Failed to fetch journeys:", error);
-      setJourneys([]);
+      applyJourneys([]);
     } finally {
       setLoading(false);
     }
@@ -395,6 +419,22 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   useEffect(() => {
     fetchJourneys();
   }, [tripId, statusFilter]);
+
+  /**
+   * Deep link support: /logistics?tab=journeys&journey=<id> opens that journey
+   * directly (used by "View Active Journey" from a trip and by conversion).
+   */
+  useEffect(() => {
+    const deepLinkId = searchParams.get("journey");
+    if (!deepLinkId || journeys.length === 0) return;
+    const match = journeys.find((j) => String(j.id) === String(deepLinkId));
+    if (!match) return;
+    setSelectedJourney(match);
+    setViewDialogOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("journey");
+    setSearchParams(next, { replace: true });
+  }, [journeys, searchParams, setSearchParams]);
 
   const handleUpdateStatus = async () => {
     if (!selectedJourney || !updateStatus) return;
@@ -414,7 +454,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
           description: `Status updated to ${updateStatus.replace("_", " ")}`,
         });
         setUpdateDialogOpen(false);
-        fetchJourneys();
+        if (response.data) {
+          const updated = response.data as JourneyWithTrip;
+          setSelectedJourney((cur) => (cur ? { ...cur, ...updated } : cur));
+        }
+        await fetchJourneys();
       } else {
         toast({
           title: "Failed to Update Journey",
@@ -450,7 +494,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
           title: "Checkpoint Added",
           description: `Checkpoint at ${currentLocation} recorded`,
         });
-        fetchJourneys();
+        if (response.data) {
+          const updated = response.data as JourneyWithTrip;
+          setSelectedJourney((cur) => (cur ? { ...cur, ...updated } : cur));
+        }
+        await fetchJourneys();
       } else {
         toast({
           title: "Failed to Add Checkpoint",
@@ -489,7 +537,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
           description: "The incident has been logged and relevant parties notified",
         });
         setIncidentDialogOpen(false);
-        fetchJourneys();
+        if (response.data) {
+          const updated = response.data as JourneyWithTrip;
+          setSelectedJourney((cur) => (cur ? { ...cur, ...updated } : cur));
+        }
+        await fetchJourneys();
       } else {
         toast({
           title: "Failed to Report Incident",
@@ -636,7 +688,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                         <span className="font-medium">Purpose:</span> {(journey.purpose ?? journey.linkedTrip?.purpose) ?? <MissingValue />}
                       </p>
                       <p>
-                        <span className="font-medium">Departure:</span> {(journey.scheduledDepartureAt ?? journey.linkedTrip?.scheduledDepartureAt) ? new Date((journey.scheduledDepartureAt ?? journey.linkedTrip?.scheduledDepartureAt) as string).toLocaleString() : <MissingValue />}
+                        <span className="font-medium">Departure:</span> {(journey.scheduledDepartureAt ?? journey.linkedTrip?.scheduledDepartureAt) ? formatLagosDateTime(journey.scheduledDepartureAt ?? journey.linkedTrip?.scheduledDepartureAt) : <MissingValue />}
                       </p>
                       <p>
                         <span className="font-medium">Driver:</span> {(journey.driverName ?? journey.linkedTrip?.driverName) ?? <MissingValue />}
@@ -667,10 +719,21 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                           </DropdownMenuItem>
                           {journey.linkedTrip && (
                             <DropdownMenuItem
-                              onClick={() => navigate(`/trips/${journey.linkedTrip!.id}`)}
+                              onClick={() => navigate(`/logistics?tab=trips&trip=${journey.linkedTrip!.id}`)}
                             >
                               <Navigation className="mr-2 h-4 w-4" />
                               Open trip record
+                            </DropdownMenuItem>
+                          )}
+                          {isJourneyCompleted(journey.status) && journey.linkedTrip && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setJccTrip(journey.linkedTrip as Trip);
+                                setJccOpen(true);
+                              }}
+                            >
+                              <CheckCircle2 className="mr-2 h-4 w-4" />
+                              Generate JCC
                             </DropdownMenuItem>
                           )}
                           {journey.status !== "arrived" && journey.status !== "closed" && (
@@ -713,7 +776,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                       <Clock className="h-3 w-3 text-muted-foreground" />
                       <span className="text-muted-foreground">
                         {journey.departedAt
-                          ? `Departed: ${new Date(journey.departedAt).toLocaleTimeString()}`
+                          ? `Departed: ${formatLagosTime(journey.departedAt)}`
                           : "Not departed yet"}
                       </span>
                     </div>
@@ -721,7 +784,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                       <div className="flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3 text-success" />
                         <span className="text-success">
-                          Arrived: {new Date(journey.arrivedAt).toLocaleTimeString()}
+                          Arrived: {formatLagosTime(journey.arrivedAt)}
                         </span>
                       </div>
                     )}
@@ -789,11 +852,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   <SummaryField label="Purpose" value={fieldValue(selectedJourney.purpose ?? selectedJourney.linkedTrip?.purpose)} />
                   <SummaryField
                     label="Scheduled Departure"
-                    value={(selectedJourney.scheduledDepartureAt ?? selectedJourney.linkedTrip?.scheduledDepartureAt) ? new Date((selectedJourney.scheduledDepartureAt ?? selectedJourney.linkedTrip?.scheduledDepartureAt) as string).toLocaleString() : <MissingValue />}
+                    value={(selectedJourney.scheduledDepartureAt ?? selectedJourney.linkedTrip?.scheduledDepartureAt) ? formatLagosDateTime(selectedJourney.scheduledDepartureAt ?? selectedJourney.linkedTrip?.scheduledDepartureAt) : <MissingValue />}
                   />
                   <SummaryField
                     label="Scheduled Arrival"
-                    value={(selectedJourney.scheduledArrivalAt ?? selectedJourney.linkedTrip?.scheduledArrivalAt) ? new Date((selectedJourney.scheduledArrivalAt ?? selectedJourney.linkedTrip?.scheduledArrivalAt) as string).toLocaleString() : <MissingValue />}
+                    value={(selectedJourney.scheduledArrivalAt ?? selectedJourney.linkedTrip?.scheduledArrivalAt) ? formatLagosDateTime(selectedJourney.scheduledArrivalAt ?? selectedJourney.linkedTrip?.scheduledArrivalAt) : <MissingValue />}
                   />
                   <SummaryField
                     label="Booking Scope"
@@ -889,7 +952,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   <Label className="text-muted-foreground">Departed</Label>
                   <p className="font-medium">
                     {selectedJourney.departedAt
-                      ? new Date(selectedJourney.departedAt).toLocaleString()
+                      ? formatLagosDateTime(selectedJourney.departedAt)
                       : "Not yet"}
                   </p>
                 </div>
@@ -897,7 +960,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   <Label className="text-muted-foreground">Arrived</Label>
                   <p className="font-medium">
                     {selectedJourney.arrivedAt
-                      ? new Date(selectedJourney.arrivedAt).toLocaleString()
+                      ? formatLagosDateTime(selectedJourney.arrivedAt)
                       : "In progress"}
                   </p>
                 </div>
@@ -911,7 +974,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   <Label className="text-muted-foreground">Last Updated</Label>
                   <p className="font-medium">
                     {selectedJourney.lastUpdatedAt
-                      ? new Date(selectedJourney.lastUpdatedAt).toLocaleString()
+                      ? formatLagosDateTime(selectedJourney.lastUpdatedAt)
                       : <MissingValue />}
                   </p>
                 </div>
@@ -985,8 +1048,8 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                         <div className="flex-1">
                           <p className="font-medium">{cp.location}</p>
                           <p className="text-xs text-muted-foreground">
-                            Arrived: {new Date(cp.arrivedAt).toLocaleString()}
-                            {cp.departedAt && ` • Left: ${new Date(cp.departedAt).toLocaleTimeString()}`}
+                            Arrived: {formatLagosDateTime(cp.arrivedAt)}
+                            {cp.departedAt && ` • Left: ${formatLagosTime(cp.departedAt)}`}
                           </p>
                           {cp.notes && <p className="text-sm mt-1">{cp.notes}</p>}
                         </div>
@@ -1014,7 +1077,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                         </div>
                         <p className="text-sm mt-1">{incident.description}</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Reported: {new Date(incident.reportedAt).toLocaleString()}
+                          Reported: {formatLagosDateTime(incident.reportedAt)}
                           {incident.location && ` • Location: ${incident.location}`}
                         </p>
                       </div>
@@ -1091,6 +1154,35 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   </div>
                 </div>
               )}
+
+              {/* Completion actions — JCC + jump to the linked trip record */}
+              <div className="flex flex-wrap gap-2 pt-4 border-t">
+                {selectedJourney.linkedTrip && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setViewDialogOpen(false);
+                      navigate(`/logistics?tab=trips&trip=${selectedJourney.linkedTrip!.id}`);
+                    }}
+                  >
+                    <Navigation className="mr-2 h-4 w-4" />
+                    Open trip record
+                  </Button>
+                )}
+                {isJourneyCompleted(selectedJourney.status) && selectedJourney.linkedTrip && (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setJccTrip(selectedJourney.linkedTrip as Trip);
+                      setJccOpen(true);
+                    }}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Generate JCC
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
@@ -1256,6 +1348,8 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <JCCDialog trip={jccTrip} open={jccOpen} onOpenChange={setJccOpen} />
     </div>
   );
 };
