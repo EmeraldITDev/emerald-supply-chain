@@ -203,8 +203,11 @@ export function TripRequestConversionDialog({
 
   // Vendor selector — fetch an initial slate on switching to external vendor
   // so the dropdown is populated immediately, then debounce further search.
+  const vendorsNeeded =
+    fulfillmentType === "external_vendor" || accommodationRequired || escortRequired;
+
   useEffect(() => {
-    if (!open || fulfillmentType !== "external_vendor") return;
+    if (!open || !vendorsNeeded) return;
 
     const handle = window.setTimeout(async () => {
       setVendorLoading(true);
@@ -231,7 +234,7 @@ export function TripRequestConversionDialog({
     }, vendorSearch.trim() ? 300 : 0);
 
     return () => window.clearTimeout(handle);
-  }, [vendorSearch, fulfillmentType, open]);
+  }, [vendorSearch, vendorsNeeded, open]);
 
   // Reset per-open state so a re-opened dialog re-fetches fresh data.
   useEffect(() => {
