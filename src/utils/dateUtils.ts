@@ -222,28 +222,3 @@ export const formatLagosTime = (
     hour12: true,
   });
 };
-
-const legacyToLagosDate = (dateString: string | null | undefined): Date | null => {
-  if (!dateString) return null;
-
-  try {
-    let date: Date;
-
-    if (dateString.includes('Z') || dateString.match(/[+-]\d{2}:\d{2}$/)) {
-      date = new Date(dateString);
-    } else if (dateString.includes('T')) {
-      date = new Date(dateString + 'Z');
-    } else {
-      date = new Date(dateString);
-    }
-
-    if (isNaN(date.getTime())) {
-      return null;
-    }
-
-    return date;
-  } catch (error) {
-    console.error('Error converting to Lagos date:', dateString, error);
-    return null;
-  }
-};
