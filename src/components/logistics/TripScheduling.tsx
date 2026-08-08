@@ -198,6 +198,17 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     };
   }, [viewDialogOpen, selectedTrip]);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
+  const [selectedVendorService, setSelectedVendorService] = useState<"transport" | "accommodation" | "escort">("transport");
+  const [accommodationDialogOpen, setAccommodationDialogOpen] = useState(false);
+  const [accommodationDialogState, setAccommodationDialogState] = useState({
+    name: "",
+    address: "",
+    contact: "",
+    details: "",
+    estimatedCost: "",
+    vendorId: "",
+    vendorName: "",
+  });
   // 8a — external driver toggle + fields (shared by create + edit dialogs)
   const [useExternalDriver, setUseExternalDriver] = useState(false);
   const [externalDriver, setExternalDriver] = useState<{
@@ -289,6 +300,27 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     workflowStage: raw.workflow_stage || raw.workflowStage,
     selected_vendor_id: raw.selected_vendor_id ?? raw.selectedVendorId,
     selectedVendorId: raw.selected_vendor_id ?? raw.selectedVendorId,
+    transportVendorId: raw.transport_vendor_id?.toString() || raw.transportVendorId,
+    transportVendorName: raw.transport_vendor_name || raw.transportVendorName,
+    accommodationVendorId: raw.accommodation_vendor_id?.toString() || raw.accommodationVendorId,
+    accommodationVendorName: raw.accommodation_vendor_name || raw.accommodationVendorName,
+    escortVendorId: raw.escort_vendor_id?.toString() || raw.escortVendorId,
+    escortVendorName: raw.escort_vendor_name || raw.escortVendorName,
+    accommodationRequired: Boolean(raw.accommodation_required ?? raw.accommodationRequired),
+    accommodationName: raw.accommodation_name || raw.accommodationName,
+    accommodationAddress: raw.accommodation_address || raw.accommodationAddress,
+    accommodationContact: raw.accommodation_contact || raw.accommodationContact,
+    accommodationDetails: raw.accommodation_details || raw.accommodationDetails,
+    accommodationEstimatedCost: raw.accommodation_estimated_cost ?? raw.accommodationEstimatedCost,
+    escortRequired: Boolean(raw.escort_required ?? raw.escortRequired),
+    escortDescription: raw.escort_description || raw.escortDescription,
+    externalPassengers: Array.isArray(raw.external_passengers ?? raw.externalPassengers)
+      ? (raw.external_passengers ?? raw.externalPassengers).map((p: any) => ({
+          name: p.name ?? "",
+          email: p.email ?? "",
+          phone: p.phone ?? "",
+        }))
+      : [],
     unsigned_po_url: raw.unsigned_po_url || raw.unsignedPoUrl,
     unsignedPoUrl: raw.unsigned_po_url || raw.unsignedPoUrl,
     signed_po_url: raw.signed_po_url || raw.signedPoUrl,
@@ -761,6 +793,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       return;
     }
 
+    const serviceFieldMap = {
+      transport: "transport_vendor_id",
+      accommodation: "accommodation_vendor_id",
+      escort: "escort_vendor_id",
+    } as const;
+
     const tripId = String(selectedTrip.id ?? "").trim();
     if (!tripId) {
       toast({
@@ -776,14 +814,26 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     try {
       const vendor = vendorList.find(v => v.id === selectedVendorId);
       const response = await tripsApi.assignVendor(tripId, selectedVendorId);
+      const updatePayload: Record<string, string | number | null | undefined> = {
+        [serviceFieldMap[selectedVendorService]]: selectedVendorId,
+      };
+      if (selectedVendorService === "transport") {
+        updatePayload.transport_vendor_name = vendor?.name || "";
+      } else if (selectedVendorService === "accommodation") {
+        updatePayload.accommodation_vendor_name = vendor?.name || "";
+      } else {
+        updatePayload.escort_vendor_name = vendor?.name || "";
+      }
+      const updateResponse = await tripsApi.update(tripId, updatePayload as any);
 
-      if (response.success) {
+      if (response.success && updateResponse.success) {
         toast({
           title: "Vendor Assigned",
           description: `${vendor?.name} has been assigned to ${selectedTrip.tripNumber}.`,
         });
         setAssignVendorDialogOpen(false);
         setSelectedVendorId("");
+        setSelectedVendorService("transport");
         fetchTrips();
       } else {
         toast({
@@ -852,9 +902,23 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     setEditDialogOpen(true);
   };
 
+  const extractVendorService = (trip: Trip): "transport" | "accommodation" | "escort" => {
+    if (trip.accommodationVendorId) return "accommodation";
+    if (trip.escortVendorId) return "escort";
+    return "transport";
+  };
+
   const openAssignVendorDialog = (trip: Trip) => {
     setSelectedTrip(trip);
-    setSelectedVendorId(trip.vendorId || "");
+    const service = extractVendorService(trip);
+    setSelectedVendorService(service);
+    const vendorId =
+      service === "transport"
+        ? trip.transportVendorId || trip.vendorId
+        : service === "accommodation"
+        ? trip.accommodationVendorId
+        : trip.escortVendorId;
+    setSelectedVendorId(vendorId || "");
     setAssignVendorDialogOpen(true);
   };
 
@@ -1454,27 +1518,17 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                 )}
                                 <DropdownMenuItem
                                   onClick={() => {
-                                    window.dispatchEvent(
-                                      new CustomEvent("logistics:set-tab", {
-                                        detail: "accommodation",
-                                      }),
-                                    );
-                                    window.dispatchEvent(
-                                      new CustomEvent("accommodation:prefill", {
-                                        detail: {
-                                          tripId: String(trip.id),
-                                          tripNumber: trip.tripNumber,
-                                          passengerNames: (trip.passengers || [])
-                                            .map((p) => p.name)
-                                            .filter(Boolean),
-                                          destinationCity: trip.destination ?? "",
-                                          destinationState: "",
-                                          checkInDate: trip.scheduledDepartureAt
-                                            ? trip.scheduledDepartureAt.slice(0, 10)
-                                            : "",
-                                        },
-                                      }),
-                                    );
+                                    setSelectedTrip(trip);
+                                    setAccommodationDialogState({
+                                      name: trip.accommodationName || "",
+                                      address: trip.accommodationAddress || "",
+                                      contact: trip.accommodationContact || "",
+                                      details: trip.accommodationDetails || "",
+                                      estimatedCost: trip.accommodationEstimatedCost != null ? String(trip.accommodationEstimatedCost) : "",
+                                      vendorId: trip.accommodationVendorId || "",
+                                      vendorName: trip.accommodationVendorName || "",
+                                    });
+                                    setAccommodationDialogOpen(true);
                                   }}
                                 >
                                   <Hotel className="mr-2 h-4 w-4" />
@@ -2235,6 +2289,112 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         </DialogContent>
       </Dialog>
 
+      {/* Accommodation Dialog */}
+      <Dialog open={accommodationDialogOpen} onOpenChange={setAccommodationDialogOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Accommodation Request - {selectedTrip?.tripNumber}</DialogTitle>
+            <DialogDescription>
+              Review trip accommodation preferences, update details, and attach supporting documents.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Preferred accommodation</Label>
+                <Input
+                  value={accommodationDialogState.name}
+                  onChange={(e) => setAccommodationDialogState((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Preferred hotel / lodging"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Estimated cost (₦)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={accommodationDialogState.estimatedCost}
+                  onChange={(e) => setAccommodationDialogState((prev) => ({ ...prev, estimatedCost: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Address</Label>
+                <Input
+                  value={accommodationDialogState.address}
+                  onChange={(e) => setAccommodationDialogState((prev) => ({ ...prev, address: e.target.value }))}
+                  placeholder="Street / city"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Contact</Label>
+                <Input
+                  value={accommodationDialogState.contact}
+                  onChange={(e) => setAccommodationDialogState((prev) => ({ ...prev, contact: e.target.value }))}
+                  placeholder="Phone / email"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Accommodation details</Label>
+              <Textarea
+                value={accommodationDialogState.details}
+                onChange={(e) => setAccommodationDialogState((prev) => ({ ...prev, details: e.target.value }))}
+                placeholder="Room type, nights, special requirements"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Accommodation vendor</Label>
+              <Select value={accommodationDialogState.vendorId} onValueChange={(value) => {
+                const vendor = vendorList.find((item) => item.id === value);
+                setAccommodationDialogState((prev) => ({ ...prev, vendorId: value, vendorName: vendor?.name || "" }));
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a vendor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vendorList.map((vendor) => (
+                    <SelectItem key={vendor.id} value={vendor.id}>
+                      {vendor.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+              Supporting documents can be attached in the next pass once the backend exposes the accommodation attachment endpoint.
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setAccommodationDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={async () => {
+              if (!selectedTrip) return;
+              const payload = {
+                accommodation_name: accommodationDialogState.name || undefined,
+                accommodation_address: accommodationDialogState.address || undefined,
+                accommodation_contact: accommodationDialogState.contact || undefined,
+                accommodation_details: accommodationDialogState.details || undefined,
+                accommodation_estimated_cost: accommodationDialogState.estimatedCost ? Number(accommodationDialogState.estimatedCost) : undefined,
+                accommodation_vendor_id: accommodationDialogState.vendorId || undefined,
+              };
+              const response = await tripsApi.update(String(selectedTrip.id), payload as any);
+              if (response.success) {
+                toast({ title: "Accommodation updated", description: `Trip ${selectedTrip.tripNumber} has been updated.` });
+                setAccommodationDialogOpen(false);
+                fetchTrips();
+              } else {
+                toast({ title: "Failed to update accommodation", description: response.error || "Unable to save accommodation changes.", variant: "destructive" });
+              }
+            }}>
+              Save Accommodation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Assign Vendor Dialog */}
       <Dialog open={assignVendorDialogOpen} onOpenChange={setAssignVendorDialogOpen}>
         <DialogContent className="sm:max-w-md">
@@ -2246,22 +2406,41 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label>Service Category *</Label>
+              <Select value={selectedVendorService} onValueChange={(value) => setSelectedVendorService(value as typeof selectedVendorService)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a service" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="transport">Transport</SelectItem>
+                  <SelectItem value="accommodation">Accommodation</SelectItem>
+                  <SelectItem value="escort">Escort / Security</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Select Vendor *</Label>
               <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Choose a vendor" />
                 </SelectTrigger>
                 <SelectContent>
-                  {vendorList.map(vendor => (
-                    <SelectItem key={vendor.id} value={vendor.id}>
-                      <div className="flex flex-col">
-                        <span>{vendor.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {vendor.vehicles} vehicles • {vendor.contact}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {vendorList
+                    .filter((vendor) => {
+                      if (selectedVendorService === "transport") return true;
+                      if (selectedVendorService === "accommodation") return true;
+                      return true;
+                    })
+                    .map(vendor => (
+                      <SelectItem key={vendor.id} value={vendor.id}>
+                        <div className="flex flex-col">
+                          <span>{vendor.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {vendor.vehicles} vehicles • {vendor.contact}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

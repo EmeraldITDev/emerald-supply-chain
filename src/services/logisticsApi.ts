@@ -550,15 +550,15 @@ export const journeysApi = {
   },
 
   // Update journey status
-  // Backend expects: status (uppercase: DEPARTED, EN_ROUTE, ARRIVED, COMPLETED, CANCELLED), timestamp, location
+  // Backend expects: status (lowercase: not_started, departed, at_checkpoint, en_route, arrived, closed), timestamp, location
   // Triggers JourneyStatusUpdatedNotification to relevant parties
   updateStatus: async (id: string, status: string, location?: string, timestamp?: string): Promise<ApiResponse<Journey>> => {
     const res = await apiRequest<Journey>(`/journeys/${id}/update-status`, {
       method: 'POST',
-      body: JSON.stringify({ 
-        status: status.toUpperCase(), 
+      body: JSON.stringify({
+        status,
         location,
-        timestamp: timestamp || new Date().toISOString().replace('T', ' ').substring(0, 19),
+        timestamp: timestamp || new Date().toISOString(),
       }),
     });
     if (res.success && res.data) {
@@ -571,6 +571,7 @@ export const journeysApi = {
   addCheckpoint: async (id: string, checkpoint: {
     location: string;
     notes?: string;
+    timestamp?: string;
     gpsCoordinates?: { latitude: number; longitude: number };
   }): Promise<ApiResponse<Journey>> => {
     const res = await apiRequest<Journey>(`/journeys/${id}/checkpoints`, {

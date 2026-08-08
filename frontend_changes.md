@@ -64,6 +64,10 @@ _(append here as each check completes; do not start Batch 2 until both 0a and 0b
 
 ## Batch 1 — Bugs (Shipped this loop)
 
+### Logistics module backend asks
+- **Transport/Accommodation/Escort vendor assignment:** add `transport_vendor_id`, `accommodation_vendor_id`, and `escort_vendor_id` to the `logistics_trips` table and expose them on the trip detail endpoint so the frontend can show per-service vendor assignments instead of a single generic vendor field.
+- **Accommodation trip workflow:** expose accommodation attachment support on the trip-specific accommodation dialog and accept the trip accommodation fields on `PUT /api/trip-requests/{id}` / `PUT /api/trips/{id}`.
+
 ### Reclassified from Batch 0b
 
 #### Bug B — Budget vs Actuals "No line items available" (fetch/display mapping fix)

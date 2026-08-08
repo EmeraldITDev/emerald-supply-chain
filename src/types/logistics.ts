@@ -97,6 +97,12 @@ export interface Trip {
   vendorId?: string;
   vendorName?: string;
   vendorType?: LogisticsVendorType;
+  transportVendorId?: string;
+  transportVendorName?: string;
+  accommodationVendorId?: string;
+  accommodationVendorName?: string;
+  escortVendorId?: string;
+  escortVendorName?: string;
   vehicleId?: string;
   vehiclePlate?: string;
   vehicleType?: string;
@@ -106,6 +112,7 @@ export interface Trip {
   
   // Passengers & Materials
   passengers?: TripPassenger[];
+  externalPassengers?: Array<{ name: string; email?: string; phone?: string }>;
   materials?: TripMaterial[];
   cargo?: string; // General cargo description
   
@@ -113,6 +120,14 @@ export interface Trip {
   purpose?: string;
   priority: 'low' | 'normal' | 'high' | 'urgent';
   notes?: string;
+  accommodationRequired?: boolean;
+  accommodationName?: string;
+  accommodationAddress?: string;
+  accommodationContact?: string;
+  accommodationDetails?: string;
+  accommodationEstimatedCost?: number | string;
+  escortRequired?: boolean;
+  escortDescription?: string;
   scheduledBy: string;
   scheduledByName?: string;
   

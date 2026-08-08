@@ -395,7 +395,8 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
       const response = await journeysApi.updateStatus(
         selectedJourney.id,
         updateStatus,
-        currentLocation || undefined
+        currentLocation || undefined,
+        new Date().toISOString()
       );
       
       if (response.success) {
@@ -432,6 +433,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
       const response = await journeysApi.addCheckpoint(selectedJourney.id, {
         location: currentLocation,
         notes: checkpointNotes || undefined,
+        timestamp: new Date().toISOString(),
       });
       
       if (response.success) {

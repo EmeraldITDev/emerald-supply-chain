@@ -582,7 +582,7 @@ export const FleetManagement = () => {
           }}
         >
           <DialogTrigger asChild>
-            <Button onClick={() => { setEditingVehicle(null); resetForm(); }}>
+            <Button onClick={() => { setEditingVehicle(null); resetForm(); setCreateDialogOpen(true); }}>
               <Plus className="mr-2 h-4 w-4" />
               Add Vehicle
             </Button>
