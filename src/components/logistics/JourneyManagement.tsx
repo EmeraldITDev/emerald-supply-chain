@@ -925,7 +925,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   <Label className="text-muted-foreground">Departed</Label>
                   <p className="font-medium">
                     {selectedJourney.departedAt
-                      ? new Date(selectedJourney.departedAt).toLocaleString()
+                      ? formatLagosDateTime(selectedJourney.departedAt)
                       : "Not yet"}
                   </p>
                 </div>
@@ -933,7 +933,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   <Label className="text-muted-foreground">Arrived</Label>
                   <p className="font-medium">
                     {selectedJourney.arrivedAt
-                      ? new Date(selectedJourney.arrivedAt).toLocaleString()
+                      ? formatLagosDateTime(selectedJourney.arrivedAt)
                       : "In progress"}
                   </p>
                 </div>
@@ -947,7 +947,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   <Label className="text-muted-foreground">Last Updated</Label>
                   <p className="font-medium">
                     {selectedJourney.lastUpdatedAt
-                      ? new Date(selectedJourney.lastUpdatedAt).toLocaleString()
+                      ? formatLagosDateTime(selectedJourney.lastUpdatedAt)
                       : <MissingValue />}
                   </p>
                 </div>
@@ -1021,8 +1021,8 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                         <div className="flex-1">
                           <p className="font-medium">{cp.location}</p>
                           <p className="text-xs text-muted-foreground">
-                            Arrived: {new Date(cp.arrivedAt).toLocaleString()}
-                            {cp.departedAt && ` • Left: ${new Date(cp.departedAt).toLocaleTimeString()}`}
+                            Arrived: {formatLagosDateTime(cp.arrivedAt)}
+                            {cp.departedAt && ` • Left: ${formatLagosTime(cp.departedAt)}`}
                           </p>
                           {cp.notes && <p className="text-sm mt-1">{cp.notes}</p>}
                         </div>
@@ -1050,7 +1050,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                         </div>
                         <p className="text-sm mt-1">{incident.description}</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Reported: {new Date(incident.reportedAt).toLocaleString()}
+                          Reported: {formatLagosDateTime(incident.reportedAt)}
                           {incident.location && ` • Location: ${incident.location}`}
                         </p>
                       </div>
