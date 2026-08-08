@@ -138,7 +138,7 @@ type JourneyPassengerItem = {
   external?: boolean;
 };
 
-function getJourneyPassengerList(trip?: Trip | Journey): JourneyPassengerItem[] {
+function getJourneyPassengerList(trip?: Trip | Journey | JourneyWithTrip): JourneyPassengerItem[] {
   if (!trip) return [];
 
   const root = trip as any;
@@ -235,7 +235,7 @@ function getJourneyPassengerList(trip?: Trip | Journey): JourneyPassengerItem[] 
   );
 }
 
-function getJourneyPassengerCount(trip?: Trip): number {
+function getJourneyPassengerCount(trip?: Trip | Journey | JourneyWithTrip): number {
   return getJourneyPassengerList(trip).length;
 }
 

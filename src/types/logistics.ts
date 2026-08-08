@@ -106,6 +106,10 @@ export interface Trip {
   vehicleId?: string;
   vehiclePlate?: string;
   vehicleType?: string;
+  vehicle_make?: string;
+  vehicleMake?: string;
+  vehicle_model?: string;
+  vehicleModel?: string;
   driverId?: string;
   driverName?: string;
   driverPhone?: string;
@@ -121,6 +125,9 @@ export interface Trip {
   priority: 'low' | 'normal' | 'high' | 'urgent';
   notes?: string;
   accommodationRequired?: boolean;
+  booking_scope?: import('./trip-request').TripBookingScope;
+  bookingScope?: import('./trip-request').TripBookingScope;
+  bookingScopeLabel?: string;
   accommodationName?: string;
   accommodationAddress?: string;
   accommodationContact?: string;
@@ -768,6 +775,8 @@ export interface Accommodation {
   checkOutDate?: string;     // computed by backend or client
   linkedTripId?: string;
   linkedTripNumber?: string;
+  attachments?: RequestAttachment[];
+  documents?: RequestAttachment[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -780,6 +789,9 @@ export interface CreateAccommodationData {
   hotelName: string;
   checkInDate: string;
   linkedTripId?: string;
+  attachment?: File;
+  attachments?: File[];
+  documents?: File[];
 }
 
 // ==========================================

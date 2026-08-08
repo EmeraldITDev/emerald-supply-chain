@@ -1407,6 +1407,34 @@ const toAccommodationPayload = (data: Partial<CreateAccommodationData>) => ({
   linked_trip_id: data.linkedTripId ?? null,
 });
 
+const toAccommodationFormData = (data: Partial<CreateAccommodationData>) => {
+  const formData = new FormData();
+  (data.passengerNames ?? []).forEach((name) => formData.append('passenger_names[]', name));
+  if (data.destinationState != null) formData.append('destination_state', data.destinationState);
+  if (data.destinationCity != null) formData.append('destination_city', data.destinationCity);
+  if (data.numberOfNights != null) formData.append('number_of_nights', String(data.numberOfNights));
+  if (data.hotelName != null) formData.append('hotel_name', data.hotelName);
+  if (data.checkInDate != null) formData.append('check_in_date', data.checkInDate);
+  if (data.linkedTripId != null) formData.append('linked_trip_id', String(data.linkedTripId));
+
+  if (data.attachment instanceof File) {
+    formData.append('attachment', data.attachment, data.attachment.name);
+  }
+  if (Array.isArray(data.attachments)) {
+    data.attachments.forEach((file) => formData.append('attachments[]', file, file.name));
+  }
+  if (Array.isArray(data.documents)) {
+    data.documents.forEach((file) => formData.append('documents[]', file, file.name));
+  }
+
+  return formData;
+};
+
+const isAccommodationMultipartPayload = (data: Partial<CreateAccommodationData>) =>
+  data.attachment instanceof File ||
+  Array.isArray(data.attachments) ||
+  Array.isArray(data.documents);
+
 export const accommodationApi = {
   list: async (): Promise<ApiResponse<Accommodation[]>> => {
     return apiRequest<Accommodation[]>('/logistics/accommodations');
@@ -1415,12 +1443,26 @@ export const accommodationApi = {
     return apiRequest<Accommodation>(`/logistics/accommodations/${id}`);
   },
   create: async (data: CreateAccommodationData): Promise<ApiResponse<Accommodation>> => {
+    if (isAccommodationMultipartPayload(data)) {
+      return apiRequest<Accommodation>('/logistics/accommodations', {
+        method: 'POST',
+        body: toAccommodationFormData(data),
+      });
+    }
+
     return apiRequest<Accommodation>('/logistics/accommodations', {
       method: 'POST',
       body: JSON.stringify(toAccommodationPayload(data)),
     });
   },
   update: async (id: string, data: Partial<CreateAccommodationData>): Promise<ApiResponse<Accommodation>> => {
+    if (isAccommodationMultipartPayload(data)) {
+      return apiRequest<Accommodation>(`/logistics/accommodations/${id}`, {
+        method: 'PATCH',
+        body: toAccommodationFormData(data),
+      });
+    }
+
     return apiRequest<Accommodation>(`/logistics/accommodations/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(toAccommodationPayload(data)),

@@ -25,6 +25,8 @@ import { Plus, Loader2, Trash2, X, Hotel, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { accommodationApi, tripsApi } from "@/services/logisticsApi";
+import { AttachmentList } from "@/components/attachments/AttachmentList";
+import { MultiFileDropzone } from "@/components/attachments/MultiFileDropzone";
 import type { Accommodation, Trip, CreateAccommodationData } from "@/types/logistics";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 
@@ -46,6 +48,8 @@ const normalize = (raw: any): Accommodation => ({
   checkOutDate: raw.check_out_date ?? raw.checkOutDate,
   linkedTripId: raw.linked_trip_id?.toString() ?? raw.linkedTripId,
   linkedTripNumber: raw.linked_trip?.trip_code ?? raw.linkedTripNumber,
+  attachments: raw.attachments ?? raw.documents ?? undefined,
+  documents: raw.documents ?? raw.attachments ?? undefined,
   createdAt: raw.created_at ?? raw.createdAt,
   updatedAt: raw.updated_at ?? raw.updatedAt,
 });
@@ -88,6 +92,7 @@ export function AccommodationBookings() {
     checkInDate: "",
     linkedTripId: undefined,
   });
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
 
   const fetchAll = async () => {
@@ -160,6 +165,7 @@ export function AccommodationBookings() {
   const resetForm = () => {
     setEditing(null);
     setPassengerInput("");
+    setAttachmentFiles([]);
     setForm({
       passengerNames: [],
       destinationState: "",
@@ -179,6 +185,7 @@ export function AccommodationBookings() {
   const openEdit = (item: Accommodation) => {
     setEditing(item);
     setPassengerInput("");
+    setAttachmentFiles([]);
     setForm({
       passengerNames: item.passengerNames,
       destinationState: item.destinationState,
@@ -219,9 +226,13 @@ export function AccommodationBookings() {
       return;
     }
     setSaving(true);
+    const payload = {
+      ...form,
+      attachments: attachmentFiles.length > 0 ? attachmentFiles : undefined,
+    };
     const res = editing
-      ? await accommodationApi.update(editing.id, form)
-      : await accommodationApi.create(form);
+      ? await accommodationApi.update(editing.id, payload)
+      : await accommodationApi.create(payload as CreateAccommodationData);
     setSaving(false);
     if (res.success) {
       toast({ title: editing ? "Booking updated" : "Booking created" });
@@ -439,6 +450,25 @@ export function AccommodationBookings() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">Link this booking to an existing trip schedule.</p>
+            </div>
+
+            {(editing?.attachments?.length || editing?.documents?.length) ? (
+              <div className="space-y-3 rounded-lg border border-border/40 bg-muted/10 p-4">
+                <AttachmentList
+                  attachments={editing.attachments ?? editing.documents}
+                  title="Existing attachments"
+                />
+              </div>
+            ) : null}
+
+            <div className="space-y-3">
+              <Label>Attachments</Label>
+              <MultiFileDropzone
+                files={attachmentFiles}
+                onFilesChange={setAttachmentFiles}
+                disabled={saving}
+                label="Upload hotel booking documents"
+              />
             </div>
           </div>
 
