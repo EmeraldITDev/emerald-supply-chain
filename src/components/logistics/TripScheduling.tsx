@@ -1001,13 +1001,26 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
    */
   useEffect(() => {
     const deepLinkId = searchParams.get("trip");
-    if (!deepLinkId || trips.length === 0) return;
+    if (!deepLinkId) return;
+
     const match = trips.find((t) => String(t.id) === String(deepLinkId));
-    if (!match) return;
-    openViewDialog(match);
-    const next = new URLSearchParams(searchParams);
-    next.delete("trip");
-    setSearchParams(next, { replace: true });
+    if (match) {
+      openViewDialog(match);
+      const next = new URLSearchParams(searchParams);
+      next.delete("trip");
+      setSearchParams(next, { replace: true });
+      return;
+    }
+
+    void (async () => {
+      const tripRes = await tripsApi.getById(String(deepLinkId));
+      if (tripRes.success && tripRes.data) {
+        openViewDialog(tripRes.data);
+        const next = new URLSearchParams(searchParams);
+        next.delete("trip");
+        setSearchParams(next, { replace: true });
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trips, searchParams]);
 
@@ -1674,7 +1687,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                             {trip.status === "completed" && (
                               <DropdownMenuItem onClick={() => { setSelectedTrip(trip); setJccOpen(true); }}>
                                 <FileSignature className="mr-2 h-4 w-4" />
-                                Close Trip / Issue JCC
+                                Generate JCC
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>

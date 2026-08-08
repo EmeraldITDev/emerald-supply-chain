@@ -5,6 +5,7 @@ import { Loader2, MessageSquare, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi } from "@/services/api";
 import { tripsApi } from "@/services/logisticsApi";
+import { formatLagosDateTime } from "@/utils/dateUtils";
 import type { TripComment as TripRequestComment } from "@/types/trip-request";
 import type { TripComment as LogisticsTripComment } from "@/types/logistics";
 
@@ -179,7 +180,7 @@ export function TripCommentsPanel({
                 <span className="font-medium">{c.author}</span>
                 {c.createdAt && (
                   <span className="text-xs text-muted-foreground">
-                    {new Date(c.createdAt).toLocaleString()}
+                    {formatLagosDateTime(c.createdAt, "—")}
                   </span>
                 )}
               </div>

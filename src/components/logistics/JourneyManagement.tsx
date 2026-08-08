@@ -456,7 +456,14 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
         setUpdateDialogOpen(false);
         if (response.data) {
           const updated = response.data as JourneyWithTrip;
-          setSelectedJourney((cur) => (cur ? { ...cur, ...updated } : cur));
+          setSelectedJourney((cur) => {
+            if (!cur) return cur;
+            const merged = { ...cur, ...updated } as JourneyWithTrip;
+            if (updated.linkedTrip) {
+              merged.linkedTrip = updated.linkedTrip;
+            }
+            return merged;
+          });
         }
         await fetchJourneys();
       } else {
@@ -496,7 +503,14 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
         });
         if (response.data) {
           const updated = response.data as JourneyWithTrip;
-          setSelectedJourney((cur) => (cur ? { ...cur, ...updated } : cur));
+          setSelectedJourney((cur) => {
+            if (!cur) return cur;
+            const merged = { ...cur, ...updated } as JourneyWithTrip;
+            if (updated.linkedTrip) {
+              merged.linkedTrip = updated.linkedTrip;
+            }
+            return merged;
+          });
         }
         await fetchJourneys();
       } else {
