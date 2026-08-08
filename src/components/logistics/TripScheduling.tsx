@@ -66,7 +66,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatPoAmount } from "@/utils/currency";
-import { tripsApi, logisticsDashboardApi, logisticsVendorsApi } from "@/services/logisticsApi";
+import { tripsApi, logisticsDashboardApi, logisticsVendorsApi, journeysApi } from "@/services/logisticsApi";
+import { formatLagosDateTime } from "@/utils/dateUtils";
+import type { Journey } from "@/types/logistics";
 import { useAuth } from "@/contexts/AuthContext";
 import { tripRequestApi, apiRequestFull } from "@/services/api";
 
@@ -115,11 +117,9 @@ const priorityColors: Record<string, string> = {
   urgent: "bg-destructive/10 text-destructive",
 };
 
+/** All logistics timestamps render in WAT (Africa/Lagos), not browser UTC. */
 function formatDateTime(value?: string | null): string {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString();
+  return formatLagosDateTime(value);
 }
 
 interface VendorItem {
@@ -156,6 +156,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const [jccOpen, setJccOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  /** Journey linked to the trip open in the detail dialog (same DB record). */
+  const [activeJourney, setActiveJourney] = useState<Journey | null>(null);
   const [selectedTripRequest, setSelectedTripRequest] = useState<StaffTripRequest | null>(null);
   const [loadingTripRequest, setLoadingTripRequest] = useState(false);
   const [loadingTripDetails, setLoadingTripDetails] = useState(false);
@@ -200,6 +202,23 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       cancelled = true;
     };
   }, [viewDialogOpen, selectedTrip]);
+  // Resolve the journey attached to the open trip via the backend relationship
+  // so Trip Details and Journey Management always show the same record.
+  useEffect(() => {
+    if (!viewDialogOpen || !selectedTrip) {
+      setActiveJourney(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const res = await journeysApi.getByTripId(String(selectedTrip.id));
+      if (!cancelled) setActiveJourney(res.success && res.data ? res.data : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewDialogOpen, selectedTrip]);
+
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   const [selectedVendorService, setSelectedVendorService] = useState<"transport" | "accommodation" | "escort">("transport");
   const [accommodationDialogOpen, setAccommodationDialogOpen] = useState(false);
