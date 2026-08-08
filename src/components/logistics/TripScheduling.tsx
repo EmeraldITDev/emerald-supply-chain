@@ -1553,10 +1553,20 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                   <DropdownMenuItem
                                     onClick={() => {
                                       setSelectedTrip(trip);
+                                      const existingPassengerIds =
+                                        (trip as any).journey?.passengers?.
+                                          filter((p: any) => p?.id != null)
+                                          .map((p: any) => String(p.id)) ??
+                                        (trip.passenger_user_ids ?? [])
+                                          .filter((id: any) => id != null)
+                                          .map((id: any) => String(id));
+
                                       setPassengerEditList(
-                                        (trip.passengers || [])
-                                          .map((p) => p.staffId)
-                                          .filter(Boolean) as string[],
+                                        existingPassengerIds.length > 0
+                                          ? existingPassengerIds
+                                          : (trip.passengers || [])
+                                              .map((p) => String(p.staffId ?? p.id ?? ""))
+                                              .filter((id) => id !== ""),
                                       );
                                       setEditPassengersOpen(true);
                                     }}

@@ -57,6 +57,15 @@ import type {
   Trip,
   JourneyFeedback,
 } from "@/types/logistics";
+
+const ALLOWED_TRANSITIONS: Record<JourneyStatus, JourneyStatus[]> = {
+  not_started: ["departed"],
+  departed: ["at_checkpoint", "en_route", "arrived"],
+  at_checkpoint: ["en_route", "arrived"],
+  en_route: ["arrived"],
+  arrived: ["closed"],
+  closed: [],
+};
 import { TripCommentsPanel } from "./TripCommentsPanel";
 import { TripLogisticsDetailsPanel } from "./TripLogisticsDetailsPanel";
 import { useNavigate } from "react-router-dom";
@@ -264,7 +273,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   const [selectedJourney, setSelectedJourney] = useState<JourneyWithTrip | null>(null);
   
   // Form states
-  const [updateStatus, setUpdateStatus] = useState<JourneyStatus>("en_route");
+  const [updateStatus, setUpdateStatus] = useState<JourneyStatus>("not_started");
   const [currentLocation, setCurrentLocation] = useState("");
   const [checkpointNotes, setCheckpointNotes] = useState("");
   const [incidentType, setIncidentType] = useState<string>("delay");
@@ -668,6 +677,8 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                             <>
                               <DropdownMenuItem onClick={() => {
                                 setSelectedJourney(journey);
+                                const nextStatuses = ALLOWED_TRANSITIONS[journey.status] ?? [];
+                                setUpdateStatus(nextStatuses[0] ?? journey.status);
                                 setUpdateDialogOpen(true);
                               }}>
                                 <Navigation className="mr-2 h-4 w-4" />
@@ -1097,15 +1108,29 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>New Status</Label>
-              <Select value={updateStatus} onValueChange={(v) => setUpdateStatus(v as JourneyStatus)}>
+              <Select
+                value={updateStatus}
+                onValueChange={(v) => setUpdateStatus(v as JourneyStatus)}
+                disabled={
+                  !selectedJourney ||
+                  (ALLOWED_TRANSITIONS[selectedJourney.status] ?? []).length === 0
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="departed">Departed</SelectItem>
-                  <SelectItem value="en_route">En Route</SelectItem>
-                  <SelectItem value="at_checkpoint">At Checkpoint</SelectItem>
-                  <SelectItem value="arrived">Arrived</SelectItem>
+                  {selectedJourney && (ALLOWED_TRANSITIONS[selectedJourney.status] ?? []).length > 0 ? (
+                    (ALLOWED_TRANSITIONS[selectedJourney.status] ?? []).map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {formatJourneyStatus(status)}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value={selectedJourney?.status ?? "not_started"} disabled>
+                      No further transitions available.
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
