@@ -300,8 +300,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     workflowStage: raw.workflow_stage || raw.workflowStage,
     selected_vendor_id: raw.selected_vendor_id ?? raw.selectedVendorId,
     selectedVendorId: raw.selected_vendor_id ?? raw.selectedVendorId,
-    transportVendorId: raw.transport_vendor_id?.toString() || raw.transportVendorId,
-    transportVendorName: raw.transport_vendor_name || raw.transportVendorName,
+    transportVendorId: raw.vendor_id?.toString() || raw.transportVendorId,
+    transportVendorName:
+      raw.vendor?.name || raw.vendorName || raw.vendor_name || raw.transportVendorName,
     accommodationVendorId: raw.accommodation_vendor_id?.toString() || raw.accommodationVendorId,
     accommodationVendorName: raw.accommodation_vendor_name || raw.accommodationVendorName,
     escortVendorId: raw.escort_vendor_id?.toString() || raw.escortVendorId,
@@ -794,7 +795,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     }
 
     const serviceFieldMap = {
-      transport: "transport_vendor_id",
+      transport: "vendor_id",
       accommodation: "accommodation_vendor_id",
       escort: "escort_vendor_id",
     } as const;
@@ -818,7 +819,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         [serviceFieldMap[selectedVendorService]]: selectedVendorId,
       };
       if (selectedVendorService === "transport") {
-        updatePayload.transport_vendor_name = vendor?.name || "";
+        updatePayload.vendor_name = vendor?.name || "";
       } else if (selectedVendorService === "accommodation") {
         updatePayload.accommodation_vendor_name = vendor?.name || "";
       } else {
