@@ -420,6 +420,22 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
     fetchJourneys();
   }, [tripId, statusFilter]);
 
+  /**
+   * Deep link support: /logistics?tab=journeys&journey=<id> opens that journey
+   * directly (used by "View Active Journey" from a trip and by conversion).
+   */
+  useEffect(() => {
+    const deepLinkId = searchParams.get("journey");
+    if (!deepLinkId || journeys.length === 0) return;
+    const match = journeys.find((j) => String(j.id) === String(deepLinkId));
+    if (!match) return;
+    setSelectedJourney(match);
+    setViewDialogOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("journey");
+    setSearchParams(next, { replace: true });
+  }, [journeys, searchParams, setSearchParams]);
+
   const handleUpdateStatus = async () => {
     if (!selectedJourney || !updateStatus) return;
 
@@ -707,6 +723,17 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                             >
                               <Navigation className="mr-2 h-4 w-4" />
                               Open trip record
+                            </DropdownMenuItem>
+                          )}
+                          {isJourneyCompleted(journey.status) && journey.linkedTrip && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setJccTrip(journey.linkedTrip as Trip);
+                                setJccOpen(true);
+                              }}
+                            >
+                              <CheckCircle2 className="mr-2 h-4 w-4" />
+                              Generate JCC
                             </DropdownMenuItem>
                           )}
                           {journey.status !== "arrived" && journey.status !== "closed" && (
@@ -1321,6 +1348,8 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <JCCDialog trip={jccTrip} open={jccOpen} onOpenChange={setJccOpen} />
     </div>
   );
 };
