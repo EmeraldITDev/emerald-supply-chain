@@ -462,6 +462,8 @@ export function TripRequestConversionDialog({
               <EligiblePassengerPicker
                 selectedPassengerIds={passengerIds}
                 onPassengersChange={setPassengerIds}
+                preselectedPassengers={seededPassengers}
+                emptyLabel="No passengers on this request yet — search to add staff."
               />
             </div>
 
@@ -480,9 +482,9 @@ export function TripRequestConversionDialog({
                   </div>
                   <Select value={vendorId} onValueChange={setVendorId}>
                     <SelectTrigger>
-                      <SelectValue placeholder={vendorLoading ? "Loading vendors…" : "Select vendor"} />
+                      <SelectValue placeholder={vendorLoading ? "Loading vendors…" : "Select transport vendor"} />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper" side="bottom" avoidCollisions className="max-h-[40vh] overflow-y-auto">
                       {vendorLoading && (
                         <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" /> Loading vendors…
