@@ -995,6 +995,22 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
    * Open the detail dialog and hydrate the full server record so the Logistics
    * Manager sees passengers, accommodation, escort, vehicle and driver data.
    */
+  /**
+   * Deep link: /logistics?tab=trips&trip=<id> opens that trip's detail view
+   * (used by "Open trip record" from Journey Management).
+   */
+  useEffect(() => {
+    const deepLinkId = searchParams.get("trip");
+    if (!deepLinkId || trips.length === 0) return;
+    const match = trips.find((t) => String(t.id) === String(deepLinkId));
+    if (!match) return;
+    openViewDialog(match);
+    const next = new URLSearchParams(searchParams);
+    next.delete("trip");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trips, searchParams]);
+
   const openViewDialog = (trip: Trip) => {
     setSelectedTrip(trip);
     setSelectedTripRequest(null);
