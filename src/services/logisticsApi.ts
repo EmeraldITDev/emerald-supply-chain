@@ -1529,6 +1529,10 @@ export const accommodationApi = {
 const toJccPayload = (jcc: Partial<JCC>) => ({
   date_issued: jcc.dateIssued,
   certification_statement: jcc.certificationStatement,
+  delivery_confirmed: jcc.deliveryConfirmed ?? null,
+  condition_of_goods: jcc.conditionOfGoods ?? '',
+  remarks: jcc.remarks ?? '',
+  attachment_names: (jcc.attachmentNames ?? []).filter(Boolean),
   line_items: (jcc.lineItems ?? []).map((li) => ({
     description: li.description,
     trip: li.trip,

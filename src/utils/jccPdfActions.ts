@@ -28,6 +28,10 @@ export async function openJccPdfFromDialogState(input: {
   referenceNumber?: string;
   dateIssued?: string;
   certificationStatement?: string;
+  deliveryConfirmed?: boolean | null;
+  conditionOfGoods?: string;
+  remarks?: string;
+  attachmentNames?: string[];
   lineItems?: JCCLineItem[];
   vendorAddress?: string;
   emeraldSignatoryName?: string;

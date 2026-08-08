@@ -818,6 +818,11 @@ export interface JCC {
   vendorName?: string;
   vendorAddress?: string;
   certificationStatement: string;
+  deliveryConfirmed?: boolean | null;
+  conditionOfGoods?: string;
+  remarks?: string;
+  attachmentNames?: string[];
+  attachments?: File[];
   lineItems: JCCLineItem[];
   signatoryName?: string;
   signatoryTitle?: string;

@@ -171,6 +171,17 @@ export async function buildJccPdf(model: JccDisplayModel): Promise<Blob> {
   doc.text(stmt, COL_L, y);
   y += stmt.length * 4.6 + 4;
 
+  const detailLines = [
+    `Delivery Confirmed: ${model.deliveryConfirmedDisplay}`,
+    `Condition of Goods: ${model.conditionOfGoods}`,
+    `Remarks: ${model.remarks}`,
+    `Attachments: ${model.attachments.length ? model.attachments.join(', ') : 'None'}`,
+  ];
+  const detailText = doc.splitTextToSize(detailLines.join('  |  '), COL_W);
+  doc.setFontSize(8.5);
+  doc.text(detailText, COL_L, y);
+  y += detailText.length * 4 + 2;
+
   doc.text('See below the list of leased and utilised vehicles / services;', COL_L, y);
   y += 6;
 

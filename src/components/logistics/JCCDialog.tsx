@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, Loader2, Download, FileText, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +24,7 @@ import { jccApi } from "@/services/logisticsApi";
 import type { Trip, JCC, JCCLineItem } from "@/types/logistics";
 import { openJccPdfFromDialogState } from "@/utils/jccPdfActions";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { MultiFileDropzone } from "@/components/attachments/MultiFileDropzone";
 
 interface Props {
   trip: Trip | null;
@@ -52,6 +54,11 @@ export function JCCDialog({ trip, open, onOpenChange }: Props) {
   const [referenceNumber, setReferenceNumber] = useState<string>("");
   const [dateIssued, setDateIssued] = useState<string>(todayISO());
   const [statement, setStatement] = useState<string>("");
+  const [deliveryConfirmed, setDeliveryConfirmed] = useState<boolean | null>(null);
+  const [conditionOfGoods, setConditionOfGoods] = useState<string>("");
+  const [remarks, setRemarks] = useState<string>("");
+  const [attachmentNames, setAttachmentNames] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [rows, setRows] = useState<JCCLineItem[]>([emptyRow()]);
   const [status, setStatus] = useState<JCC["status"]>("draft");
   const [askPrefill, setAskPrefill] = useState(false);
@@ -72,6 +79,11 @@ export function JCCDialog({ trip, open, onOpenChange }: Props) {
         setReferenceNumber(j.referenceNumber ?? j.reference_number ?? "");
         setDateIssued(j.dateIssued ?? j.date_issued ?? todayISO());
         setStatement(j.certificationStatement ?? j.certification_statement ?? buildStatement(trip));
+        setDeliveryConfirmed(j.deliveryConfirmed ?? j.delivery_confirmed ?? null);
+        setConditionOfGoods(j.conditionOfGoods ?? j.condition_of_goods ?? "");
+        setRemarks(j.remarks ?? "");
+        setAttachmentNames((j.attachmentNames ?? j.attachment_names ?? []).filter(Boolean));
+        setAttachments([]);
         const lis: any[] = j.lineItems ?? j.line_items ?? [];
         const mapped: JCCLineItem[] = lis.length
           ? lis.map((li) => ({
@@ -90,6 +102,11 @@ export function JCCDialog({ trip, open, onOpenChange }: Props) {
         setReferenceNumber("");
         setDateIssued(todayISO());
         setStatement(buildStatement(trip));
+        setDeliveryConfirmed(null);
+        setConditionOfGoods("");
+        setRemarks("");
+        setAttachmentNames([]);
+        setAttachments([]);
         setRows([emptyRow()]);
         setStatus("draft");
       }
@@ -143,6 +160,10 @@ export function JCCDialog({ trip, open, onOpenChange }: Props) {
       tripId: trip.id,
       dateIssued,
       certificationStatement: statement,
+      deliveryConfirmed,
+      conditionOfGoods: conditionOfGoods.trim(),
+      remarks: remarks.trim(),
+      attachmentNames,
       lineItems: rows.filter((r) => r.description.trim()),
     };
     const res = jcc ? await jccApi.update(trip.id, payload) : await jccApi.create(trip.id, payload);
@@ -188,6 +209,10 @@ export function JCCDialog({ trip, open, onOpenChange }: Props) {
         referenceNumber,
         dateIssued,
         certificationStatement: statement,
+        deliveryConfirmed,
+        conditionOfGoods,
+        remarks,
+        attachmentNames,
         lineItems: rows,
         emeraldSignatoryName: getScmRole(user) === "supply_chain_director" ? user?.name : undefined,
       });
@@ -221,6 +246,10 @@ export function JCCDialog({ trip, open, onOpenChange }: Props) {
         referenceNumber,
         dateIssued,
         certificationStatement: statement,
+        deliveryConfirmed,
+        conditionOfGoods,
+        remarks,
+        attachmentNames,
         lineItems: rows,
       });
     } catch (e) {
@@ -277,6 +306,53 @@ export function JCCDialog({ trip, open, onOpenChange }: Props) {
                 <Textarea value={statement} onChange={(e) => setStatement(e.target.value)} rows={3} />
               </div>
 
+              <div className="rounded-lg border p-4 space-y-4">
+                <div className="space-y-2">
+                  <Label>Delivery Confirmed</Label>
+                  <RadioGroup
+                    value={deliveryConfirmed === null ? "" : deliveryConfirmed ? "yes" : "no"}
+                    onValueChange={(value) => setDeliveryConfirmed(value === "yes")}
+                    className="flex gap-4"
+                  >
+                    <label className="flex items-center gap-2 text-sm">
+                      <RadioGroupItem value="yes" id="jcc-delivery-yes" />
+                      <span>Yes</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <RadioGroupItem value="no" id="jcc-delivery-no" />
+                      <span>No</span>
+                    </label>
+                  </RadioGroup>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Condition of Goods (if applicable)</Label>
+                  <Textarea value={conditionOfGoods} onChange={(e) => setConditionOfGoods(e.target.value)} rows={3} placeholder="Describe the condition of the goods or services received" />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Remarks</Label>
+                  <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={3} placeholder="Add any additional remarks for the certificate" />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Attachments</Label>
+                  <MultiFileDropzone
+                    files={attachments}
+                    onFilesChange={(nextFiles) => {
+                      setAttachments(nextFiles);
+                      setAttachmentNames(nextFiles.map((file) => file.name));
+                    }}
+                    label="Upload supporting documents"
+                  />
+                  {attachmentNames.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Attached files: {attachmentNames.join(", ")}
+                    </p>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Line Items</Label>
@@ -331,6 +407,10 @@ export function JCCDialog({ trip, open, onOpenChange }: Props) {
                 <p><strong>Trip:</strong> {trip?.tripNumber ?? ""}</p>
                 <h2>Certification</h2>
                 <p>{statement}</p>
+                <p><strong>Delivery Confirmed:</strong> {deliveryConfirmed === null ? "—" : deliveryConfirmed ? "Yes" : "No"}</p>
+                <p><strong>Condition of Goods:</strong> {conditionOfGoods || "—"}</p>
+                <p><strong>Remarks:</strong> {remarks || "—"}</p>
+                <p><strong>Attachments:</strong> {attachmentNames.length > 0 ? attachmentNames.join(", ") : "None"}</p>
                 <h2>Line Items</h2>
                 <table>
                   <thead><tr><th>#</th><th>Description</th><th>Trip</th><th>Duration/Date</th><th>Remarks</th></tr></thead>

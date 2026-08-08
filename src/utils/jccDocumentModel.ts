@@ -43,6 +43,10 @@ export interface JccDisplayModel {
   title: string;
   salutation: string;
   certificationStatement: string;
+  deliveryConfirmedDisplay: string;
+  conditionOfGoods: string;
+  remarks: string;
+  attachments: string[];
   lineItems: JccDisplayLineItem[];
   closing: string;
 
@@ -82,6 +86,14 @@ export function buildJccDisplayModel(input: {
   dateIssued?: string;
   /** Optional explicit vendor address (multi-line). */
   vendorAddress?: string;
+  /** Delivery confirmation status. */
+  deliveryConfirmed?: boolean | null;
+  /** Condition of goods / service note. */
+  conditionOfGoods?: string;
+  /** Additional remarks. */
+  remarks?: string;
+  /** Attachment names to include in the certificate. */
+  attachmentNames?: string[];
   /** Optional Emerald signatory override (defaults to SCD Viva Musa). */
   emeraldSignatoryName?: string;
   emeraldSignatoryTitle?: string;
@@ -131,6 +143,10 @@ export function buildJccDisplayModel(input: {
     title: 'JOB COMPLETION CERTIFICATE – VEHICLE SERVICES',
     salutation: 'Dear Sir,',
     certificationStatement: dash(input.certificationStatement || jcc?.certificationStatement),
+    deliveryConfirmedDisplay: input.deliveryConfirmed ?? jcc?.deliveryConfirmed ?? null ? 'Yes' : (input.deliveryConfirmed === false || jcc?.deliveryConfirmed === false ? 'No' : 'Not specified'),
+    conditionOfGoods: dash(input.conditionOfGoods || jcc?.conditionOfGoods),
+    remarks: dash(input.remarks || jcc?.remarks),
+    attachments: (input.attachmentNames ?? jcc?.attachmentNames ?? []).filter(Boolean),
     lineItems,
     closing: 'Regards.',
 
