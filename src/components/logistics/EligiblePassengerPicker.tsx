@@ -60,10 +60,18 @@ export function EligiblePassengerPicker({
     try {
       const res = await passengerApi.getEligible(q || undefined, 1);
       if (res.success && res.data) {
-        const payload = res.data as { users?: EligiblePassenger[] } | EligiblePassenger[];
-        const usersList = Array.isArray(payload)
+        const payload = res.data as any;
+        const usersList: EligiblePassenger[] = Array.isArray(payload)
           ? payload
-          : payload.users || [];
+          : Array.isArray(payload.users)
+          ? payload.users
+          : Array.isArray(payload.items)
+          ? payload.items
+          : Array.isArray(payload.data?.users)
+          ? payload.data.users
+          : Array.isArray(payload.data?.items)
+          ? payload.data.items
+          : [];
         setUsers(usersList);
       } else {
         setUsers([]);

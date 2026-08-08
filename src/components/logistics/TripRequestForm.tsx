@@ -194,6 +194,8 @@ export function TripRequestForm({
     ? { valid: true as const }
     : leadTimeCheck;
 
+  const [showSubmitWarnings, setShowSubmitWarnings] = useState(false);
+
   const missingReasons: string[] = [];
   if (!destination.trim()) missingReasons.push("Destination");
   if (!purpose.trim()) missingReasons.push("Purpose");
@@ -248,47 +250,60 @@ export function TripRequestForm({
       }
       return;
     }
-    if (!destination.trim() || !purpose.trim() || !origin.trim() || !departureAt) {
-      toast({
-        title: "Validation error",
-        description: "Destination, purpose, origin, and departure time are required.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const validExternal = externalPassengers
-      .filter((p) => p.name.trim() && p.email.trim())
-      .map((p) => ({
-        name: p.name.trim(),
-        email: p.email.trim(),
-        phone: p.phone.trim() || undefined,
-      }));
-    const invalidExternalEmail = externalPassengers.some(
-      (p) => (p.name.trim() || p.email.trim()) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim()),
-    );
-    if (invalidExternalEmail) {
-      toast({
-        title: "Validation error",
-        description: "Each external passenger needs a valid email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!asDraft && passengerIds.length === 0 && validExternal.length === 0) {
-      toast({
-        title: "Validation error",
-        description: "Select at least one staff passenger or add an external passenger.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!asDraft && !effectiveLeadTimeCheck.valid) {
-      toast({
-        title: "Advance booking required",
-        description: leadTimeCheck.valid === false ? leadTimeCheck.violationMessage : undefined,
-        variant: "destructive",
-      });
-      return;
+
+    if (asDraft) {
+      setShowSubmitWarnings(false);
+      if (!destination.trim() && !purpose.trim()) {
+        toast({
+          title: "Save as draft",
+          description: "Please enter at least a destination before saving a draft.",
+        });
+        return;
+      }
+    } else {
+      setShowSubmitWarnings(true);
+      if (!destination.trim() || !purpose.trim() || !origin.trim() || !departureAt) {
+        toast({
+          title: "Validation error",
+          description: "Destination, purpose, origin, and departure time are required.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const invalidExternalEmail = externalPassengers.some(
+        (p) => (p.name.trim() || p.email.trim()) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim()),
+      );
+      if (invalidExternalEmail) {
+        toast({
+          title: "Validation error",
+          description: "Each external passenger needs a valid email address.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const validExternal = externalPassengers
+        .filter((p) => p.name.trim() && p.email.trim())
+        .map((p) => ({
+          name: p.name.trim(),
+          email: p.email.trim(),
+          phone: p.phone.trim() || undefined,
+        }));
+      if (passengerIds.length === 0 && validExternal.length === 0) {
+        toast({
+          title: "Validation error",
+          description: "Select at least one staff passenger or add an external passenger.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!effectiveLeadTimeCheck.valid) {
+        toast({
+          title: "Advance booking required",
+          description: leadTimeCheck.valid === false ? leadTimeCheck.violationMessage : undefined,
+          variant: "destructive",
+        });
+        return;
+      }
     }
     // Accommodation and escort details are optional even when the
     // requester flags they are required — logistics will fill them in
@@ -299,19 +314,41 @@ export function TripRequestForm({
       const accommodationCostNumber = accommodationEstimatedCost
         ? Number(accommodationEstimatedCost)
         : undefined;
+      const validExternal = externalPassengers
+        .filter((p) => p.name.trim() && p.email.trim())
+        .map((p) => ({
+          name: p.name.trim(),
+          email: p.email.trim(),
+          phone: p.phone.trim() || undefined,
+        }));
+      const draftExternal = externalPassengers
+        .filter((p) => p.name.trim() || p.email.trim() || p.phone.trim())
+        .map((p) => ({
+          name: p.name.trim(),
+          email: p.email.trim() || undefined,
+          phone: p.phone.trim() || undefined,
+        }));
       const payload = {
-        destination: destination.trim(),
-        purpose: purpose.trim(),
-        origin: origin.trim() || "Office",
-        scheduled_departure_at: new Date(departureAt).toISOString(),
+        destination: destination.trim() || undefined,
+        purpose: purpose.trim() || undefined,
+        origin: origin.trim() || undefined,
+        scheduled_departure_at: departureAt ? new Date(departureAt).toISOString() : undefined,
         scheduled_arrival_at: arrivalAt
           ? new Date(arrivalAt).toISOString()
-          : new Date(departureAt).toISOString(),
+          : departureAt
+          ? new Date(departureAt).toISOString()
+          : undefined,
         passenger_user_ids: passengerIds
           .map((id) => parseInt(id, 10))
           .filter((n) => !Number.isNaN(n)),
         bookingScope,
-        external_passengers: validExternal.length > 0 ? validExternal : undefined,
+        external_passengers: asDraft
+          ? draftExternal.length > 0
+            ? draftExternal
+            : undefined
+          : validExternal.length > 0
+          ? validExternal
+          : undefined,
         international_transport_mode:
           bookingScope === "international" ? internationalTransportMode : null,
         trip_type: tripType || undefined,
@@ -332,9 +369,23 @@ export function TripRequestForm({
       // On edit, send only the fields the user actually touched. Cleared fields
       // are sent explicitly as null/empty so the backend does not mistake them
       // for "unchanged".
+      const validExternal = externalPassengers
+        .filter((p) => p.name.trim() && p.email.trim())
+        .map((p) => ({
+          name: p.name.trim(),
+          email: p.email.trim(),
+          phone: p.phone.trim() || undefined,
+        }));
+      const draftExternal = externalPassengers
+        .filter((p) => p.name.trim() || p.email.trim() || p.phone.trim())
+        .map((p) => ({
+          name: p.name.trim(),
+          email: p.email.trim() || undefined,
+          phone: p.phone.trim() || undefined,
+        }));
       const editPayload: Record<string, unknown> = {
-        destination: destination.trim(),
-        purpose: purpose.trim(),
+        destination: destination.trim() || null,
+        purpose: purpose.trim() || null,
         origin: origin.trim() || null,
         scheduled_departure_at: departureAt ? new Date(departureAt).toISOString() : null,
         scheduled_arrival_at: arrivalAt ? new Date(arrivalAt).toISOString() : null,
@@ -342,7 +393,7 @@ export function TripRequestForm({
           .map((id) => parseInt(id, 10))
           .filter((n) => !Number.isNaN(n)),
         bookingScope,
-        external_passengers: validExternal,
+        external_passengers: draftExternal,
         international_transport_mode:
           bookingScope === "international" ? internationalTransportMode : null,
         trip_type: tripType || null,
@@ -425,9 +476,18 @@ export function TripRequestForm({
     }
   };
 
-  const handleSubmit = () => submit(false);
-  const handleSaveDraft = () => submit(true);
-  const handleSubmitDraft = () => submit(false, true);
+  const handleSubmit = () => {
+    setShowSubmitWarnings(true);
+    submit(false);
+  };
+  const handleSaveDraft = () => {
+    setShowSubmitWarnings(false);
+    submit(true);
+  };
+  const handleSubmitDraft = () => {
+    setShowSubmitWarnings(true);
+    submit(false, true);
+  };
   const isDraftRecord = Boolean(
     isEdit && (trip?.is_draft ?? trip?.isDraft ?? trip?.status === "draft"),
   );
@@ -738,7 +798,7 @@ export function TripRequestForm({
         )}
       </div>
 
-      {missingReasons.length > 0 && !submitting && (
+      {showSubmitWarnings && missingReasons.length > 0 && !submitting && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
           <p className="font-medium text-amber-600 dark:text-amber-400 mb-1">
             Complete the following before submitting:
