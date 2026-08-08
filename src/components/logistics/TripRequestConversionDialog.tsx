@@ -35,7 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi, vendorApi } from "@/services/api";
 import { resolveTripWorkflowError } from "@/utils/tripApprovalErrors";
 import { fleetApi } from "@/services/logisticsApi";
-import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
+import { EligiblePassengerPicker, type PreselectedPassenger } from "./EligiblePassengerPicker";
 import type { StaffTripRequest } from "@/types/trip-request";
 import type { FleetVehicle } from "@/types/logistics";
 import type { Vendor } from "@/types";
@@ -101,6 +101,9 @@ export function TripRequestConversionDialog({
   const [escortRequired, setEscortRequired] = useState(false);
   const [escortDescription, setEscortDescription] = useState("");
   const [escortCost, setEscortCost] = useState("");
+  const [accommodationVendorId, setAccommodationVendorId] = useState("");
+  const [escortVendorId, setEscortVendorId] = useState("");
+  const [seededPassengers, setSeededPassengers] = useState<PreselectedPassenger[]>([]);
   const [softWarning, setSoftWarning] = useState<string | null>(null);
 
   const seedPassengers = useCallback((trip: StaffTripRequest) => {
@@ -112,6 +115,20 @@ export function TripRequestConversionDialog({
         .filter((id): id is number => id != null)
         .map(String);
     setPassengerIds(ids.map(String));
+    // Keep the resolved passenger objects so the picker can render them even
+    // when the eligible-staff directory does not include them.
+    const known: PreselectedPassenger[] = (trip.passengers ?? [])
+      .map((p) => {
+        const id = p.userId ?? p.user_id ?? p.id;
+        return id == null ? null : { id: String(id), name: p.name, department: p.department };
+      })
+      .filter((p): p is PreselectedPassenger => p != null);
+    const knownIds = new Set(known.map((p) => String(p.id)));
+    const placeholders = ids
+      .map(String)
+      .filter((id) => !knownIds.has(id))
+      .map((id) => ({ id }));
+    setSeededPassengers([...known, ...placeholders]);
   }, []);
 
   // Always hydrate the full record on open — the list payload omits
