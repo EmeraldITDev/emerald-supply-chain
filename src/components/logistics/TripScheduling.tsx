@@ -932,7 +932,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     setTripDetailError(null);
     setViewDialogOpen(true);
 
-    const raw = trip as Trip & Record<string, unknown>;
+    const raw = trip as unknown as Trip & Record<string, unknown>;
     const requestId =
       raw.trip_request_id ?? raw.tripRequestId ?? raw.request_id ?? raw.requestId ?? trip.id;
 
@@ -947,7 +947,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         if (tripRes.success && tripRes.data) {
           // If backend returned passenger IDs but not resolved user objects,
           // resolve them here and attach `includedUsers` to the trip payload.
-          const incoming = tripRes.data as Record<string, unknown>;
+          const incoming = tripRes.data as unknown as Record<string, unknown>;
           const ids: unknown[] = (incoming.passengerUserIds ?? incoming.passenger_user_ids) as unknown[] ?? [];
           const hasIncluded = Array.isArray(incoming.includedUsers) || Array.isArray(incoming.included_users) || Array.isArray(incoming.passengers);
           if (Array.isArray(ids) && ids.length > 0 && !hasIncluded) {

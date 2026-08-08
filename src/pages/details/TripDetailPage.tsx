@@ -37,7 +37,7 @@ export default function TripDetailPage() {
     };
   }, [id]);
 
-  const t = trip as Trip & Record<string, unknown> | null;
+  const t = trip as unknown as (Trip & Record<string, unknown>) | null;
   const viewer = resolveTripViewer(t);
   const externalDriver = (t?.external_driver ?? t?.externalDriver) as
     | { name?: string; phone?: string }
