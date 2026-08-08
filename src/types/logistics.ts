@@ -153,6 +153,8 @@ export interface Trip {
   unsignedPoUrl?: string;
   signed_po_url?: string;
   signedPoUrl?: string;
+  available_actions?: string[];
+  availableActions?: string[];
 }
 
 export interface CreateTripData {

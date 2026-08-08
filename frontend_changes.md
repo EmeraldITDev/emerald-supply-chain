@@ -897,7 +897,7 @@ accommodation_required, accommodation_name, accommodation_address,
 accommodation_contact, accommodation_details, accommodation_estimated_cost,
 escort_required, escort_description, escort_estimated_cost,
 logistics_trip_id, logistics: { vehicle, vendor, driver, estimated_cost, notes },
-available_actions: string[],   // e.g. ["approve","return","reject"] | ["convert"] | ["assign_vehicle"] | []
+available_actions: string[],   // e.g. ["approve","return","reject"] | ["convert"] | ["assign_vehicle"] | ["remind_scd"] | []
 next_actor: string|null,
 audit_trail: [ { action, actor_name, actor_role, remarks, created_at } ],
 progress: { steps: [ { key, label, status, completed_at } ] }
@@ -906,6 +906,8 @@ Frontend use: the detail page fetches this fresh on every mount. `available_acti
 is the only gate for rendering workflow buttons — if it is present and empty, a
 read-only status banner is shown instead. Conversion and edit dialogs hydrate from
 this payload so no previously entered information is ever re-typed.
+
+**Backend contract note:** `POST /api/trip-requests/{id}/remind-scd` should accept no body, return `success: true`, and may return `{ trip, message }` when the reminder is dispatched. The frontend renders the action only when `available_actions` contains `remind_scd`.
 
 ### 2. `POST /api/trip-requests/{id}/convert` — convert to logistics request
 Roles: logistics_officer, logistics_manager, admin.

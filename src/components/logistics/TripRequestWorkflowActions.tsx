@@ -10,7 +10,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Send, XCircle, RotateCcw, CheckCircle, Truck } from "lucide-react";
+import { Loader2, Send, XCircle, RotateCcw, CheckCircle, Truck, Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi } from "@/services/api";
 import type { StaffTripRequest } from "@/types/trip-request";
@@ -40,7 +40,13 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const role = getScmRole(user);
-  const actions = trip.availableActions ?? [];
+  const actions = Array.isArray(trip.availableActions)
+    ? trip.availableActions.map((a) => String(a).toLowerCase().trim())
+    : Array.isArray((trip as { available_actions?: unknown }).available_actions)
+      ? ((trip as { available_actions?: string[] }).available_actions as string[]).map((a) =>
+          String(a).toLowerCase().trim(),
+        )
+      : [];
   const [busy, setBusy] = useState(false);
   const [reasonOpen, setReasonOpen] = useState<"reject" | "changes" | "return" | null>(null);
   const [reason, setReason] = useState("");
@@ -105,11 +111,13 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
   const showForward = isLm && actions.includes("forward");
   const showReject = isLm && actions.includes("reject");
   const showChanges = isLm && actions.includes("request_changes");
+  const showRemindScd = isLm && actions.includes("remind_scd");
   // Convert disappears the moment the trip has a logistics record or the
   // backend stops offering the action.
   const showConvert = isLm && !isTripConverted(trip as unknown as Record<string, unknown>) &&
     canConvertToLogistics(trip as unknown as Record<string, unknown>);
   const showDirectorApprove = isDirector && approveAllowed;
+  const showDirectorReturn = isDirector && (actions.includes("director_return") || (!actions.length && approveAllowed));
 
   // Quotations decide whether vendor selection is mandatory on SCD approval.
   const { data: rfqs = [] } = useQuery({
@@ -122,8 +130,6 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
   });
   const vendorSelectionRequired = rfqs.length > 0;
   const showDirectorReject = isDirector && rejectAllowed;
-  const showDirectorReturn =
-    isDirector && (actions.includes("director_return") || approveAllowed);
 
   if (
     !showForward &&
@@ -192,6 +198,13 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
           <Button size="sm" onClick={() => setConvertOpen(true)}>
             <Truck className="mr-2 h-4 w-4" />
             Convert to logistics request
+          </Button>
+        )}
+        {showRemindScd && (
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => tripRequestApi.remindScd(String(trip.id)), "Supply Chain Director reminded")}
+          >
+            <Bell className="mr-2 h-4 w-4" />
+            Remind SCD
           </Button>
         )}
       </div>

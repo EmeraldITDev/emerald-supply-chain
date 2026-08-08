@@ -4541,6 +4541,29 @@ export const tripRequestApi = {
     return tripRequestApi.logisticsReview(id, { action: 'request_changes', reason });
   },
 
+  remindScd: async (
+    id: string,
+  ): Promise<
+    ApiResponse<{
+      trip?: import('@/types/trip-request').StaffTripRequest;
+      message?: string;
+    }>
+  > => {
+    const res = await apiRequest<Record<string, unknown>>(
+      `/trip-requests/${encodeURIComponent(id)}/remind-scd`,
+      { method: 'POST' },
+    );
+    if (res.success && res.data) {
+      const raw = res.data as Record<string, unknown>;
+      const trip = (raw.trip as import('@/types/trip-request').StaffTripRequest) ?? undefined;
+      return { ...res, data: { trip, message: raw.message as string | undefined } };
+    }
+    return res as unknown as ApiResponse<{
+      trip?: import('@/types/trip-request').StaffTripRequest;
+      message?: string;
+    }>;
+  },
+
   /** Unified logistics review action — POST /api/trip-requests/{id}/logistics-review */
   logisticsReview: async (
     id: string,

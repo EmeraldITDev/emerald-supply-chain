@@ -73,6 +73,17 @@ export function TripWorkflowActions({
     (trip as Trip & { selected_vendor_id?: string | number }).selected_vendor_id ||
     trip.vendorId;
 
+  const actions = Array.isArray(trip.availableActions)
+    ? trip.availableActions.map((a) => String(a).toLowerCase().trim())
+    : Array.isArray((trip as { available_actions?: unknown }).available_actions)
+      ? ((trip as { available_actions?: string[] }).available_actions as string[]).map((a) =>
+          String(a).toLowerCase().trim(),
+        )
+      : [];
+
+  const hasActionContract =
+    trip.availableActions !== undefined || (trip as { available_actions?: unknown }).available_actions !== undefined;
+
   const isLogistics = userRole && LOGISTICS_ROLES.has(userRole);
   const isProcurement = userRole && PROCUREMENT_ROLES.has(userRole);
   const isScd = userRole && SCD_ROLES.has(userRole);
@@ -81,10 +92,10 @@ export function TripWorkflowActions({
     setConverted(isTripConverted(trip as unknown as Record<string, unknown>));
   }, [trip]);
 
-  const canConvert =
-    Boolean(isLogistics) &&
-    !converted &&
-    canConvertToLogistics(trip as unknown as Record<string, unknown>);
+  const canConvert = Boolean(isLogistics) && !converted &&
+    (hasActionContract
+      ? actions.some((a) => a === "convert_to_logistics" || a === "convert")
+      : canConvertToLogistics(trip as unknown as Record<string, unknown>));
 
   const stageBanner = resolveTripStageBanner(trip as unknown as Record<string, unknown>);
 
@@ -108,8 +119,22 @@ export function TripWorkflowActions({
       (trip as Trip & { unsignedPoUrl?: string }).unsignedPoUrl,
   );
 
-  const showProcurementVendorActions =
-    isProcurement && (stage === "vendor_selection" || stage === "procurement_review");
+  const showProcurementVendorActions = isProcurement &&
+    (hasActionContract
+      ? actions.some((a) => a === "assign_vendor" || a === "compare_vendors")
+      : stage === "vendor_selection" || stage === "procurement_review");
+
+  const showProcurementApproveQuote = isProcurement &&
+    (hasActionContract ? actions.some((a) => a === "approve_quote" || a === "procurement_approve_quote") : stage === "procurement_review");
+
+  const showScdApprove = isScd &&
+    (hasActionContract ? actions.some((a) => a === "scd_approve" || a === "director_approve") : stage === "scd_approval");
+
+  const showScdUploadSignedPo = isScd && hasUnsignedPo &&
+    (hasActionContract ? actions.some((a) => a === "upload_signed_po" || a === "upload_signedpo") : stage === "po_generation");
+
+  const showProcurementGeneratePo = isProcurement &&
+    (hasActionContract ? actions.some((a) => a === "generate_po" || a === "generatepo") : stage === "po_generation");
 
   return (
     <div className="space-y-3 rounded-lg border p-4 bg-muted/30">
@@ -152,7 +177,7 @@ export function TripWorkflowActions({
           </Button>
         )}
 
-        {stage === "procurement_review" && isProcurement && selectedVendorId && (
+        {showProcurementApproveQuote && selectedVendorId && (
           <Button
             size="sm"
             disabled={busy}
@@ -168,13 +193,13 @@ export function TripWorkflowActions({
           </Button>
         )}
 
-        {stage === "procurement_review" && isProcurement && !selectedVendorId && (
+        {showProcurementApproveQuote && !selectedVendorId && (
           <p className="text-xs text-amber-600 w-full">
             Select a vendor before approving the quote.
           </p>
         )}
 
-        {stage === "scd_approval" && isScd && (
+        {showScdApprove && (
           <Button
             size="sm"
             disabled={busy}
@@ -186,13 +211,13 @@ export function TripWorkflowActions({
           </Button>
         )}
 
-        {stage === "po_generation" && isProcurement && (
+        {showProcurementGeneratePo && (
           <Button size="sm" disabled={busy} onClick={() => setPoOpen(true)}>
             Generate trip PO
           </Button>
         )}
 
-        {stage === "po_generation" && isScd && hasUnsignedPo && (
+        {showScdUploadSignedPo && (
           <Button size="sm" variant="outline" disabled={busy} onClick={() => setSignedPoOpen(true)}>
             Upload signed PO
           </Button>
