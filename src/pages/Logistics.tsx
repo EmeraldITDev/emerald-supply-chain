@@ -79,6 +79,13 @@ const Logistics = () => {
       window.removeEventListener("logistics:set-tab", handler as EventListener);
   }, []);
 
+  // Keep the active tab in sync with ?tab= so in-page deep links
+  // (journey -> trip record, trip -> active journey) switch tabs.
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
+
   // Designate driver form
   const [driverStaffId, setDriverStaffId] = useState("");
   const [driverName, setDriverName] = useState("");
