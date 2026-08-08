@@ -17,7 +17,7 @@ import { Loader2, AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { tripRequestApi } from "@/services/api";
-import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
+import { EligiblePassengerPicker, type PreselectedPassenger } from "./EligiblePassengerPicker";
 import type {
   TripBookingScope,
   TripBookingScopeRule,
@@ -84,6 +84,7 @@ export function TripRequestForm({
   const [accommodationEstimatedCost, setAccommodationEstimatedCost] = useState<string>("");
   const [escortRequired, setEscortRequired] = useState(false);
   const [escortDescription, setEscortDescription] = useState("");
+  const [preselectedPassengers, setPreselectedPassengers] = useState<PreselectedPassenger[]>([]);
 
   const isEdit = mode === "edit" && trip != null;
 
@@ -121,6 +122,20 @@ export function TripRequestForm({
         .filter((id): id is number => id != null)
         .map(String);
     setPassengerIds(ids.map(String));
+    const preselected = ((trip.passengers ?? []) as any[]).reduce<PreselectedPassenger[]>(
+      (acc, p) => {
+        const id = p.id ?? p.user_id;
+        if (id == null) return acc;
+        acc.push({
+          id: String(id),
+          name: p.name || p.full_name || `Staff #${id}`,
+          department: p.department ?? p.dept ?? undefined,
+        });
+        return acc;
+      },
+      [],
+    );
+    setPreselectedPassengers(preselected);
     setBookingScope(
       (trip.bookingScope ?? trip.booking_scope ?? "out_of_state_local") as TripBookingScope,
     );
@@ -594,6 +609,7 @@ export function TripRequestForm({
       <EligiblePassengerPicker
         selectedPassengerIds={passengerIds}
         onPassengersChange={(ids) => { touch("passenger_user_ids"); setPassengerIds(ids); }}
+        preselectedPassengers={preselectedPassengers}
         showDriver={false}
       />
 

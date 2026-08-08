@@ -14,7 +14,7 @@ import { passengerApi } from "@/services/api";
 import type { EligiblePassenger } from "@/types/logistics";
 
 export interface PreselectedPassenger {
-  id: string | number;
+  id: string;
   name?: string;
   department?: string;
 }
@@ -71,6 +71,8 @@ export function EligiblePassengerPicker({
           ? payload.data.users
           : Array.isArray(payload.data?.items)
           ? payload.data.items
+          : Array.isArray((res as any).users)
+          ? (res as any).users
           : [];
         setUsers(usersList);
       } else {
