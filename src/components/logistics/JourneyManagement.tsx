@@ -268,6 +268,7 @@ function fieldValue(value: unknown): React.ReactNode {
 export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [journeys, setJourneys] = useState<JourneyWithTrip[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -289,6 +290,8 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<JourneyFeedback[]>([]);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [jccOpen, setJccOpen] = useState(false);
+  const [jccTrip, setJccTrip] = useState<Trip | null>(null);
 
   // Passenger feedback for the journey currently open in the detail dialog.
   useEffect(() => {
