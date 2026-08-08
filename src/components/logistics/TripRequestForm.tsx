@@ -251,6 +251,21 @@ export function TripRequestForm({
       return;
     }
 
+    const validExternal = externalPassengers
+      .filter((p) => p.name.trim() && p.email.trim())
+      .map((p) => ({
+        name: p.name.trim(),
+        email: p.email.trim(),
+        phone: p.phone.trim() || undefined,
+      }));
+    const draftExternal = externalPassengers
+      .filter((p) => p.name.trim() || p.email.trim() || p.phone.trim())
+      .map((p) => ({
+        name: p.name.trim(),
+        email: p.email.trim() || undefined,
+        phone: p.phone.trim() || undefined,
+      }));
+
     if (asDraft) {
       setShowSubmitWarnings(false);
       if (!destination.trim() && !purpose.trim()) {
@@ -281,13 +296,7 @@ export function TripRequestForm({
         });
         return;
       }
-      const validExternal = externalPassengers
-        .filter((p) => p.name.trim() && p.email.trim())
-        .map((p) => ({
-          name: p.name.trim(),
-          email: p.email.trim(),
-          phone: p.phone.trim() || undefined,
-        }));
+      
       if (passengerIds.length === 0 && validExternal.length === 0) {
         toast({
           title: "Validation error",
@@ -314,20 +323,7 @@ export function TripRequestForm({
       const accommodationCostNumber = accommodationEstimatedCost
         ? Number(accommodationEstimatedCost)
         : undefined;
-      const validExternal = externalPassengers
-        .filter((p) => p.name.trim() && p.email.trim())
-        .map((p) => ({
-          name: p.name.trim(),
-          email: p.email.trim(),
-          phone: p.phone.trim() || undefined,
-        }));
-      const draftExternal = externalPassengers
-        .filter((p) => p.name.trim() || p.email.trim() || p.phone.trim())
-        .map((p) => ({
-          name: p.name.trim(),
-          email: p.email.trim() || undefined,
-          phone: p.phone.trim() || undefined,
-        }));
+      
       const payload = {
         destination: destination.trim() || undefined,
         purpose: purpose.trim() || undefined,
@@ -369,20 +365,6 @@ export function TripRequestForm({
       // On edit, send only the fields the user actually touched. Cleared fields
       // are sent explicitly as null/empty so the backend does not mistake them
       // for "unchanged".
-      const validExternal = externalPassengers
-        .filter((p) => p.name.trim() && p.email.trim())
-        .map((p) => ({
-          name: p.name.trim(),
-          email: p.email.trim(),
-          phone: p.phone.trim() || undefined,
-        }));
-      const draftExternal = externalPassengers
-        .filter((p) => p.name.trim() || p.email.trim() || p.phone.trim())
-        .map((p) => ({
-          name: p.name.trim(),
-          email: p.email.trim() || undefined,
-          phone: p.phone.trim() || undefined,
-        }));
       const editPayload: Record<string, unknown> = {
         destination: destination.trim() || null,
         purpose: purpose.trim() || null,

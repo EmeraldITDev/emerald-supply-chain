@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { writeFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
 
@@ -24,10 +24,19 @@ export function versionJsonPlugin(mode: string, buildId?: string): Plugin {
     closeBundle() {
       if (mode !== "production") return;
       const outDir = resolve(process.cwd(), "dist");
-      writeFileSync(
-        resolve(outDir, "version.json"),
-        `${JSON.stringify({ buildId: id, builtAt: new Date().toISOString() }, null, 2)}\n`,
-      );
+      try {
+        // Ensure output directory exists before attempting to write
+        mkdirSync(outDir, { recursive: true });
+        writeFileSync(
+          resolve(outDir, "version.json"),
+          `${JSON.stringify({ buildId: id, builtAt: new Date().toISOString() }, null, 2)}\n`,
+        );
+      } catch (err) {
+        // Don't fail the build if writing the version file fails in constrained environments
+        // Log to console for diagnostics in CI/deploy logs.
+        // eslint-disable-next-line no-console
+        console.warn("versionJsonPlugin: could not write version.json:", err);
+      }
     },
   };
 }
