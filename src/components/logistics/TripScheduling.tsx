@@ -127,6 +127,9 @@ interface VendorItem {
   name: string;
   contact?: string;
   vehicles?: number;
+  category?: string;
+  categories?: string[];
+  serviceTypes?: string[];
 }
 
 export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) => {
@@ -418,12 +421,27 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     try {
       const response = await logisticsVendorsApi.getAll();
       if (response.success && response.data) {
-        const vendors: VendorItem[] = response.data.map((v: any) => ({
-          id: v.id?.toString() || v.vendor_id,
-          name: v.name || v.company_name,
-          contact: v.contact || v.phone,
-          vehicles: v.vehicles || v.vehicle_count,
-        }));
+        const vendors: VendorItem[] = response.data.map((v: any) => {
+          const categories = Array.isArray(v.categories)
+            ? v.categories.map(String)
+            : typeof v.category === "string"
+            ? [v.category]
+            : [];
+          const serviceTypes = Array.isArray(v.service_types)
+            ? v.service_types.map(String)
+            : typeof v.service_type === "string"
+            ? [v.service_type]
+            : [];
+          return {
+            id: v.id?.toString() || v.vendor_id,
+            name: v.name || v.company_name,
+            contact: v.contact || v.phone,
+            vehicles: v.vehicles || v.vehicle_count,
+            category: v.category || v.vendor_category || undefined,
+            categories,
+            serviceTypes,
+          };
+        });
         setVendorList(vendors);
       }
     } catch (error) {
@@ -454,6 +472,36 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     statusFilter !== "all" ||
     typeFilter !== "all" ||
     Boolean(debouncedSearch.trim());
+
+  const getVendorServiceTags = (vendor: VendorItem): string[] => {
+    const rawValues = [
+      vendor.category,
+      ...(vendor.categories || []),
+      ...(vendor.serviceTypes || []),
+    ];
+    return rawValues
+      .filter(Boolean)
+      .flatMap((value) => String(value).split(/[,;/\|]/g))
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+  };
+
+  const vendorMatchesService = (
+    vendor: VendorItem,
+    service: "transport" | "accommodation" | "escort",
+  ): boolean => {
+    const tags = getVendorServiceTags(vendor);
+    if (tags.length === 0) return true;
+
+    const serviceMatchers: Record<string, string[]> = {
+      transport: ["transport", "logistics", "vehicle", "fleet", "haulage", "delivery", "road"],
+      accommodation: ["accommodation", "hotel", "lodging", "stay", "room", "guesthouse"],
+      escort: ["escort", "security", "guard", "protection", "armed", "unarmed"],
+    };
+
+    const matchers = serviceMatchers[service];
+    return tags.some((tag) => matchers.some((matcher) => tag.includes(matcher)));
+  };
 
   const fetchTripExportPage = useCallback(
     async (page: number, perPage: number) => {
@@ -2425,19 +2473,15 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 <SelectTrigger>
                   <SelectValue placeholder="Choose a vendor" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent side="bottom" align="start">
                   {vendorList
-                    .filter((vendor) => {
-                      if (selectedVendorService === "transport") return true;
-                      if (selectedVendorService === "accommodation") return true;
-                      return true;
-                    })
-                    .map(vendor => (
+                    .filter((vendor) => vendorMatchesService(vendor, selectedVendorService))
+                    .map((vendor) => (
                       <SelectItem key={vendor.id} value={vendor.id}>
                         <div className="flex flex-col">
                           <span>{vendor.name}</span>
                           <span className="text-xs text-muted-foreground">
-                            {vendor.vehicles} vehicles • {vendor.contact}
+                            {vendor.vehicles ?? "—"} vehicles • {vendor.contact ?? "No contact"}
                           </span>
                         </div>
                       </SelectItem>
