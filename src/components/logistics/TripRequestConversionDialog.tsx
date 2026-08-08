@@ -118,11 +118,11 @@ export function TripRequestConversionDialog({
     // Keep the resolved passenger objects so the picker can render them even
     // when the eligible-staff directory does not include them.
     const known: PreselectedPassenger[] = (trip.passengers ?? [])
-      .map((p) => {
+      .map((p): PreselectedPassenger | null => {
         const id = p.userId ?? p.user_id ?? p.id;
         return id == null ? null : { id: String(id), name: p.name, department: p.department };
       })
-      .filter((p): p is PreselectedPassenger => p != null);
+      .filter((p): p is PreselectedPassenger => p !== null);
     const knownIds = new Set(known.map((p) => String(p.id)));
     const placeholders = ids
       .map(String)
