@@ -1127,6 +1127,35 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   </div>
                 </div>
               )}
+
+              {/* Completion actions — JCC + jump to the linked trip record */}
+              <div className="flex flex-wrap gap-2 pt-4 border-t">
+                {selectedJourney.linkedTrip && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setViewDialogOpen(false);
+                      navigate(`/logistics?tab=trips&trip=${selectedJourney.linkedTrip!.id}`);
+                    }}
+                  >
+                    <Navigation className="mr-2 h-4 w-4" />
+                    Open trip record
+                  </Button>
+                )}
+                {isJourneyCompleted(selectedJourney.status) && selectedJourney.linkedTrip && (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setJccTrip(selectedJourney.linkedTrip as Trip);
+                      setJccOpen(true);
+                    }}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Generate JCC
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
