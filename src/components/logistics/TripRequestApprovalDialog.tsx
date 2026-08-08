@@ -81,8 +81,9 @@ export function TripRequestApprovalDialog({
         setVehicles(arr.filter((v) => v.approvalStatus !== "rejected"));
       }
       if (driversRes.success && driversRes.data) {
-        const payload = driversRes.data as { users?: EligiblePassenger[] };
-        setDrivers(payload.users ?? []);
+        const payload = driversRes.data as { users?: EligiblePassenger[] } | EligiblePassenger[];
+        const driversList = Array.isArray(payload) ? payload : payload.users ?? [];
+        setDrivers(driversList);
       }
       setLoadingOptions(false);
     })();

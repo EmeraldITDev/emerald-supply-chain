@@ -81,7 +81,7 @@ import type { PaginationMeta } from "@/types/pagination";
 import { useTableExport } from "@/hooks/useTableExport";
 import { TableExportMenu } from "@/components/export/TableExportMenu";
 import { TRIP_EXPORT_COLUMNS, type TripExportRow } from "@/config/tableExportPresets";
-import { EligiblePassengerPicker } from "./EligiblePassengerPicker";
+import { EligiblePassengerPicker, type PreselectedPassenger } from "./EligiblePassengerPicker";
 import type { Trip, TripStatus, TripType, TripPassenger, CreateTripData, BulkTripUploadResult } from "@/types/logistics";
 import { VendorJMPSubmission } from "./VendorJMPSubmission";
 import { PassengerNotification } from "./PassengerNotification";
@@ -242,6 +242,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   // 8e — dedicated edit passengers dialog
   const [editPassengersOpen, setEditPassengersOpen] = useState(false);
   const [passengerEditList, setPassengerEditList] = useState<string[]>([]);
+  const [passengerEditPreselected, setPassengerEditPreselected] = useState<PreselectedPassenger[]>([]);
   const [savingPassengers, setSavingPassengers] = useState(false);
   
   // Form states
@@ -252,6 +253,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   });
   const [selectedPassengers, setSelectedPassengers] = useState<string[]>([]);
   const [driverUserId, setDriverUserId] = useState<string | undefined>();
+  const [externalPassengers, setExternalPassengers] = useState<Array<{ name: string; email?: string; phone?: string }>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadResult, setUploadResult] = useState<BulkTripUploadResult | null>(null);
@@ -639,7 +641,17 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         escort_description: escort.required ? escort.description.trim() || undefined : undefined,
       };
 
-      const response = await tripsApi.create(tripPayload as any);
+      const payload = {
+        ...tripPayload,
+        external_passengers: externalPassengers.length
+          ? externalPassengers.map((p) => ({
+              name: p.name.trim(),
+              email: p.email?.trim() || undefined,
+              phone: p.phone?.trim() || undefined,
+            }))
+          : undefined,
+      };
+      const response = await tripsApi.create(payload as any);
       
       if (response.success) {
         toast({
@@ -814,6 +826,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         passenger_user_ids: selectedPassengers
           .map((id) => parseInt(id, 10))
           .filter((n) => !Number.isNaN(n)),
+        external_passengers: externalPassengers.length
+          ? externalPassengers.map((p) => ({
+              name: p.name.trim(),
+              email: p.email?.trim() || undefined,
+              phone: p.phone?.trim() || undefined,
+            }))
+          : undefined,
         driver_user_id:
           useExternalDriver || !driverUserId ? undefined : parseInt(driverUserId, 10),
         external_driver: useExternalDriver
@@ -823,6 +842,18 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               license_number: externalDriver.license_number.trim() || undefined,
             }
           : undefined,
+        accommodation_required: accommodation.required,
+        accommodation_name: accommodation.required ? accommodation.name.trim() || undefined : undefined,
+        accommodation_address: accommodation.required ? accommodation.address.trim() || undefined : undefined,
+        accommodation_contact: accommodation.required ? accommodation.contact.trim() || undefined : undefined,
+        accommodation_details: accommodation.required ? accommodation.details.trim() || undefined : undefined,
+        accommodation_estimated_cost:
+          accommodation.required && accommodation.estimatedCost.trim() !== "" &&
+          !Number.isNaN(Number(accommodation.estimatedCost))
+            ? Number(accommodation.estimatedCost)
+            : undefined,
+        escort_required: escort.required,
+        escort_description: escort.required ? escort.description.trim() || undefined : undefined,
       };
 
       const response = await tripsApi.update(selectedTrip.id, editPayload as any);
@@ -936,7 +967,36 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       notes: trip.notes,
       cargo: trip.cargo,
     });
-    setSelectedPassengers(trip.passengers?.map(p => p.staffId) || []);
+    const tripAny = trip as any;
+    const passengerIds = (
+      trip.passengers?.map((p) => p.staffId) ||
+      (Array.isArray(tripAny.passenger_user_ids) ? tripAny.passenger_user_ids.map(String) : undefined) ||
+      (Array.isArray(tripAny.passengerUserIds) ? tripAny.passengerUserIds.map(String) : undefined) ||
+      []
+    ).filter((id): id is string => Boolean(id));
+    setSelectedPassengers(passengerIds);
+    setPassengerEditPreselected(
+      (trip.passengers ?? [])
+        .map((p: any) => ({
+          id: String(p.staffId ?? p.id ?? p.user_id ?? p.userId),
+          name: p.name,
+          department: p.department,
+        }))
+        .filter((p) => Boolean(p.id)),
+    );
+    setPassengerEditList(passengerIds);
+    setExternalPassengers(
+      Array.isArray(trip.externalPassengers)
+        ? trip.externalPassengers
+        : Array.isArray(tripAny.external_passengers)
+        ? tripAny.external_passengers
+        : Array.isArray(tripAny.externalPassengers)
+        ? tripAny.externalPassengers
+        : [],
+    );
+    const internalDriverId =
+      tripAny.driver_user_id ?? tripAny.driverUserId ?? tripAny.driver_id ?? tripAny.driverId;
+    setDriverUserId(internalDriverId ? String(internalDriverId) : undefined);
     const acc = trip as any;
     const accCost = acc.accommodationEstimatedCost ?? acc.accommodation_estimated_cost;
     setAccommodation({
@@ -1113,6 +1173,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     setDriverUserId(undefined);
     setUseExternalDriver(false);
     setExternalDriver({ name: "", phone: "", license_number: "" });
+    setExternalPassengers([]);
+    setAccommodation({ required: false, name: "", address: "", contact: "", details: "", estimatedCost: "" });
+    setEscort({ required: false, description: "" });
   };
 
   const filteredTrips = trips;
@@ -1343,6 +1406,175 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     </div>
                   </>
                 )}
+
+                <div className="space-y-3 rounded-md border p-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">External passengers</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setExternalPassengers((prev) => [
+                          ...prev,
+                          { name: "", email: "", phone: "" },
+                        ])
+                      }
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {externalPassengers.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Add non-staff passengers, clients, or contractors traveling with this trip.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {externalPassengers.map((passenger, index) => (
+                        <div key={index} className="grid gap-2 sm:grid-cols-3">
+                          <Input
+                            placeholder="Name"
+                            value={passenger.name}
+                            onChange={(e) =>
+                              setExternalPassengers((prev) =>
+                                prev.map((p, i) =>
+                                  i === index ? { ...p, name: e.target.value } : p,
+                                ),
+                              )
+                            }
+                          />
+                          <Input
+                            placeholder="Email"
+                            value={passenger.email || ""}
+                            onChange={(e) =>
+                              setExternalPassengers((prev) =>
+                                prev.map((p, i) =>
+                                  i === index ? { ...p, email: e.target.value } : p,
+                                ),
+                              )
+                            }
+                          />
+                          <div className="flex items-center gap-2">
+                            <Input
+                              placeholder="Phone"
+                              value={passenger.phone || ""}
+                              onChange={(e) =>
+                                setExternalPassengers((prev) =>
+                                  prev.map((p, i) =>
+                                    i === index ? { ...p, phone: e.target.value } : p,
+                                  ),
+                                )
+                              }
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                setExternalPassengers((prev) => prev.filter((_, i) => i !== index))
+                              }
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3 rounded-md border p-3">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="create-accommodation-required"
+                      checked={accommodation.required}
+                      onCheckedChange={(v) => setAccommodation((a) => ({ ...a, required: v }))}
+                    />
+                    <Label htmlFor="create-accommodation-required" className="cursor-pointer">
+                      Accommodation required
+                    </Label>
+                  </div>
+                  <div
+                    className={
+                      accommodation.required
+                        ? "grid gap-3 sm:grid-cols-2"
+                        : "grid gap-3 sm:grid-cols-2 opacity-60"
+                    }
+                  >
+                    <div className="space-y-1">
+                      <Label className="text-xs">Hotel / accommodation name</Label>
+                      <Input
+                        value={accommodation.name}
+                        disabled={!accommodation.required}
+                        placeholder="e.g. Transcorp Hilton"
+                        onChange={(e) => setAccommodation((a) => ({ ...a, name: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Address</Label>
+                      <Input
+                        value={accommodation.address}
+                        disabled={!accommodation.required}
+                        placeholder="Street, city"
+                        onChange={(e) => setAccommodation((a) => ({ ...a, address: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Contact</Label>
+                      <Input
+                        value={accommodation.contact}
+                        disabled={!accommodation.required}
+                        placeholder="Phone or email"
+                        onChange={(e) => setAccommodation((a) => ({ ...a, contact: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Estimated cost (₦)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={accommodation.estimatedCost}
+                        disabled={!accommodation.required}
+                        placeholder="Optional"
+                        onChange={(e) =>
+                          setAccommodation((a) => ({ ...a, estimatedCost: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label className="text-xs">Additional details</Label>
+                      <Textarea
+                        value={accommodation.details}
+                        disabled={!accommodation.required}
+                        placeholder="Room type, nights, special requirements"
+                        onChange={(e) => setAccommodation((a) => ({ ...a, details: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 rounded-md border p-3">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="create-escort-required"
+                      checked={escort.required}
+                      onCheckedChange={(v) => setEscort((s) => ({ ...s, required: v }))}
+                    />
+                    <Label htmlFor="create-escort-required" className="cursor-pointer">
+                      Escort / security required
+                    </Label>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Escort details</Label>
+                    <Textarea
+                      value={escort.description}
+                      disabled={!escort.required}
+                      className={escort.required ? "" : "opacity-60"}
+                      placeholder="Number of escorts, armed/unarmed, agency, pickup point"
+                      onChange={(e) => setEscort((s) => ({ ...s, description: e.target.value }))}
+                    />
+                  </div>
+                </div>
 
                 {/* Notes */}
                 <div className="space-y-2">
@@ -2303,6 +2535,82 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
 
             {/* Escort / Security */}
             <div className="space-y-3 rounded-md border p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">External passengers</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setExternalPassengers((prev) => [
+                      ...prev,
+                      { name: "", email: "", phone: "" },
+                    ])
+                  }
+                >
+                  Add
+                </Button>
+              </div>
+              {externalPassengers.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Add non-staff passengers, clients, or contractors traveling with this trip.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {externalPassengers.map((passenger, index) => (
+                    <div key={index} className="grid gap-2 sm:grid-cols-3">
+                      <Input
+                        placeholder="Name"
+                        value={passenger.name}
+                        onChange={(e) =>
+                          setExternalPassengers((prev) =>
+                            prev.map((p, i) =>
+                              i === index ? { ...p, name: e.target.value } : p,
+                            ),
+                          )
+                        }
+                      />
+                      <Input
+                        placeholder="Email"
+                        value={passenger.email || ""}
+                        onChange={(e) =>
+                          setExternalPassengers((prev) =>
+                            prev.map((p, i) =>
+                              i === index ? { ...p, email: e.target.value } : p,
+                            ),
+                          )
+                        }
+                      />
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Phone"
+                          value={passenger.phone || ""}
+                          onChange={(e) =>
+                            setExternalPassengers((prev) =>
+                              prev.map((p, i) =>
+                                i === index ? { ...p, phone: e.target.value } : p,
+                              ),
+                            )
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setExternalPassengers((prev) => prev.filter((_, i) => i !== index))
+                          }
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 rounded-md border p-3">
               <div className="flex items-center gap-2">
                 <Switch
                   id="edit-escort-required"
@@ -2348,7 +2656,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         open={editPassengersOpen}
         onOpenChange={(o) => {
           setEditPassengersOpen(o);
-          if (!o) setPassengerEditList([]);
+          if (!o) {
+            setPassengerEditList([]);
+            setPassengerEditPreselected([]);
+          }
         }}
       >
         <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
@@ -2362,6 +2673,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           <EligiblePassengerPicker
             selectedPassengerIds={passengerEditList}
             onPassengersChange={setPassengerEditList}
+            preselectedPassengers={passengerEditPreselected}
             showDriver={false}
           />
           <DialogFooter>

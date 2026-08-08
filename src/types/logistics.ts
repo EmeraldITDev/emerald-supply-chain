@@ -166,11 +166,20 @@ export interface CreateTripData {
   vehicleId?: string;
   driverId?: string;
   passengers?: Omit<TripPassenger, 'id' | 'notifiedAt'>[];
+  externalPassengers?: Array<{ name: string; email?: string; phone?: string }>;
   materials?: Omit<TripMaterial, 'id'>[];
   cargo?: string;
   purpose?: string;
   priority?: 'low' | 'normal' | 'high' | 'urgent';
   notes?: string;
+  accommodationRequired?: boolean;
+  accommodationName?: string;
+  accommodationAddress?: string;
+  accommodationContact?: string;
+  accommodationDetails?: string;
+  accommodationEstimatedCost?: number | string;
+  escortRequired?: boolean;
+  escortDescription?: string;
 }
 
 export interface BulkTripUploadResult {
