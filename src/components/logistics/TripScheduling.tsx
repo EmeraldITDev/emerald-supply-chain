@@ -2473,9 +2473,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 <SelectTrigger>
                   <SelectValue placeholder="Choose a vendor" />
                 </SelectTrigger>
-                <SelectContent side="bottom" align="start">
+                <SelectContent side="bottom" align="start" avoidCollisions={false}>
                   {vendorList
-                    .filter((vendor) => vendorMatchesService(vendor, selectedVendorService))
+                    .filter((vendor) =>
+                      selectedVendorService === "accommodation"
+                        ? true
+                        : vendorMatchesService(vendor, selectedVendorService),
+                    )
                     .map((vendor) => (
                       <SelectItem key={vendor.id} value={vendor.id}>
                         <div className="flex flex-col">
