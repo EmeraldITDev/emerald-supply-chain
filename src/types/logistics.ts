@@ -106,6 +106,7 @@ export interface Trip {
   vehicleId?: string;
   vehiclePlate?: string;
   vehicleType?: string;
+  vehicle_type?: string;
   vehicle_make?: string;
   vehicleMake?: string;
   vehicle_model?: string;
