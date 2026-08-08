@@ -1,3 +1,4 @@
+import type { RequestAttachment } from './index';
 // ============================================
 // LOGISTICS MODULE TYPES
 // SCM Logistics Module Upgrade Specification
