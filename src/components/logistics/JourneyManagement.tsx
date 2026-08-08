@@ -312,6 +312,20 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
     };
   }, [viewDialogOpen, selectedJourney?.id]);
 
+  /**
+   * Commit a freshly fetched journey list AND re-sync the record currently open
+   * in the detail dialog. Without this the dialog kept rendering the stale
+   * snapshot captured when it was opened, so checkpoints/status never appeared.
+   */
+  const applyJourneys = (next: JourneyWithTrip[]) => {
+    setJourneys(next);
+    setSelectedJourney((current) => {
+      if (!current) return current;
+      const fresh = next.find((j) => String(j.id) === String(current.id));
+      return fresh ? { ...current, ...fresh } : current;
+    });
+  };
+
   // Fetch journeys from API — tied to the same trip records created at request/approval
   const fetchJourneys = async () => {
     setLoading(true);
@@ -322,14 +336,14 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
           tripsApi.getById(tripId),
         ]);
         if (journeyRes.success && journeyRes.data) {
-          setJourneys([
+          applyJourneys([
             {
               ...journeyRes.data,
               linkedTrip: tripRes.success ? tripRes.data : undefined,
             },
           ]);
         } else if (tripRes.success && tripRes.data) {
-          setJourneys([
+          applyJourneys([
             {
               id: tripId,
               tripId,
@@ -341,7 +355,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
             } as JourneyWithTrip,
           ]);
         } else {
-          setJourneys([]);
+          applyJourneys([]);
         }
         return;
       }
@@ -357,7 +371,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
             return j as JourneyWithTrip;
           }),
         );
-        setJourneys(journeysWithTrips);
+        applyJourneys(journeysWithTrips);
         return;
       }
 
@@ -390,13 +404,13 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
             } as JourneyWithTrip;
           }),
         );
-        setJourneys(withJourneys);
+        applyJourneys(withJourneys);
       } else {
-        setJourneys([]);
+        applyJourneys([]);
       }
     } catch (error) {
       console.error("Failed to fetch journeys:", error);
-      setJourneys([]);
+      applyJourneys([]);
     } finally {
       setLoading(false);
     }
@@ -424,7 +438,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
           description: `Status updated to ${updateStatus.replace("_", " ")}`,
         });
         setUpdateDialogOpen(false);
-        fetchJourneys();
+        if (response.data) {
+          const updated = response.data as JourneyWithTrip;
+          setSelectedJourney((cur) => (cur ? { ...cur, ...updated } : cur));
+        }
+        await fetchJourneys();
       } else {
         toast({
           title: "Failed to Update Journey",
@@ -460,7 +478,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
           title: "Checkpoint Added",
           description: `Checkpoint at ${currentLocation} recorded`,
         });
-        fetchJourneys();
+        if (response.data) {
+          const updated = response.data as JourneyWithTrip;
+          setSelectedJourney((cur) => (cur ? { ...cur, ...updated } : cur));
+        }
+        await fetchJourneys();
       } else {
         toast({
           title: "Failed to Add Checkpoint",
@@ -499,7 +521,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
           description: "The incident has been logged and relevant parties notified",
         });
         setIncidentDialogOpen(false);
-        fetchJourneys();
+        if (response.data) {
+          const updated = response.data as JourneyWithTrip;
+          setSelectedJourney((cur) => (cur ? { ...cur, ...updated } : cur));
+        }
+        await fetchJourneys();
       } else {
         toast({
           title: "Failed to Report Incident",
@@ -646,7 +672,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                         <span className="font-medium">Purpose:</span> {(journey.purpose ?? journey.linkedTrip?.purpose) ?? <MissingValue />}
                       </p>
                       <p>
-                        <span className="font-medium">Departure:</span> {(journey.scheduledDepartureAt ?? journey.linkedTrip?.scheduledDepartureAt) ? new Date((journey.scheduledDepartureAt ?? journey.linkedTrip?.scheduledDepartureAt) as string).toLocaleString() : <MissingValue />}
+                        <span className="font-medium">Departure:</span> {(journey.scheduledDepartureAt ?? journey.linkedTrip?.scheduledDepartureAt) ? formatLagosDateTime(journey.scheduledDepartureAt ?? journey.linkedTrip?.scheduledDepartureAt) : <MissingValue />}
                       </p>
                       <p>
                         <span className="font-medium">Driver:</span> {(journey.driverName ?? journey.linkedTrip?.driverName) ?? <MissingValue />}
@@ -677,7 +703,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                           </DropdownMenuItem>
                           {journey.linkedTrip && (
                             <DropdownMenuItem
-                              onClick={() => navigate(`/trips/${journey.linkedTrip!.id}`)}
+                              onClick={() => navigate(`/logistics?tab=trips&trip=${journey.linkedTrip!.id}`)}
                             >
                               <Navigation className="mr-2 h-4 w-4" />
                               Open trip record
@@ -723,7 +749,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                       <Clock className="h-3 w-3 text-muted-foreground" />
                       <span className="text-muted-foreground">
                         {journey.departedAt
-                          ? `Departed: ${new Date(journey.departedAt).toLocaleTimeString()}`
+                          ? `Departed: ${formatLagosTime(journey.departedAt)}`
                           : "Not departed yet"}
                       </span>
                     </div>
@@ -731,7 +757,7 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                       <div className="flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3 text-success" />
                         <span className="text-success">
-                          Arrived: {new Date(journey.arrivedAt).toLocaleTimeString()}
+                          Arrived: {formatLagosTime(journey.arrivedAt)}
                         </span>
                       </div>
                     )}
@@ -799,11 +825,11 @@ export const JourneyManagement = ({ tripId }: JourneyManagementProps) => {
                   <SummaryField label="Purpose" value={fieldValue(selectedJourney.purpose ?? selectedJourney.linkedTrip?.purpose)} />
                   <SummaryField
                     label="Scheduled Departure"
-                    value={(selectedJourney.scheduledDepartureAt ?? selectedJourney.linkedTrip?.scheduledDepartureAt) ? new Date((selectedJourney.scheduledDepartureAt ?? selectedJourney.linkedTrip?.scheduledDepartureAt) as string).toLocaleString() : <MissingValue />}
+                    value={(selectedJourney.scheduledDepartureAt ?? selectedJourney.linkedTrip?.scheduledDepartureAt) ? formatLagosDateTime(selectedJourney.scheduledDepartureAt ?? selectedJourney.linkedTrip?.scheduledDepartureAt) : <MissingValue />}
                   />
                   <SummaryField
                     label="Scheduled Arrival"
-                    value={(selectedJourney.scheduledArrivalAt ?? selectedJourney.linkedTrip?.scheduledArrivalAt) ? new Date((selectedJourney.scheduledArrivalAt ?? selectedJourney.linkedTrip?.scheduledArrivalAt) as string).toLocaleString() : <MissingValue />}
+                    value={(selectedJourney.scheduledArrivalAt ?? selectedJourney.linkedTrip?.scheduledArrivalAt) ? formatLagosDateTime(selectedJourney.scheduledArrivalAt ?? selectedJourney.linkedTrip?.scheduledArrivalAt) : <MissingValue />}
                   />
                   <SummaryField
                     label="Booking Scope"
