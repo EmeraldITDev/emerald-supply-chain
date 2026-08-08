@@ -89,7 +89,7 @@ import { CSVImportPreview, type CSVColumn } from "./CSVImportPreview";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 import { isConvertedTripRow } from "@/utils/tripApprovalState";
 import type { TripConversionResult } from "./TripRequestConversionDialog";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 interface TripSchedulingProps {
   onViewTrip?: (trip: Trip) => void;
@@ -136,6 +136,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [tripPage, setTripPage] = useState(1);
   const [tripPagination, setTripPagination] = useState<PaginationMeta | null>(null);
@@ -1798,6 +1799,30 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 <Badge variant="outline" className={cn(priorityColors[selectedTrip.priority], "capitalize")}>
                   {selectedTrip.priority}
                 </Badge>
+                {activeJourney && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="ml-auto"
+                    onClick={() => {
+                      setViewDialogOpen(false);
+                      window.dispatchEvent(
+                        new CustomEvent("logistics:set-tab", { detail: "journeys" }),
+                      );
+                      setSearchParams(
+                        (prev) => {
+                          const next = new URLSearchParams(prev);
+                          next.set("tab", "journeys");
+                          next.set("journey", String(activeJourney.id));
+                          return next;
+                        },
+                        { replace: true },
+                      );
+                    }}
+                  >
+                    View active journey
+                  </Button>
+                )}
               </div>
               
               {/* Main Trip Information */}
