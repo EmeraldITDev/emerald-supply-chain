@@ -135,6 +135,7 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
     !showForward &&
     !showReject &&
     !showChanges &&
+    !showRemindScd &&
     !showConvert &&
     !showDirectorApprove &&
     !showDirectorReject &&
