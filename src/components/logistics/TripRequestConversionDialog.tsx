@@ -540,7 +540,7 @@ export function TripRequestConversionDialog({
                       }
                     />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" side="bottom" avoidCollisions className="max-h-[40vh] overflow-y-auto">
                     {vehiclesLoading && (
                       <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" /> Loading vehicles…
