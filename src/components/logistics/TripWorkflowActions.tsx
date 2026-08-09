@@ -65,24 +65,27 @@ export function TripWorkflowActions({
   const [unsignedPoUrl, setUnsignedPoUrl] = useState("");
   const [signedPoUrl, setSignedPoUrl] = useState("");
 
-  const stage = ((trip as Trip & { workflow_stage?: TripWorkflowStage }).workflow_stage ||
+  const stage = ((trip as Trip & { workflow_stage?: TripWorkflowStage })
+    .workflow_stage ||
     (trip as Trip & { workflowStage?: TripWorkflowStage }).workflowStage ||
     "trip_request") as TripWorkflowStage;
 
   const selectedVendorId =
-    (trip as Trip & { selected_vendor_id?: string | number }).selected_vendor_id ||
-    trip.vendorId;
+    (trip as Trip & { selected_vendor_id?: string | number })
+      .selected_vendor_id || trip.vendorId;
 
   const actions = Array.isArray(trip.availableActions)
     ? trip.availableActions.map((a) => String(a).toLowerCase().trim())
     : Array.isArray((trip as { available_actions?: unknown }).available_actions)
-      ? ((trip as { available_actions?: string[] }).available_actions as string[]).map((a) =>
-          String(a).toLowerCase().trim(),
-        )
+      ? (
+          (trip as { available_actions?: string[] })
+            .available_actions as string[]
+        ).map((a) => String(a).toLowerCase().trim())
       : [];
 
   const hasActionContract =
-    trip.availableActions !== undefined || (trip as { available_actions?: unknown }).available_actions !== undefined;
+    trip.availableActions !== undefined ||
+    (trip as { available_actions?: unknown }).available_actions !== undefined;
 
   const isLogistics = userRole && LOGISTICS_ROLES.has(userRole);
   const isProcurement = userRole && PROCUREMENT_ROLES.has(userRole);
@@ -92,14 +95,21 @@ export function TripWorkflowActions({
     setConverted(isTripConverted(trip as unknown as Record<string, unknown>));
   }, [trip]);
 
-  const canConvert = Boolean(isLogistics) && !converted &&
+  const canConvert =
+    Boolean(isLogistics) &&
+    !converted &&
     (hasActionContract
       ? actions.some((a) => a === "convert_to_logistics" || a === "convert")
       : canConvertToLogistics(trip as unknown as Record<string, unknown>));
 
-  const stageBanner = resolveTripStageBanner(trip as unknown as Record<string, unknown>);
+  const stageBanner = resolveTripStageBanner(
+    trip as unknown as Record<string, unknown>,
+  );
 
-  const run = async (fn: () => Promise<{ success: boolean; error?: string }>, successMsg: string) => {
+  const run = async (
+    fn: () => Promise<{ success: boolean; error?: string }>,
+    successMsg: string,
+  ) => {
     setBusy(true);
     try {
       const res = await fn();
@@ -107,7 +117,11 @@ export function TripWorkflowActions({
         toast({ title: successMsg });
         onUpdated?.();
       } else {
-        toast({ title: "Action failed", description: res.error, variant: "destructive" });
+        toast({
+          title: "Action failed",
+          description: res.error,
+          variant: "destructive",
+        });
       }
     } finally {
       setBusy(false);
@@ -116,31 +130,59 @@ export function TripWorkflowActions({
 
   const hasUnsignedPo = Boolean(
     (trip as Trip & { unsigned_po_url?: string }).unsigned_po_url ||
-      (trip as Trip & { unsignedPoUrl?: string }).unsignedPoUrl,
+    (trip as Trip & { unsignedPoUrl?: string }).unsignedPoUrl,
   );
 
-  const showProcurementVendorActions = isProcurement &&
+  const showProcurementVendorActions =
+    isProcurement &&
     (hasActionContract
       ? actions.some((a) => a === "assign_vendor" || a === "compare_vendors")
       : stage === "vendor_selection" || stage === "procurement_review");
 
-  const showProcurementApproveQuote = isProcurement &&
-    (hasActionContract ? actions.some((a) => a === "approve_quote" || a === "procurement_approve_quote") : stage === "procurement_review");
+  const showProcurementApproveQuote =
+    isProcurement &&
+    (hasActionContract
+      ? actions.some(
+          (a) => a === "approve_quote" || a === "procurement_approve_quote",
+        )
+      : stage === "procurement_review");
 
-  const showScdApprove = isScd &&
-    (hasActionContract ? actions.some((a) => a === "scd_approve" || a === "director_approve") : stage === "scd_approval");
+  const showScdApprove =
+    isScd &&
+    (hasActionContract
+      ? actions.some((a) => a === "scd_approve" || a === "director_approve")
+      : stage === "scd_approval");
 
-  const showScdUploadSignedPo = isScd && hasUnsignedPo &&
-    (hasActionContract ? actions.some((a) => a === "upload_signed_po" || a === "upload_signedpo") : stage === "po_generation");
+  const showScdUploadSignedPo =
+    isScd &&
+    hasUnsignedPo &&
+    (hasActionContract
+      ? actions.some((a) => a === "upload_signed_po" || a === "upload_signedpo")
+      : stage === "po_generation");
 
-  const showProcurementGeneratePo = isProcurement &&
-    (hasActionContract ? actions.some((a) => a === "generate_po" || a === "generatepo") : stage === "po_generation");
+  const showProcurementGeneratePo =
+    isProcurement &&
+    (hasActionContract
+      ? actions.some((a) => a === "generate_po" || a === "generatepo")
+      : stage === "po_generation");
+
+  const showForwardToScd =
+    isLogistics &&
+    actions.some((a) => a === "forward_to_scd" || a === "forward");
+
+  const showRemindScd =
+    isLogistics && actions.some((a) => a === "remind_scd" || a === "remind");
+
+  const showRequestChanges =
+    isLogistics && actions.some((a) => a === "request_changes");
 
   return (
     <div className="space-y-3 rounded-lg border p-4 bg-muted/30">
       <div>
         <p className="text-sm font-medium">Trip workflow</p>
-        <p className="text-sm text-muted-foreground">{getTripWorkflowStageLabel(stage)}</p>
+        <p className="text-sm text-muted-foreground">
+          {getTripWorkflowStageLabel(stage)}
+        </p>
       </div>
 
       {(converted || stageBanner) && (
@@ -153,6 +195,61 @@ export function TripWorkflowActions({
       )}
 
       <div className="flex flex-wrap gap-2">
+        {showForwardToScd && (
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() =>
+              run(
+                () =>
+                  tripRequestApi.logisticsReview(String(trip.id), {
+                    action: "forward",
+                  }),
+                "Trip forwarded to Supply Chain Director for approval",
+              )
+            }
+          >
+            {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Send to Director for Approval
+          </Button>
+        )}
+
+        {showRemindScd && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() =>
+              run(
+                () => tripRequestApi.remindScd(String(trip.id)),
+                "Approval reminder sent to Supply Chain Director",
+              )
+            }
+          >
+            {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Send Approval Reminder
+          </Button>
+        )}
+
+        {showRequestChanges && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() =>
+              run(
+                () =>
+                  tripRequestApi.logisticsReview(String(trip.id), {
+                    action: "request_changes",
+                    reason: "Changes requested by Logistics Manager",
+                  }),
+                "Changes requested from requester",
+              )
+            }
+          >
+            Request Changes
+          </Button>
+        )}
         {canConvert && (
           <Button
             size="sm"
@@ -164,14 +261,24 @@ export function TripWorkflowActions({
         )}
 
         {showProcurementVendorActions && onAssignVendor && (
-          <Button size="sm" variant="outline" disabled={busy} onClick={onAssignVendor}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={onAssignVendor}
+          >
             <UserPlus className="mr-2 h-4 w-4" />
             Assign vendor
           </Button>
         )}
 
         {showProcurementVendorActions && onCompareVendors && (
-          <Button size="sm" variant="outline" disabled={busy} onClick={onCompareVendors}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={onCompareVendors}
+          >
             <Users2 className="mr-2 h-4 w-4" />
             Compare vendor quotes
           </Button>
@@ -204,7 +311,10 @@ export function TripWorkflowActions({
             size="sm"
             disabled={busy}
             onClick={() =>
-              run(() => tripRequestApi.scdApprove(String(trip.id)), "SCD approval recorded")
+              run(
+                () => tripRequestApi.scdApprove(String(trip.id)),
+                "SCD approval recorded",
+              )
             }
           >
             SCD approve trip
@@ -218,7 +328,12 @@ export function TripWorkflowActions({
         )}
 
         {showScdUploadSignedPo && (
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => setSignedPoOpen(true)}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => setSignedPoOpen(true)}
+          >
             Upload signed PO
           </Button>
         )}
@@ -262,7 +377,10 @@ export function TripWorkflowActions({
             </div>
             <div className="space-y-2">
               <Label>Unsigned PO URL *</Label>
-              <Input value={unsignedPoUrl} onChange={(e) => setUnsignedPoUrl(e.target.value)} />
+              <Input
+                value={unsignedPoUrl}
+                onChange={(e) => setUnsignedPoUrl(e.target.value)}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -272,9 +390,7 @@ export function TripWorkflowActions({
                 setBusy(true);
                 try {
                   const res = await tripRequestApi.generatePO(String(trip.id), {
-                    ...(poNumber.trim()
-                      ? { po_number: poNumber.trim() }
-                      : {}),
+                    ...(poNumber.trim() ? { po_number: poNumber.trim() } : {}),
                     unsigned_po_url: unsignedPoUrl,
                   });
                   if (res.success) {
@@ -282,7 +398,11 @@ export function TripWorkflowActions({
                     setPoOpen(false);
                     onUpdated?.();
                   } else {
-                    toast({ title: "Failed", description: res.error, variant: "destructive" });
+                    toast({
+                      title: "Failed",
+                      description: res.error,
+                      variant: "destructive",
+                    });
                   }
                 } finally {
                   setBusy(false);
@@ -302,7 +422,10 @@ export function TripWorkflowActions({
           </DialogHeader>
           <div className="space-y-2">
             <Label>Signed PO URL *</Label>
-            <Input value={signedPoUrl} onChange={(e) => setSignedPoUrl(e.target.value)} />
+            <Input
+              value={signedPoUrl}
+              onChange={(e) => setSignedPoUrl(e.target.value)}
+            />
           </div>
           <DialogFooter>
             <Button
@@ -310,15 +433,22 @@ export function TripWorkflowActions({
               onClick={async () => {
                 setBusy(true);
                 try {
-                  const res = await tripRequestApi.uploadSignedPO(String(trip.id), {
-                    signed_po_url: signedPoUrl,
-                  });
+                  const res = await tripRequestApi.uploadSignedPO(
+                    String(trip.id),
+                    {
+                      signed_po_url: signedPoUrl,
+                    },
+                  );
                   if (res.success) {
                     toast({ title: "Signed PO uploaded" });
                     setSignedPoOpen(false);
                     onUpdated?.();
                   } else {
-                    toast({ title: "Failed", description: res.error, variant: "destructive" });
+                    toast({
+                      title: "Failed",
+                      description: res.error,
+                      variant: "destructive",
+                    });
                   }
                 } finally {
                   setBusy(false);
