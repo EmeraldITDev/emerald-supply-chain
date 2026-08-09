@@ -83,6 +83,22 @@ export function TripWorkflowActions({
         ).map((a) => String(a).toLowerCase().trim())
       : [];
 
+  // ADD THIS TEMPORARILY
+  console.log(
+    "[TripWorkflowActions] trip.availableActions:",
+    trip.availableActions,
+  );
+  console.log(
+    "[TripWorkflowActions] trip.available_actions:",
+    (trip as any).available_actions,
+  );
+  console.log("[TripWorkflowActions] computed actions:", actions);
+  console.log(
+    "[TripWorkflowActions] workflow_stage:",
+    (trip as any).workflow_stage,
+  );
+  console.log("[TripWorkflowActions] userRole:", userRole);
+
   const hasActionContract =
     trip.availableActions !== undefined ||
     (trip as { available_actions?: unknown }).available_actions !== undefined;
