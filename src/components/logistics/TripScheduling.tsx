@@ -1,12 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +51,6 @@ import {
   Eye,
   Edit,
   XCircle,
-  
   UserPlus,
   Package,
   Loader2,
@@ -66,23 +77,40 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatPoAmount } from "@/utils/currency";
-import { tripsApi, logisticsDashboardApi, logisticsVendorsApi, journeysApi } from "@/services/logisticsApi";
+import {
+  tripsApi,
+  logisticsDashboardApi,
+  logisticsVendorsApi,
+  journeysApi,
+} from "@/services/logisticsApi";
 import { formatLagosDateTime } from "@/utils/dateUtils";
 import type { Journey } from "@/types/logistics";
 import { useAuth } from "@/contexts/AuthContext";
 import { tripRequestApi, apiRequestFull } from "@/services/api";
 
 import { TripWorkflowActions } from "./TripWorkflowActions";
-import { TripRequestWorkflowActions } from "./TripRequestWorkflowActions";
 import { TripLogisticsDetailsPanel } from "./TripLogisticsDetailsPanel";
 import type { StaffTripRequest } from "@/types/trip-request";
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import type { PaginationMeta } from "@/types/pagination";
 import { useTableExport } from "@/hooks/useTableExport";
 import { TableExportMenu } from "@/components/export/TableExportMenu";
-import { TRIP_EXPORT_COLUMNS, type TripExportRow } from "@/config/tableExportPresets";
-import { EligiblePassengerPicker, type PreselectedPassenger } from "./EligiblePassengerPicker";
-import type { Trip, TripStatus, TripType, TripPassenger, CreateTripData, BulkTripUploadResult } from "@/types/logistics";
+import {
+  TRIP_EXPORT_COLUMNS,
+  type TripExportRow,
+} from "@/config/tableExportPresets";
+import {
+  EligiblePassengerPicker,
+  type PreselectedPassenger,
+} from "./EligiblePassengerPicker";
+import type {
+  Trip,
+  TripStatus,
+  TripType,
+  TripPassenger,
+  CreateTripData,
+  BulkTripUploadResult,
+} from "@/types/logistics";
 import { VendorJMPSubmission } from "./VendorJMPSubmission";
 import { PassengerNotification } from "./PassengerNotification";
 import { CSVImportPreview, type CSVColumn } from "./CSVImportPreview";
@@ -132,20 +160,25 @@ interface VendorItem {
   serviceTypes?: string[];
 }
 
-export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) => {
+export const TripScheduling = ({
+  onViewTrip,
+  onEditTrip,
+}: TripSchedulingProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [tripPage, setTripPage] = useState(1);
-  const [tripPagination, setTripPagination] = useState<PaginationMeta | null>(null);
+  const [tripPagination, setTripPagination] = useState<PaginationMeta | null>(
+    null,
+  );
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  
+
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [bulkUploadDialogOpen, setBulkUploadDialogOpen] = useState(false);
@@ -159,7 +192,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   /** Journey linked to the trip open in the detail dialog (same DB record). */
   const [activeJourney, setActiveJourney] = useState<Journey | null>(null);
-  const [selectedTripRequest, setSelectedTripRequest] = useState<StaffTripRequest | null>(null);
+  const [selectedTripRequest, setSelectedTripRequest] =
+    useState<StaffTripRequest | null>(null);
   const [loadingTripRequest, setLoadingTripRequest] = useState(false);
   const [loadingTripDetails, setLoadingTripDetails] = useState(false);
   const [tripDetailError, setTripDetailError] = useState<string | null>(null);
@@ -213,7 +247,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     let cancelled = false;
     void (async () => {
       const res = await journeysApi.getByTripId(String(selectedTrip.id));
-      if (!cancelled) setActiveJourney(res.success && res.data ? res.data : null);
+      if (!cancelled)
+        setActiveJourney(res.success && res.data ? res.data : null);
     })();
     return () => {
       cancelled = true;
@@ -221,7 +256,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   }, [viewDialogOpen, selectedTrip]);
 
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
-  const [selectedVendorService, setSelectedVendorService] = useState<"transport" | "accommodation" | "escort">("transport");
+  const [selectedVendorService, setSelectedVendorService] = useState<
+    "transport" | "accommodation" | "escort"
+  >("transport");
   const [accommodationDialogOpen, setAccommodationDialogOpen] = useState(false);
   const [accommodationDialogState, setAccommodationDialogState] = useState({
     name: "",
@@ -242,9 +279,11 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   // 8e — dedicated edit passengers dialog
   const [editPassengersOpen, setEditPassengersOpen] = useState(false);
   const [passengerEditList, setPassengerEditList] = useState<string[]>([]);
-  const [passengerEditPreselected, setPassengerEditPreselected] = useState<PreselectedPassenger[]>([]);
+  const [passengerEditPreselected, setPassengerEditPreselected] = useState<
+    PreselectedPassenger[]
+  >([]);
   const [savingPassengers, setSavingPassengers] = useState(false);
-  
+
   // Form states
   const [formData, setFormData] = useState<Partial<CreateTripData>>({
     type: "personnel",
@@ -253,12 +292,16 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   });
   const [selectedPassengers, setSelectedPassengers] = useState<string[]>([]);
   const [driverUserId, setDriverUserId] = useState<string | undefined>();
-  const [externalPassengers, setExternalPassengers] = useState<Array<{ name: string; email?: string; phone?: string }>>([]);
+  const [externalPassengers, setExternalPassengers] = useState<
+    Array<{ name: string; email?: string; phone?: string }>
+  >([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadResult, setUploadResult] = useState<BulkTripUploadResult | null>(null);
+  const [uploadResult, setUploadResult] = useState<BulkTripUploadResult | null>(
+    null,
+  );
   const [csvImportOpen, setCsvImportOpen] = useState(false);
-  
+
   const [vendorList, setVendorList] = useState<VendorItem[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
 
@@ -266,7 +309,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   const userCache = useRef<Record<string, Record<string, unknown>>>({});
 
   // Safe date formatter — returns fallback string for null/invalid dates
-  const formatDate = (dateStr: string | undefined | null, opts?: Intl.DateTimeFormatOptions) => {
+  const formatDate = (
+    dateStr: string | undefined | null,
+    opts?: Intl.DateTimeFormatOptions,
+  ) => {
     if (!dateStr) return "Not set";
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return "Not set";
@@ -278,11 +324,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     id: (() => {
       const candidates = [raw.id, raw.trip_id, raw.uuid];
       for (const c of candidates) {
-        if (c != null && c !== '') return String(c);
+        if (c != null && c !== "") return String(c);
       }
-      return String(raw.trip_code || raw.trip_number || raw.tripCode || '');
+      return String(raw.trip_code || raw.trip_number || raw.tripCode || "");
     })(),
-    tripNumber: raw.trip_code || raw.tripNumber || raw.trip_number || `TRIP-${raw.id}`,
+    tripNumber:
+      raw.trip_code || raw.tripNumber || raw.trip_number || `TRIP-${raw.id}`,
     type: raw.trip_type || raw.type || "personnel",
     status: raw.status || "draft",
     origin: raw.origin,
@@ -290,7 +337,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     route: raw.route,
     distance: raw.distance,
     estimatedDuration: raw.estimated_duration || raw.estimatedDuration,
-    scheduledDepartureAt: raw.scheduled_departure_at || raw.scheduledDepartureAt || "",
+    scheduledDepartureAt:
+      raw.scheduled_departure_at || raw.scheduledDepartureAt || "",
     scheduledArrivalAt: raw.scheduled_arrival_at || raw.scheduledArrivalAt,
     actualDepartureAt: raw.actual_departure_at || raw.actualDepartureAt,
     actualArrivalAt: raw.actual_arrival_at || raw.actualArrivalAt,
@@ -327,20 +375,30 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     selectedVendorId: raw.selected_vendor_id ?? raw.selectedVendorId,
     transportVendorId: raw.vendor_id?.toString() || raw.transportVendorId,
     transportVendorName:
-      raw.vendor?.name || raw.vendorName || raw.vendor_name || raw.transportVendorName,
-    accommodationVendorId: raw.accommodation_vendor_id?.toString() || raw.accommodationVendorId,
-    accommodationVendorName: raw.accommodation_vendor_name || raw.accommodationVendorName,
+      raw.vendor?.name ||
+      raw.vendorName ||
+      raw.vendor_name ||
+      raw.transportVendorName,
+    accommodationVendorId:
+      raw.accommodation_vendor_id?.toString() || raw.accommodationVendorId,
+    accommodationVendorName:
+      raw.accommodation_vendor_name || raw.accommodationVendorName,
     escortVendorId: raw.escort_vendor_id?.toString() || raw.escortVendorId,
     escortVendorName: raw.escort_vendor_name || raw.escortVendorName,
-    accommodationRequired: Boolean(raw.accommodation_required ?? raw.accommodationRequired),
+    accommodationRequired: Boolean(
+      raw.accommodation_required ?? raw.accommodationRequired,
+    ),
     accommodationName: raw.accommodation_name || raw.accommodationName,
     accommodationAddress: raw.accommodation_address || raw.accommodationAddress,
     accommodationContact: raw.accommodation_contact || raw.accommodationContact,
     accommodationDetails: raw.accommodation_details || raw.accommodationDetails,
-    accommodationEstimatedCost: raw.accommodation_estimated_cost ?? raw.accommodationEstimatedCost,
+    accommodationEstimatedCost:
+      raw.accommodation_estimated_cost ?? raw.accommodationEstimatedCost,
     escortRequired: Boolean(raw.escort_required ?? raw.escortRequired),
     escortDescription: raw.escort_description || raw.escortDescription,
-    externalPassengers: Array.isArray(raw.external_passengers ?? raw.externalPassengers)
+    externalPassengers: Array.isArray(
+      raw.external_passengers ?? raw.externalPassengers,
+    )
       ? (raw.external_passengers ?? raw.externalPassengers).map((p: any) => ({
           name: p.name ?? "",
           email: p.email ?? "",
@@ -373,12 +431,16 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           : Promise.resolve(null),
       ]);
 
-      const scheduled = tripsRes.success && tripsRes.data
-        ? tripsRes.data.items
-            .map(normalizeTrip)
-            // Converted requests live on as journeys — never list them twice.
-            .filter((t) => !isConvertedTripRow(t as unknown as Record<string, unknown>))
-        : [];
+      const scheduled =
+        tripsRes.success && tripsRes.data
+          ? tripsRes.data.items
+              .map(normalizeTrip)
+              // Converted requests live on as journeys — never list them twice.
+              .filter(
+                (t) =>
+                  !isConvertedTripRow(t as unknown as Record<string, unknown>),
+              )
+          : [];
       const scheduledIds = new Set(
         scheduled
           .map((t) => String(t.id))
@@ -394,7 +456,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           if (linkedTripId && scheduledIds.has(String(linkedTripId))) continue;
           if (code && scheduledIds.has(code)) continue;
           // Exclude anything the backend has already converted.
-          if (isConvertedTripRow(r as unknown as Record<string, unknown>)) continue;
+          if (isConvertedTripRow(r as unknown as Record<string, unknown>))
+            continue;
           if (r.journey_id ?? r.journeyId) continue;
           if (linkedTripId) continue;
           requestOnly.push(
@@ -405,8 +468,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               status: r.status || "pending_approval",
               origin: r.origin,
               destination: r.destination,
-              scheduled_departure_at: r.scheduledDepartureAt ?? r.scheduled_departure_at,
-              scheduled_arrival_at: r.scheduledArrivalAt ?? r.scheduled_arrival_at,
+              scheduled_departure_at:
+                r.scheduledDepartureAt ?? r.scheduled_departure_at,
+              scheduled_arrival_at:
+                r.scheduledArrivalAt ?? r.scheduled_arrival_at,
               purpose: r.purpose,
               priority: "normal",
               workflow_stage: r.workflowStage ?? r.workflow_stage,
@@ -422,7 +487,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         const pag = tripsRes.data.pagination;
         setTripPagination(
           pag
-            ? { ...pag, total: (pag.total ?? scheduled.length) + requestOnly.length }
+            ? {
+                ...pag,
+                total: (pag.total ?? scheduled.length) + requestOnly.length,
+              }
             : null,
         );
       } else {
@@ -447,13 +515,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           const categories = Array.isArray(v.categories)
             ? v.categories.map(String)
             : typeof v.category === "string"
-            ? [v.category]
-            : [];
+              ? [v.category]
+              : [];
           const serviceTypes = Array.isArray(v.service_types)
             ? v.service_types.map(String)
             : typeof v.service_type === "string"
-            ? [v.service_type]
-            : [];
+              ? [v.service_type]
+              : [];
           return {
             id: v.id?.toString() || v.vendor_id,
             name: v.name || v.company_name,
@@ -474,7 +542,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   };
 
   useEffect(() => {
-    const handle = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    const handle = window.setTimeout(
+      () => setDebouncedSearch(searchQuery),
+      300,
+    );
     return () => window.clearTimeout(handle);
   }, [searchQuery]);
 
@@ -516,13 +587,30 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     if (tags.length === 0) return true;
 
     const serviceMatchers: Record<string, string[]> = {
-      transport: ["transport", "logistics", "vehicle", "fleet", "haulage", "delivery", "road"],
-      accommodation: ["accommodation", "hotel", "lodging", "stay", "room", "guesthouse"],
+      transport: [
+        "transport",
+        "logistics",
+        "vehicle",
+        "fleet",
+        "haulage",
+        "delivery",
+        "road",
+      ],
+      accommodation: [
+        "accommodation",
+        "hotel",
+        "lodging",
+        "stay",
+        "room",
+        "guesthouse",
+      ],
       escort: ["escort", "security", "guard", "protection", "armed", "unarmed"],
     };
 
     const matchers = serviceMatchers[service];
-    return tags.some((tag) => matchers.some((matcher) => tag.includes(matcher)));
+    return tags.some((tag) =>
+      matchers.some((matcher) => tag.includes(matcher)),
+    );
   };
 
   const fetchTripExportPage = useCallback(
@@ -546,7 +634,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           status: t.status,
           origin: t.origin,
           destination: t.destination,
-          departureDate: (t as any).scheduledDepartureAt || (t as any).departureDate,
+          departureDate:
+            (t as any).scheduledDepartureAt || (t as any).departureDate,
           workflowStage: t.workflowStage || t.workflow_stage,
         };
       });
@@ -563,7 +652,11 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
   });
 
   const handleCreateTrip = async () => {
-    if (!formData.origin || !formData.destination || !formData.scheduledDepartureAt) {
+    if (
+      !formData.origin ||
+      !formData.destination ||
+      !formData.scheduledDepartureAt
+    ) {
       toast({
         title: "Validation Error",
         description: "Please fill all required fields",
@@ -586,12 +679,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     setIsSubmitting(true);
     try {
       // Build passengers list
-      const passengers: Omit<TripPassenger, "id" | "notifiedAt">[] = selectedPassengers.map((staffId) => ({
-        staffId,
-        name: "",
-        email: "",
-        department: "",
-      }));
+      const passengers: Omit<TripPassenger, "id" | "notifiedAt">[] =
+        selectedPassengers.map((staffId) => ({
+          staffId,
+          name: "",
+          email: "",
+          department: "",
+        }));
 
       // Build payload in snake_case as expected by Laravel backend
       const tripPayload = {
@@ -600,16 +694,22 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         destination: formData.destination,
         route: formData.route || null,
         scheduled_departure_at: formData.scheduledDepartureAt
-          ? new Date(formData.scheduledDepartureAt).toISOString().replace('T', ' ').substring(0, 19)
+          ? new Date(formData.scheduledDepartureAt)
+              .toISOString()
+              .replace("T", " ")
+              .substring(0, 19)
           : null,
         scheduled_arrival_at: formData.scheduledArrivalAt
-          ? new Date(formData.scheduledArrivalAt).toISOString().replace('T', ' ').substring(0, 19)
+          ? new Date(formData.scheduledArrivalAt)
+              .toISOString()
+              .replace("T", " ")
+              .substring(0, 19)
           : null,
         purpose: formData.purpose || null,
         priority: formData.priority || "normal",
         notes: formData.notes || null,
         cargo: formData.cargo || null,
-        passengers: passengers.map(p => ({
+        passengers: passengers.map((p) => ({
           staff_id: p.staffId,
           name: p.name,
           email: p.email,
@@ -619,7 +719,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           .map((id) => parseInt(id, 10))
           .filter((n) => !Number.isNaN(n)),
         driver_user_id:
-          useExternalDriver || !driverUserId ? undefined : parseInt(driverUserId, 10),
+          useExternalDriver || !driverUserId
+            ? undefined
+            : parseInt(driverUserId, 10),
         external_driver: useExternalDriver
           ? {
               name: externalDriver.name.trim(),
@@ -628,17 +730,28 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
             }
           : undefined,
         accommodation_required: accommodation.required,
-        accommodation_name: accommodation.required ? accommodation.name.trim() || undefined : undefined,
-        accommodation_address: accommodation.required ? accommodation.address.trim() || undefined : undefined,
-        accommodation_contact: accommodation.required ? accommodation.contact.trim() || undefined : undefined,
-        accommodation_details: accommodation.required ? accommodation.details.trim() || undefined : undefined,
+        accommodation_name: accommodation.required
+          ? accommodation.name.trim() || undefined
+          : undefined,
+        accommodation_address: accommodation.required
+          ? accommodation.address.trim() || undefined
+          : undefined,
+        accommodation_contact: accommodation.required
+          ? accommodation.contact.trim() || undefined
+          : undefined,
+        accommodation_details: accommodation.required
+          ? accommodation.details.trim() || undefined
+          : undefined,
         accommodation_estimated_cost:
-          accommodation.required && accommodation.estimatedCost.trim() !== "" &&
+          accommodation.required &&
+          accommodation.estimatedCost.trim() !== "" &&
           !Number.isNaN(Number(accommodation.estimatedCost))
             ? Number(accommodation.estimatedCost)
             : undefined,
         escort_required: escort.required,
-        escort_description: escort.required ? escort.description.trim() || undefined : undefined,
+        escort_description: escort.required
+          ? escort.description.trim() || undefined
+          : undefined,
       };
 
       const payload = {
@@ -652,7 +765,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           : undefined,
       };
       const response = await tripsApi.create(payload as any);
-      
+
       if (response.success) {
         toast({
           title: "Trip Scheduled",
@@ -664,7 +777,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       } else {
         toast({
           title: "Failed to Schedule Trip",
-          description: response.error || "Unable to create trip. Please try again.",
+          description:
+            response.error || "Unable to create trip. Please try again.",
           variant: "destructive",
         });
       }
@@ -719,21 +833,24 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     }
   };
 
-  const handleDownloadTemplate = async (templateType: 'personnel-trip' | 'journey-management' = 'personnel-trip') => {
+  const handleDownloadTemplate = async (
+    templateType: "personnel-trip" | "journey-management" = "personnel-trip",
+  ) => {
     try {
       const blob = await logisticsDashboardApi.downloadTemplate(templateType);
       if (blob) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = templateType === 'journey-management' 
-          ? "journey_management_template.xlsx" 
-          : "personnel_trip_template.xlsx";
+        a.download =
+          templateType === "journey-management"
+            ? "journey_management_template.xlsx"
+            : "personnel_trip_template.xlsx";
         a.click();
         URL.revokeObjectURL(url);
         toast({
           title: "Template Downloaded",
-          description: `${templateType === 'journey-management' ? 'Journey Management' : 'Personnel Trip'} template downloaded successfully`,
+          description: `${templateType === "journey-management" ? "Journey Management" : "Personnel Trip"} template downloaded successfully`,
         });
       } else {
         toast({
@@ -763,7 +880,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       } else {
         toast({
           title: "Failed to Cancel Trip",
-          description: response.error || "Unable to cancel trip. Please try again.",
+          description:
+            response.error || "Unable to cancel trip. Please try again.",
           variant: "destructive",
         });
       }
@@ -775,7 +893,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       });
     }
   };
-
 
   const handleEditTrip = async () => {
     if (!selectedTrip || !formData.origin || !formData.destination) {
@@ -801,12 +918,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     setIsSubmitting(true);
     try {
       // Build passengers list from selected
-      const passengers: Omit<TripPassenger, "id" | "notifiedAt">[] = selectedPassengers.map((staffId) => ({
-        staffId,
-        name: "",
-        email: "",
-        department: "",
-      }));
+      const passengers: Omit<TripPassenger, "id" | "notifiedAt">[] =
+        selectedPassengers.map((staffId) => ({
+          staffId,
+          name: "",
+          email: "",
+          department: "",
+        }));
 
       const editPayload = {
         trip_type: formData.type,
@@ -814,10 +932,16 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         destination: formData.destination,
         route: formData.route || null,
         scheduled_departure_at: formData.scheduledDepartureAt
-          ? new Date(formData.scheduledDepartureAt).toISOString().replace('T', ' ').substring(0, 19)
+          ? new Date(formData.scheduledDepartureAt)
+              .toISOString()
+              .replace("T", " ")
+              .substring(0, 19)
           : null,
         scheduled_arrival_at: formData.scheduledArrivalAt
-          ? new Date(formData.scheduledArrivalAt).toISOString().replace('T', ' ').substring(0, 19)
+          ? new Date(formData.scheduledArrivalAt)
+              .toISOString()
+              .replace("T", " ")
+              .substring(0, 19)
           : null,
         purpose: formData.purpose || null,
         priority: formData.priority,
@@ -834,7 +958,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
             }))
           : undefined,
         driver_user_id:
-          useExternalDriver || !driverUserId ? undefined : parseInt(driverUserId, 10),
+          useExternalDriver || !driverUserId
+            ? undefined
+            : parseInt(driverUserId, 10),
         external_driver: useExternalDriver
           ? {
               name: externalDriver.name.trim(),
@@ -843,20 +969,34 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
             }
           : undefined,
         accommodation_required: accommodation.required,
-        accommodation_name: accommodation.required ? accommodation.name.trim() || undefined : undefined,
-        accommodation_address: accommodation.required ? accommodation.address.trim() || undefined : undefined,
-        accommodation_contact: accommodation.required ? accommodation.contact.trim() || undefined : undefined,
-        accommodation_details: accommodation.required ? accommodation.details.trim() || undefined : undefined,
+        accommodation_name: accommodation.required
+          ? accommodation.name.trim() || undefined
+          : undefined,
+        accommodation_address: accommodation.required
+          ? accommodation.address.trim() || undefined
+          : undefined,
+        accommodation_contact: accommodation.required
+          ? accommodation.contact.trim() || undefined
+          : undefined,
+        accommodation_details: accommodation.required
+          ? accommodation.details.trim() || undefined
+          : undefined,
         accommodation_estimated_cost:
-          accommodation.required && accommodation.estimatedCost.trim() !== "" &&
+          accommodation.required &&
+          accommodation.estimatedCost.trim() !== "" &&
           !Number.isNaN(Number(accommodation.estimatedCost))
             ? Number(accommodation.estimatedCost)
             : undefined,
         escort_required: escort.required,
-        escort_description: escort.required ? escort.description.trim() || undefined : undefined,
+        escort_description: escort.required
+          ? escort.description.trim() || undefined
+          : undefined,
       };
 
-      const response = await tripsApi.update(selectedTrip.id, editPayload as any);
+      const response = await tripsApi.update(
+        selectedTrip.id,
+        editPayload as any,
+      );
 
       if (response.success) {
         toast({
@@ -868,7 +1008,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       } else {
         toast({
           title: "Failed to Update Trip",
-          description: response.error || "Unable to update trip. Please try again.",
+          description:
+            response.error || "Unable to update trip. Please try again.",
           variant: "destructive",
         });
       }
@@ -912,11 +1053,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
 
     setIsSubmitting(true);
     try {
-      const vendor = vendorList.find(v => v.id === selectedVendorId);
+      const vendor = vendorList.find((v) => v.id === selectedVendorId);
       const response = await tripsApi.assignVendor(tripId, selectedVendorId);
-      const updatePayload: Record<string, string | number | null | undefined> = {
-        [serviceFieldMap[selectedVendorService]]: selectedVendorId,
-      };
+      const updatePayload: Record<string, string | number | null | undefined> =
+        {
+          [serviceFieldMap[selectedVendorService]]: selectedVendorId,
+        };
       if (selectedVendorService === "transport") {
         updatePayload.vendor_name = vendor?.name || "";
       } else if (selectedVendorService === "accommodation") {
@@ -924,7 +1066,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       } else {
         updatePayload.escort_vendor_name = vendor?.name || "";
       }
-      const updateResponse = await tripsApi.update(tripId, updatePayload as any);
+      const updateResponse = await tripsApi.update(
+        tripId,
+        updatePayload as any,
+      );
 
       if (response.success && updateResponse.success) {
         toast({
@@ -938,7 +1083,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       } else {
         toast({
           title: "Failed to Assign Vendor",
-          description: response.error || "Unable to assign vendor. Please try again.",
+          description:
+            response.error || "Unable to assign vendor. Please try again.",
           variant: "destructive",
         });
       }
@@ -970,8 +1116,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     const tripAny = trip as any;
     const passengerIds = (
       trip.passengers?.map((p) => p.staffId) ||
-      (Array.isArray(tripAny.passenger_user_ids) ? tripAny.passenger_user_ids.map(String) : undefined) ||
-      (Array.isArray(tripAny.passengerUserIds) ? tripAny.passengerUserIds.map(String) : undefined) ||
+      (Array.isArray(tripAny.passenger_user_ids)
+        ? tripAny.passenger_user_ids.map(String)
+        : undefined) ||
+      (Array.isArray(tripAny.passengerUserIds)
+        ? tripAny.passengerUserIds.map(String)
+        : undefined) ||
       []
     ).filter((id): id is string => Boolean(id));
     setSelectedPassengers(passengerIds);
@@ -989,33 +1139,54 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       Array.isArray(trip.externalPassengers)
         ? trip.externalPassengers
         : Array.isArray(tripAny.external_passengers)
-        ? tripAny.external_passengers
-        : Array.isArray(tripAny.externalPassengers)
-        ? tripAny.externalPassengers
-        : [],
+          ? tripAny.external_passengers
+          : Array.isArray(tripAny.externalPassengers)
+            ? tripAny.externalPassengers
+            : [],
     );
     const internalDriverId =
-      tripAny.driver_user_id ?? tripAny.driverUserId ?? tripAny.driver_id ?? tripAny.driverId;
+      tripAny.driver_user_id ??
+      tripAny.driverUserId ??
+      tripAny.driver_id ??
+      tripAny.driverId;
     setDriverUserId(internalDriverId ? String(internalDriverId) : undefined);
     const acc = trip as any;
-    const accCost = acc.accommodationEstimatedCost ?? acc.accommodation_estimated_cost;
+    const accCost =
+      acc.accommodationEstimatedCost ?? acc.accommodation_estimated_cost;
     setAccommodation({
-      required: Boolean(acc.accommodationRequired ?? acc.accommodation_required),
+      required: Boolean(
+        acc.accommodationRequired ?? acc.accommodation_required,
+      ),
       name: String(acc.accommodationName ?? acc.accommodation_name ?? ""),
-      address: String(acc.accommodationAddress ?? acc.accommodation_address ?? ""),
-      contact: String(acc.accommodationContact ?? acc.accommodation_contact ?? ""),
-      details: String(acc.accommodationDetails ?? acc.accommodation_details ?? ""),
+      address: String(
+        acc.accommodationAddress ?? acc.accommodation_address ?? "",
+      ),
+      contact: String(
+        acc.accommodationContact ?? acc.accommodation_contact ?? "",
+      ),
+      details: String(
+        acc.accommodationDetails ?? acc.accommodation_details ?? "",
+      ),
       estimatedCost: accCost == null ? "" : String(accCost),
     });
     setEscort({
       required: Boolean(acc.escortRequired ?? acc.escort_required),
-      description: String(acc.escortDescription ?? acc.escort_description ?? ""),
+      description: String(
+        acc.escortDescription ?? acc.escort_description ?? "",
+      ),
     });
     // Detect external driver: trip carries driver name/phone but no internal driver id
     const tAny = trip as any;
-    const extName = tAny.external_driver?.name || (!tAny.driver_id && trip.driverName) || "";
-    const extPhone = tAny.external_driver?.phone || (!tAny.driver_id && trip.driverPhone) || "";
-    const extLicense = tAny.external_driver?.license_number || tAny.external_driver?.licenseNumber || "";
+    const extName =
+      tAny.external_driver?.name || (!tAny.driver_id && trip.driverName) || "";
+    const extPhone =
+      tAny.external_driver?.phone ||
+      (!tAny.driver_id && trip.driverPhone) ||
+      "";
+    const extLicense =
+      tAny.external_driver?.license_number ||
+      tAny.external_driver?.licenseNumber ||
+      "";
     if (extName || extPhone) {
       setUseExternalDriver(true);
       setExternalDriver({
@@ -1031,7 +1202,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     setEditDialogOpen(true);
   };
 
-  const extractVendorService = (trip: Trip): "transport" | "accommodation" | "escort" => {
+  const extractVendorService = (
+    trip: Trip,
+  ): "transport" | "accommodation" | "escort" => {
     if (trip.accommodationVendorId) return "accommodation";
     if (trip.escortVendorId) return "escort";
     return "transport";
@@ -1045,8 +1218,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       service === "transport"
         ? trip.transportVendorId || trip.vendorId
         : service === "accommodation"
-        ? trip.accommodationVendorId
-        : trip.escortVendorId;
+          ? trip.accommodationVendorId
+          : trip.escortVendorId;
     setSelectedVendorId(vendorId || "");
     setAssignVendorDialogOpen(true);
   };
@@ -1092,7 +1265,11 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
 
     const raw = trip as unknown as Trip & Record<string, unknown>;
     const requestId =
-      raw.trip_request_id ?? raw.tripRequestId ?? raw.request_id ?? raw.requestId ?? trip.id;
+      raw.trip_request_id ??
+      raw.tripRequestId ??
+      raw.request_id ??
+      raw.requestId ??
+      trip.id;
 
     setLoadingTripDetails(true);
     setLoadingTripRequest(true);
@@ -1106,22 +1283,40 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           // If backend returned passenger IDs but not resolved user objects,
           // resolve them here and attach `includedUsers` to the trip payload.
           const incoming = tripRes.data as unknown as Record<string, unknown>;
-          const ids: unknown[] = (incoming.passengerUserIds ?? incoming.passenger_user_ids) as unknown[] ?? [];
-          const hasIncluded = Array.isArray(incoming.includedUsers) || Array.isArray(incoming.included_users) || Array.isArray(incoming.passengers);
+          const ids: unknown[] =
+            ((incoming.passengerUserIds ??
+              incoming.passenger_user_ids) as unknown[]) ?? [];
+          const hasIncluded =
+            Array.isArray(incoming.includedUsers) ||
+            Array.isArray(incoming.included_users) ||
+            Array.isArray(incoming.passengers);
           if (Array.isArray(ids) && ids.length > 0 && !hasIncluded) {
-            const missingIds = ids.map(String).filter((id) => !userCache.current[id]);
+            const missingIds = ids
+              .map(String)
+              .filter((id) => !userCache.current[id]);
             if (missingIds.length > 0) {
               try {
                 const fetched = await Promise.all(
                   missingIds.map(async (id) => {
-                    const res = await apiRequestFull(`/users/${encodeURIComponent(id)}`);
+                    const res = await apiRequestFull(
+                      `/users/${encodeURIComponent(id)}`,
+                    );
                     if (res.success && res.body) {
                       const body = res.body as Record<string, unknown>;
-                      const payload = ('data' in body && (body as any).data) ? (body as any).data : body;
-                      if (payload && typeof payload === 'object') {
+                      const payload =
+                        "data" in body && (body as any).data
+                          ? (body as any).data
+                          : body;
+                      if (payload && typeof payload === "object") {
                         const keys = Object.keys(payload);
-                        if (keys.length === 1 && typeof (payload as any)[keys[0]] === 'object') {
-                          return (payload as any)[keys[0]] as Record<string, unknown>;
+                        if (
+                          keys.length === 1 &&
+                          typeof (payload as any)[keys[0]] === "object"
+                        ) {
+                          return (payload as any)[keys[0]] as Record<
+                            string,
+                            unknown
+                          >;
                         }
                       }
                       return payload as Record<string, unknown>;
@@ -1130,19 +1325,29 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   }),
                 );
                 for (let i = 0; i < missingIds.length; i++) {
-                  if (fetched[i]) userCache.current[missingIds[i]] = fetched[i] as Record<string, unknown>;
+                  if (fetched[i])
+                    userCache.current[missingIds[i]] = fetched[i] as Record<
+                      string,
+                      unknown
+                    >;
                 }
               } catch (err) {
-                console.warn('Failed to resolve passenger user objects', err);
+                console.warn("Failed to resolve passenger user objects", err);
               }
             }
-            const included = (ids.map((id) => userCache.current[String(id)]).filter(Boolean) as Record<string, unknown>[]);
+            const included = ids
+              .map((id) => userCache.current[String(id)])
+              .filter(Boolean) as Record<string, unknown>[];
             setSelectedTrip((prev) =>
-              prev && String(prev.id) === String(trip.id) ? { ...prev, ...tripRes.data, includedUsers: included } : { ...tripRes.data, includedUsers: included },
+              prev && String(prev.id) === String(trip.id)
+                ? { ...prev, ...tripRes.data, includedUsers: included }
+                : { ...tripRes.data, includedUsers: included },
             );
           } else {
             setSelectedTrip((prev) =>
-              prev && String(prev.id) === String(trip.id) ? { ...prev, ...tripRes.data } : prev,
+              prev && String(prev.id) === String(trip.id)
+                ? { ...prev, ...tripRes.data }
+                : prev,
             );
           }
         }
@@ -1155,7 +1360,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           );
         }
       } catch (error) {
-        setTripDetailError("Unable to load trip details. Please refresh and try again.");
+        setTripDetailError(
+          "Unable to load trip details. Please refresh and try again.",
+        );
       } finally {
         setLoadingTripDetails(false);
         setLoadingTripRequest(false);
@@ -1174,7 +1381,14 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
     setUseExternalDriver(false);
     setExternalDriver({ name: "", phone: "", license_number: "" });
     setExternalPassengers([]);
-    setAccommodation({ required: false, name: "", address: "", contact: "", details: "", estimatedCost: "" });
+    setAccommodation({
+      required: false,
+      name: "",
+      address: "",
+      contact: "",
+      details: "",
+      estimatedCost: "",
+    });
     setEscort({ required: false, description: "" });
   };
 
@@ -1195,7 +1409,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
             <Upload className="mr-2 h-4 w-4" />
             CSV Import
           </Button>
-          <Button variant="outline" onClick={() => setBulkUploadDialogOpen(true)}>
+          <Button
+            variant="outline"
+            onClick={() => setBulkUploadDialogOpen(true)}
+          >
             <Upload className="mr-2 h-4 w-4" />
             Excel Upload
           </Button>
@@ -1221,16 +1438,22 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     <Select
                       value={formData.type}
                       onValueChange={(value: TripType) =>
-                        setFormData(prev => ({ ...prev, type: value }))
+                        setFormData((prev) => ({ ...prev, type: value }))
                       }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="personnel">Personnel Movement</SelectItem>
-                        <SelectItem value="material">Material Movement</SelectItem>
-                        <SelectItem value="mixed">Mixed (Personnel + Material)</SelectItem>
+                        <SelectItem value="personnel">
+                          Personnel Movement
+                        </SelectItem>
+                        <SelectItem value="material">
+                          Material Movement
+                        </SelectItem>
+                        <SelectItem value="mixed">
+                          Mixed (Personnel + Material)
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1239,7 +1462,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     <Select
                       value={formData.priority}
                       onValueChange={(value) =>
-                        setFormData(prev => ({ ...prev, priority: value as any }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          priority: value as any,
+                        }))
                       }
                     >
                       <SelectTrigger>
@@ -1263,7 +1489,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                       placeholder="e.g., Lagos Head Office"
                       value={formData.origin || ""}
                       onChange={(e) =>
-                        setFormData(prev => ({ ...prev, origin: e.target.value }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          origin: e.target.value,
+                        }))
                       }
                     />
                   </div>
@@ -1273,7 +1502,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                       placeholder="e.g., Abuja Branch"
                       value={formData.destination || ""}
                       onChange={(e) =>
-                        setFormData(prev => ({ ...prev, destination: e.target.value }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          destination: e.target.value,
+                        }))
                       }
                     />
                   </div>
@@ -1286,7 +1518,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     placeholder="e.g., Via Lokoja-Abuja Highway"
                     value={formData.route || ""}
                     onChange={(e) =>
-                      setFormData(prev => ({ ...prev, route: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        route: e.target.value,
+                      }))
                     }
                   />
                 </div>
@@ -1299,7 +1534,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                       type="datetime-local"
                       value={formData.scheduledDepartureAt || ""}
                       onChange={(e) =>
-                        setFormData(prev => ({ ...prev, scheduledDepartureAt: e.target.value }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          scheduledDepartureAt: e.target.value,
+                        }))
                       }
                     />
                   </div>
@@ -1309,7 +1547,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                       type="datetime-local"
                       value={formData.scheduledArrivalAt || ""}
                       onChange={(e) =>
-                        setFormData(prev => ({ ...prev, scheduledArrivalAt: e.target.value }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          scheduledArrivalAt: e.target.value,
+                        }))
                       }
                     />
                   </div>
@@ -1322,32 +1563,44 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     placeholder="e.g., Board Meeting, Equipment Delivery"
                     value={formData.purpose || ""}
                     onChange={(e) =>
-                      setFormData(prev => ({ ...prev, purpose: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        purpose: e.target.value,
+                      }))
                     }
                   />
                 </div>
 
                 {/* Cargo (for material trips) */}
-                {(formData.type === "material" || formData.type === "mixed") && (
+                {(formData.type === "material" ||
+                  formData.type === "mixed") && (
                   <div className="space-y-2">
                     <Label>Cargo Description</Label>
                     <Textarea
                       placeholder="Describe the materials being transported"
                       value={formData.cargo || ""}
                       onChange={(e) =>
-                        setFormData(prev => ({ ...prev, cargo: e.target.value }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          cargo: e.target.value,
+                        }))
                       }
                     />
                   </div>
                 )}
 
-                {(formData.type === "personnel" || formData.type === "mixed") && (
+                {(formData.type === "personnel" ||
+                  formData.type === "mixed") && (
                   <>
                     <EligiblePassengerPicker
                       selectedPassengerIds={selectedPassengers}
                       onPassengersChange={setSelectedPassengers}
-                      driverUserId={useExternalDriver ? undefined : driverUserId}
-                      onDriverChange={useExternalDriver ? undefined : setDriverUserId}
+                      driverUserId={
+                        useExternalDriver ? undefined : driverUserId
+                      }
+                      onDriverChange={
+                        useExternalDriver ? undefined : setDriverUserId
+                      }
                       showDriver={!useExternalDriver}
                     />
                     <div className="space-y-3 rounded-md border p-3">
@@ -1373,7 +1626,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                             <Input
                               value={externalDriver.name}
                               onChange={(e) =>
-                                setExternalDriver((d) => ({ ...d, name: e.target.value }))
+                                setExternalDriver((d) => ({
+                                  ...d,
+                                  name: e.target.value,
+                                }))
                               }
                               placeholder="Full name"
                             />
@@ -1383,7 +1639,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                             <Input
                               value={externalDriver.phone}
                               onChange={(e) =>
-                                setExternalDriver((d) => ({ ...d, phone: e.target.value }))
+                                setExternalDriver((d) => ({
+                                  ...d,
+                                  phone: e.target.value,
+                                }))
                               }
                               placeholder="e.g. 0803…"
                             />
@@ -1426,7 +1685,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   </div>
                   {externalPassengers.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
-                      Add non-staff passengers, clients, or contractors traveling with this trip.
+                      Add non-staff passengers, clients, or contractors
+                      traveling with this trip.
                     </p>
                   ) : (
                     <div className="space-y-3">
@@ -1438,7 +1698,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                             onChange={(e) =>
                               setExternalPassengers((prev) =>
                                 prev.map((p, i) =>
-                                  i === index ? { ...p, name: e.target.value } : p,
+                                  i === index
+                                    ? { ...p, name: e.target.value }
+                                    : p,
                                 ),
                               )
                             }
@@ -1449,7 +1711,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                             onChange={(e) =>
                               setExternalPassengers((prev) =>
                                 prev.map((p, i) =>
-                                  i === index ? { ...p, email: e.target.value } : p,
+                                  i === index
+                                    ? { ...p, email: e.target.value }
+                                    : p,
                                 ),
                               )
                             }
@@ -1461,7 +1725,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                               onChange={(e) =>
                                 setExternalPassengers((prev) =>
                                   prev.map((p, i) =>
-                                    i === index ? { ...p, phone: e.target.value } : p,
+                                    i === index
+                                      ? { ...p, phone: e.target.value }
+                                      : p,
                                   ),
                                 )
                               }
@@ -1471,7 +1737,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                               variant="ghost"
                               size="icon"
                               onClick={() =>
-                                setExternalPassengers((prev) => prev.filter((_, i) => i !== index))
+                                setExternalPassengers((prev) =>
+                                  prev.filter((_, i) => i !== index),
+                                )
                               }
                             >
                               <XCircle className="h-4 w-4" />
@@ -1488,9 +1756,14 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     <Switch
                       id="create-accommodation-required"
                       checked={accommodation.required}
-                      onCheckedChange={(v) => setAccommodation((a) => ({ ...a, required: v }))}
+                      onCheckedChange={(v) =>
+                        setAccommodation((a) => ({ ...a, required: v }))
+                      }
                     />
-                    <Label htmlFor="create-accommodation-required" className="cursor-pointer">
+                    <Label
+                      htmlFor="create-accommodation-required"
+                      className="cursor-pointer"
+                    >
                       Accommodation required
                     </Label>
                   </div>
@@ -1502,12 +1775,19 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     }
                   >
                     <div className="space-y-1">
-                      <Label className="text-xs">Hotel / accommodation name</Label>
+                      <Label className="text-xs">
+                        Hotel / accommodation name
+                      </Label>
                       <Input
                         value={accommodation.name}
                         disabled={!accommodation.required}
                         placeholder="e.g. Transcorp Hilton"
-                        onChange={(e) => setAccommodation((a) => ({ ...a, name: e.target.value }))}
+                        onChange={(e) =>
+                          setAccommodation((a) => ({
+                            ...a,
+                            name: e.target.value,
+                          }))
+                        }
                       />
                     </div>
                     <div className="space-y-1">
@@ -1516,7 +1796,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                         value={accommodation.address}
                         disabled={!accommodation.required}
                         placeholder="Street, city"
-                        onChange={(e) => setAccommodation((a) => ({ ...a, address: e.target.value }))}
+                        onChange={(e) =>
+                          setAccommodation((a) => ({
+                            ...a,
+                            address: e.target.value,
+                          }))
+                        }
                       />
                     </div>
                     <div className="space-y-1">
@@ -1525,7 +1810,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                         value={accommodation.contact}
                         disabled={!accommodation.required}
                         placeholder="Phone or email"
-                        onChange={(e) => setAccommodation((a) => ({ ...a, contact: e.target.value }))}
+                        onChange={(e) =>
+                          setAccommodation((a) => ({
+                            ...a,
+                            contact: e.target.value,
+                          }))
+                        }
                       />
                     </div>
                     <div className="space-y-1">
@@ -1537,7 +1827,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                         disabled={!accommodation.required}
                         placeholder="Optional"
                         onChange={(e) =>
-                          setAccommodation((a) => ({ ...a, estimatedCost: e.target.value }))
+                          setAccommodation((a) => ({
+                            ...a,
+                            estimatedCost: e.target.value,
+                          }))
                         }
                       />
                     </div>
@@ -1547,7 +1840,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                         value={accommodation.details}
                         disabled={!accommodation.required}
                         placeholder="Room type, nights, special requirements"
-                        onChange={(e) => setAccommodation((a) => ({ ...a, details: e.target.value }))}
+                        onChange={(e) =>
+                          setAccommodation((a) => ({
+                            ...a,
+                            details: e.target.value,
+                          }))
+                        }
                       />
                     </div>
                   </div>
@@ -1558,9 +1856,14 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     <Switch
                       id="create-escort-required"
                       checked={escort.required}
-                      onCheckedChange={(v) => setEscort((s) => ({ ...s, required: v }))}
+                      onCheckedChange={(v) =>
+                        setEscort((s) => ({ ...s, required: v }))
+                      }
                     />
-                    <Label htmlFor="create-escort-required" className="cursor-pointer">
+                    <Label
+                      htmlFor="create-escort-required"
+                      className="cursor-pointer"
+                    >
                       Escort / security required
                     </Label>
                   </div>
@@ -1571,7 +1874,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                       disabled={!escort.required}
                       className={escort.required ? "" : "opacity-60"}
                       placeholder="Number of escorts, armed/unarmed, agency, pickup point"
-                      onChange={(e) => setEscort((s) => ({ ...s, description: e.target.value }))}
+                      onChange={(e) =>
+                        setEscort((s) => ({
+                          ...s,
+                          description: e.target.value,
+                        }))
+                      }
                     />
                   </div>
                 </div>
@@ -1583,13 +1891,19 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     placeholder="Additional instructions or notes"
                     value={formData.notes || ""}
                     onChange={(e) =>
-                      setFormData(prev => ({ ...prev, notes: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
                     }
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setCreateDialogOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button onClick={handleCreateTrip} disabled={isSubmitting}>
@@ -1630,7 +1944,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="vendor_assigned">Vendor Assigned</SelectItem>
+                  <SelectItem value="vendor_assigned">
+                    Vendor Assigned
+                  </SelectItem>
                   <SelectItem value="in_progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -1698,8 +2014,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">
-                          {trip.type === "personnel" && <Users className="mr-1 h-3 w-3" />}
-                          {trip.type === "material" && <Package className="mr-1 h-3 w-3" />}
+                          {trip.type === "personnel" && (
+                            <Users className="mr-1 h-3 w-3" />
+                          )}
+                          {trip.type === "material" && (
+                            <Package className="mr-1 h-3 w-3" />
+                          )}
                           {trip.type}
                         </Badge>
                       </TableCell>
@@ -1714,27 +2034,49 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm">
                           <Calendar className="h-3 w-3 text-muted-foreground" />
-                          {formatDate(trip.scheduledDepartureAt, { dateStyle: "medium" } as any)}
-                          {trip.scheduledDepartureAt && !isNaN(new Date(trip.scheduledDepartureAt).getTime()) && (
-                            <>
-                              <Clock className="h-3 w-3 ml-1 text-muted-foreground" />
-                              {new Date(trip.scheduledDepartureAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                            </>
-                          )}
+                          {formatDate(trip.scheduledDepartureAt, {
+                            dateStyle: "medium",
+                          } as any)}
+                          {trip.scheduledDepartureAt &&
+                            !isNaN(
+                              new Date(trip.scheduledDepartureAt).getTime(),
+                            ) && (
+                              <>
+                                <Clock className="h-3 w-3 ml-1 text-muted-foreground" />
+                                {new Date(
+                                  trip.scheduledDepartureAt,
+                                ).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </>
+                            )}
                         </div>
                       </TableCell>
                       <TableCell>
                         {trip.vendorName || trip.driverName || (
-                          <span className="text-muted-foreground">Not assigned</span>
+                          <span className="text-muted-foreground">
+                            Not assigned
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge className={cn(statusColors[trip.status], "capitalize")}>
+                        <Badge
+                          className={cn(
+                            statusColors[trip.status],
+                            "capitalize",
+                          )}
+                        >
                           {trip.status.replace("_", " ")}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge className={cn(priorityColors[trip.priority], "capitalize")}>
+                        <Badge
+                          className={cn(
+                            priorityColors[trip.priority],
+                            "capitalize",
+                          )}
+                        >
                           {trip.priority}
                         </Badge>
                       </TableCell>
@@ -1746,23 +2088,33 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openViewDialog(trip)}>
+                            <DropdownMenuItem
+                              onClick={() => openViewDialog(trip)}
+                            >
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
                             {(() => {
                               const stage =
-                                (trip as Trip & { workflow_stage?: string }).workflow_stage ||
-                                (trip as Trip & { workflowStage?: string }).workflowStage;
+                                (trip as Trip & { workflow_stage?: string })
+                                  .workflow_stage ||
+                                (trip as Trip & { workflowStage?: string })
+                                  .workflowStage;
                               const isProcurement =
                                 getScmRole(user) &&
-                                ["procurement", "procurement_manager"].includes(getScmRole(user));
+                                ["procurement", "procurement_manager"].includes(
+                                  getScmRole(user),
+                                );
                               const isScd =
                                 getScmRole(user) &&
-                                ["supply_chain_director", "supply_chain"].includes(getScmRole(user));
+                                [
+                                  "supply_chain_director",
+                                  "supply_chain",
+                                ].includes(getScmRole(user));
                               if (
                                 isProcurement &&
-                                (stage === "vendor_selection" || stage === "procurement_review")
+                                (stage === "vendor_selection" ||
+                                  stage === "procurement_review")
                               ) {
                                 return (
                                   <>
@@ -1775,28 +2127,32 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                       <Users2 className="mr-2 h-4 w-4" />
                                       Compare vendor quotes
                                     </DropdownMenuItem>
-                                    {stage === "procurement_review" && trip.vendorId && (
-                                      <DropdownMenuItem
-                                        onClick={async () => {
-                                          const res = await tripRequestApi.procurementApproveQuote(
-                                            String(trip.id),
-                                          );
-                                          if (res.success) {
-                                            toast({ title: "Quote approved" });
-                                            fetchTrips();
-                                          } else {
-                                            toast({
-                                              title: "Failed",
-                                              description: res.error,
-                                              variant: "destructive",
-                                            });
-                                          }
-                                        }}
-                                      >
-                                        <FileCheck className="mr-2 h-4 w-4" />
-                                        Approve vendor quote
-                                      </DropdownMenuItem>
-                                    )}
+                                    {stage === "procurement_review" &&
+                                      trip.vendorId && (
+                                        <DropdownMenuItem
+                                          onClick={async () => {
+                                            const res =
+                                              await tripRequestApi.procurementApproveQuote(
+                                                String(trip.id),
+                                              );
+                                            if (res.success) {
+                                              toast({
+                                                title: "Quote approved",
+                                              });
+                                              fetchTrips();
+                                            } else {
+                                              toast({
+                                                title: "Failed",
+                                                description: res.error,
+                                                variant: "destructive",
+                                              });
+                                            }
+                                          }}
+                                        >
+                                          <FileCheck className="mr-2 h-4 w-4" />
+                                          Approve vendor quote
+                                        </DropdownMenuItem>
+                                      )}
                                   </>
                                 );
                               }
@@ -1804,9 +2160,14 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                                 return (
                                   <DropdownMenuItem
                                     onClick={async () => {
-                                      const res = await tripRequestApi.scdApprove(String(trip.id));
+                                      const res =
+                                        await tripRequestApi.scdApprove(
+                                          String(trip.id),
+                                        );
                                       if (res.success) {
-                                        toast({ title: "SCD approval recorded" });
+                                        toast({
+                                          title: "SCD approval recorded",
+                                        });
                                         fetchTrips();
                                       } else {
                                         toast({
@@ -1824,100 +2185,141 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                               }
                               return null;
                             })()}
-                            {trip.status !== "completed" && trip.status !== "cancelled" && (
-                              <>
-                                <DropdownMenuItem onClick={() => openEditDialog(trip)}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit Trip
-                                </DropdownMenuItem>
-                                {(trip.type === "personnel" || trip.type === "mixed") && (
+                            {trip.status !== "completed" &&
+                              trip.status !== "cancelled" && (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() => openEditDialog(trip)}
+                                  >
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Edit Trip
+                                  </DropdownMenuItem>
+                                  {(trip.type === "personnel" ||
+                                    trip.type === "mixed") && (
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setSelectedTrip(trip);
+                                        const tripAny = trip as any;
+                                        const existingPassengerIds =
+                                          tripAny.journey?.passengers
+                                            ?.filter((p: any) => p?.id != null)
+                                            .map((p: any) => String(p.id)) ??
+                                          (tripAny.passenger_user_ids ?? [])
+                                            .filter((id: any) => id != null)
+                                            .map((id: any) => String(id));
+
+                                        setPassengerEditList(
+                                          existingPassengerIds.length > 0
+                                            ? existingPassengerIds
+                                            : (trip.passengers || [])
+                                                .map((p) =>
+                                                  String(
+                                                    p.staffId ?? p.id ?? "",
+                                                  ),
+                                                )
+                                                .filter((id) => id !== ""),
+                                        );
+                                        setEditPassengersOpen(true);
+                                      }}
+                                    >
+                                      <UserCog className="mr-2 h-4 w-4" />
+                                      Edit Passengers
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem
                                     onClick={() => {
                                       setSelectedTrip(trip);
-                                      const tripAny = trip as any;
-                                      const existingPassengerIds =
-                                        tripAny.journey?.passengers?.
-                                          filter((p: any) => p?.id != null)
-                                          .map((p: any) => String(p.id)) ??
-                                        (tripAny.passenger_user_ids ?? [])
-                                          .filter((id: any) => id != null)
-                                          .map((id: any) => String(id));
-
-                                      setPassengerEditList(
-                                        existingPassengerIds.length > 0
-                                          ? existingPassengerIds
-                                          : (trip.passengers || [])
-                                              .map((p) => String(p.staffId ?? p.id ?? ""))
-                                              .filter((id) => id !== ""),
-                                      );
-                                      setEditPassengersOpen(true);
+                                      setAccommodationDialogState({
+                                        name: trip.accommodationName || "",
+                                        address:
+                                          trip.accommodationAddress || "",
+                                        contact:
+                                          trip.accommodationContact || "",
+                                        details:
+                                          trip.accommodationDetails || "",
+                                        estimatedCost:
+                                          trip.accommodationEstimatedCost !=
+                                          null
+                                            ? String(
+                                                trip.accommodationEstimatedCost,
+                                              )
+                                            : "",
+                                        vendorId:
+                                          trip.accommodationVendorId || "",
+                                        vendorName:
+                                          trip.accommodationVendorName || "",
+                                      });
+                                      setAccommodationDialogOpen(true);
                                     }}
                                   >
-                                    <UserCog className="mr-2 h-4 w-4" />
-                                    Edit Passengers
+                                    <Hotel className="mr-2 h-4 w-4" />
+                                    Book Accommodation
                                   </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedTrip(trip);
-                                    setAccommodationDialogState({
-                                      name: trip.accommodationName || "",
-                                      address: trip.accommodationAddress || "",
-                                      contact: trip.accommodationContact || "",
-                                      details: trip.accommodationDetails || "",
-                                      estimatedCost: trip.accommodationEstimatedCost != null ? String(trip.accommodationEstimatedCost) : "",
-                                      vendorId: trip.accommodationVendorId || "",
-                                      vendorName: trip.accommodationVendorName || "",
-                                    });
-                                    setAccommodationDialogOpen(true);
-                                  }}
-                                >
-                                  <Hotel className="mr-2 h-4 w-4" />
-                                  Book Accommodation
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openAssignVendorDialog(trip)}>
-                                  <UserPlus className="mr-2 h-4 w-4" />
-                                  Assign Vendor
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => { setSelectedTrip(trip); setComparisonOpen(true); }}>
-                                  <Users2 className="mr-2 h-4 w-4" />
-                                  Compare Vendor Responses
-                                </DropdownMenuItem>
-                                {trip.vendorId && (
-                                  <DropdownMenuItem onClick={() => {
-                                    setSelectedTrip(trip);
-                                    setJmpDialogOpen(true);
-                                  }}>
-                                    <FileCheck className="mr-2 h-4 w-4" />
-                                    Submit JMP
+                                  <DropdownMenuItem
+                                    onClick={() => openAssignVendorDialog(trip)}
+                                  >
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    Assign Vendor
                                   </DropdownMenuItem>
-                                )}
-                                {trip.passengers && trip.passengers.length > 0 && (
-                                  <DropdownMenuItem onClick={() => {
-                                    setSelectedTrip(trip);
-                                    setNotificationDialogOpen(true);
-                                  }}>
-                                    <Bell className="mr-2 h-4 w-4" />
-                                    Notify Passengers
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setSelectedTrip(trip);
+                                      setComparisonOpen(true);
+                                    }}
+                                  >
+                                    <Users2 className="mr-2 h-4 w-4" />
+                                    Compare Vendor Responses
                                   </DropdownMenuItem>
-                                )}
-                                {trip.status === "in_progress" && (
-                                  <DropdownMenuItem onClick={() => { setSelectedTrip(trip); setJccOpen(true); }}>
-                                    <FileSignature className="mr-2 h-4 w-4" />
-                                    Close Trip / Issue JCC
+                                  {trip.vendorId && (
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setSelectedTrip(trip);
+                                        setJmpDialogOpen(true);
+                                      }}
+                                    >
+                                      <FileCheck className="mr-2 h-4 w-4" />
+                                      Submit JMP
+                                    </DropdownMenuItem>
+                                  )}
+                                  {trip.passengers &&
+                                    trip.passengers.length > 0 && (
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          setSelectedTrip(trip);
+                                          setNotificationDialogOpen(true);
+                                        }}
+                                      >
+                                        <Bell className="mr-2 h-4 w-4" />
+                                        Notify Passengers
+                                      </DropdownMenuItem>
+                                    )}
+                                  {trip.status === "in_progress" && (
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setSelectedTrip(trip);
+                                        setJccOpen(true);
+                                      }}
+                                    >
+                                      <FileSignature className="mr-2 h-4 w-4" />
+                                      Close Trip / Issue JCC
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem
+                                    onClick={() => handleCancelTrip(trip)}
+                                    className="text-destructive"
+                                  >
+                                    <XCircle className="mr-2 h-4 w-4" />
+                                    Cancel Trip
                                   </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem
-                                  onClick={() => handleCancelTrip(trip)}
-                                  className="text-destructive"
-                                >
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                  Cancel Trip
-                                </DropdownMenuItem>
-                              </>
-                            )}
+                                </>
+                              )}
                             {trip.status === "completed" && (
-                              <DropdownMenuItem onClick={() => { setSelectedTrip(trip); setJccOpen(true); }}>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedTrip(trip);
+                                  setJccOpen(true);
+                                }}
+                              >
                                 <FileSignature className="mr-2 h-4 w-4" />
                                 Generate JCC
                               </DropdownMenuItem>
@@ -1941,7 +2343,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       </Card>
 
       {/* Bulk Upload Dialog */}
-      <Dialog open={bulkUploadDialogOpen} onOpenChange={setBulkUploadDialogOpen}>
+      <Dialog
+        open={bulkUploadDialogOpen}
+        onOpenChange={setBulkUploadDialogOpen}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader className="space-y-2">
             <DialogTitle>Bulk Upload Trips</DialogTitle>
@@ -1952,24 +2357,28 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           <div className="space-y-6 py-4">
             {/* Template Download Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Button 
-                variant="outline" 
-                className="w-full h-auto py-3 px-4 justify-start gap-3" 
-                onClick={() => handleDownloadTemplate('personnel-trip')}
+              <Button
+                variant="outline"
+                className="w-full h-auto py-3 px-4 justify-start gap-3"
+                onClick={() => handleDownloadTemplate("personnel-trip")}
               >
                 <Download className="h-4 w-4 shrink-0" />
-                <span className="text-sm text-left truncate">Personnel Trip Template</span>
+                <span className="text-sm text-left truncate">
+                  Personnel Trip Template
+                </span>
               </Button>
-              <Button 
-                variant="outline" 
-                className="w-full h-auto py-3 px-4 justify-start gap-3" 
-                onClick={() => handleDownloadTemplate('journey-management')}
+              <Button
+                variant="outline"
+                className="w-full h-auto py-3 px-4 justify-start gap-3"
+                onClick={() => handleDownloadTemplate("journey-management")}
               >
                 <Download className="h-4 w-4 shrink-0" />
-                <span className="text-sm text-left truncate">Journey Management Template</span>
+                <span className="text-sm text-left truncate">
+                  Journey Management Template
+                </span>
               </Button>
             </div>
-            
+
             {/* File Upload Area */}
             <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
               <Input
@@ -1979,26 +2388,36 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 id="bulk-upload-input"
                 onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
               />
-              <label htmlFor="bulk-upload-input" className="cursor-pointer block">
+              <label
+                htmlFor="bulk-upload-input"
+                className="cursor-pointer block"
+              >
                 <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
                   {uploadFile ? (
-                    <span className="text-foreground font-medium">{uploadFile.name}</span>
+                    <span className="text-foreground font-medium">
+                      {uploadFile.name}
+                    </span>
                   ) : (
                     "Click to select file or drag and drop"
                   )}
                 </p>
               </label>
             </div>
-            
+
             {/* Upload Result */}
             {uploadResult && (
-              <div className={cn(
-                "p-4 rounded-lg",
-                uploadResult.failedRows > 0 ? "bg-warning/10" : "bg-success/10"
-              )}>
+              <div
+                className={cn(
+                  "p-4 rounded-lg",
+                  uploadResult.failedRows > 0
+                    ? "bg-warning/10"
+                    : "bg-success/10",
+                )}
+              >
                 <p className="font-medium text-sm">
-                  Upload Result: {uploadResult.successfulRows}/{uploadResult.totalRows} successful
+                  Upload Result: {uploadResult.successfulRows}/
+                  {uploadResult.totalRows} successful
                 </p>
                 {uploadResult.errors.length > 0 && (
                   <div className="mt-3 text-sm">
@@ -2016,10 +2435,16 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
             )}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setBulkUploadDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setBulkUploadDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={handleBulkUpload} disabled={!uploadFile || isSubmitting}>
+            <Button
+              onClick={handleBulkUpload}
+              disabled={!uploadFile || isSubmitting}
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -2051,13 +2476,24 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           ) : selectedTrip ? (
             <div className="space-y-4">
               <div className="flex flex-wrap gap-2 text-sm items-center">
-                <Badge className={cn(statusColors[selectedTrip.status], "capitalize")}>
+                <Badge
+                  className={cn(
+                    statusColors[selectedTrip.status],
+                    "capitalize",
+                  )}
+                >
                   {selectedTrip.status.replace("_", " ")}
                 </Badge>
                 <Badge variant="outline" className="capitalize">
                   {selectedTrip.type}
                 </Badge>
-                <Badge variant="outline" className={cn(priorityColors[selectedTrip.priority], "capitalize")}>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    priorityColors[selectedTrip.priority],
+                    "capitalize",
+                  )}
+                >
                   {selectedTrip.priority}
                 </Badge>
                 {activeJourney && (
@@ -2068,7 +2504,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     onClick={() => {
                       setViewDialogOpen(false);
                       window.dispatchEvent(
-                        new CustomEvent("logistics:set-tab", { detail: "journeys" }),
+                        new CustomEvent("logistics:set-tab", {
+                          detail: "journeys",
+                        }),
                       );
                       setSearchParams(
                         (prev) => {
@@ -2085,33 +2523,41 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   </Button>
                 )}
               </div>
-              
+
               {/* Main Trip Information */}
               <div className="rounded-md border border-border/50 bg-muted/20 p-3 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-xs text-muted-foreground font-medium uppercase">Origin</Label>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">
+                      Origin
+                    </Label>
                     <p className="text-sm font-medium mt-0.5 flex items-center gap-1">
                       <MapPin className="h-3 w-3 text-muted-foreground" />
                       {selectedTrip.origin}
                     </p>
                   </div>
                   <div>
-                    <Label className="text-xs text-muted-foreground font-medium uppercase">Destination</Label>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">
+                      Destination
+                    </Label>
                     <p className="text-sm font-medium mt-0.5 flex items-center gap-1">
                       <MapPin className="h-3 w-3 text-muted-foreground" />
                       {selectedTrip.destination}
                     </p>
                   </div>
                   <div>
-                    <Label className="text-xs text-muted-foreground font-medium uppercase">Scheduled Departure</Label>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">
+                      Scheduled Departure
+                    </Label>
                     <p className="text-sm font-medium mt-0.5 flex items-center gap-1">
                       <Calendar className="h-3 w-3 text-muted-foreground" />
                       {formatDateTime(selectedTrip.scheduledDepartureAt)}
                     </p>
                   </div>
                   <div>
-                    <Label className="text-xs text-muted-foreground font-medium uppercase">Scheduled Arrival</Label>
+                    <Label className="text-xs text-muted-foreground font-medium uppercase">
+                      Scheduled Arrival
+                    </Label>
                     <p className="text-sm font-medium mt-0.5 flex items-center gap-1">
                       <Calendar className="h-3 w-3 text-muted-foreground" />
                       {formatDateTime(selectedTrip.scheduledArrivalAt)}
@@ -2119,14 +2565,22 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   </div>
                   {selectedTrip.vendorName && (
                     <div>
-                      <Label className="text-xs text-muted-foreground font-medium uppercase">Vendor</Label>
-                      <p className="text-sm font-medium mt-0.5">{selectedTrip.vendorName}</p>
+                      <Label className="text-xs text-muted-foreground font-medium uppercase">
+                        Vendor
+                      </Label>
+                      <p className="text-sm font-medium mt-0.5">
+                        {selectedTrip.vendorName}
+                      </p>
                     </div>
                   )}
                   {selectedTrip.driverName && (
                     <div>
-                      <Label className="text-xs text-muted-foreground font-medium uppercase">Driver</Label>
-                      <p className="text-sm font-medium mt-0.5">{selectedTrip.driverName}</p>
+                      <Label className="text-xs text-muted-foreground font-medium uppercase">
+                        Driver
+                      </Label>
+                      <p className="text-sm font-medium mt-0.5">
+                        {selectedTrip.driverName}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -2153,24 +2607,35 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                         <div className="grid grid-cols-2 gap-3">
                           {selectedTripRequest?.requesterName && (
                             <div>
-                              <Label className="text-xs text-muted-foreground font-medium uppercase">Requester</Label>
-                              <p className="text-sm font-medium mt-0.5">{selectedTripRequest.requesterName}</p>
+                              <Label className="text-xs text-muted-foreground font-medium uppercase">
+                                Requester
+                              </Label>
+                              <p className="text-sm font-medium mt-0.5">
+                                {selectedTripRequest.requesterName}
+                              </p>
                             </div>
                           )}
                           {selectedTripRequest?.requesterDepartment && (
                             <div>
-                              <Label className="text-xs text-muted-foreground font-medium uppercase">Department</Label>
-                              <p className="text-sm font-medium mt-0.5">{selectedTripRequest.requesterDepartment}</p>
+                              <Label className="text-xs text-muted-foreground font-medium uppercase">
+                                Department
+                              </Label>
+                              <p className="text-sm font-medium mt-0.5">
+                                {selectedTripRequest.requesterDepartment}
+                              </p>
                             </div>
                           )}
                           {selectedTripRequest?.purpose && (
                             <div className="col-span-2">
-                              <Label className="text-xs text-muted-foreground font-medium uppercase">Purpose</Label>
-                              <p className="text-sm mt-0.5">{selectedTripRequest.purpose}</p>
+                              <Label className="text-xs text-muted-foreground font-medium uppercase">
+                                Purpose
+                              </Label>
+                              <p className="text-sm mt-0.5">
+                                {selectedTripRequest.purpose}
+                              </p>
                             </div>
                           )}
                         </div>
-
                       </>
                     )}
                   </>
@@ -2182,8 +2647,13 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   <>
                     <Separator />
                     <TripLogisticsDetailsPanel
-                      trip={selectedTripRequest ?? (selectedTrip as unknown as Record<string, unknown>)}
-                      logisticsTrip={selectedTrip as unknown as Record<string, unknown>}
+                      trip={
+                        selectedTripRequest ??
+                        (selectedTrip as unknown as Record<string, unknown>)
+                      }
+                      logisticsTrip={
+                        selectedTrip as unknown as Record<string, unknown>
+                      }
                     />
                   </>
                 )}
@@ -2193,7 +2663,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   <>
                     <Separator />
                     <div>
-                      <Label className="text-xs text-muted-foreground font-medium uppercase">Notes</Label>
+                      <Label className="text-xs text-muted-foreground font-medium uppercase">
+                        Notes
+                      </Label>
                       <p className="text-sm mt-0.5">{selectedTrip.notes}</p>
                     </div>
                   </>
@@ -2208,11 +2680,15 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 onConverted={(result: TripConversionResult) => {
                   // Optimistically drop the originating request row — no refresh wait.
                   setTrips((prev) =>
-                    prev.filter((t) => String(t.id) !== String(result.tripRequestId)),
+                    prev.filter(
+                      (t) => String(t.id) !== String(result.tripRequestId),
+                    ),
                   );
                   setViewDialogOpen(false);
                   if (result.journeyId) {
-                    navigate(`/logistics?tab=journeys&journey=${result.journeyId}`);
+                    navigate(
+                      `/logistics?tab=journeys&journey=${result.journeyId}`,
+                    );
                     return;
                   }
                   fetchTrips();
@@ -2226,22 +2702,6 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   setViewDialogOpen(false);
                 }}
               />
-              
-              {/* Trip Request Workflow Actions */}
-              {selectedTripRequest && (
-                <div className="rounded-lg border p-4 bg-muted/30">
-                  <p className="text-sm font-medium mb-3">Trip Request Actions</p>
-                  <TripRequestWorkflowActions
-                    trip={selectedTripRequest}
-                    onUpdated={() => {
-                      fetchTrips();
-                      void tripRequestApi.getById(String(selectedTrip.id)).then((r) => {
-                        if (r.success && r.data?.trip) setSelectedTripRequest(r.data.trip);
-                      });
-                    }}
-                  />
-                </div>
-              )}
             </div>
           ) : null}
         </DialogContent>
@@ -2252,9 +2712,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Trip - {selectedTrip?.tripNumber}</DialogTitle>
-            <DialogDescription>
-              Update trip details below
-            </DialogDescription>
+            <DialogDescription>Update trip details below</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {/* Trip Type & Priority */}
@@ -2264,16 +2722,20 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 <Select
                   value={formData.type}
                   onValueChange={(value: TripType) =>
-                    setFormData(prev => ({ ...prev, type: value }))
+                    setFormData((prev) => ({ ...prev, type: value }))
                   }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="personnel">Personnel Movement</SelectItem>
+                    <SelectItem value="personnel">
+                      Personnel Movement
+                    </SelectItem>
                     <SelectItem value="material">Material Movement</SelectItem>
-                    <SelectItem value="mixed">Mixed (Personnel + Material)</SelectItem>
+                    <SelectItem value="mixed">
+                      Mixed (Personnel + Material)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -2282,7 +2744,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 <Select
                   value={formData.priority}
                   onValueChange={(value) =>
-                    setFormData(prev => ({ ...prev, priority: value as any }))
+                    setFormData((prev) => ({ ...prev, priority: value as any }))
                   }
                 >
                   <SelectTrigger>
@@ -2306,7 +2768,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   placeholder="e.g., Lagos Head Office"
                   value={formData.origin || ""}
                   onChange={(e) =>
-                    setFormData(prev => ({ ...prev, origin: e.target.value }))
+                    setFormData((prev) => ({ ...prev, origin: e.target.value }))
                   }
                 />
               </div>
@@ -2316,7 +2778,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   placeholder="e.g., Abuja Branch"
                   value={formData.destination || ""}
                   onChange={(e) =>
-                    setFormData(prev => ({ ...prev, destination: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      destination: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -2329,7 +2794,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 placeholder="e.g., Via Lokoja-Abuja Highway"
                 value={formData.route || ""}
                 onChange={(e) =>
-                  setFormData(prev => ({ ...prev, route: e.target.value }))
+                  setFormData((prev) => ({ ...prev, route: e.target.value }))
                 }
               />
             </div>
@@ -2342,7 +2807,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   type="datetime-local"
                   value={formData.scheduledDepartureAt?.slice(0, 16) || ""}
                   onChange={(e) =>
-                    setFormData(prev => ({ ...prev, scheduledDepartureAt: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      scheduledDepartureAt: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -2352,7 +2820,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   type="datetime-local"
                   value={formData.scheduledArrivalAt?.slice(0, 16) || ""}
                   onChange={(e) =>
-                    setFormData(prev => ({ ...prev, scheduledArrivalAt: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      scheduledArrivalAt: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -2365,7 +2836,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 placeholder="e.g., Board Meeting, Equipment Delivery"
                 value={formData.purpose || ""}
                 onChange={(e) =>
-                  setFormData(prev => ({ ...prev, purpose: e.target.value }))
+                  setFormData((prev) => ({ ...prev, purpose: e.target.value }))
                 }
               />
             </div>
@@ -2378,7 +2849,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   placeholder="Describe the materials being transported"
                   value={formData.cargo || ""}
                   onChange={(e) =>
-                    setFormData(prev => ({ ...prev, cargo: e.target.value }))
+                    setFormData((prev) => ({ ...prev, cargo: e.target.value }))
                   }
                 />
               </div>
@@ -2390,7 +2861,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   selectedPassengerIds={selectedPassengers}
                   onPassengersChange={setSelectedPassengers}
                   driverUserId={useExternalDriver ? undefined : driverUserId}
-                  onDriverChange={useExternalDriver ? undefined : setDriverUserId}
+                  onDriverChange={
+                    useExternalDriver ? undefined : setDriverUserId
+                  }
                   showDriver={!useExternalDriver}
                 />
                 <div className="space-y-3 rounded-md border p-3">
@@ -2416,7 +2889,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                         <Input
                           value={externalDriver.name}
                           onChange={(e) =>
-                            setExternalDriver((d) => ({ ...d, name: e.target.value }))
+                            setExternalDriver((d) => ({
+                              ...d,
+                              name: e.target.value,
+                            }))
                           }
                           placeholder="Full name"
                         />
@@ -2426,7 +2902,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                         <Input
                           value={externalDriver.phone}
                           onChange={(e) =>
-                            setExternalDriver((d) => ({ ...d, phone: e.target.value }))
+                            setExternalDriver((d) => ({
+                              ...d,
+                              phone: e.target.value,
+                            }))
                           }
                           placeholder="e.g. 0803…"
                         />
@@ -2457,7 +2936,7 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 placeholder="Additional instructions or notes"
                 value={formData.notes || ""}
                 onChange={(e) =>
-                  setFormData(prev => ({ ...prev, notes: e.target.value }))
+                  setFormData((prev) => ({ ...prev, notes: e.target.value }))
                 }
               />
             </div>
@@ -2468,9 +2947,14 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 <Switch
                   id="edit-accommodation-required"
                   checked={accommodation.required}
-                  onCheckedChange={(v) => setAccommodation((a) => ({ ...a, required: v }))}
+                  onCheckedChange={(v) =>
+                    setAccommodation((a) => ({ ...a, required: v }))
+                  }
                 />
-                <Label htmlFor="edit-accommodation-required" className="cursor-pointer">
+                <Label
+                  htmlFor="edit-accommodation-required"
+                  className="cursor-pointer"
+                >
                   Accommodation required
                 </Label>
               </div>
@@ -2487,7 +2971,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     value={accommodation.name}
                     disabled={!accommodation.required}
                     placeholder="e.g. Transcorp Hilton"
-                    onChange={(e) => setAccommodation((a) => ({ ...a, name: e.target.value }))}
+                    onChange={(e) =>
+                      setAccommodation((a) => ({ ...a, name: e.target.value }))
+                    }
                   />
                 </div>
                 <div className="space-y-1">
@@ -2496,7 +2982,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     value={accommodation.address}
                     disabled={!accommodation.required}
                     placeholder="Street, city"
-                    onChange={(e) => setAccommodation((a) => ({ ...a, address: e.target.value }))}
+                    onChange={(e) =>
+                      setAccommodation((a) => ({
+                        ...a,
+                        address: e.target.value,
+                      }))
+                    }
                   />
                 </div>
                 <div className="space-y-1">
@@ -2505,7 +2996,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     value={accommodation.contact}
                     disabled={!accommodation.required}
                     placeholder="Phone or email"
-                    onChange={(e) => setAccommodation((a) => ({ ...a, contact: e.target.value }))}
+                    onChange={(e) =>
+                      setAccommodation((a) => ({
+                        ...a,
+                        contact: e.target.value,
+                      }))
+                    }
                   />
                 </div>
                 <div className="space-y-1">
@@ -2517,7 +3013,10 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     disabled={!accommodation.required}
                     placeholder="Optional"
                     onChange={(e) =>
-                      setAccommodation((a) => ({ ...a, estimatedCost: e.target.value }))
+                      setAccommodation((a) => ({
+                        ...a,
+                        estimatedCost: e.target.value,
+                      }))
                     }
                   />
                 </div>
@@ -2527,7 +3026,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                     value={accommodation.details}
                     disabled={!accommodation.required}
                     placeholder="Room type, nights, special requirements"
-                    onChange={(e) => setAccommodation((a) => ({ ...a, details: e.target.value }))}
+                    onChange={(e) =>
+                      setAccommodation((a) => ({
+                        ...a,
+                        details: e.target.value,
+                      }))
+                    }
                   />
                 </div>
               </div>
@@ -2553,7 +3057,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               </div>
               {externalPassengers.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  Add non-staff passengers, clients, or contractors traveling with this trip.
+                  Add non-staff passengers, clients, or contractors traveling
+                  with this trip.
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -2588,7 +3093,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                           onChange={(e) =>
                             setExternalPassengers((prev) =>
                               prev.map((p, i) =>
-                                i === index ? { ...p, phone: e.target.value } : p,
+                                i === index
+                                  ? { ...p, phone: e.target.value }
+                                  : p,
                               ),
                             )
                           }
@@ -2598,7 +3105,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                           variant="ghost"
                           size="icon"
                           onClick={() =>
-                            setExternalPassengers((prev) => prev.filter((_, i) => i !== index))
+                            setExternalPassengers((prev) =>
+                              prev.filter((_, i) => i !== index),
+                            )
                           }
                         >
                           <XCircle className="h-4 w-4" />
@@ -2615,9 +3124,14 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 <Switch
                   id="edit-escort-required"
                   checked={escort.required}
-                  onCheckedChange={(v) => setEscort((s) => ({ ...s, required: v }))}
+                  onCheckedChange={(v) =>
+                    setEscort((s) => ({ ...s, required: v }))
+                  }
                 />
-                <Label htmlFor="edit-escort-required" className="cursor-pointer">
+                <Label
+                  htmlFor="edit-escort-required"
+                  className="cursor-pointer"
+                >
                   Escort / security required
                 </Label>
               </div>
@@ -2628,7 +3142,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   disabled={!escort.required}
                   className={escort.required ? "" : "opacity-60"}
                   placeholder="Number of escorts, armed/unarmed, agency, pickup point"
-                  onChange={(e) => setEscort((s) => ({ ...s, description: e.target.value }))}
+                  onChange={(e) =>
+                    setEscort((s) => ({ ...s, description: e.target.value }))
+                  }
                 />
               </div>
             </div>
@@ -2664,7 +3180,9 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       >
         <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Passengers — {selectedTrip?.tripNumber}</DialogTitle>
+            <DialogTitle>
+              Edit Passengers — {selectedTrip?.tripNumber}
+            </DialogTitle>
             <DialogDescription>
               Add or remove passengers without changing the rest of the trip.
               Notifications fire automatically when the list changes.
@@ -2735,12 +3253,18 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       </Dialog>
 
       {/* Accommodation Dialog */}
-      <Dialog open={accommodationDialogOpen} onOpenChange={setAccommodationDialogOpen}>
+      <Dialog
+        open={accommodationDialogOpen}
+        onOpenChange={setAccommodationDialogOpen}
+      >
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Accommodation Request - {selectedTrip?.tripNumber}</DialogTitle>
+            <DialogTitle>
+              Accommodation Request - {selectedTrip?.tripNumber}
+            </DialogTitle>
             <DialogDescription>
-              Review trip accommodation preferences, update details, and attach supporting documents.
+              Review trip accommodation preferences, update details, and attach
+              supporting documents.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -2749,7 +3273,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 <Label>Preferred accommodation</Label>
                 <Input
                   value={accommodationDialogState.name}
-                  onChange={(e) => setAccommodationDialogState((prev) => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) =>
+                    setAccommodationDialogState((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                    }))
+                  }
                   placeholder="Preferred hotel / lodging"
                 />
               </div>
@@ -2759,7 +3288,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                   type="number"
                   min="0"
                   value={accommodationDialogState.estimatedCost}
-                  onChange={(e) => setAccommodationDialogState((prev) => ({ ...prev, estimatedCost: e.target.value }))}
+                  onChange={(e) =>
+                    setAccommodationDialogState((prev) => ({
+                      ...prev,
+                      estimatedCost: e.target.value,
+                    }))
+                  }
                 />
               </div>
             </div>
@@ -2768,7 +3302,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 <Label>Address</Label>
                 <Input
                   value={accommodationDialogState.address}
-                  onChange={(e) => setAccommodationDialogState((prev) => ({ ...prev, address: e.target.value }))}
+                  onChange={(e) =>
+                    setAccommodationDialogState((prev) => ({
+                      ...prev,
+                      address: e.target.value,
+                    }))
+                  }
                   placeholder="Street / city"
                 />
               </div>
@@ -2776,7 +3315,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 <Label>Contact</Label>
                 <Input
                   value={accommodationDialogState.contact}
-                  onChange={(e) => setAccommodationDialogState((prev) => ({ ...prev, contact: e.target.value }))}
+                  onChange={(e) =>
+                    setAccommodationDialogState((prev) => ({
+                      ...prev,
+                      contact: e.target.value,
+                    }))
+                  }
                   placeholder="Phone / email"
                 />
               </div>
@@ -2785,16 +3329,28 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               <Label>Accommodation details</Label>
               <Textarea
                 value={accommodationDialogState.details}
-                onChange={(e) => setAccommodationDialogState((prev) => ({ ...prev, details: e.target.value }))}
+                onChange={(e) =>
+                  setAccommodationDialogState((prev) => ({
+                    ...prev,
+                    details: e.target.value,
+                  }))
+                }
                 placeholder="Room type, nights, special requirements"
               />
             </div>
             <div className="space-y-2">
               <Label>Accommodation vendor</Label>
-              <Select value={accommodationDialogState.vendorId} onValueChange={(value) => {
-                const vendor = vendorList.find((item) => item.id === value);
-                setAccommodationDialogState((prev) => ({ ...prev, vendorId: value, vendorName: vendor?.name || "" }));
-              }}>
+              <Select
+                value={accommodationDialogState.vendorId}
+                onValueChange={(value) => {
+                  const vendor = vendorList.find((item) => item.id === value);
+                  setAccommodationDialogState((prev) => ({
+                    ...prev,
+                    vendorId: value,
+                    vendorName: vendor?.name || "",
+                  }));
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Choose a vendor" />
                 </SelectTrigger>
@@ -2808,32 +3364,57 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
               </Select>
             </div>
             <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-              Supporting documents can be attached in the next pass once the backend exposes the accommodation attachment endpoint.
+              Supporting documents can be attached in the next pass once the
+              backend exposes the accommodation attachment endpoint.
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setAccommodationDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setAccommodationDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={async () => {
-              if (!selectedTrip) return;
-              const payload = {
-                accommodation_name: accommodationDialogState.name || undefined,
-                accommodation_address: accommodationDialogState.address || undefined,
-                accommodation_contact: accommodationDialogState.contact || undefined,
-                accommodation_details: accommodationDialogState.details || undefined,
-                accommodation_estimated_cost: accommodationDialogState.estimatedCost ? Number(accommodationDialogState.estimatedCost) : undefined,
-                accommodation_vendor_id: accommodationDialogState.vendorId || undefined,
-              };
-              const response = await tripsApi.update(String(selectedTrip.id), payload as any);
-              if (response.success) {
-                toast({ title: "Accommodation updated", description: `Trip ${selectedTrip.tripNumber} has been updated.` });
-                setAccommodationDialogOpen(false);
-                fetchTrips();
-              } else {
-                toast({ title: "Failed to update accommodation", description: response.error || "Unable to save accommodation changes.", variant: "destructive" });
-              }
-            }}>
+            <Button
+              onClick={async () => {
+                if (!selectedTrip) return;
+                const payload = {
+                  accommodation_name:
+                    accommodationDialogState.name || undefined,
+                  accommodation_address:
+                    accommodationDialogState.address || undefined,
+                  accommodation_contact:
+                    accommodationDialogState.contact || undefined,
+                  accommodation_details:
+                    accommodationDialogState.details || undefined,
+                  accommodation_estimated_cost:
+                    accommodationDialogState.estimatedCost
+                      ? Number(accommodationDialogState.estimatedCost)
+                      : undefined,
+                  accommodation_vendor_id:
+                    accommodationDialogState.vendorId || undefined,
+                };
+                const response = await tripsApi.update(
+                  String(selectedTrip.id),
+                  payload as any,
+                );
+                if (response.success) {
+                  toast({
+                    title: "Accommodation updated",
+                    description: `Trip ${selectedTrip.tripNumber} has been updated.`,
+                  });
+                  setAccommodationDialogOpen(false);
+                  fetchTrips();
+                } else {
+                  toast({
+                    title: "Failed to update accommodation",
+                    description:
+                      response.error || "Unable to save accommodation changes.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
               Save Accommodation
             </Button>
           </DialogFooter>
@@ -2841,10 +3422,15 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
       </Dialog>
 
       {/* Assign Vendor Dialog */}
-      <Dialog open={assignVendorDialogOpen} onOpenChange={setAssignVendorDialogOpen}>
+      <Dialog
+        open={assignVendorDialogOpen}
+        onOpenChange={setAssignVendorDialogOpen}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Assign Vendor - {selectedTrip?.tripNumber}</DialogTitle>
+            <DialogTitle>
+              Assign Vendor - {selectedTrip?.tripNumber}
+            </DialogTitle>
             <DialogDescription>
               Select a logistics vendor to handle this trip
             </DialogDescription>
@@ -2852,7 +3438,14 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Service Category *</Label>
-              <Select value={selectedVendorService} onValueChange={(value) => setSelectedVendorService(value as typeof selectedVendorService)}>
+              <Select
+                value={selectedVendorService}
+                onValueChange={(value) =>
+                  setSelectedVendorService(
+                    value as typeof selectedVendorService,
+                  )
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Choose a service" />
                 </SelectTrigger>
@@ -2865,11 +3458,18 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
             </div>
             <div className="space-y-2">
               <Label>Select Vendor *</Label>
-              <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
+              <Select
+                value={selectedVendorId}
+                onValueChange={setSelectedVendorId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Choose a vendor" />
                 </SelectTrigger>
-                <SelectContent side="bottom" align="start" avoidCollisions={false}>
+                <SelectContent
+                  side="bottom"
+                  align="start"
+                  avoidCollisions={false}
+                >
                   {vendorList
                     .filter((vendor) =>
                       selectedVendorService === "accommodation"
@@ -2881,7 +3481,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                         <div className="flex flex-col">
                           <span>{vendor.name}</span>
                           <span className="text-xs text-muted-foreground">
-                            {vendor.vehicles ?? "—"} vehicles • {vendor.contact ?? "No contact"}
+                            {vendor.vehicles ?? "—"} vehicles •{" "}
+                            {vendor.contact ?? "No contact"}
                           </span>
                         </div>
                       </SelectItem>
@@ -2889,17 +3490,30 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
                 </SelectContent>
               </Select>
             </div>
-            
+
             {selectedVendorId && (
               <div className="rounded-lg border p-4 bg-muted/50">
                 <h4 className="font-medium text-sm mb-2">Vendor Details</h4>
                 {(() => {
-                  const vendor = vendorList.find(v => v.id === selectedVendorId);
+                  const vendor = vendorList.find(
+                    (v) => v.id === selectedVendorId,
+                  );
                   return vendor ? (
                     <div className="space-y-1 text-sm">
-                      <p><span className="text-muted-foreground">Name:</span> {vendor.name}</p>
-                      <p><span className="text-muted-foreground">Contact:</span> {vendor.contact}</p>
-                      <p><span className="text-muted-foreground">Fleet Size:</span> {vendor.vehicles} vehicles</p>
+                      <p>
+                        <span className="text-muted-foreground">Name:</span>{" "}
+                        {vendor.name}
+                      </p>
+                      <p>
+                        <span className="text-muted-foreground">Contact:</span>{" "}
+                        {vendor.contact}
+                      </p>
+                      <p>
+                        <span className="text-muted-foreground">
+                          Fleet Size:
+                        </span>{" "}
+                        {vendor.vehicles} vehicles
+                      </p>
                     </div>
                   ) : null;
                 })()}
@@ -2907,13 +3521,19 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
             )}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => {
-              setAssignVendorDialogOpen(false);
-              setSelectedVendorId("");
-            }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAssignVendorDialogOpen(false);
+                setSelectedVendorId("");
+              }}
+            >
               Cancel
             </Button>
-            <Button onClick={handleAssignVendor} disabled={!selectedVendorId || isSubmitting}>
+            <Button
+              onClick={handleAssignVendor}
+              disabled={!selectedVendorId || isSubmitting}
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -2935,18 +3555,20 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           onOpenChange={setJmpDialogOpen}
           onSubmit={async (data) => {
             // Update trip with JMP data
-            setTrips(prev => prev.map(t =>
-              t.id === selectedTrip.id
-                ? {
-                    ...t,
-                    vehiclePlate: data.vehiclePlate,
-                    vehicleType: data.vehicleType,
-                    driverName: data.driverName,
-                    driverPhone: data.driverPhone,
-                    status: "vendor_assigned" as TripStatus,
-                  }
-                : t
-            ));
+            setTrips((prev) =>
+              prev.map((t) =>
+                t.id === selectedTrip.id
+                  ? {
+                      ...t,
+                      vehiclePlate: data.vehiclePlate,
+                      vehicleType: data.vehicleType,
+                      driverName: data.driverName,
+                      driverPhone: data.driverPhone,
+                      status: "vendor_assigned" as TripStatus,
+                    }
+                  : t,
+              ),
+            );
             toast({
               title: "JMP Submitted",
               description: "Passengers will be automatically notified",
@@ -2962,17 +3584,19 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           open={notificationDialogOpen}
           onOpenChange={setNotificationDialogOpen}
           onSendNotifications={async () => {
-            setTrips(prev => prev.map(t =>
-              t.id === selectedTrip.id
-                ? {
-                    ...t,
-                    passengers: t.passengers?.map(p => ({
-                      ...p,
-                      notifiedAt: new Date().toISOString(),
-                    })),
-                  }
-                : t
-            ));
+            setTrips((prev) =>
+              prev.map((t) =>
+                t.id === selectedTrip.id
+                  ? {
+                      ...t,
+                      passengers: t.passengers?.map((p) => ({
+                        ...p,
+                        notifiedAt: new Date().toISOString(),
+                      })),
+                    }
+                  : t,
+              ),
+            );
           }}
         />
       )}
@@ -2983,18 +3607,24 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         onOpenChange={setCsvImportOpen}
         title="Import Trips from CSV"
         description="Upload a CSV file with trip data. Preview and verify before importing."
-        columns={[
-          { key: "origin", label: "Origin", required: true },
-          { key: "destination", label: "Destination", required: true },
-          { key: "type", label: "Trip Type" },
-          { key: "scheduled_departure", label: "Scheduled Departure", required: true },
-          { key: "scheduled_arrival", label: "Scheduled Arrival" },
-          { key: "purpose", label: "Purpose" },
-          { key: "priority", label: "Priority" },
-          { key: "route", label: "Route" },
-          { key: "cargo", label: "Cargo" },
-          { key: "notes", label: "Notes" },
-        ] as CSVColumn[]}
+        columns={
+          [
+            { key: "origin", label: "Origin", required: true },
+            { key: "destination", label: "Destination", required: true },
+            { key: "type", label: "Trip Type" },
+            {
+              key: "scheduled_departure",
+              label: "Scheduled Departure",
+              required: true,
+            },
+            { key: "scheduled_arrival", label: "Scheduled Arrival" },
+            { key: "purpose", label: "Purpose" },
+            { key: "priority", label: "Priority" },
+            { key: "route", label: "Route" },
+            { key: "cargo", label: "Cargo" },
+            { key: "notes", label: "Notes" },
+          ] as CSVColumn[]
+        }
         onConfirmImport={async (data) => {
           // Create trips one by one from parsed CSV data
           let successCount = 0;
@@ -3002,10 +3632,16 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           for (const row of data) {
             try {
               const depAt = row.scheduled_departure
-                ? new Date(row.scheduled_departure).toISOString().replace('T', ' ').substring(0, 19)
+                ? new Date(row.scheduled_departure)
+                    .toISOString()
+                    .replace("T", " ")
+                    .substring(0, 19)
                 : null;
               const arrAt = row.scheduled_arrival
-                ? new Date(row.scheduled_arrival).toISOString().replace('T', ' ').substring(0, 19)
+                ? new Date(row.scheduled_arrival)
+                    .toISOString()
+                    .replace("T", " ")
+                    .substring(0, 19)
                 : null;
               const payload = {
                 trip_type: row.type || "personnel",
@@ -3033,7 +3669,8 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
           }
         }}
         onDownloadTemplate={() => {
-          const csv = "origin,destination,type,scheduled_departure,scheduled_arrival,purpose,priority,route,cargo,notes\nLagos,Abuja,personnel,2025-03-15 08:00:00,2025-03-15 16:00:00,Board Meeting,normal,Via Lokoja,,";
+          const csv =
+            "origin,destination,type,scheduled_departure,scheduled_arrival,purpose,priority,route,cargo,notes\nLagos,Abuja,personnel,2025-03-15 08:00:00,2025-03-15 16:00:00,Board Meeting,normal,Via Lokoja,,";
           const blob = new Blob([csv], { type: "text/csv" });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
@@ -3044,9 +3681,12 @@ export const TripScheduling = ({ onViewTrip, onEditTrip }: TripSchedulingProps) 
         }}
       />
 
-      <TripVendorComparison trip={selectedTrip} open={comparisonOpen} onOpenChange={setComparisonOpen} />
+      <TripVendorComparison
+        trip={selectedTrip}
+        open={comparisonOpen}
+        onOpenChange={setComparisonOpen}
+      />
       <JCCDialog trip={selectedTrip} open={jccOpen} onOpenChange={setJccOpen} />
-
     </div>
   );
 };
