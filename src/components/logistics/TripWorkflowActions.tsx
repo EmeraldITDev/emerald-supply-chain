@@ -182,16 +182,29 @@ export function TripWorkflowActions({
       ? actions.some((a) => a === "generate_po" || a === "generatepo")
       : stage === "po_generation");
 
+  const stageStr = stage as string;
+
   const showForwardToScd =
     isLogistics &&
-    actions.some((a) => a === "forward_to_scd" || a === "forward");
+    (hasActionContract
+      ? actions.some((a) => a === "forward_to_scd" || a === "forward")
+      : stageStr === "trip_request" ||
+        stageStr === "submitted" ||
+        stageStr === "changes_requested");
 
   const showRemindScd =
-    isLogistics && actions.some((a) => a === "remind_scd" || a === "remind");
+    isLogistics &&
+    (hasActionContract
+      ? actions.some((a) => a === "remind_scd" || a === "remind")
+      : stageStr === "scd_review" || stageStr === "scd_approval");
 
   const showRequestChanges =
-    isLogistics && actions.some((a) => a === "request_changes");
-
+    isLogistics &&
+    (hasActionContract
+      ? actions.some((a) => a === "request_changes")
+      : stageStr === "trip_request" ||
+        stageStr === "submitted" ||
+        stageStr === "changes_requested");
   return (
     <div className="space-y-3 rounded-lg border p-4 bg-muted/30">
       <div>
