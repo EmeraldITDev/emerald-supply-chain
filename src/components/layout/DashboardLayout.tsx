@@ -55,12 +55,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen w-full">
+      <div className="flex min-h-screen w-full max-w-full overflow-x-hidden">
         <AppSidebar />
         
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 max-w-full">
           {/* Header */}
-          <header className="sticky top-0 z-40 border-b bg-card">
+          <header className="sticky top-0 z-40 border-b bg-card w-full max-w-full overflow-x-hidden">
             <div className="flex h-14 sm:h-16 items-center gap-2 sm:gap-4 px-3 sm:px-4 lg:px-6">
               <SidebarTrigger className="shrink-0" />
               
@@ -119,7 +119,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 xl:p-8">{children}</main>
+          <main className="flex-1 min-w-0 max-w-full overflow-x-hidden overflow-y-auto p-3 sm:p-4 lg:p-6 xl:p-8 pb-20 sm:pb-8">
+            {children}
+          </main>
         </div>
       </div>
       
