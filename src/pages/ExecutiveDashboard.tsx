@@ -33,6 +33,7 @@ import {
 import { DashboardSummaryStats } from "@/components/dashboard/DashboardSummaryStats";
 import { DashboardMrfHistoryList } from "@/components/dashboard/DashboardMrfHistoryList";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
+import { getWorkflowStageLabel } from "@/utils/workflowStageLabels";
 import { ViewPoDocumentsButton } from "@/components/procurement/ViewPoDocumentsButton";
 
 const ExecutiveDashboard = () => {
@@ -54,6 +55,17 @@ const ExecutiveDashboard = () => {
   const [approvalRemarks, setApprovalRemarks] = useState<Record<string, string>>({});
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+
+  // Requests submitted by this executive
+  const { data: myRequests = [], isLoading: loadingMyRequests } = useQuery<MRF[]>({
+    queryKey: ["executive-my-requests", user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      const res = await mrfApi.list({ requester_id: user?.id, per_page: 25 });
+      return res.success && res.data ? res.data.items : [];
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
 
   // Parallel React Queries: fired concurrently on mount, cached across
   // navigations, and deduped app-wide. No manual `Promise.all` needed —
