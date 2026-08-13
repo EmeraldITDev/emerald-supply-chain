@@ -534,7 +534,7 @@ const ExecutiveDashboard = () => {
                                     className="text-xs"
                                   >
                                     {estimatedCost > 0
-                                      ? `₦${estimatedCost.toLocaleString()}`
+                                      ? `${(mrf as any).currency === 'USD' ? '$' : (mrf as any).currency === 'GBP' ? '£' : (mrf as any).currency === 'EUR' ? '€' : '₦'}${estimatedCost.toLocaleString()}`
                                       : "-"}
                                   </Badge>
                                   <Badge
