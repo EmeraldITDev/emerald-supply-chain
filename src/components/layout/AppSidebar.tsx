@@ -215,6 +215,14 @@ export function AppSidebar() {
       return [
         ...fullProcurementNav,
         {
+          label: "Requests",
+          items: [
+            { title: "New MRF", url: "/new-mrf", icon: FileText },
+            { title: "New SRF", url: "/new-srf", icon: FileText },
+            { title: "My Requests", url: "/executive?tab=my-requests", icon: FileText },
+          ],
+        },
+        {
           label: "Approvals",
           items: [
             { title: "MRF Approvals", url: "/executive", icon: FileText },
