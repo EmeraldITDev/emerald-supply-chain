@@ -1,11 +1,20 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { getDisplayId } from "@/utils/displayId";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import { FileText, DollarSign, Loader2, RefreshCw, Eye } from "lucide-react";
 import { toast } from "sonner";
@@ -13,6 +22,8 @@ import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
+import { mrfApi } from "@/services/api";
+import { getWorkflowStageLabel } from "@/utils/workflowStageLabels";
 import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import type { MRF } from "@/types";
@@ -20,6 +31,7 @@ import { mrfUsesFinanceAp } from "@/utils/financeAPRouting";
 
 const ChairmanDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const {
     data: mrfRequests = [],
     isLoading: loading,
@@ -29,6 +41,61 @@ const ChairmanDashboard = () => {
     queryFn: async () => fetchDashboardMrfs("chairman"),
     ...WORKFLOW_QUERY_OPTIONS,
   });
+
+  // Executive-originated MRFs awaiting Chairman approval
+  const {
+    data: chairmanQueue = [],
+    isLoading: queueLoading,
+    refetch: refetchQueue,
+  } = useQuery<MRF[]>({
+    queryKey: ["chairman-pending-approvals"],
+    queryFn: async () => {
+      const res = await mrfApi.list({ workflow_state: "chairman_review", per_page: 50 });
+      return res.success && res.data ? res.data.items : [];
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
+
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectingMrfId, setRejectingMrfId] = useState<string | null>(null);
+  const [rejectRemarks, setRejectRemarks] = useState("");
+
+  const getApiId = (mrf: MRF) =>
+    String((mrf as unknown as Record<string, unknown>).mrf_id ?? mrf.id);
+
+  const handleChairmanApprove = async (mrf: MRF) => {
+    const id = getApiId(mrf);
+    setActionId(id);
+    const res = await mrfApi.chairmanApprove(id, "");
+    setActionId(null);
+    if (res.success) {
+      toast.success("Request approved and sent to Procurement.");
+      await Promise.all([refetchQueue(), fetchMRFs()]);
+    } else {
+      toast.error(res.error || "Approval failed.");
+    }
+  };
+
+  const confirmChairmanReject = async () => {
+    if (!rejectingMrfId) return;
+    if (!rejectRemarks.trim()) {
+      toast.error("Please provide a reason for rejection.");
+      return;
+    }
+    setActionId(rejectingMrfId);
+    const res = await mrfApi.chairmanReject(rejectingMrfId, rejectRemarks.trim());
+    setActionId(null);
+    if (res.success) {
+      toast.success("Request rejected.");
+      setRejectDialogOpen(false);
+      setRejectRemarks("");
+      setRejectingMrfId(null);
+      await Promise.all([refetchQueue(), fetchMRFs()]);
+    } else {
+      toast.error(res.error || "Rejection failed.");
+    }
+  };
 
   // Helper functions for field access
   const getEstimatedCost = (mrf: MRF) => {
@@ -71,6 +138,7 @@ const ChairmanDashboard = () => {
 
   useScmAppRefreshListener(async () => {
     await fetchMRFs();
+    await refetchQueue();
   });
 
   // Calculate total value
@@ -104,6 +172,107 @@ const ChairmanDashboard = () => {
 
         {/* Dashboard Alerts */}
         <DashboardAlerts userRole="chairman" maxAlerts={5} />
+
+        {/* Executive requests awaiting Chairman approval */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Pending Approvals</CardTitle>
+            <CardDescription>Executive requests awaiting your approval</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {queueLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : chairmanQueue.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No requests pending your approval.
+              </p>
+            ) : (
+              chairmanQueue.map((mrf) => {
+                const apiId = getApiId(mrf);
+                const cost = getEstimatedCost(mrf);
+                return (
+                  <div key={mrf.id} className="p-4 border rounded-lg space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">{mrf.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {getDisplayId(mrf)} • Submitted by {getRequesterName(mrf)}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {mrf.category || "—"} • {cost > 0 ? `₦${cost.toLocaleString()}` : "-"}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="shrink-0">
+                        {getWorkflowStageLabel(
+                          mrf.current_stage || mrf.currentStage || "chairman_review",
+                        )}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/mrfs/${apiId}`)}
+                      >
+                        View Details
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={actionId === apiId}
+                        onClick={() => { void handleChairmanApprove(mrf); }}
+                      >
+                        {actionId === apiId ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Approve"
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={actionId === apiId}
+                        onClick={() => {
+                          setRejectingMrfId(apiId);
+                          setRejectRemarks("");
+                          setRejectDialogOpen(true);
+                        }}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+
+        <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Reject Request</DialogTitle>
+            </DialogHeader>
+            <Textarea
+              placeholder="Reason for rejection..."
+              value={rejectRemarks}
+              onChange={(e) => setRejectRemarks(e.target.value)}
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!rejectRemarks.trim() || actionId === rejectingMrfId}
+                onClick={() => { void confirmChairmanReject(); }}
+              >
+                Confirm Rejection
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
 
         {/* Summary Cards */}
