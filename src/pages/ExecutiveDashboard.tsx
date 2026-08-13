@@ -950,9 +950,11 @@ const ExecutiveDashboard = () => {
                       Estimated Cost
                     </Label>
                     <p className="font-medium">
-                      ₦
-                      {getEstimatedCost(selectedMRFForDetails).toLocaleString()}
-                    </p>
+                    {(selectedMRFForDetails as any).currency === 'USD' ? '$' :
+                    (selectedMRFForDetails as any).currency === 'GBP' ? '£' :
+                    (selectedMRFForDetails as any).currency === 'EUR' ? '€' : '₦'}
+                    {getEstimatedCost(selectedMRFForDetails).toLocaleString()}
+                  </p>
                   </div>
                   <div className="col-span-2">
                     <Label className="text-muted-foreground">Description</Label>

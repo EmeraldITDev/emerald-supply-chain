@@ -58,7 +58,14 @@ import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
-import { authApi, mrfApi, vendorApi, dashboardApi, srfApi, tripRequestApi } from "@/services/api";
+import {
+  authApi,
+  mrfApi,
+  vendorApi,
+  dashboardApi,
+  srfApi,
+  tripRequestApi,
+} from "@/services/api";
 import {
   canScdApprove,
   isTripAwaitingDirectorApproval,
@@ -66,16 +73,26 @@ import {
   resolveTripDisplayStatus,
   markTripDirectorApproved,
 } from "@/utils/tripApprovalState";
-import { resolveTripWorkflowError, isStaleTripStateError } from "@/utils/tripApprovalErrors";
+import {
+  resolveTripWorkflowError,
+  isStaleTripStateError,
+} from "@/utils/tripApprovalErrors";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { procurementApi } from "@/services/procurementApi";
-import { buildEmeraldPoDisplayModel, coercePOTermsMode, userClausesFromStoredCustomTerms } from "@/utils/emeraldPoDocumentModel";
+import {
+  buildEmeraldPoDisplayModel,
+  coercePOTermsMode,
+  userClausesFromStoredCustomTerms,
+} from "@/utils/emeraldPoDocumentModel";
 import { buildEmeraldPurchaseOrderPdf } from "@/utils/emeraldPOPdf";
 import { ViewPoDocumentsButton } from "@/components/procurement/ViewPoDocumentsButton";
-import { resolveUserSignatureDataUrl, readCachedUserSignature } from "@/utils/userSignature";
+import {
+  resolveUserSignatureDataUrl,
+  readCachedUserSignature,
+} from "@/utils/userSignature";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { VendorRegistration } from "@/types";
 import type { MRF, SRF } from "@/types";
@@ -85,9 +102,7 @@ import { SupplyChainVendorApprovalButtons } from "@/components/SupplyChainVendor
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { MRFApprovalDialog } from "@/components/MRFApprovalDialog";
 import { SRFDirectorApprovalDialog } from "@/components/SRFDirectorApprovalDialog";
-import {
-  bucketScdMrfs,
-} from "@/utils/mrfDashboardBuckets";
+import { bucketScdMrfs } from "@/utils/mrfDashboardBuckets";
 import { DashboardSummaryStats } from "@/components/dashboard/DashboardSummaryStats";
 import { DashboardMrfHistoryList } from "@/components/dashboard/DashboardMrfHistoryList";
 
@@ -111,34 +126,55 @@ const SupplyChainDashboard = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const removeMrfFromScdDashboardCache = useCallback((mrfId: string | number | undefined) => {
-    const normalizedId = String(mrfId ?? "").trim();
-    if (!normalizedId) return;
+  const removeMrfFromScdDashboardCache = useCallback(
+    (mrfId: string | number | undefined) => {
+      const normalizedId = String(mrfId ?? "").trim();
+      if (!normalizedId) return;
 
-    queryClient.setQueryData<MRF[] | undefined>(
-      queryKeys.dashboard.scdMrfs(),
-      (prev) => {
-        if (!prev) return prev;
-        return prev.filter((m) => {
-          const currentId = String(m.id ?? (m as { mrf_id?: string }).mrf_id ?? "");
-          const formattedId = String(m.formatted_id ?? (m as { formattedId?: string }).formattedId ?? "");
-          return currentId !== normalizedId && formattedId !== normalizedId;
-        });
-      },
-    );
-  }, [queryClient]);
+      queryClient.setQueryData<MRF[] | undefined>(
+        queryKeys.dashboard.scdMrfs(),
+        (prev) => {
+          if (!prev) return prev;
+          return prev.filter((m) => {
+            const currentId = String(
+              m.id ?? (m as { mrf_id?: string }).mrf_id ?? "",
+            );
+            const formattedId = String(
+              m.formatted_id ??
+                (m as { formattedId?: string }).formattedId ??
+                "",
+            );
+            return currentId !== normalizedId && formattedId !== normalizedId;
+          });
+        },
+      );
+    },
+    [queryClient],
+  );
 
-  const refreshScdDashboardCaches = useCallback(async (mrfId?: string | number) => {
-    if (mrfId !== undefined && mrfId !== null && mrfId !== "") {
-      removeMrfFromScdDashboardCache(mrfId);
-    }
+  const refreshScdDashboardCaches = useCallback(
+    async (mrfId?: string | number) => {
+      if (mrfId !== undefined && mrfId !== null && mrfId !== "") {
+        removeMrfFromScdDashboardCache(mrfId);
+      }
 
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.scdMrfs(), refetchType: "active" }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.supplyChainDirectorRaw(), refetchType: "active" }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all, refetchType: "active" }),
-    ]);
-  }, [queryClient, removeMrfFromScdDashboardCache]);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.dashboard.scdMrfs(),
+          refetchType: "active",
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.dashboard.supplyChainDirectorRaw(),
+          refetchType: "active",
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.dashboard.all,
+          refetchType: "active",
+        }),
+      ]);
+    },
+    [queryClient, removeMrfFromScdDashboardCache],
+  );
 
   const {
     data: mrfRequests = [],
@@ -174,7 +210,9 @@ const SupplyChainDashboard = () => {
     }
   }, [mrfFullDetails]);
   // (vendor registrations state replaced by useQuery below)
-  const [selectedTripForDetails, setSelectedTripForDetails] = useState<any | null>(null);
+  const [selectedTripForDetails, setSelectedTripForDetails] = useState<
+    any | null
+  >(null);
 
   const [approvingTripId, setApprovingTripId] = useState<string | null>(null);
   const [downloadingPoId, setDownloadingPoId] = useState<string | null>(null);
@@ -183,8 +221,7 @@ const SupplyChainDashboard = () => {
   >("all");
   const [srfForDirectorApproval, setSrfForDirectorApproval] =
     useState<SRF | null>(null);
-  const [srfDirectorApprovalOpen, setSrfDirectorApprovalOpen] =
-    useState(false);
+  const [srfDirectorApprovalOpen, setSrfDirectorApprovalOpen] = useState(false);
 
   // Single React Query owns the entire SCD dashboard payload; the derived
   // slices below (SRFs, trips, stats) are memoized reads, no extra requests.
@@ -211,7 +248,7 @@ const SupplyChainDashboard = () => {
     isLoading: pendingTripApprovalsLoading,
     refetch: refetchPendingTripApprovals,
   } = useQuery({
-    queryKey: ['dashboard', 'pending-trip-approvals'] as const,
+    queryKey: ["dashboard", "pending-trip-approvals"] as const,
     queryFn: async () => {
       // Use listAll to fetch organization-wide trip requests instead of just departmental ones
       const res = await tripRequestApi.listAll({ per_page: 50 });
@@ -231,17 +268,20 @@ const SupplyChainDashboard = () => {
 
     // Second source: the SCD dashboard payload exposes its own pending queue.
     const raw = (scdDashRaw ?? {}) as Record<string, any>;
-    const dashTrips: any[] = [
-      raw.pending_trip_approvals,
-      raw.pendingTripApprovals,
-      raw.tripsAwaitingSupplyChainDirectorApproval,
-      raw.trips_awaiting_scd_approval,
-    ].find((c) => Array.isArray(c)) ?? [];
+    const dashTrips: any[] =
+      [
+        raw.pending_trip_approvals,
+        raw.pendingTripApprovals,
+        raw.tripsAwaitingSupplyChainDirectorApproval,
+        raw.trips_awaiting_scd_approval,
+      ].find((c) => Array.isArray(c)) ?? [];
 
     const merged = [...dashTrips, ...listTrips];
     const seen = new Set<string>();
     const allTrips = merged.filter((t: any) => {
-      const key = String(t?.id ?? t?.trip_id ?? t?.request_number ?? JSON.stringify(t));
+      const key = String(
+        t?.id ?? t?.trip_id ?? t?.request_number ?? JSON.stringify(t),
+      );
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -512,7 +552,11 @@ const SupplyChainDashboard = () => {
     if (raw.includes("not pending") || raw.includes("wrong stage")) {
       return `This ${label} is no longer awaiting your approval.`;
     }
-    if (raw.includes("403") || raw.includes("forbidden") || raw.includes("permission")) {
+    if (
+      raw.includes("403") ||
+      raw.includes("forbidden") ||
+      raw.includes("permission")
+    ) {
       return "You do not have permission to approve this request.";
     }
     return error || `Failed to approve ${label}`;
@@ -591,10 +635,7 @@ const SupplyChainDashboard = () => {
     const srfId = getDisplayId(target) || String(target.id);
     setActionLoading(srfId);
     try {
-      const response = await srfApi.supplyChainDirectorApprove(
-        srfId,
-        remarks,
-      );
+      const response = await srfApi.supplyChainDirectorApprove(srfId, remarks);
       if (response.success) {
         toast.success("SRF approved — routed to Procurement");
         window.dispatchEvent(new CustomEvent("app:refresh"));
@@ -700,15 +741,25 @@ const SupplyChainDashboard = () => {
       const rows = pcRes.success && pcRes.data ? pcRes.data : [];
 
       const selectedRow = rows.find(
-        (r) => (r as { is_selected?: boolean; isSelected?: boolean }).is_selected
-          || (r as { is_selected?: boolean; isSelected?: boolean }).isSelected,
+        (r) =>
+          (r as { is_selected?: boolean; isSelected?: boolean }).is_selected ||
+          (r as { is_selected?: boolean; isSelected?: boolean }).isSelected,
       );
       const vendorId =
-        (selectedRow as { vendor_id?: string | number } | undefined)?.vendor_id
-        ?? (fullMrf as { selected_vendor_id?: string | number; selectedVendorId?: string | number })
-          .selected_vendor_id
-        ?? (fullMrf as { selected_vendor_id?: string | number; selectedVendorId?: string | number })
-          .selectedVendorId;
+        (selectedRow as { vendor_id?: string | number } | undefined)
+          ?.vendor_id ??
+        (
+          fullMrf as {
+            selected_vendor_id?: string | number;
+            selectedVendorId?: string | number;
+          }
+        ).selected_vendor_id ??
+        (
+          fullMrf as {
+            selected_vendor_id?: string | number;
+            selectedVendorId?: string | number;
+          }
+        ).selectedVendorId;
 
       let vendors: import("@/types").Vendor[] = [];
       if (vendorId) {
@@ -717,16 +768,24 @@ const SupplyChainDashboard = () => {
       } else {
         const vendorsRes = await vendorApi.list({ page: 1, per_page: 25 });
         vendors =
-          vendorsRes.success && vendorsRes.data?.items ? vendorsRes.data.items : [];
+          vendorsRes.success && vendorsRes.data?.items
+            ? vendorsRes.data.items
+            : [];
       }
 
       let sigDataUrl: string | null = null;
       const me = await authApi.getCurrentUser();
       const signatureUrl =
-        (me.data as { signature_url?: string; signatureUrl?: string } | undefined)
-          ?.signature_url ||
-        (me.data as { signature_url?: string; signatureUrl?: string } | undefined)
-          ?.signatureUrl ||
+        (
+          me.data as
+            | { signature_url?: string; signatureUrl?: string }
+            | undefined
+        )?.signature_url ||
+        (
+          me.data as
+            | { signature_url?: string; signatureUrl?: string }
+            | undefined
+        )?.signatureUrl ||
         user?.signature_url ||
         readStoredUserSignatureUrl() ||
         null;
@@ -772,11 +831,13 @@ const SupplyChainDashboard = () => {
         standardTermsBody,
         terms_mode: coercePOTermsMode(
           (fullMrf as { terms_mode?: string; termsMode?: string }).terms_mode ??
-          (fullMrf as { terms_mode?: string; termsMode?: string }).termsMode,
+            (fullMrf as { terms_mode?: string; termsMode?: string }).termsMode,
         ),
         user_terms_text: userClausesFromStoredCustomTerms(
-          (fullMrf as { custom_terms?: string; customTerms?: string }).custom_terms ??
-          (fullMrf as { custom_terms?: string; customTerms?: string }).customTerms,
+          (fullMrf as { custom_terms?: string; customTerms?: string })
+            .custom_terms ??
+            (fullMrf as { custom_terms?: string; customTerms?: string })
+              .customTerms,
         ),
         includeSignature: true,
         signatureDataUrl: sigDataUrl,
@@ -827,9 +888,8 @@ const SupplyChainDashboard = () => {
     setDownloadingPoId(String(mrf.id));
     const loadingToast = toast.loading("Preparing PO download...");
     try {
-      const { downloadMrfPurchaseOrderPdf } = await import(
-        "@/utils/downloadMrfPurchaseOrderPdf"
-      );
+      const { downloadMrfPurchaseOrderPdf } =
+        await import("@/utils/downloadMrfPurchaseOrderPdf");
       const res = await downloadMrfPurchaseOrderPdf(mrf);
       if (res.success) {
         toast.success("PO download started", {
@@ -933,7 +993,9 @@ const SupplyChainDashboard = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => { void fetchMRFs(); }}
+              onClick={() => {
+                void fetchMRFs();
+              }}
               disabled={loading}
             >
               <RefreshCw
@@ -978,7 +1040,9 @@ const SupplyChainDashboard = () => {
             </TabsList>
 
             <TabsContent value="pending" className="space-y-6">
-              {(() => { return null; })()}
+              {(() => {
+                return null;
+              })()}
               {/* Pending action breakdown — 5 clickable summary cards bound to backend payload keys */}
               {(() => {
                 const cards: Array<{
@@ -987,37 +1051,37 @@ const SupplyChainDashboard = () => {
                   count: number;
                   icon: typeof Users;
                 }> = [
-                    {
-                      key: "vendors",
-                      label: "Vendor Registrations",
-                      count: pendingBreakdownCounts.vendors,
-                      icon: Building2,
-                    },
-                    {
-                      key: "mrf",
-                      label: "MRF First Approvals",
-                      count: pendingBreakdownCounts.mrf,
-                      icon: FileText,
-                    },
-                    {
-                      key: "trips",
-                      label: "Trip Approvals",
-                      count: pendingBreakdownCounts.trips,
-                      icon: Truck,
-                    },
-                    {
-                      key: "srfs",
-                      label: "Service Requests (SRFs)",
-                      count: pendingBreakdownCounts.srfs,
-                      icon: ClipboardList,
-                    },
-                    {
-                      key: "pos",
-                      label: "Purchase Orders",
-                      count: pendingBreakdownCounts.pos,
-                      icon: ShoppingCart,
-                    },
-                  ];
+                  {
+                    key: "vendors",
+                    label: "Vendor Registrations",
+                    count: pendingBreakdownCounts.vendors,
+                    icon: Building2,
+                  },
+                  {
+                    key: "mrf",
+                    label: "MRF First Approvals",
+                    count: pendingBreakdownCounts.mrf,
+                    icon: FileText,
+                  },
+                  {
+                    key: "trips",
+                    label: "Trip Approvals",
+                    count: pendingBreakdownCounts.trips,
+                    icon: Truck,
+                  },
+                  {
+                    key: "srfs",
+                    label: "Service Requests (SRFs)",
+                    count: pendingBreakdownCounts.srfs,
+                    icon: ClipboardList,
+                  },
+                  {
+                    key: "pos",
+                    label: "Purchase Orders",
+                    count: pendingBreakdownCounts.pos,
+                    icon: ShoppingCart,
+                  },
+                ];
                 return (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1052,10 +1116,9 @@ const SupplyChainDashboard = () => {
                                 setPendingFilter(active ? "all" : key);
                               }
                             }}
-                            className={`cursor-pointer transition-all hover:shadow-md ${active
-                              ? "ring-2 ring-primary border-primary"
-                              : ""
-                              }`}
+                            className={`cursor-pointer transition-all hover:shadow-md ${
+                              active ? "ring-2 ring-primary border-primary" : ""
+                            }`}
                           >
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3">
                               <CardTitle className="text-xs sm:text-sm font-medium">
@@ -1071,8 +1134,7 @@ const SupplyChainDashboard = () => {
                               >
                                 {empty ? (
                                   <span className="inline-flex items-center gap-1">
-                                    <CheckCircle className="h-5 w-5" />
-                                    0
+                                    <CheckCircle className="h-5 w-5" />0
                                   </span>
                                 ) : (
                                   count
@@ -1140,13 +1202,12 @@ const SupplyChainDashboard = () => {
                                 </p>
                                 <p className="text-sm text-muted-foreground truncate">
                                   {getDisplayId(srf)} •{" "}
-                                  {getSrfRequesterDisplayName(srf)}{" "}
-                                  •{" "}
+                                  {getSrfRequesterDisplayName(srf)} •{" "}
                                   {formatMRFDate(
                                     srf.createdAt ||
-                                    srf.created_at ||
-                                    srf.date ||
-                                    "",
+                                      srf.created_at ||
+                                      srf.date ||
+                                      "",
                                   )}
                                 </p>
                               </div>
@@ -1196,7 +1257,8 @@ const SupplyChainDashboard = () => {
                     <CardHeader>
                       <CardTitle>Pending Trip Approvals</CardTitle>
                       <CardDescription>
-                        Staff trip requests awaiting Supervising Director approval. Click a row to review and act.
+                        Staff trip requests awaiting Supervising Director
+                        approval. Click a row to review and act.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1209,7 +1271,8 @@ const SupplyChainDashboard = () => {
                             (t.tripCode as string | undefined) ??
                             (t.trip_code as string | undefined) ??
                             tid;
-                          const dest = (t.destination as string | undefined) ?? "—";
+                          const dest =
+                            (t.destination as string | undefined) ?? "—";
                           const requester =
                             (t.requesterName as string | undefined) ??
                             (t.requester_name as string | undefined) ??
@@ -1236,7 +1299,9 @@ const SupplyChainDashboard = () => {
                                 <p className="text-sm text-muted-foreground truncate">
                                   {requester}
                                   {dept ? ` • ${dept}` : ""}
-                                  {dep ? ` • Departs ${formatMRFDate(dep)}` : ""}
+                                  {dep
+                                    ? ` • Departs ${formatMRFDate(dep)}`
+                                    : ""}
                                 </p>
                               </div>
                               <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -1250,61 +1315,87 @@ const SupplyChainDashboard = () => {
                                   View Details
                                 </Button>
                                 {canScdApprove(t) && (
-                                <Button
-                                  size="sm"
-                                  disabled={approvingTripId === tid}
-                                  onClick={async () => {
-                                    setApprovingTripId(tid);
-                                    const res = await tripRequestApi.directorApprove(tid);
-                                    const stale = !res.success && isStaleTripStateError(res);
-                                    if (res.success || stale) {
-                                      // Record locally so a stale list payload
-                                      // cannot resurrect this row on refetch.
-                                      markTripDirectorApproved(tid);
-                                      if (stale) {
-                                        // Backend already moved this trip on — clear the
-                                        // stale row instead of leaving a dead button.
-                                        toast.info(resolveTripWorkflowError(res));
+                                  <Button
+                                    size="sm"
+                                    disabled={approvingTripId === tid}
+                                    onClick={async () => {
+                                      setApprovingTripId(tid);
+                                      const res =
+                                        await tripRequestApi.directorApprove(
+                                          tid,
+                                        );
+                                      const stale =
+                                        !res.success &&
+                                        isStaleTripStateError(res);
+                                      if (res.success || stale) {
+                                        // Record locally so a stale list payload
+                                        // cannot resurrect this row on refetch.
+                                        markTripDirectorApproved(tid);
+                                        if (stale) {
+                                          // Backend already moved this trip on — clear the
+                                          // stale row instead of leaving a dead button.
+                                          toast.info(
+                                            resolveTripWorkflowError(res),
+                                          );
+                                        } else {
+                                          toast.success(
+                                            "Trip approved. The Logistics Manager has been notified.",
+                                          );
+                                        }
+                                        // Optimistically drop the row from the cached
+                                        // SCD dashboard payload — avoids a full refetch flicker.
+                                        queryClient.setQueryData<Record<
+                                          string,
+                                          unknown
+                                        > | null>(
+                                          queryKeys.dashboard.supplyChainDirectorRaw(),
+                                          (prev) => {
+                                            if (!prev) return prev;
+                                            const filterList = (v: unknown) =>
+                                              Array.isArray(v)
+                                                ? v.filter(
+                                                    (p) =>
+                                                      String(
+                                                        ((
+                                                          p as Record<
+                                                            string,
+                                                            unknown
+                                                          >
+                                                        ).id as
+                                                          | string
+                                                          | number
+                                                          | undefined) ?? "",
+                                                      ) !== tid,
+                                                  )
+                                                : v;
+                                            return {
+                                              ...prev,
+                                              pendingTripApprovals: filterList(
+                                                prev.pendingTripApprovals,
+                                              ),
+                                              pending_trip_approvals:
+                                                filterList(
+                                                  prev.pending_trip_approvals,
+                                                ),
+                                            };
+                                          },
+                                        );
+                                        void fetchPendingDirectorSrfs();
+                                        window.dispatchEvent(
+                                          new CustomEvent("app:refresh"),
+                                        );
                                       } else {
-                                        toast.success(
-                                          "Trip approved. The Logistics Manager has been notified.",
+                                        toast.error(
+                                          resolveTripWorkflowError(res),
                                         );
                                       }
-                                      // Optimistically drop the row from the cached
-                                      // SCD dashboard payload — avoids a full refetch flicker.
-                                      queryClient.setQueryData<Record<string, unknown> | null>(
-                                        queryKeys.dashboard.supplyChainDirectorRaw(),
-                                        (prev) => {
-                                          if (!prev) return prev;
-                                          const filterList = (v: unknown) =>
-                                            Array.isArray(v)
-                                              ? v.filter(
-                                                (p) =>
-                                                  String(
-                                                    ((p as Record<string, unknown>).id as
-                                                      | string
-                                                      | number
-                                                      | undefined) ?? "",
-                                                  ) !== tid,
-                                              )
-                                              : v;
-                                          return {
-                                            ...prev,
-                                            pendingTripApprovals: filterList(prev.pendingTripApprovals),
-                                            pending_trip_approvals: filterList(prev.pending_trip_approvals),
-                                          };
-                                        },
-                                      );
-                                      void fetchPendingDirectorSrfs();
-                                      window.dispatchEvent(new CustomEvent("app:refresh"));
-                                    } else {
-                                      toast.error(resolveTripWorkflowError(res));
-                                    }
-                                    setApprovingTripId(null);
-                                  }}
-                                >
-                                  {approvingTripId === tid ? "Approving…" : "Approve"}
-                                </Button>
+                                      setApprovingTripId(null);
+                                    }}
+                                  >
+                                    {approvingTripId === tid
+                                      ? "Approving…"
+                                      : "Approve"}
+                                  </Button>
                                 )}
                               </div>
                             </div>
@@ -1324,7 +1415,8 @@ const SupplyChainDashboard = () => {
                         MRFs Awaiting Supply Chain Director First Approval
                       </CardTitle>
                       <CardDescription>
-                        Parallel with Executive — first approval wins; then Procurement review
+                        Parallel with Executive — first approval wins; then
+                        Procurement review
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1344,17 +1436,21 @@ const SupplyChainDashboard = () => {
                                       {mrf.title}
                                     </CardTitle>
                                     <CardDescription className="text-xs truncate">
-                                      {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
+                                      {getDisplayId(mrf)} •{" "}
+                                      {getRequesterName(mrf)} •{" "}
                                       {mrf.department || "N/A"}
                                     </CardDescription>
                                   </div>
-                                  <Badge>₦{estimatedCost.toLocaleString()}</Badge>
+                                  <Badge>
+                                    ₦{estimatedCost.toLocaleString()}
+                                  </Badge>
                                 </div>
                               </CardHeader>
                               <CardContent className="space-y-3">
                                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
                                   <p className="text-sm font-medium text-primary">
-                                    First Approval: Supply Chain Director (parallel with Executive)
+                                    First Approval: Supply Chain Director
+                                    (parallel with Executive)
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     Contract Type:{" "}
@@ -1413,11 +1509,14 @@ const SupplyChainDashboard = () => {
                                       {mrf.title}
                                     </CardTitle>
                                     <CardDescription>
-                                      {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
+                                      {getDisplayId(mrf)} •{" "}
+                                      {getRequesterName(mrf)} •{" "}
                                       {mrf.department || "N/A"}
                                     </CardDescription>
                                   </div>
-                                  <Badge>₦{estimatedCost.toLocaleString()}</Badge>
+                                  <Badge>
+                                    ₦{estimatedCost.toLocaleString()}
+                                  </Badge>
                                 </div>
                               </CardHeader>
                               <CardContent className="space-y-4">
@@ -1435,7 +1534,9 @@ const SupplyChainDashboard = () => {
                                     </p>
                                   </div>
                                   <div className="md:col-span-2">
-                                    <p className="font-semibold">Description:</p>
+                                    <p className="font-semibold">
+                                      Description:
+                                    </p>
                                     <p className="text-muted-foreground">
                                       {mrf.description}
                                     </p>
@@ -1467,7 +1568,9 @@ const SupplyChainDashboard = () => {
                                           setMrfFullDetails(response.data);
                                         }
                                       } catch (error) {
-                                        toast.error("Failed to load MRF details");
+                                        toast.error(
+                                          "Failed to load MRF details",
+                                        );
                                       } finally {
                                         setLoadingFullDetails(false);
                                       }
@@ -1491,7 +1594,7 @@ const SupplyChainDashboard = () => {
                                         } else {
                                           toast.error(
                                             response.error ||
-                                            "Failed to load quotation details. Please try again.",
+                                              "Failed to load quotation details. Please try again.",
                                           );
                                           setQuotationDetailsDialogOpen(false);
                                         }
@@ -1502,7 +1605,7 @@ const SupplyChainDashboard = () => {
                                         );
                                         toast.error(
                                           error?.message ||
-                                          "Failed to load quotation details. Please try again.",
+                                            "Failed to load quotation details. Please try again.",
                                         );
                                         setQuotationDetailsDialogOpen(false);
                                       } finally {
@@ -1522,7 +1625,9 @@ const SupplyChainDashboard = () => {
                                     setActionLoading(mrf.id);
                                     try {
                                       const response =
-                                        await mrfApi.getAvailableActions(mrf.id);
+                                        await mrfApi.getAvailableActions(
+                                          mrf.id,
+                                        );
                                       if (
                                         !response.success ||
                                         !response.data?.canApproveInvoice
@@ -1537,11 +1642,14 @@ const SupplyChainDashboard = () => {
                                         await mrfApi.approveVendorSelection(
                                           mrf.id,
                                         );
-                                                                      if (approveResponse.success) {
+                                      if (approveResponse.success) {
                                         toast.success(
                                           "Vendor selection approved - Procurement can now generate PO based on the approved RFQ",
                                         );
-                                        if ((approveResponse.data as any)?.vendorInvoiceGateOpen) {
+                                        if (
+                                          (approveResponse.data as any)
+                                            ?.vendorInvoiceGateOpen
+                                        ) {
                                           toast.info(
                                             "Vendor invoice upload is now unlocked for this MRF (advance payment).",
                                           );
@@ -1550,11 +1658,13 @@ const SupplyChainDashboard = () => {
                                       } else {
                                         toast.error(
                                           approveResponse.error ||
-                                          "Failed to approve vendor selection",
+                                            "Failed to approve vendor selection",
                                         );
                                       }
                                     } catch (error) {
-                                      toast.error("Failed to connect to server");
+                                      toast.error(
+                                        "Failed to connect to server",
+                                      );
                                     } finally {
                                       setActionLoading(null);
                                     }
@@ -1600,7 +1710,8 @@ const SupplyChainDashboard = () => {
                                     {mrf.title}
                                   </CardTitle>
                                   <CardDescription className="text-xs truncate">
-                                    {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
+                                    {getDisplayId(mrf)} •{" "}
+                                    {getRequesterName(mrf)} •{" "}
                                     {mrf.department || "N/A"}
                                   </CardDescription>
                                 </div>
@@ -1716,7 +1827,9 @@ const SupplyChainDashboard = () => {
                       <div className="text-center py-8 text-muted-foreground">
                         <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
                         <p>No POs pending processing</p>
-                        <p className="text-xs mt-2">All POs have been reviewed</p>
+                        <p className="text-xs mt-2">
+                          All POs have been reviewed
+                        </p>
                       </div>
                     ) : (
                       <div className="space-y-4">
@@ -1738,11 +1851,14 @@ const SupplyChainDashboard = () => {
                                       {mrf.title}
                                     </CardTitle>
                                     <CardDescription>
-                                      {getDisplayId(mrf)} • {getRequesterName(mrf)} •{" "}
+                                      {getDisplayId(mrf)} •{" "}
+                                      {getRequesterName(mrf)} •{" "}
                                       {mrf.department || "N/A"}
                                     </CardDescription>
                                   </div>
-                                  <Badge>₦{estimatedCost.toLocaleString()}</Badge>
+                                  <Badge>
+                                    ₦{estimatedCost.toLocaleString()}
+                                  </Badge>
                                 </div>
                               </CardHeader>
                               <CardContent className="space-y-4">
@@ -1774,7 +1890,9 @@ const SupplyChainDashboard = () => {
                                     </p>
                                   </div>
                                   <div className="md:col-span-2">
-                                    <p className="font-semibold">Description:</p>
+                                    <p className="font-semibold">
+                                      Description:
+                                    </p>
                                     <p className="text-muted-foreground">
                                       {mrf.description}
                                     </p>
@@ -1800,7 +1918,8 @@ const SupplyChainDashboard = () => {
                                         <Download className="h-4 w-4 mr-2" />
                                         View Invoice
                                       </Button>
-                                      {(mrf.pfi_share_url || mrf.pfiShareUrl) && (
+                                      {(mrf.pfi_share_url ||
+                                        mrf.pfiShareUrl) && (
                                         <OneDriveLink
                                           webUrl={
                                             mrf.pfi_share_url || mrf.pfiShareUrl
@@ -1813,18 +1932,30 @@ const SupplyChainDashboard = () => {
                                   </div>
                                 )}
 
-                                {(mrf.attachmentUrl || mrf.attachment_url || mrf.attachmentShareUrl || mrf.attachment_share_url) && (
+                                {(mrf.attachmentUrl ||
+                                  mrf.attachment_url ||
+                                  mrf.attachmentShareUrl ||
+                                  mrf.attachment_share_url) && (
                                   <div className="mt-3">
-                                    <p className="text-xs font-medium text-muted-foreground mb-1">Supporting Document</p>
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">
+                                      Supporting Document
+                                    </p>
                                     <a
-                                      href={mrf.attachmentShareUrl || mrf.attachment_share_url || mrf.attachmentUrl || mrf.attachment_url}
+                                      href={
+                                        mrf.attachmentShareUrl ||
+                                        mrf.attachment_share_url ||
+                                        mrf.attachmentUrl ||
+                                        mrf.attachment_url
+                                      }
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       download
                                       className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
                                     >
                                       <FileText className="h-4 w-4" />
-                                      {mrf.attachmentName || mrf.attachment_name || 'Download Attachment'}
+                                      {mrf.attachmentName ||
+                                        mrf.attachment_name ||
+                                        "Download Attachment"}
                                     </a>
                                   </div>
                                 )}
@@ -1842,7 +1973,9 @@ const SupplyChainDashboard = () => {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleDownloadPO(mrf)}
-                                      disabled={downloadingPoId === String(mrf.id)}
+                                      disabled={
+                                        downloadingPoId === String(mrf.id)
+                                      }
                                     >
                                       {downloadingPoId === String(mrf.id) ? (
                                         <>
@@ -1887,7 +2020,9 @@ const SupplyChainDashboard = () => {
                                           setMrfFullDetails(response.data);
                                         }
                                       } catch (error) {
-                                        toast.error("Failed to load MRF details");
+                                        toast.error(
+                                          "Failed to load MRF details",
+                                        );
                                       } finally {
                                         setLoadingFullDetails(false);
                                       }
@@ -2036,7 +2171,6 @@ const SupplyChainDashboard = () => {
         onReject={handleFirstApprovalReject}
         currentUserRole="supply_chain_director"
       />
-
 
       <SRFDirectorApprovalDialog
         srf={srfForDirectorApproval}
@@ -2210,8 +2344,8 @@ const SupplyChainDashboard = () => {
                     <p className="font-bold text-lg">
                       {formatAmount(
                         mrfFullDetails.selectedQuotation.totalAmount ??
-                        mrfFullDetails.selectedQuotation.total_amount ??
-                        mrfFullDetails.selectedQuotation.price,
+                          mrfFullDetails.selectedQuotation.total_amount ??
+                          mrfFullDetails.selectedQuotation.price,
                         mrfFullDetails.selectedQuotation.currency ?? "NGN",
                       )}
                     </p>
@@ -2223,7 +2357,7 @@ const SupplyChainDashboard = () => {
                     <p className="font-medium">
                       {displayString(
                         mrfFullDetails.selectedQuotation.paymentTerms ??
-                        mrfFullDetails.selectedQuotation.payment_terms,
+                          mrfFullDetails.selectedQuotation.payment_terms,
                       )}
                     </p>
                   </div>
@@ -2234,7 +2368,7 @@ const SupplyChainDashboard = () => {
                     <p className="font-medium">
                       {displayString(
                         mrfFullDetails.selectedQuotation.deliveryDate ??
-                        mrfFullDetails.selectedQuotation.delivery_date,
+                          mrfFullDetails.selectedQuotation.delivery_date,
                       )}
                     </p>
                   </div>
@@ -2245,7 +2379,7 @@ const SupplyChainDashboard = () => {
                     <p className="font-medium">
                       {formatDays(
                         mrfFullDetails.selectedQuotation.validityDays ??
-                        mrfFullDetails.selectedQuotation.validity_days,
+                          mrfFullDetails.selectedQuotation.validity_days,
                       )}
                     </p>
                   </div>
@@ -2256,7 +2390,7 @@ const SupplyChainDashboard = () => {
                     <p className="font-medium">
                       {displayString(
                         mrfFullDetails.selectedQuotation.warrantyPeriod ??
-                        mrfFullDetails.selectedQuotation.warranty_period,
+                          mrfFullDetails.selectedQuotation.warranty_period,
                       )}
                     </p>
                   </div>
@@ -2315,7 +2449,9 @@ const SupplyChainDashboard = () => {
                                   {item.item_name || item.name ? (
                                     item.item_name || item.name
                                   ) : (
-                                    <span className="text-muted-foreground italic">Unnamed item</span>
+                                    <span className="text-muted-foreground italic">
+                                      Unnamed item
+                                    </span>
                                   )}
                                 </td>
                                 <td className="text-right p-2">
@@ -2332,7 +2468,7 @@ const SupplyChainDashboard = () => {
                                   {parseFloat(
                                     String(
                                       (item.quantity || 0) *
-                                      (item.unit_price || 0),
+                                        (item.unit_price || 0),
                                     ),
                                   ).toLocaleString()}
                                 </td>
@@ -2404,85 +2540,96 @@ const SupplyChainDashboard = () => {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            (
-              <div className="space-y-6 mt-4">
-                {/* Progress Tracker */}
-                {mrfFullDetails && (
-                  <MRFProgressTracker
-                    mrfId={selectedMRFForDetails.id}
-                    contractType={
-                      (selectedMRFForDetails as any).contract_type ||
-                      (selectedMRFForDetails as any).contractType
-                    }
-                  />
-                )}
-
-                {/* MRF Basic Information */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">MRF ID</Label>
-                    <p className="font-medium">{getDisplayId(selectedMRFForDetails)}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Status</Label>
-                    <Badge>{selectedMRFForDetails.status}</Badge>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Category</Label>
-                    <p className="font-medium">
-                      {selectedMRFForDetails.category}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Urgency</Label>
-                    <p className="font-medium">
-                      {selectedMRFForDetails.urgency}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Quantity</Label>
-                    <p className="font-medium">
-                      {selectedMRFForDetails.quantity}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">
-                      Estimated Cost
-                    </Label>
-                    <p className="font-medium">
-                      ₦
-                      {getEstimatedCost(selectedMRFForDetails).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-muted-foreground">Description</Label>
-                    <p className="font-medium">
-                      {selectedMRFForDetails.description}
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-muted-foreground">
-                      Justification
-                    </Label>
-                    <p className="font-medium">
-                      {selectedMRFForDetails.justification}
-                    </p>
-                  </div>
-                </div>
-                <LineItemPnLSection
-                  type="mrf"
-                  id={getMrfApiId(selectedMRFForDetails)}
-                  initialPnL={
-                    (selectedMRFForDetails as { profitAndLoss?: import("@/types").ProfitAndLoss })
-                      .profitAndLoss ||
-                    (mrfFullDetails as { profitAndLoss?: import("@/types").ProfitAndLoss } | null)
-                      ?.profitAndLoss ||
-                    (mrfFullDetails as { mrf?: { profitAndLoss?: import("@/types").ProfitAndLoss } } | null)
-                      ?.mrf?.profitAndLoss
+            <div className="space-y-6 mt-4">
+              {/* Progress Tracker */}
+              {mrfFullDetails && (
+                <MRFProgressTracker
+                  mrfId={selectedMRFForDetails.id}
+                  contractType={
+                    (selectedMRFForDetails as any).contract_type ||
+                    (selectedMRFForDetails as any).contractType
                   }
                 />
+              )}
+
+              {/* MRF Basic Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">MRF ID</Label>
+                  <p className="font-medium">
+                    {getDisplayId(selectedMRFForDetails)}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <Badge>{selectedMRFForDetails.status}</Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Category</Label>
+                  <p className="font-medium">
+                    {selectedMRFForDetails.category}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Urgency</Label>
+                  <p className="font-medium">{selectedMRFForDetails.urgency}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Quantity</Label>
+                  <p className="font-medium">
+                    {selectedMRFForDetails.quantity}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">
+                    Estimated Cost
+                  </Label>
+                  <p className="font-medium">
+                    {(selectedMRFForDetails as any).currency === "USD"
+                      ? "$"
+                      : (selectedMRFForDetails as any).currency === "GBP"
+                        ? "£"
+                        : (selectedMRFForDetails as any).currency === "EUR"
+                          ? "€"
+                          : "₦"}
+                    {getEstimatedCost(selectedMRFForDetails).toLocaleString()}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Description</Label>
+                  <p className="font-medium">
+                    {selectedMRFForDetails.description}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Justification</Label>
+                  <p className="font-medium">
+                    {selectedMRFForDetails.justification}
+                  </p>
+                </div>
               </div>
-            )
+              <LineItemPnLSection
+                type="mrf"
+                id={getMrfApiId(selectedMRFForDetails)}
+                initialPnL={
+                  (
+                    selectedMRFForDetails as {
+                      profitAndLoss?: import("@/types").ProfitAndLoss;
+                    }
+                  ).profitAndLoss ||
+                  (
+                    mrfFullDetails as {
+                      profitAndLoss?: import("@/types").ProfitAndLoss;
+                    } | null
+                  )?.profitAndLoss ||
+                  (
+                    mrfFullDetails as {
+                      mrf?: { profitAndLoss?: import("@/types").ProfitAndLoss };
+                    } | null
+                  )?.mrf?.profitAndLoss
+                }
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -2492,7 +2639,11 @@ const SupplyChainDashboard = () => {
       <TripRequestDetailDialog
         tripId={
           selectedTripForDetails
-            ? String(selectedTripForDetails.id ?? selectedTripForDetails.trip_id ?? "")
+            ? String(
+                selectedTripForDetails.id ??
+                  selectedTripForDetails.trip_id ??
+                  "",
+              )
             : null
         }
         open={!!selectedTripForDetails}
@@ -2502,7 +2653,6 @@ const SupplyChainDashboard = () => {
           setSelectedTripForDetails(null);
         }}
       />
-      
     </DashboardLayout>
   );
 };

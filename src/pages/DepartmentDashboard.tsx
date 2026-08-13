@@ -5,13 +5,37 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Eye, Loader2, Edit } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  FileText,
+  Plus,
+  Search,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Eye,
+  Loader2,
+  Edit,
+} from "lucide-react";
 import { TripRequestDialog } from "@/components/logistics/TripRequestDialog";
 import { canCreateTripRequest } from "@/utils/tripRequestAccess";
 import { format } from "date-fns";
@@ -52,7 +76,7 @@ const DepartmentDashboard = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  
+
   // Read tab from URL query param, default to "mrns"
   const tabFromUrl = searchParams.get("tab");
   const defaultTab =
@@ -60,21 +84,22 @@ const DepartmentDashboard = () => {
       ? tabFromUrl
       : "mrns";
   const [activeTab, setActiveTab] = useState(defaultTab);
-  
-  
+
   // MRF state - fetched from backend
   const [mrfRequests, setMrfRequests] = useState<MRF[]>([]);
   const [mrfLoading, setMrfLoading] = useState(true);
-  
+
   // MRF details dialog state
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
-  const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
+  const [selectedMRFForDetails, setSelectedMRFForDetails] =
+    useState<MRF | null>(null);
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
-  
+
   // Edit & Resubmit dialog state
   const [resubmitDialogOpen, setResubmitDialogOpen] = useState(false);
-  const [selectedMRFForResubmit, setSelectedMRFForResubmit] = useState<MRF | null>(null);
+  const [selectedMRFForResubmit, setSelectedMRFForResubmit] =
+    useState<MRF | null>(null);
   const [resubmitData, setResubmitData] = useState({
     title: "",
     description: "",
@@ -89,15 +114,24 @@ const DepartmentDashboard = () => {
   const [srfLoading, setSrfLoading] = useState(false);
   const [srfDetailOpen, setSrfDetailOpen] = useState(false);
   const [selectedSrfId, setSelectedSrfId] = useState<string | null>(null);
-  const [selectedSrfFetchPath, setSelectedSrfFetchPath] = useState<string | null>(null);
+  const [selectedSrfFetchPath, setSelectedSrfFetchPath] = useState<
+    string | null
+  >(null);
   const [lineItemDialogOpen, setLineItemDialogOpen] = useState(false);
-  const [selectedLineItemId, setSelectedLineItemId] = useState<string | null>(null);
-  const [selectedLineItemFetchPath, setSelectedLineItemFetchPath] = useState<string | null>(null);
+  const [selectedLineItemId, setSelectedLineItemId] = useState<string | null>(
+    null,
+  );
+  const [selectedLineItemFetchPath, setSelectedLineItemFetchPath] = useState<
+    string | null
+  >(null);
 
   const [editMrfOpen, setEditMrfOpen] = useState(false);
-  const [selectedMrfForEdit, setSelectedMrfForEdit] = useState<MRF | null>(null);
+  const [selectedMrfForEdit, setSelectedMrfForEdit] = useState<MRF | null>(
+    null,
+  );
   const [editSrfOpen, setEditSrfOpen] = useState(false);
-  const [selectedSrfForEdit, setSelectedSrfForEdit] = useState<SrfWithUi | null>(null);
+  const [selectedSrfForEdit, setSelectedSrfForEdit] =
+    useState<SrfWithUi | null>(null);
 
   // Fetch MRFs from backend
   const fetchMRFs = useCallback(async () => {
@@ -125,7 +159,9 @@ const DepartmentDashboard = () => {
       const res = await srfApi.getAll({ include_line_items: false, limit: 50 });
       if (res.success && res.data) {
         const own = res.data.filter((srf) => {
-          const rn = getSrfRequesterDisplayName(srf as Parameters<typeof getSrfRequesterDisplayName>[0]);
+          const rn = getSrfRequesterDisplayName(
+            srf as Parameters<typeof getSrfRequesterDisplayName>[0],
+          );
           return rn === user?.name || rn === user?.email;
         });
         setMySrfs(own as SrfWithUi[]);
@@ -152,32 +188,43 @@ const DepartmentDashboard = () => {
 
   // Filter MRNs for current user only (employees see only their own requests)
   const departmentMRNs = useMemo(() => {
-    return mrns.filter(mrn => {
-      const matchesSearch = mrn.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          mrn.controlNumber.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === "all" || mrn.status === statusFilter;
+    return mrns.filter((mrn) => {
+      const matchesSearch =
+        mrn.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        mrn.controlNumber.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus =
+        statusFilter === "all" || mrn.status === statusFilter;
       // Employees only see their own MRNs
-      const matchesUser = mrn.requesterId === user?.email || mrn.requesterName === user?.name;
-      
+      const matchesUser =
+        mrn.requesterId === user?.email || mrn.requesterName === user?.name;
+
       return matchesSearch && matchesStatus && matchesUser;
     });
   }, [mrns, searchQuery, statusFilter, user]);
 
   // Filter annual plans for current user's department
   const departmentPlans = useMemo(() => {
-    return annualPlans.filter(plan => plan.department === user?.department);
+    return annualPlans.filter((plan) => plan.department === user?.department);
   }, [annualPlans, user]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Pending": return "bg-yellow-500";
-      case "Under Review": return "bg-blue-500";
-      case "Converted to MRF": return "bg-green-500";
-      case "Rejected": return "bg-red-500";
-      case "Draft": return "bg-gray-500";
-      case "Submitted": return "bg-blue-500";
-      case "Approved": return "bg-green-500";
-      default: return "bg-gray-500";
+      case "Pending":
+        return "bg-yellow-500";
+      case "Under Review":
+        return "bg-blue-500";
+      case "Converted to MRF":
+        return "bg-green-500";
+      case "Rejected":
+        return "bg-red-500";
+      case "Draft":
+        return "bg-gray-500";
+      case "Submitted":
+        return "bg-blue-500";
+      case "Approved":
+        return "bg-green-500";
+      default:
+        return "bg-gray-500";
     }
   };
 
@@ -203,7 +250,8 @@ const DepartmentDashboard = () => {
     const myMrfIds = new Set(mrfRequests.map((m) => m.id));
     const convertedToRfq = Math.max(
       rfqs.filter((r) => myMrfIds.has(r.mrfId)).length,
-      mrfRequests.filter((m) => (m.status || "").toLowerCase().includes("rfq")).length,
+      mrfRequests.filter((m) => (m.status || "").toLowerCase().includes("rfq"))
+        .length,
     );
     return {
       total: all.length,
@@ -214,20 +262,23 @@ const DepartmentDashboard = () => {
     };
   }, [mrfRequests, mySrfs, rfqs]);
 
-  
-
   return (
     <DashboardLayout>
       <div className="space-y-4 sm:space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">My Requests</h1>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
+              My Requests
+            </h1>
             <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">
               Submit material requests and track your procurement activities
             </p>
           </div>
           {canCreateTripRequest(getScmRole(user)) && (
-            <TripRequestDialog userRole={getScmRole(user)} label="New Trip Request" />
+            <TripRequestDialog
+              userRole={getScmRole(user)}
+              label="New Trip Request"
+            />
           )}
         </div>
 
@@ -235,58 +286,88 @@ const DepartmentDashboard = () => {
         <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-xs sm:text-sm font-medium">Pending</CardTitle>
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                Pending
+              </CardTitle>
               <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.pending}</div>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">
+                {stats.pending}
+              </div>
               <p className="text-xs text-muted-foreground">Awaiting review</p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-xs sm:text-sm font-medium">In Review</CardTitle>
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                In Review
+              </CardTitle>
               <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.underReview}</div>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">
+                {stats.underReview}
+              </div>
               <p className="text-xs text-muted-foreground">Processing</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-xs sm:text-sm font-medium">Converted to RFQs</CardTitle>
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                Converted to RFQs
+              </CardTitle>
               <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.convertedToRfq}</div>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">
+                {stats.convertedToRfq}
+              </div>
               <p className="text-xs text-muted-foreground">Reached RFQ stage</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-xs sm:text-sm font-medium">Rejected</CardTitle>
+              <CardTitle className="text-xs sm:text-sm font-medium">
+                Rejected
+              </CardTitle>
               <XCircle className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stats.rejected}</div>
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold">
+                {stats.rejected}
+              </div>
               <p className="text-xs text-muted-foreground">Revision</p>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-4"
+        >
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 h-auto gap-1">
-            <TabsTrigger value="mrns" className="text-xs sm:text-sm">MRNs</TabsTrigger>
-            <TabsTrigger value="mrf" className="text-xs sm:text-sm">MRFs</TabsTrigger>
-            <TabsTrigger value="srf" className="text-xs sm:text-sm">SRFs</TabsTrigger>
+            <TabsTrigger value="mrns" className="text-xs sm:text-sm">
+              MRNs
+            </TabsTrigger>
+            <TabsTrigger value="mrf" className="text-xs sm:text-sm">
+              MRFs
+            </TabsTrigger>
+            <TabsTrigger value="srf" className="text-xs sm:text-sm">
+              SRFs
+            </TabsTrigger>
             {canCreateTripRequest(getScmRole(user)) && (
-              <TabsTrigger value="trips" className="text-xs sm:text-sm">My Trips</TabsTrigger>
+              <TabsTrigger value="trips" className="text-xs sm:text-sm">
+                My Trips
+              </TabsTrigger>
             )}
-            <TabsTrigger value="annual" className="text-xs sm:text-sm">Annual</TabsTrigger>
+            <TabsTrigger value="annual" className="text-xs sm:text-sm">
+              Annual
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="mrns" className="space-y-3 sm:space-y-4">
@@ -294,10 +375,18 @@ const DepartmentDashboard = () => {
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle className="text-base sm:text-lg">Material Request Notes (MRN)</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Submit requests for material procurement</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">
+                      Material Request Notes (MRN)
+                    </CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Submit requests for material procurement
+                    </CardDescription>
                   </div>
-                  <Button onClick={() => navigate("/department/mrn/new")} size="sm" className="sm:size-default">
+                  <Button
+                    onClick={() => navigate("/department/mrn/new")}
+                    size="sm"
+                    className="sm:size-default"
+                  >
                     <Plus className="mr-2 h-4 w-4" />
                     <span className="hidden sm:inline">New MRN</span>
                     <span className="sm:hidden">New</span>
@@ -334,42 +423,91 @@ const DepartmentDashboard = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-xs sm:text-sm">Control #</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Title</TableHead>
-                        <TableHead className="text-xs sm:text-sm hidden md:table-cell">Items</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Urgency</TableHead>
-                        <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Submitted</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Status</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Actions</TableHead>
+                        <TableHead className="text-xs sm:text-sm">
+                          Control #
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm">
+                          Title
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm hidden md:table-cell">
+                          Items
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm">
+                          Urgency
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm hidden lg:table-cell">
+                          Submitted
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm">
+                          Status
+                        </TableHead>
+                        <TableHead className="text-xs sm:text-sm">
+                          Actions
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {departmentMRNs.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                            No MRNs found. Create your first material request note.
+                          <TableCell
+                            colSpan={7}
+                            className="text-center py-8 text-muted-foreground"
+                          >
+                            No MRNs found. Create your first material request
+                            note.
                           </TableCell>
                         </TableRow>
                       ) : (
                         departmentMRNs.map((mrn) => (
                           <TableRow key={mrn.id}>
-                            <TableCell className="font-mono text-xs sm:text-sm">{mrn.controlNumber}</TableCell>
-                            <TableCell className="font-medium text-xs sm:text-sm max-w-[150px] sm:max-w-none truncate">{mrn.title}</TableCell>
-                            <TableCell className="text-xs sm:text-sm hidden md:table-cell">{mrn.items.length} items</TableCell>
+                            <TableCell className="font-mono text-xs sm:text-sm">
+                              {mrn.controlNumber}
+                            </TableCell>
+                            <TableCell className="font-medium text-xs sm:text-sm max-w-[150px] sm:max-w-none truncate">
+                              {mrn.title}
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm hidden md:table-cell">
+                              {mrn.items.length} items
+                            </TableCell>
                             <TableCell>
-                              <Badge variant={mrn.urgency === "High" ? "destructive" : "secondary"} className="text-xs">
+                              <Badge
+                                variant={
+                                  mrn.urgency === "High"
+                                    ? "destructive"
+                                    : "secondary"
+                                }
+                                className="text-xs"
+                              >
                                 {mrn.urgency}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-xs sm:text-sm hidden lg:table-cell">{format(new Date(mrn.submittedDate), "MMM dd, yyyy")}</TableCell>
+                            <TableCell className="text-xs sm:text-sm hidden lg:table-cell">
+                              {format(
+                                new Date(mrn.submittedDate),
+                                "MMM dd, yyyy",
+                              )}
+                            </TableCell>
                             <TableCell>
-                              <Badge className={`${getStatusColor(mrn.status)} text-xs`}>
+                              <Badge
+                                className={`${getStatusColor(mrn.status)} text-xs`}
+                              >
                                 {mrn.status}
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="sm" onClick={() => navigate(`/department/mrn/${getDisplayId(mrn)}`)} className="text-xs sm:text-sm">
-                                <span className="hidden sm:inline">View Details</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  navigate(
+                                    `/department/mrn/${getDisplayId(mrn)}`,
+                                  )
+                                }
+                                className="text-xs sm:text-sm"
+                              >
+                                <span className="hidden sm:inline">
+                                  View Details
+                                </span>
                                 <span className="sm:hidden">View</span>
                               </Button>
                             </TableCell>
@@ -389,11 +527,19 @@ const DepartmentDashboard = () => {
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle className="text-base sm:text-lg">Material Request Forms (MRF)</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Track your material requisition forms and their progress</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">
+                      Material Request Forms (MRF)
+                    </CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Track your material requisition forms and their progress
+                    </CardDescription>
                   </div>
                   {isEmployeeRole(getScmRole(user)) && (
-                    <Button onClick={() => navigate("/new-mrf")} size="sm" className="sm:size-default">
+                    <Button
+                      onClick={() => navigate("/new-mrf")}
+                      size="sm"
+                      className="sm:size-default"
+                    >
                       <Plus className="mr-2 h-4 w-4" />
                       <span className="hidden sm:inline">New MRF</span>
                       <span className="sm:hidden">New</span>
@@ -412,43 +558,77 @@ const DepartmentDashboard = () => {
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No MRFs found.</p>
                       {isEmployeeRole(getScmRole(user)) && (
-                        <p className="text-sm mt-1">Create your first Material Request Form.</p>
+                        <p className="text-sm mt-1">
+                          Create your first Material Request Form.
+                        </p>
                       )}
                     </div>
                   ) : (
                     mrfRequests.map((mrf) => {
-                      const mrfEditAccess = resolveRequesterEditAccess(mrf, user);
-                      const mrfEditTimeLeft = formatRequesterEditTimeRemaining(mrfEditAccess.expiresAt);
-                      const isRejected = (mrf.status || "").toLowerCase() === "rejected";
+                      const mrfEditAccess = resolveRequesterEditAccess(
+                        mrf,
+                        user,
+                      );
+                      const mrfEditTimeLeft = formatRequesterEditTimeRemaining(
+                        mrfEditAccess.expiresAt,
+                      );
+                      const isRejected =
+                        (mrf.status || "").toLowerCase() === "rejected";
 
                       return (
-                        <Card key={mrf.id} className="hover:shadow-md transition-shadow">
+                        <Card
+                          key={mrf.id}
+                          className="hover:shadow-md transition-shadow"
+                        >
                           <CardContent className="p-4">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold truncate">{mrf.title}</h3>
-                                <p className="text-sm text-muted-foreground">MRF ID: {getDisplayId(mrf)}</p>
+                                <h3 className="font-semibold truncate">
+                                  {mrf.title}
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                  MRF ID: {getDisplayId(mrf)}
+                                </p>
                                 <div className="flex flex-wrap items-center gap-2 mt-1">
                                   <span className="text-xs text-muted-foreground">
-                                    {mrf.created_at ? format(new Date(mrf.created_at), "MMM dd, yyyy") : ""}
+                                    {mrf.created_at
+                                      ? format(
+                                          new Date(mrf.created_at),
+                                          "MMM dd, yyyy",
+                                        )
+                                      : ""}
                                   </span>
                                   {(() => {
-                                    const cost = parseFloat(String(mrf.estimatedCost || mrf.estimated_cost || 0));
+                                    const cost = parseFloat(
+                                      String(
+                                        mrf.estimatedCost ||
+                                          mrf.estimated_cost ||
+                                          0,
+                                      ),
+                                    );
                                     return cost > 0 ? (
                                       <span className="text-xs font-medium">
                                         ₦{cost.toLocaleString()}
                                       </span>
                                     ) : (
-                                      <span className="text-xs text-muted-foreground">-</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        -
+                                      </span>
                                     );
                                   })()}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 flex-wrap">
-                                <Badge className={getStatusColor(mrf.status)}>{mrf.status}</Badge>
+                                <Badge className={getStatusColor(mrf.status)}>
+                                  {mrf.status}
+                                </Badge>
                                 {/* Rejected badge */}
-                                {(mrf.status || "").toLowerCase() === "rejected" && (
-                                  <Badge variant="destructive" className="flex items-center gap-1">
+                                {(mrf.status || "").toLowerCase() ===
+                                  "rejected" && (
+                                  <Badge
+                                    variant="destructive"
+                                    className="flex items-center gap-1"
+                                  >
                                     <XCircle className="h-3 w-3" />
                                     Rejected
                                   </Badge>
@@ -459,23 +639,29 @@ const DepartmentDashboard = () => {
                                   onClick={async () => {
                                     setSelectedMRFForDetails(mrf);
                                     setMrfDetailsDialogOpen(true);
-                                    
+
                                     // Fetch full details
                                     setLoadingFullDetails(true);
                                     try {
-                                      const response = await mrfApi.getFullDetails(mrf.id);
+                                      const response =
+                                        await mrfApi.getFullDetails(mrf.id);
                                       if (response.success && response.data) {
                                         setMrfFullDetails(response.data);
                                       }
                                     } catch (error) {
-                                      console.error('Failed to fetch full details:', error);
+                                      console.error(
+                                        "Failed to fetch full details:",
+                                        error,
+                                      );
                                     } finally {
                                       setLoadingFullDetails(false);
                                     }
                                   }}
                                 >
                                   <Eye className="h-4 w-4 mr-1" />
-                                  <span className="hidden sm:inline">View Details</span>
+                                  <span className="hidden sm:inline">
+                                    View Details
+                                  </span>
                                   <span className="sm:hidden">View</span>
                                 </Button>
                                 {mrfEditAccess.canEdit && !isRejected && (
@@ -489,7 +675,9 @@ const DepartmentDashboard = () => {
                                     }}
                                   >
                                     <Edit className="h-4 w-4 mr-1" />
-                                    <span className="hidden sm:inline">Edit</span>
+                                    <span className="hidden sm:inline">
+                                      Edit
+                                    </span>
                                     <span className="sm:hidden">Edit</span>
                                   </Button>
                                 )}
@@ -505,7 +693,11 @@ const DepartmentDashboard = () => {
                                         title: mrf.title || "",
                                         description: mrf.description || "",
                                         quantity: String(mrf.quantity || ""),
-                                        estimated_cost: String(mrf.estimated_cost || mrf.estimatedCost || ""),
+                                        estimated_cost: String(
+                                          mrf.estimated_cost ||
+                                            mrf.estimatedCost ||
+                                            "",
+                                        ),
                                         justification: mrf.justification || "",
                                         category: mrf.category || "",
                                       });
@@ -513,7 +705,9 @@ const DepartmentDashboard = () => {
                                     }}
                                   >
                                     <Edit className="h-4 w-4 mr-1" />
-                                    <span className="hidden sm:inline">Edit & Resubmit</span>
+                                    <span className="hidden sm:inline">
+                                      Edit & Resubmit
+                                    </span>
                                     <span className="sm:hidden">Resubmit</span>
                                   </Button>
                                 )}
@@ -535,11 +729,19 @@ const DepartmentDashboard = () => {
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle className="text-base sm:text-lg">Service Request Forms (SRF)</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Official service requisition forms</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">
+                      Service Request Forms (SRF)
+                    </CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Official service requisition forms
+                    </CardDescription>
                   </div>
                   {isEmployeeRole(getScmRole(user)) && (
-                    <Button onClick={() => navigate("/new-srf")} size="sm" className="sm:size-default">
+                    <Button
+                      onClick={() => navigate("/new-srf")}
+                      size="sm"
+                      className="sm:size-default"
+                    >
                       <Plus className="mr-2 h-4 w-4" />
                       <span className="hidden sm:inline">New SRF</span>
                       <span className="sm:hidden">New</span>
@@ -557,7 +759,9 @@ const DepartmentDashboard = () => {
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>No SRFs found.</p>
                     {isEmployeeRole(getScmRole(user)) && (
-                      <p className="text-sm mt-1">Create your first Service Request Form.</p>
+                      <p className="text-sm mt-1">
+                        Create your first Service Request Form.
+                      </p>
                     )}
                   </div>
                 ) : (
@@ -566,7 +770,10 @@ const DepartmentDashboard = () => {
                     getStatusColor={getStatusColor}
                     onOpenSrf={(srf) => {
                       const path = srf.ui?.viewDetails?.path;
-                      if (!srfUiActionVisible(srf.ui?.viewDetails) && srf.ui?.cardClickable === false) {
+                      if (
+                        !srfUiActionVisible(srf.ui?.viewDetails) &&
+                        srf.ui?.cardClickable === false
+                      ) {
                         return;
                       }
                       setSelectedSrfId(String(srf.id));
@@ -583,7 +790,9 @@ const DepartmentDashboard = () => {
                       setSelectedSrfForEdit(srf);
                       setEditSrfOpen(true);
                     }}
-                    canEditSrf={(srf) => resolveRequesterEditAccess(srf, user).canEdit}
+                    canEditSrf={(srf) =>
+                      resolveRequesterEditAccess(srf, user).canEdit
+                    }
                     editTimeRemaining={(srf) =>
                       formatRequesterEditTimeRemaining(
                         resolveRequesterEditAccess(srf, user).expiresAt,
@@ -599,7 +808,9 @@ const DepartmentDashboard = () => {
             <TabsContent value="trips" className="space-y-3 sm:space-y-4">
               <Card>
                 <CardHeader className="p-4 sm:p-6">
-                  <CardTitle className="text-base sm:text-lg">My Trip Requests</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
+                    My Trip Requests
+                  </CardTitle>
                   <CardDescription className="text-xs sm:text-sm">
                     Trips you have submitted for logistics review
                   </CardDescription>
@@ -616,10 +827,18 @@ const DepartmentDashboard = () => {
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle className="text-base sm:text-lg">Annual Procurement Planning</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Plan your department's material needs for the year</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">
+                      Annual Procurement Planning
+                    </CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Plan your department's material needs for the year
+                    </CardDescription>
                   </div>
-                  <Button onClick={() => navigate("/department/annual-plan/new")} size="sm" className="sm:size-default">
+                  <Button
+                    onClick={() => navigate("/department/annual-plan/new")}
+                    size="sm"
+                    className="sm:size-default"
+                  >
                     <Plus className="mr-2 h-4 w-4" />
                     <span className="hidden sm:inline">New Annual Plan</span>
                     <span className="sm:hidden">New Plan</span>
@@ -632,7 +851,10 @@ const DepartmentDashboard = () => {
                     <div className="text-center py-8 text-muted-foreground">
                       <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No annual plans submitted yet.</p>
-                      <p className="text-sm">Create a plan to help reduce ad-hoc procurement requests.</p>
+                      <p className="text-sm">
+                        Create a plan to help reduce ad-hoc procurement
+                        requests.
+                      </p>
                     </div>
                   ) : (
                     departmentPlans.map((plan) => (
@@ -640,17 +862,29 @@ const DepartmentDashboard = () => {
                         <CardHeader>
                           <div className="flex items-center justify-between">
                             <div>
-                              <CardTitle className="text-lg">FY {plan.year} Plan</CardTitle>
+                              <CardTitle className="text-lg">
+                                FY {plan.year} Plan
+                              </CardTitle>
                               <CardDescription>
-                                {plan.items.length} items • ₦{parseFloat(plan.totalEstimatedBudget).toLocaleString()} budget
+                                {plan.items.length} items • ₦
+                                {parseFloat(
+                                  plan.totalEstimatedBudget,
+                                ).toLocaleString()}{" "}
+                                budget
                               </CardDescription>
                             </div>
-                            <Badge className={getStatusColor(plan.status)}>{plan.status}</Badge>
+                            <Badge className={getStatusColor(plan.status)}>
+                              {plan.status}
+                            </Badge>
                           </div>
                         </CardHeader>
                         <CardContent>
                           <div className="text-sm text-muted-foreground">
-                            Submitted: {format(new Date(plan.submittedDate), "MMM dd, yyyy")}
+                            Submitted:{" "}
+                            {format(
+                              new Date(plan.submittedDate),
+                              "MMM dd, yyyy",
+                            )}
                           </div>
                           {plan.reviewNotes && (
                             <div className="mt-2 text-sm bg-muted p-2 rounded">
@@ -689,7 +923,10 @@ const DepartmentDashboard = () => {
         />
 
         {/* MRF Details Dialog with Progress Tracker */}
-        <Dialog open={mrfDetailsDialogOpen} onOpenChange={setMrfDetailsDialogOpen}>
+        <Dialog
+          open={mrfDetailsDialogOpen}
+          onOpenChange={setMrfDetailsDialogOpen}
+        >
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>MRF Details</DialogTitle>
@@ -697,102 +934,168 @@ const DepartmentDashboard = () => {
                 {selectedMRFForDetails?.title} - {selectedMRFForDetails?.id}
               </DialogDescription>
             </DialogHeader>
-            
+
             {loadingFullDetails ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : selectedMRFForDetails && (
-              <div className="space-y-6">
-                {/* MRF Information */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Request Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Title</p>
-                      <p className="text-sm">{selectedMRFForDetails.title}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Status</p>
-                      <Badge className={getStatusColor(selectedMRFForDetails.status)}>
-                        {selectedMRFForDetails.status}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Category</p>
-                      <p className="text-sm">{selectedMRFForDetails.category || "N/A"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Estimated Cost</p>
-                      <p className="text-sm font-semibold">
-                        ₦{parseFloat(String(selectedMRFForDetails.estimatedCost || selectedMRFForDetails.estimated_cost || 0)).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="md:col-span-2">
-                      <p className="text-sm font-medium text-muted-foreground">Description</p>
-                      <p className="text-sm">{selectedMRFForDetails.description || "No description"}</p>
-                    </div>
-                    {selectedMRFForDetails.justification && (
-                      <div className="md:col-span-2">
-                        <p className="text-sm font-medium text-muted-foreground">Justification</p>
-                        <p className="text-sm">{selectedMRFForDetails.justification}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Progress Tracker */}
-                <MRFProgressTracker
-                  mrfId={selectedMRFForDetails.id}
-                  contractType={(selectedMRFForDetails as any).contract_type || (selectedMRFForDetails as any).contractType}
-                />
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Attached Documents</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <AttachmentList
-                      attachments={
-                        (mrfFullDetails?.mrf as any)?.attachments ??
-                        (mrfFullDetails?.mrf as any)?.documents ??
-                        (selectedMRFForDetails as any).attachments ??
-                        (selectedMRFForDetails as any).documents
-                      }
-                      empty="No documents attached."
-                    />
-                  </CardContent>
-                </Card>
-
-                {/* Timeline/History from full details */}
-                {mrfFullDetails?.timeline && mrfFullDetails.timeline.length > 0 && (
+            ) : (
+              selectedMRFForDetails && (
+                <div className="space-y-6">
+                  {/* MRF Information */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-base">Activity Timeline</CardTitle>
+                      <CardTitle className="text-base">
+                        Request Information
+                      </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {mrfFullDetails.timeline.map((event: any, index: number) => (
-                          <div key={index} className="flex items-start gap-3 text-sm">
-                            <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
-                            <div>
-                              <p className="font-medium">{event.action}</p>
-                              <p className="text-muted-foreground text-xs">
-                                {event.user} • {new Date(event.timestamp).toLocaleString()}
-                              </p>
-                              {event.remarks && (
-                                <p className="text-xs italic mt-1">"{event.remarks}"</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                    <CardContent className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Title
+                        </p>
+                        <p className="text-sm">{selectedMRFForDetails.title}</p>
                       </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Status
+                        </p>
+                        <Badge
+                          className={getStatusColor(
+                            selectedMRFForDetails.status,
+                          )}
+                        >
+                          {selectedMRFForDetails.status}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Category
+                        </p>
+                        <p className="text-sm">
+                          {selectedMRFForDetails.category || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Estimated Cost
+                        </p>
+                        <p className="text-sm font-semibold">
+                          {(() => {
+                            const currency =
+                              (selectedMRFForDetails as any).currency || "NGN";
+                            const symbol =
+                              currency === "USD"
+                                ? "$"
+                                : currency === "GBP"
+                                  ? "£"
+                                  : currency === "EUR"
+                                    ? "€"
+                                    : "₦";
+                            const amount = parseFloat(
+                              String(
+                                selectedMRFForDetails.estimatedCost ||
+                                  selectedMRFForDetails.estimated_cost ||
+                                  0,
+                              ),
+                            );
+                            return `${symbol}${amount.toLocaleString()}`;
+                          })()}
+                        </p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Description
+                        </p>
+                        <p className="text-sm">
+                          {selectedMRFForDetails.description ||
+                            "No description"}
+                        </p>
+                      </div>
+                      {selectedMRFForDetails.justification && (
+                        <div className="md:col-span-2">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Justification
+                          </p>
+                          <p className="text-sm">
+                            {selectedMRFForDetails.justification}
+                          </p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
-                )}
-              </div>
+
+                  {/* Progress Tracker */}
+                  <MRFProgressTracker
+                    mrfId={selectedMRFForDetails.id}
+                    contractType={
+                      (selectedMRFForDetails as any).contract_type ||
+                      (selectedMRFForDetails as any).contractType
+                    }
+                  />
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        Attached Documents
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <AttachmentList
+                        attachments={
+                          (mrfFullDetails?.mrf as any)?.attachments ??
+                          (mrfFullDetails?.mrf as any)?.documents ??
+                          (selectedMRFForDetails as any).attachments ??
+                          (selectedMRFForDetails as any).documents
+                        }
+                        empty="No documents attached."
+                      />
+                    </CardContent>
+                  </Card>
+
+                  {/* Timeline/History from full details */}
+                  {mrfFullDetails?.timeline &&
+                    mrfFullDetails.timeline.length > 0 && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base">
+                            Activity Timeline
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {mrfFullDetails.timeline.map(
+                              (event: any, index: number) => (
+                                <div
+                                  key={index}
+                                  className="flex items-start gap-3 text-sm"
+                                >
+                                  <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
+                                  <div>
+                                    <p className="font-medium">
+                                      {event.action}
+                                    </p>
+                                    <p className="text-muted-foreground text-xs">
+                                      {event.user} •{" "}
+                                      {new Date(
+                                        event.timestamp,
+                                      ).toLocaleString()}
+                                    </p>
+                                    {event.remarks && (
+                                      <p className="text-xs italic mt-1">
+                                        "{event.remarks}"
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                </div>
+              )
             )}
           </DialogContent>
         </Dialog>
@@ -803,7 +1106,8 @@ const DepartmentDashboard = () => {
             <DialogHeader>
               <DialogTitle>Edit & Resubmit MRF</DialogTitle>
               <DialogDescription>
-                Update the rejected MRF and resubmit for approval. MRF: {selectedMRFForResubmit?.id}
+                Update the rejected MRF and resubmit for approval. MRF:{" "}
+                {selectedMRFForResubmit?.id}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -812,7 +1116,12 @@ const DepartmentDashboard = () => {
                 <Input
                   id="resubmit-title"
                   value={resubmitData.title}
-                  onChange={(e) => setResubmitData(prev => ({ ...prev, title: e.target.value }))}
+                  onChange={(e) =>
+                    setResubmitData((prev) => ({
+                      ...prev,
+                      title: e.target.value,
+                    }))
+                  }
                 />
               </div>
               <div>
@@ -820,7 +1129,12 @@ const DepartmentDashboard = () => {
                 <Textarea
                   id="resubmit-description"
                   value={resubmitData.description}
-                  onChange={(e) => setResubmitData(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={(e) =>
+                    setResubmitData((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -830,7 +1144,12 @@ const DepartmentDashboard = () => {
                     id="resubmit-quantity"
                     type="number"
                     value={resubmitData.quantity}
-                    onChange={(e) => setResubmitData(prev => ({ ...prev, quantity: e.target.value }))}
+                    onChange={(e) =>
+                      setResubmitData((prev) => ({
+                        ...prev,
+                        quantity: e.target.value,
+                      }))
+                    }
                   />
                 </div>
                 <div>
@@ -839,7 +1158,12 @@ const DepartmentDashboard = () => {
                     id="resubmit-cost"
                     type="number"
                     value={resubmitData.estimated_cost}
-                    onChange={(e) => setResubmitData(prev => ({ ...prev, estimated_cost: e.target.value }))}
+                    onChange={(e) =>
+                      setResubmitData((prev) => ({
+                        ...prev,
+                        estimated_cost: e.target.value,
+                      }))
+                    }
                   />
                 </div>
               </div>
@@ -848,7 +1172,12 @@ const DepartmentDashboard = () => {
                 <Input
                   id="resubmit-category"
                   value={resubmitData.category}
-                  onChange={(e) => setResubmitData(prev => ({ ...prev, category: e.target.value }))}
+                  onChange={(e) =>
+                    setResubmitData((prev) => ({
+                      ...prev,
+                      category: e.target.value,
+                    }))
+                  }
                 />
               </div>
               <div>
@@ -856,12 +1185,20 @@ const DepartmentDashboard = () => {
                 <Textarea
                   id="resubmit-justification"
                   value={resubmitData.justification}
-                  onChange={(e) => setResubmitData(prev => ({ ...prev, justification: e.target.value }))}
+                  onChange={(e) =>
+                    setResubmitData((prev) => ({
+                      ...prev,
+                      justification: e.target.value,
+                    }))
+                  }
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setResubmitDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setResubmitDialogOpen(false)}
+              >
                 Cancel
               </Button>
               <Button
@@ -870,18 +1207,26 @@ const DepartmentDashboard = () => {
                   if (!selectedMRFForResubmit) return;
                   setIsResubmitting(true);
                   try {
-                    const response = await mrfApi.resubmit(selectedMRFForResubmit.id, {
-                      title: resubmitData.title,
-                      description: resubmitData.description,
-                      quantity: resubmitData.quantity ? parseInt(resubmitData.quantity) : undefined,
-                      estimated_cost: resubmitData.estimated_cost ? parseFloat(resubmitData.estimated_cost) : undefined,
-                      justification: resubmitData.justification,
-                      category: resubmitData.category,
-                    });
+                    const response = await mrfApi.resubmit(
+                      selectedMRFForResubmit.id,
+                      {
+                        title: resubmitData.title,
+                        description: resubmitData.description,
+                        quantity: resubmitData.quantity
+                          ? parseInt(resubmitData.quantity)
+                          : undefined,
+                        estimated_cost: resubmitData.estimated_cost
+                          ? parseFloat(resubmitData.estimated_cost)
+                          : undefined,
+                        justification: resubmitData.justification,
+                        category: resubmitData.category,
+                      },
+                    );
                     if (response.success) {
                       toast({
                         title: "MRF Resubmitted",
-                        description: "Your updated MRF has been resubmitted for approval",
+                        description:
+                          "Your updated MRF has been resubmitted for approval",
                       });
                       setResubmitDialogOpen(false);
                       setSelectedMRFForResubmit(null);
@@ -889,14 +1234,17 @@ const DepartmentDashboard = () => {
                     } else {
                       toast({
                         title: "Resubmission Failed",
-                        description: response.error || "The resubmit endpoint may not be available yet. Please contact your administrator.",
+                        description:
+                          response.error ||
+                          "The resubmit endpoint may not be available yet. Please contact your administrator.",
                         variant: "destructive",
                       });
                     }
                   } catch (error) {
                     toast({
                       title: "Resubmission Failed",
-                      description: "Failed to connect to server. The resubmit endpoint may not be available yet.",
+                      description:
+                        "Failed to connect to server. The resubmit endpoint may not be available yet.",
                       variant: "destructive",
                     });
                   } finally {
@@ -936,7 +1284,6 @@ const DepartmentDashboard = () => {
             fetchMySrfs();
           }}
         />
-
       </div>
     </DashboardLayout>
   );
