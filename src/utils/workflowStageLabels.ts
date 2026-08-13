@@ -30,8 +30,10 @@ export function getWorkflowStageLabel(stage?: string | null): string {
   if (s === "vendor_approved") return "Vendor approved";
   if (s === "invoice_received" || s === "invoice_approved")
     return "Invoice / payment stage";
-  if (s === "chairman_review" || s === "chairman_payment")
-    return "Chairman review";
+  if (s === "chairman_review") return "Pending Chairman Approval";
+  if (s === "chairman_approved") return "Approved by Chairman";
+  if (s === "chairman_rejected") return "Rejected by Chairman";
+  if (s === "chairman_payment") return "Chairman review";
   if (s === "completed" || s.includes("grn_complete")) return "Completed";
   if (s === "rejected" || s.includes("reject")) return "Rejected";
   return raw

@@ -33,6 +33,7 @@ import {
 import { DashboardSummaryStats } from "@/components/dashboard/DashboardSummaryStats";
 import { DashboardMrfHistoryList } from "@/components/dashboard/DashboardMrfHistoryList";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
+import { getWorkflowStageLabel } from "@/utils/workflowStageLabels";
 import { ViewPoDocumentsButton } from "@/components/procurement/ViewPoDocumentsButton";
 
 const ExecutiveDashboard = () => {
@@ -54,6 +55,17 @@ const ExecutiveDashboard = () => {
   const [approvalRemarks, setApprovalRemarks] = useState<Record<string, string>>({});
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
+
+  // Requests submitted by this executive
+  const { data: myRequests = [], isLoading: loadingMyRequests } = useQuery<MRF[]>({
+    queryKey: ["executive-my-requests", user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      const res = await mrfApi.list({ requester_id: user?.id, per_page: 25 });
+      return res.success && res.data ? res.data.items : [];
+    },
+    ...WORKFLOW_QUERY_OPTIONS,
+  });
 
   // Parallel React Queries: fired concurrently on mount, cached across
   // navigations, and deduped app-wide. No manual `Promise.all` needed —
@@ -217,6 +229,56 @@ const ExecutiveDashboard = () => {
             </span>
           </div>
         )}
+
+        {/* My Requests — MRFs this executive submitted */}
+        <Card id="my-requests">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">My Requests</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              MRFs and SRFs you have submitted
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            {loadingMyRequests ? (
+              <TableSkeleton rows={3} />
+            ) : myRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                You have not submitted any requests yet.
+              </p>
+            ) : (
+              <div className="space-y-1">
+                {myRequests.map((mrf) => (
+                  <div
+                    key={mrf.id}
+                    className="flex items-center justify-between gap-3 py-2 border-b last:border-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{mrf.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {getDisplayId(mrf)} •{" "}
+                        {getWorkflowStageLabel(
+                          mrf.current_stage || mrf.currentStage || mrf.status,
+                        )}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() =>
+                        navigate(
+                          `/mrfs/${String((mrf as any).mrf_id ?? mrf.id)}`,
+                        )
+                      }
+                    >
+                      View
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* MRF sections */}
         <Tabs defaultValue="pending" className="space-y-4">

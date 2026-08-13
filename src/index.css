@@ -186,3 +186,12 @@ All colors MUST be HSL.
     background-color: hsl(var(--card) / 0.8);
   }
 }
+
+@layer base {
+  html,
+  body,
+  #root {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+}

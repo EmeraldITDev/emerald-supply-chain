@@ -747,6 +747,7 @@ export const mrfApi = {
     workflow_state?: string;
     workflow_states?: string;
     pending_for_role?: 'executive' | 'scd' | 'chairman';
+    requester_id?: string | number;
     has_po?: boolean;
     po_list?: boolean;
     sort_by?: string;
@@ -766,6 +767,7 @@ export const mrfApi = {
       workflow_state: params?.workflow_state,
       workflow_states: params?.workflow_states,
       pending_for_role: params?.pending_for_role,
+      requester_id: params?.requester_id,
       has_po: params?.has_po ? 1 : undefined,
       po_list: params?.po_list ? 1 : undefined,
       sort_by: params?.sort_by ?? sortApi?.sort_by,
@@ -1580,6 +1582,14 @@ export const mrfApi = {
     return apiRequest<MRF>(`/mrfs/${id}/chairman-approve`, {
       method: 'POST',
       body: JSON.stringify({ remarks }),
+    });
+  },
+
+  // Chairman rejects MRF
+  chairmanReject: async (id: string, remarks: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/mrfs/${id}/chairman-reject`, {
+      method: 'POST',
+      body: JSON.stringify({ remarks, reason: remarks }),
     });
   },
 

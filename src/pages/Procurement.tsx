@@ -2291,7 +2291,7 @@ const Procurement = () => {
           )}
 
           <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-            <TabsList className="flex w-full flex-wrap h-auto gap-1 justify-start">
+            <TabsList className="flex w-full max-w-full flex-nowrap sm:flex-wrap overflow-x-auto h-auto gap-1 justify-start">
               <TabsTrigger
                 value="mrn"
                 className="text-[10px] sm:text-xs md:text-sm px-1 sm:px-3 flex-col sm:flex-row gap-1"

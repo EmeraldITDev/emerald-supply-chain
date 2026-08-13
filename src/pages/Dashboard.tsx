@@ -456,7 +456,7 @@ const Dashboard = () => {
               <CardDescription className="text-xs sm:text-sm">Common tasks</CardDescription>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0">
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 {/* Only employees can create MRF/SRF - show for any non-manager roles */}
                 {isEmployeeRole(getScmRole(user)) && (
                   <>
