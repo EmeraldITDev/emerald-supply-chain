@@ -3,12 +3,27 @@ import { useQuery } from "@tanstack/react-query";
 import { getDisplayId } from "@/utils/displayId";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, FileText, Loader2, RefreshCw, Download, Eye, CheckCircle, XCircle } from "lucide-react";
+import {
+  AlertCircle,
+  FileText,
+  Loader2,
+  RefreshCw,
+  Download,
+  Eye,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -19,11 +34,20 @@ import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
 import type { MRF, VendorRegistration } from "@/types";
-import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
+import {
+  formatVendorCategoryDisplay,
+  pickCategoryOtherFromUnknown,
+} from "@/utils/vendorCategoriesApi";
 import { OneDriveLink } from "@/components/OneDriveLink";
 
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import {
@@ -50,14 +74,19 @@ const ExecutiveDashboard = () => {
   });
 
   const [mrfDetailsDialogOpen, setMrfDetailsDialogOpen] = useState(false);
-  const [selectedMRFForDetails, setSelectedMRFForDetails] = useState<MRF | null>(null);
+  const [selectedMRFForDetails, setSelectedMRFForDetails] =
+    useState<MRF | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [approvalRemarks, setApprovalRemarks] = useState<Record<string, string>>({});
+  const [approvalRemarks, setApprovalRemarks] = useState<
+    Record<string, string>
+  >({});
   const [mrfFullDetails, setMrfFullDetails] = useState<any | null>(null);
   const [loadingFullDetails, setLoadingFullDetails] = useState(false);
 
   // Requests submitted by this executive
-  const { data: myRequests = [], isLoading: loadingMyRequests } = useQuery<MRF[]>({
+  const { data: myRequests = [], isLoading: loadingMyRequests } = useQuery<
+    MRF[]
+  >({
     queryKey: ["executive-my-requests", user?.id],
     enabled: Boolean(user?.id),
     queryFn: async () => {
@@ -84,16 +113,17 @@ const ExecutiveDashboard = () => {
     ...WORKFLOW_QUERY_OPTIONS,
   });
 
-  const { data: execDashRaw = null, refetch: refetchExecDash } = useQuery<
-    Record<string, unknown> | null
-  >({
-    queryKey: queryKeys.dashboard.executiveRaw(),
-    queryFn: async () => {
-      const res = await dashboardApi.getExecutiveDashboard();
-      return res.success && res.data ? (res.data as Record<string, unknown>) : null;
-    },
-    ...WORKFLOW_QUERY_OPTIONS,
-  });
+  const { data: execDashRaw = null, refetch: refetchExecDash } =
+    useQuery<Record<string, unknown> | null>({
+      queryKey: queryKeys.dashboard.executiveRaw(),
+      queryFn: async () => {
+        const res = await dashboardApi.getExecutiveDashboard();
+        return res.success && res.data
+          ? (res.data as Record<string, unknown>)
+          : null;
+      },
+      ...WORKFLOW_QUERY_OPTIONS,
+    });
 
   const fetchVendorRegistrations = useCallback(
     () => refetchVendorRegistrations().then(() => undefined),
@@ -101,7 +131,11 @@ const ExecutiveDashboard = () => {
   );
 
   useScmAppRefreshListener(async () => {
-    await Promise.all([fetchMRFs(), refetchVendorRegistrations(), refetchExecDash()]);
+    await Promise.all([
+      fetchMRFs(),
+      refetchVendorRegistrations(),
+      refetchExecDash(),
+    ]);
   });
 
   // Helper to get estimated cost (handles both snake_case and camelCase)
@@ -117,25 +151,29 @@ const ExecutiveDashboard = () => {
   // Helper to get PFI/Supporting Document URL
   const getPFIUrl = (mrf: MRF) => {
     // Check all possible document URL fields
-    return (mrf as any).invoice_onedrive_url || 
-           (mrf as any).invoiceOneDriveUrl ||
-           mrf.pfi_share_url || 
-           mrf.pfiShareUrl || 
-           mrf.pfi_url || 
-           mrf.pfiUrl ||
-           (mrf as any).invoice_url ||
-           (mrf as any).invoiceUrl;
+    return (
+      (mrf as any).invoice_onedrive_url ||
+      (mrf as any).invoiceOneDriveUrl ||
+      mrf.pfi_share_url ||
+      mrf.pfiShareUrl ||
+      mrf.pfi_url ||
+      mrf.pfiUrl ||
+      (mrf as any).invoice_url ||
+      (mrf as any).invoiceUrl
+    );
   };
 
   // Handle PFI download
   const handleDownloadPFI = (mrf: MRF) => {
     const pfiUrl = getPFIUrl(mrf);
     if (pfiUrl) {
-      if (pfiUrl.startsWith('http')) {
-        window.open(pfiUrl, '_blank');
+      if (pfiUrl.startsWith("http")) {
+        window.open(pfiUrl, "_blank");
       } else {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com/api';
-        window.open(`${baseUrl.replace('/api', '')}/${pfiUrl}`, '_blank');
+        const baseUrl =
+          import.meta.env.VITE_API_BASE_URL ||
+          "https://supply-chain-backend-hwh6.onrender.com/api";
+        window.open(`${baseUrl.replace("/api", "")}/${pfiUrl}`, "_blank");
       }
     }
   };
@@ -175,7 +213,7 @@ const ExecutiveDashboard = () => {
 
   // High value MRFs (> 1,000,000) need chairman approval
   const highValueMRFs = useMemo(() => {
-    return pendingMRFs.filter(mrf => getEstimatedCost(mrf) > 1000000);
+    return pendingMRFs.filter((mrf) => getEstimatedCost(mrf) > 1000000);
   }, [pendingMRFs]);
 
   // Calculate total value
@@ -185,361 +223,457 @@ const ExecutiveDashboard = () => {
 
   return (
     <DashboardLayout>
-      <PullToRefresh onRefresh={async () => {
-        toast.info("Refreshing data...");
-        await Promise.all([fetchMRFs(), fetchVendorRegistrations()]);
-        toast.success("Data refreshed");
-      }}>
+      <PullToRefresh
+        onRefresh={async () => {
+          toast.info("Refreshing data...");
+          await Promise.all([fetchMRFs(), fetchVendorRegistrations()]);
+          toast.success("Data refreshed");
+        }}
+      >
         <div className="space-y-4 sm:space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Executive Dashboard</h1>
-            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">View and monitor Material Requisition Forms</p>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => {
-              fetchMRFs();
-              fetchVendorRegistrations();
-            }}
-            disabled={loading || loadingVendors}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading || loadingVendors ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
-
-        {/* Dashboard Alerts */}
-        <DashboardAlerts userRole="executive" maxAlerts={5} />
-
-        {/* Summary Statistics */}
-        <DashboardSummaryStats
-          counts={executiveBucketCounts}
-          extraPending={vendorRegistrations.length}
-          extraPendingLabel={`${vendorRegistrations.length} vendor registration${vendorRegistrations.length !== 1 ? "s" : ""} awaiting review`}
-        />
-
-        {highValueMRFs.length > 0 && (
-          <div className="rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-warning shrink-0" />
-            <span>
-              {highValueMRFs.length} pending MRF{highValueMRFs.length !== 1 ? "s" : ""} over ₦1M
-              (total ₦{totalValue.toLocaleString()})
-            </span>
-          </div>
-        )}
-
-        {/* My Requests — MRFs this executive submitted */}
-        <Card id="my-requests">
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg">My Requests</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
-              MRFs and SRFs you have submitted
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6 pt-0">
-            {loadingMyRequests ? (
-              <TableSkeleton rows={3} />
-            ) : myRequests.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                You have not submitted any requests yet.
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
+                Executive Dashboard
+              </h1>
+              <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">
+                View and monitor Material Requisition Forms
               </p>
-            ) : (
-              <div className="space-y-1">
-                {myRequests.map((mrf) => (
-                  <div
-                    key={mrf.id}
-                    className="flex items-center justify-between gap-3 py-2 border-b last:border-0"
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                fetchMRFs();
+                fetchVendorRegistrations();
+              }}
+              disabled={loading || loadingVendors}
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${loading || loadingVendors ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
+          </div>
+
+          {/* Dashboard Alerts */}
+          <DashboardAlerts userRole="executive" maxAlerts={5} />
+
+          {/* Summary Statistics */}
+          <DashboardSummaryStats
+            counts={executiveBucketCounts}
+            extraPending={vendorRegistrations.length}
+            extraPendingLabel={`${vendorRegistrations.length} vendor registration${vendorRegistrations.length !== 1 ? "s" : ""} awaiting review`}
+          />
+
+          {highValueMRFs.length > 0 && (
+            <div className="rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-warning shrink-0" />
+              <span>
+                {highValueMRFs.length} pending MRF
+                {highValueMRFs.length !== 1 ? "s" : ""} over ₦1M (total ₦
+                {totalValue.toLocaleString()})
+              </span>
+            </div>
+          )}
+
+          {/* My Requests — MRFs this executive submitted */}
+          <Card id="my-requests">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">
+                My Requests
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                MRFs and SRFs you have submitted
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0">
+              {loadingMyRequests ? (
+                <TableSkeleton rows={3} />
+              ) : myRequests.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  You have not submitted any requests yet.
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {myRequests.map((mrf) => (
+                    <div
+                      key={mrf.id}
+                      className="flex items-center justify-between gap-3 py-2 border-b last:border-0"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {mrf.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {getDisplayId(mrf)} •{" "}
+                          {getWorkflowStageLabel(
+                            mrf.current_stage || mrf.currentStage || mrf.status,
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => void openMrfDetails(mrf)}
+                      >
+                        View
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* MRF sections */}
+          <Tabs defaultValue="pending" className="space-y-4">
+            <TabsList className="flex flex-wrap h-auto gap-1">
+              <TabsTrigger value="pending">
+                Pending
+                {(pendingMRFs.length > 0 || vendorRegistrations.length > 0) && (
+                  <Badge variant="destructive" className="ml-2 text-xs">
+                    {pendingMRFs.length + vendorRegistrations.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="approved">
+                Approved ({executiveBuckets.approved.length})
+              </TabsTrigger>
+              <TabsTrigger value="rejected">
+                Rejected ({executiveBuckets.rejected.length})
+              </TabsTrigger>
+              <TabsTrigger value="completed">
+                Completed ({executiveBuckets.completed.length})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="pending">
+              {(() => {
+                const raw = execDashRaw;
+                const stats =
+                  (raw?.stats as Record<string, unknown> | undefined) ??
+                  undefined;
+                const v =
+                  raw?.["pending_mrf_executive_first_approval"] ??
+                  stats?.["pending_mrf_executive_first_approval"];
+                const count =
+                  typeof v === "number"
+                    ? v
+                    : Array.isArray(v)
+                      ? v.length
+                      : pendingMRFs.length;
+                const empty = count === 0;
+                return (
+                  <Card
+                    className={`mb-4 border-l-4 ${empty ? "border-l-success bg-success/5" : "border-l-warning bg-warning/5"}`}
                   >
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{mrf.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {getDisplayId(mrf)} •{" "}
-                        {getWorkflowStageLabel(
-                          mrf.current_stage || mrf.currentStage || mrf.status,
-                        )}
+                    <CardHeader className="p-4 sm:p-6">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                            {empty ? (
+                              <CheckCircle className="h-5 w-5 text-success" />
+                            ) : (
+                              <AlertCircle className="h-5 w-5 text-warning" />
+                            )}
+                            MRF First Approvals
+                          </CardTitle>
+                          <CardDescription className="text-xs sm:text-sm">
+                            {empty
+                              ? "0 awaiting approval — you're all caught up"
+                              : "Requisitions blocked awaiting your signature"}
+                          </CardDescription>
+                        </div>
+                        <div
+                          className={`text-3xl sm:text-4xl font-bold ${empty ? "text-success" : "text-warning"}`}
+                        >
+                          {count}
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                );
+              })()}
+              <Card>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">
+                    Pending Approvals
+                  </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
+                    Oldest submissions first — MRFs and vendor registrations
+                    awaiting your action
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0">
+                  {loading || loadingVendors ? (
+                    <TableSkeleton rows={4} />
+                  ) : pendingMRFs.length === 0 &&
+                    vendorRegistrations.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                      <p>No items pending approval</p>
+                      <p className="text-xs mt-2">
+                        No pending items to display
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() =>
-                        navigate(
-                          `/mrfs/${String((mrf as any).mrf_id ?? mrf.id)}`,
-                        )
-                      }
-                    >
-                      View
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* MRF sections */}
-        <Tabs defaultValue="pending" className="space-y-4">
-          <TabsList className="flex flex-wrap h-auto gap-1">
-            <TabsTrigger value="pending">
-              Pending
-              {(pendingMRFs.length > 0 || vendorRegistrations.length > 0) && (
-                <Badge variant="destructive" className="ml-2 text-xs">
-                  {pendingMRFs.length + vendorRegistrations.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="approved">
-              Approved ({executiveBuckets.approved.length})
-            </TabsTrigger>
-            <TabsTrigger value="rejected">
-              Rejected ({executiveBuckets.rejected.length})
-            </TabsTrigger>
-            <TabsTrigger value="completed">
-              Completed ({executiveBuckets.completed.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="pending">
-            {(() => {
-              const raw = execDashRaw;
-              const stats = (raw?.stats as Record<string, unknown> | undefined) ?? undefined;
-              const v =
-                raw?.["pending_mrf_executive_first_approval"] ??
-                stats?.["pending_mrf_executive_first_approval"];
-              const count =
-                typeof v === "number"
-                  ? v
-                  : Array.isArray(v)
-                    ? v.length
-                    : pendingMRFs.length;
-              const empty = count === 0;
-              return (
-                <Card
-                  className={`mb-4 border-l-4 ${empty ? "border-l-success bg-success/5" : "border-l-warning bg-warning/5"}`}
-                >
-                  <CardHeader className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                          {empty ? (
-                            <CheckCircle className="h-5 w-5 text-success" />
-                          ) : (
-                            <AlertCircle className="h-5 w-5 text-warning" />
-                          )}
-                          MRF First Approvals
-                        </CardTitle>
-                        <CardDescription className="text-xs sm:text-sm">
-                          {empty
-                            ? "0 awaiting approval — you're all caught up"
-                            : "Requisitions blocked awaiting your signature"}
-                        </CardDescription>
-                      </div>
-                      <div
-                        className={`text-3xl sm:text-4xl font-bold ${empty ? "text-success" : "text-warning"}`}
-                      >
-                        {count}
-                      </div>
-                    </div>
-                  </CardHeader>
-                </Card>
-              );
-            })()}
-            <Card>
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-base sm:text-lg">Pending Approvals</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  Oldest submissions first — MRFs and vendor registrations awaiting your action
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0">
-                {loading || loadingVendors ? (
-                  <TableSkeleton rows={4} />
-                ) : pendingMRFs.length === 0 && vendorRegistrations.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                    <p>No items pending approval</p>
-                    <p className="text-xs mt-2">No pending items to display</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 sm:space-y-4">
-                    {/* Vendor Registrations */}
-                    {vendorRegistrations.map((reg) => (
-                      <Card key={`vendor-${reg.id}`} className="border-l-4 border-l-blue-500">
-                        <CardHeader className="p-3 sm:p-4 lg:p-6">
-                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <CardTitle className="text-sm sm:text-base lg:text-lg truncate">
-                                Vendor Registration: {reg.companyName}
-                              </CardTitle>
-                              <CardDescription className="text-xs sm:text-sm truncate">
-                                {formatVendorCategoryDisplay(reg.category, pickCategoryOtherFromUnknown(reg))} • {reg.contactPerson} • {reg.email}
-                              </CardDescription>
-                            </div>
-                            <Badge variant="outline" className="text-xs">
-                              Vendor Registration
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-                          <div className="grid md:grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="font-semibold">Company:</p>
-                              <p className="text-muted-foreground">{reg.companyName}</p>
-                            </div>
-                            <div>
-                              <p className="font-semibold">Category:</p>
-                              <p className="text-muted-foreground">
-                                {formatVendorCategoryDisplay(reg.category, pickCategoryOtherFromUnknown(reg))}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="font-semibold">Contact:</p>
-                              <p className="text-muted-foreground">{reg.contactPerson}</p>
-                            </div>
-                            <div>
-                              <p className="font-semibold">Email:</p>
-                              <p className="text-muted-foreground">{reg.email}</p>
-                            </div>
-                            <div>
-                              <p className="font-semibold">Phone:</p>
-                              <p className="text-muted-foreground">{reg.phone || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <p className="font-semibold">Submitted:</p>
-                              <p className="text-muted-foreground">
-                                {new Date(reg.createdAt || reg.submittedDate).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2 pt-4">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/vendors/registration/${reg.id}`)}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Review Registration
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-
-                    {/* MRFs */}
-                    {pendingMRFs.map((mrf) => {
-                      const estimatedCost = getEstimatedCost(mrf);
-                      const isHighValue = estimatedCost > 1000000;
-                      return (
-                        <Card key={mrf.id} className="border-l-4 border-l-primary">
+                  ) : (
+                    <div className="space-y-3 sm:space-y-4">
+                      {/* Vendor Registrations */}
+                      {vendorRegistrations.map((reg) => (
+                        <Card
+                          key={`vendor-${reg.id}`}
+                          className="border-l-4 border-l-blue-500"
+                        >
                           <CardHeader className="p-3 sm:p-4 lg:p-6">
                             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
-                                <CardTitle className="text-sm sm:text-base lg:text-lg truncate">{mrf.title}</CardTitle>
+                                <CardTitle className="text-sm sm:text-base lg:text-lg truncate">
+                                  Vendor Registration: {reg.companyName}
+                                </CardTitle>
                                 <CardDescription className="text-xs sm:text-sm truncate">
-                                  {getDisplayId(mrf)} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
+                                  {formatVendorCategoryDisplay(
+                                    reg.category,
+                                    pickCategoryOtherFromUnknown(reg),
+                                  )}{" "}
+                                  • {reg.contactPerson} • {reg.email}
                                 </CardDescription>
                               </div>
-                              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-                                <Badge variant={isHighValue ? "destructive" : "default"} className="text-xs">
-                                  {estimatedCost > 0 ? `₦${estimatedCost.toLocaleString()}` : '-'}
-                                </Badge>
-                                <Badge variant={String(mrf.urgency).toLowerCase() === "high" ? "destructive" : "secondary"} className="text-xs">
-                                  {mrf.urgency}
-                                </Badge>
-                              </div>
+                              <Badge variant="outline" className="text-xs">
+                                Vendor Registration
+                              </Badge>
                             </div>
                           </CardHeader>
-                          <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4 lg:p-6 pt-0">
+                          <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
                             <div className="grid md:grid-cols-2 gap-4 text-sm">
                               <div>
-                                <p className="font-semibold">Category:</p>
-                                <p className="text-muted-foreground">{mrf.category}</p>
+                                <p className="font-semibold">Company:</p>
+                                <p className="text-muted-foreground">
+                                  {reg.companyName}
+                                </p>
                               </div>
                               <div>
-                                <p className="font-semibold">Quantity:</p>
-                                <p className="text-muted-foreground">{mrf.quantity}</p>
+                                <p className="font-semibold">Category:</p>
+                                <p className="text-muted-foreground">
+                                  {formatVendorCategoryDisplay(
+                                    reg.category,
+                                    pickCategoryOtherFromUnknown(reg),
+                                  )}
+                                </p>
                               </div>
-                              <div className="md:col-span-2">
-                                <p className="font-semibold">Description:</p>
-                                <p className="text-muted-foreground">{mrf.description}</p>
+                              <div>
+                                <p className="font-semibold">Contact:</p>
+                                <p className="text-muted-foreground">
+                                  {reg.contactPerson}
+                                </p>
                               </div>
-                              <div className="md:col-span-2">
-                                <p className="font-semibold">Justification:</p>
-                                <p className="text-muted-foreground">{mrf.justification}</p>
+                              <div>
+                                <p className="font-semibold">Email:</p>
+                                <p className="text-muted-foreground">
+                                  {reg.email}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="font-semibold">Phone:</p>
+                                <p className="text-muted-foreground">
+                                  {reg.phone || "N/A"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="font-semibold">Submitted:</p>
+                                <p className="text-muted-foreground">
+                                  {new Date(
+                                    reg.createdAt || reg.submittedDate,
+                                  ).toLocaleDateString()}
+                                </p>
                               </div>
                             </div>
+                            <div className="flex gap-2 pt-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  navigate(`/vendors/registration/${reg.id}`)
+                                }
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Review Registration
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
 
-                            {/* Invoice/PFI Access */}
-                            {getPFIUrl(mrf) && (
-                              <div className="flex flex-col gap-2 p-3 bg-info/5 border border-info/20 rounded-lg">
-                                <div className="flex items-center gap-2">
-                                  <FileText className="h-4 w-4 text-info" />
-                                  <span className="text-sm font-medium">Supporting Document Submitted by Staff</span>
+                      {/* MRFs */}
+                      {pendingMRFs.map((mrf) => {
+                        const estimatedCost = getEstimatedCost(mrf);
+                        const isHighValue = estimatedCost > 1000000;
+                        return (
+                          <Card
+                            key={mrf.id}
+                            className="border-l-4 border-l-primary"
+                          >
+                            <CardHeader className="p-3 sm:p-4 lg:p-6">
+                              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <CardTitle className="text-sm sm:text-base lg:text-lg truncate">
+                                    {mrf.title}
+                                  </CardTitle>
+                                  <CardDescription className="text-xs sm:text-sm truncate">
+                                    {getDisplayId(mrf)} •{" "}
+                                    {getRequesterName(mrf)} •{" "}
+                                    {mrf.department || "N/A"}
+                                  </CardDescription>
                                 </div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={() => handleDownloadPFI(mrf)}
+                                <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                                  <Badge
+                                    variant={
+                                      isHighValue ? "destructive" : "default"
+                                    }
+                                    className="text-xs"
                                   >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    View Invoice
-                                  </Button>
-                                  {(() => {
-                                    const shareUrl = (mrf as any).invoice_onedrive_url || 
-                                                    (mrf as any).invoiceOneDriveUrl ||
-                                                    mrf.pfi_share_url || 
-                                                    mrf.pfiShareUrl;
-                                    return shareUrl && (
-                                      <OneDriveLink 
-                                        webUrl={shareUrl} 
-                                        fileName="Supporting Document"
-                                        variant="badge"
-                                      />
-                                    );
-                                  })()}
+                                    {estimatedCost > 0
+                                      ? `₦${estimatedCost.toLocaleString()}`
+                                      : "-"}
+                                  </Badge>
+                                  <Badge
+                                    variant={
+                                      String(mrf.urgency).toLowerCase() ===
+                                      "high"
+                                        ? "destructive"
+                                        : "secondary"
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {mrf.urgency}
+                                  </Badge>
                                 </div>
                               </div>
-                            )}
-
-                            {(mrf.attachmentUrl || mrf.attachment_url || mrf.attachmentShareUrl || mrf.attachment_share_url) && (
-                              <div className="mt-3">
-                                <p className="text-xs font-medium text-muted-foreground mb-1">Supporting Document</p>
-                                <a
-                                  href={mrf.attachmentShareUrl || mrf.attachment_share_url || mrf.attachmentUrl || mrf.attachment_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  download
-                                  className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                                >
-                                  <FileText className="h-4 w-4" />
-                                  {mrf.attachmentName || mrf.attachment_name || 'Download Attachment'}
-                                </a>
-                              </div>
-                            )}
-
-                            {isHighValue && (
-                              <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
-                                <div className="flex gap-2">
-                                  <AlertCircle className="h-5 w-5 text-warning" />
-                                  <p className="text-sm">
-                                    High value item - Will require Chairman approval after your review
+                            </CardHeader>
+                            <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4 lg:p-6 pt-0">
+                              <div className="grid md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <p className="font-semibold">Category:</p>
+                                  <p className="text-muted-foreground">
+                                    {mrf.category}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="font-semibold">Quantity:</p>
+                                  <p className="text-muted-foreground">
+                                    {mrf.quantity}
+                                  </p>
+                                </div>
+                                <div className="md:col-span-2">
+                                  <p className="font-semibold">Description:</p>
+                                  <p className="text-muted-foreground">
+                                    {mrf.description}
+                                  </p>
+                                </div>
+                                <div className="md:col-span-2">
+                                  <p className="font-semibold">
+                                    Justification:
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    {mrf.justification}
                                   </p>
                                 </div>
                               </div>
-                            )}
 
-                            {/* Approval actions for parallel / executive first approval */}
-                            {isExecutivePendingApproval(mrf) && (
+                              {/* Invoice/PFI Access */}
+                              {getPFIUrl(mrf) && (
+                                <div className="flex flex-col gap-2 p-3 bg-info/5 border border-info/20 rounded-lg">
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-info" />
+                                    <span className="text-sm font-medium">
+                                      Supporting Document Submitted by Staff
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDownloadPFI(mrf)}
+                                    >
+                                      <Download className="h-4 w-4 mr-2" />
+                                      View Invoice
+                                    </Button>
+                                    {(() => {
+                                      const shareUrl =
+                                        (mrf as any).invoice_onedrive_url ||
+                                        (mrf as any).invoiceOneDriveUrl ||
+                                        mrf.pfi_share_url ||
+                                        mrf.pfiShareUrl;
+                                      return (
+                                        shareUrl && (
+                                          <OneDriveLink
+                                            webUrl={shareUrl}
+                                            fileName="Supporting Document"
+                                            variant="badge"
+                                          />
+                                        )
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+                              )}
+
+                              {(mrf.attachmentUrl ||
+                                mrf.attachment_url ||
+                                mrf.attachmentShareUrl ||
+                                mrf.attachment_share_url) && (
+                                <div className="mt-3">
+                                  <p className="text-xs font-medium text-muted-foreground mb-1">
+                                    Supporting Document
+                                  </p>
+                                  <a
+                                    href={
+                                      mrf.attachmentShareUrl ||
+                                      mrf.attachment_share_url ||
+                                      mrf.attachmentUrl ||
+                                      mrf.attachment_url
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download
+                                    className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    {mrf.attachmentName ||
+                                      mrf.attachment_name ||
+                                      "Download Attachment"}
+                                  </a>
+                                </div>
+                              )}
+
+                              {isHighValue && (
+                                <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                                  <div className="flex gap-2">
+                                    <AlertCircle className="h-5 w-5 text-warning" />
+                                    <p className="text-sm">
+                                      High value item - Will require Chairman
+                                      approval after your review
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Approval actions for parallel / executive first approval */}
+                              {isExecutivePendingApproval(mrf) && (
                                 <div className="space-y-3 border-t pt-3">
-                                  <Label className="text-sm font-medium">Remarks</Label>
+                                  <Label className="text-sm font-medium">
+                                    Remarks
+                                  </Label>
                                   <Textarea
                                     placeholder="Add remarks (required for rejection)..."
                                     value={approvalRemarks[mrf.id] || ""}
-                                    onChange={(e) => setApprovalRemarks(prev => ({ ...prev, [mrf.id]: e.target.value }))}
+                                    onChange={(e) =>
+                                      setApprovalRemarks((prev) => ({
+                                        ...prev,
+                                        [mrf.id]: e.target.value,
+                                      }))
+                                    }
                                     className="min-h-[60px]"
                                   />
                                   <div className="flex gap-2">
@@ -549,16 +683,30 @@ const ExecutiveDashboard = () => {
                                       onClick={async () => {
                                         setActionLoading(mrf.id);
                                         try {
-                                          const response = await mrfApi.executiveApprove(mrf.id, approvalRemarks[mrf.id] || "");
+                                          const response =
+                                            await mrfApi.executiveApprove(
+                                              mrf.id,
+                                              approvalRemarks[mrf.id] || "",
+                                            );
                                           if (response.success) {
-                                            toast.success("MRF approved — routed to Procurement for sourcing");
-                                            setApprovalRemarks(prev => ({ ...prev, [mrf.id]: "" }));
+                                            toast.success(
+                                              "MRF approved — routed to Procurement for sourcing",
+                                            );
+                                            setApprovalRemarks((prev) => ({
+                                              ...prev,
+                                              [mrf.id]: "",
+                                            }));
                                             await fetchMRFs();
                                           } else {
-                                            toast.error(response.error || "Failed to approve MRF");
+                                            toast.error(
+                                              response.error ||
+                                                "Failed to approve MRF",
+                                            );
                                           }
                                         } catch {
-                                          toast.error("Failed to connect to server");
+                                          toast.error(
+                                            "Failed to connect to server",
+                                          );
                                         } finally {
                                           setActionLoading(null);
                                         }
@@ -574,25 +722,46 @@ const ExecutiveDashboard = () => {
                                     <Button
                                       size="sm"
                                       variant="destructive"
-                                      disabled={actionLoading === mrf.id || !(approvalRemarks[mrf.id] || "").trim()}
+                                      disabled={
+                                        actionLoading === mrf.id ||
+                                        !(approvalRemarks[mrf.id] || "").trim()
+                                      }
                                       onClick={async () => {
-                                        const reason = (approvalRemarks[mrf.id] || "").trim();
+                                        const reason = (
+                                          approvalRemarks[mrf.id] || ""
+                                        ).trim();
                                         if (!reason) {
-                                          toast.error("Please provide a reason for rejection");
+                                          toast.error(
+                                            "Please provide a reason for rejection",
+                                          );
                                           return;
                                         }
                                         setActionLoading(mrf.id);
                                         try {
-                                          const response = await mrfApi.executiveReject(mrf.id, reason);
+                                          const response =
+                                            await mrfApi.executiveReject(
+                                              mrf.id,
+                                              reason,
+                                            );
                                           if (response.success) {
-                                            toast.error("MRF rejected — sent back to requester");
-                                            setApprovalRemarks(prev => ({ ...prev, [mrf.id]: "" }));
+                                            toast.error(
+                                              "MRF rejected — sent back to requester",
+                                            );
+                                            setApprovalRemarks((prev) => ({
+                                              ...prev,
+                                              [mrf.id]: "",
+                                            }));
                                             await fetchMRFs();
                                           } else {
-                                            toast.error(response.error || "Failed to reject MRF");
+                                            toast.error(
+                                              response.error ||
+                                                "Failed to reject MRF",
+                                            );
                                           }
                                         } catch {
-                                          toast.error("Failed to connect to server");
+                                          toast.error(
+                                            "Failed to connect to server",
+                                          );
                                         } finally {
                                           setActionLoading(null);
                                         }
@@ -603,163 +772,205 @@ const ExecutiveDashboard = () => {
                                     </Button>
                                   </div>
                                 </div>
-                            )}
+                              )}
 
-                            <div className="flex gap-2 pt-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => void openMrfDetails(mrf)}
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Details
-                              </Button>
-                              <ViewPoDocumentsButton mrfId={mrf.id} readOnly />
-                            </div>
+                              <div className="flex gap-2 pt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => void openMrfDetails(mrf)}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Details
+                                </Button>
+                                <ViewPoDocumentsButton
+                                  mrfId={mrf.id}
+                                  readOnly
+                                />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+            <TabsContent value="approved">
+              <Card>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">
+                    Approved Requests
+                  </CardTitle>
+                  <CardDescription>
+                    MRFs you approved — newest first
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0">
+                  {loading ? (
+                    <TableSkeleton rows={3} />
+                  ) : (
+                    <DashboardMrfHistoryList
+                      mrfs={executiveBuckets.approved}
+                      variant="approved"
+                      role="executive"
+                      getRequesterName={getRequesterName}
+                      getEstimatedCost={getEstimatedCost}
+                      onViewDetails={(mrf) => void openMrfDetails(mrf)}
+                      emptyMessage="No MRFs approved by Executive yet"
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="approved">
-            <Card>
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-base sm:text-lg">Approved Requests</CardTitle>
-                <CardDescription>MRFs you approved — newest first</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0">
-                {loading ? (
-                  <TableSkeleton rows={3} />
-                ) : (
-                  <DashboardMrfHistoryList
-                    mrfs={executiveBuckets.approved}
-                    variant="approved"
-                    role="executive"
-                    getRequesterName={getRequesterName}
-                    getEstimatedCost={getEstimatedCost}
-                    onViewDetails={(mrf) => void openMrfDetails(mrf)}
-                    emptyMessage="No MRFs approved by Executive yet"
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+            <TabsContent value="rejected">
+              <Card>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">
+                    Rejected Requests
+                  </CardTitle>
+                  <CardDescription>
+                    MRFs rejected by Executive with reason
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0">
+                  {loading ? (
+                    <TableSkeleton rows={3} />
+                  ) : (
+                    <DashboardMrfHistoryList
+                      mrfs={executiveBuckets.rejected}
+                      variant="rejected"
+                      role="executive"
+                      getRequesterName={getRequesterName}
+                      getEstimatedCost={getEstimatedCost}
+                      onViewDetails={(mrf) => void openMrfDetails(mrf)}
+                      emptyMessage="No rejected MRFs"
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="rejected">
-            <Card>
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-base sm:text-lg">Rejected Requests</CardTitle>
-                <CardDescription>MRFs rejected by Executive with reason</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0">
-                {loading ? (
-                  <TableSkeleton rows={3} />
-                ) : (
-                  <DashboardMrfHistoryList
-                    mrfs={executiveBuckets.rejected}
-                    variant="rejected"
-                    role="executive"
-                    getRequesterName={getRequesterName}
-                    getEstimatedCost={getEstimatedCost}
-                    onViewDetails={(mrf) => void openMrfDetails(mrf)}
-                    emptyMessage="No rejected MRFs"
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="completed">
-            <Card>
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-base sm:text-lg">Recently Completed</CardTitle>
-                <CardDescription>MRFs that reached final completion</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0">
-                {loading ? (
-                  <TableSkeleton rows={3} />
-                ) : (
-                  <DashboardMrfHistoryList
-                    mrfs={executiveBuckets.completed}
-                    variant="completed"
-                    role="executive"
-                    getRequesterName={getRequesterName}
-                    getEstimatedCost={getEstimatedCost}
-                    onViewDetails={(mrf) => void openMrfDetails(mrf)}
-                    emptyMessage="No completed MRFs in the current list"
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-      </div>
+            <TabsContent value="completed">
+              <Card>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">
+                    Recently Completed
+                  </CardTitle>
+                  <CardDescription>
+                    MRFs that reached final completion
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0">
+                  {loading ? (
+                    <TableSkeleton rows={3} />
+                  ) : (
+                    <DashboardMrfHistoryList
+                      mrfs={executiveBuckets.completed}
+                      variant="completed"
+                      role="executive"
+                      getRequesterName={getRequesterName}
+                      getEstimatedCost={getEstimatedCost}
+                      onViewDetails={(mrf) => void openMrfDetails(mrf)}
+                      emptyMessage="No completed MRFs in the current list"
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
       </PullToRefresh>
 
       {/* MRF Details Dialog */}
-      <Dialog open={mrfDetailsDialogOpen} onOpenChange={setMrfDetailsDialogOpen}>
+      <Dialog
+        open={mrfDetailsDialogOpen}
+        onOpenChange={setMrfDetailsDialogOpen}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>MRF Details - {selectedMRFForDetails?.id}</DialogTitle>
-            <DialogDescription>{selectedMRFForDetails?.title}</DialogDescription>
+            <DialogDescription>
+              {selectedMRFForDetails?.title}
+            </DialogDescription>
           </DialogHeader>
           {loadingFullDetails ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : selectedMRFForDetails && (
-            <div className="space-y-6 mt-4">
-              {/* Progress Tracker */}
-              {mrfFullDetails && (
-                <MRFProgressTracker
-                  mrfId={selectedMRFForDetails.id}
-                  contractType={(selectedMRFForDetails as any).contract_type || (selectedMRFForDetails as any).contractType}
-                />
-              )}
+          ) : (
+            selectedMRFForDetails && (
+              <div className="space-y-6 mt-4">
+                {/* Progress Tracker */}
+                {mrfFullDetails && (
+                  <MRFProgressTracker
+                    mrfId={selectedMRFForDetails.id}
+                    contractType={
+                      (selectedMRFForDetails as any).contract_type ||
+                      (selectedMRFForDetails as any).contractType
+                    }
+                  />
+                )}
 
-              {/* MRF Basic Information */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">MRF ID</Label>
-                  <p className="font-medium">{getDisplayId(selectedMRFForDetails)}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Status</Label>
-                  <Badge>{selectedMRFForDetails.status}</Badge>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Category</Label>
-                  <p className="font-medium">{selectedMRFForDetails.category}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Urgency</Label>
-                  <p className="font-medium">{selectedMRFForDetails.urgency}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Quantity</Label>
-                  <p className="font-medium">{selectedMRFForDetails.quantity}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Estimated Cost</Label>
-                  <p className="font-medium">₦{getEstimatedCost(selectedMRFForDetails).toLocaleString()}</p>
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-muted-foreground">Description</Label>
-                  <p className="font-medium">{selectedMRFForDetails.description}</p>
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-muted-foreground">Justification</Label>
-                  <p className="font-medium">{selectedMRFForDetails.justification}</p>
+                {/* MRF Basic Information */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">MRF ID</Label>
+                    <p className="font-medium">
+                      {getDisplayId(selectedMRFForDetails)}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Status</Label>
+                    <Badge>{selectedMRFForDetails.status}</Badge>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Category</Label>
+                    <p className="font-medium">
+                      {selectedMRFForDetails.category}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Urgency</Label>
+                    <p className="font-medium">
+                      {selectedMRFForDetails.urgency}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Quantity</Label>
+                    <p className="font-medium">
+                      {selectedMRFForDetails.quantity}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">
+                      Estimated Cost
+                    </Label>
+                    <p className="font-medium">
+                      ₦
+                      {getEstimatedCost(selectedMRFForDetails).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-muted-foreground">Description</Label>
+                    <p className="font-medium">
+                      {selectedMRFForDetails.description}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-muted-foreground">
+                      Justification
+                    </Label>
+                    <p className="font-medium">
+                      {selectedMRFForDetails.justification}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )
           )}
         </DialogContent>
       </Dialog>
