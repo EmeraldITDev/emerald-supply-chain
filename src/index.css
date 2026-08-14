@@ -185,6 +185,15 @@ All colors MUST be HSL.
     backdrop-filter: blur(12px) saturate(180%);
     background-color: hsl(var(--card) / 0.8);
   }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @layer base {
