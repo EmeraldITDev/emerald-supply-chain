@@ -307,9 +307,11 @@ const ExecutiveDashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0">
+              {(() => { console.log('myRequests', myRequests, 'user id', user?.id); return null; })()}
               {loadingMyRequests ? (
                 <TableSkeleton rows={3} />
               ) : myRequests.length === 0 ? (
+                
                 <p className="text-sm text-muted-foreground">
                   You have not submitted any requests yet.
                 </p>
