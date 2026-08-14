@@ -1056,15 +1056,15 @@ const Vendors = () => {
               ) : (
                 <div className="grid gap-4 sm:grid-cols-3">
                   {topPerformers.map((vendor) => (
-                    <div key={vendor.id} className="p-4 border rounded-lg space-y-2">
+                    <div key={vendor.id} className="p-2 sm:p-4 border rounded-lg space-y-1 sm:space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="font-medium text-sm truncate flex-1 mr-2">{vendor.name}</p>
+                        <p className="font-medium text-xs sm:text-sm truncate flex-1 mr-2">{vendor.name}</p>
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 fill-primary text-primary" />
                           <span className="text-sm font-semibold">{vendor.score.toFixed(1)}</span>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap gap-2 text-[10px] sm:text-xs text-muted-foreground">
                         <span>Orders: {vendor.orders}</span>
                         <span>Category: {formatVendorCategoryDisplay(vendor.category, vendor.categoryOther)}</span>
                       </div>

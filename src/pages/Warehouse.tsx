@@ -46,32 +46,32 @@ const Warehouse = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Warehouse &amp; Inventory</h1>
-          <p className="text-muted-foreground mt-2">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-1 sm:space-y-2">
+          <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold tracking-tight">Warehouse &amp; Inventory</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Structure, stock, goods receipt, counting and reporting across every Emerald location
           </p>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4">
-          <div className="overflow-x-auto">
-            <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="inventory">Inventory</TabsTrigger>
-              <TabsTrigger value="catalogue">Item Catalogue</TabsTrigger>
-              <TabsTrigger value="structure">Structure</TabsTrigger>
-              <TabsTrigger value="movements">Movements</TabsTrigger>
-              <TabsTrigger value="counts">Counting</TabsTrigger>
-              <TabsTrigger value="grn" className="gap-2">
+          <div className="w-full min-w-0">
+            <TabsList className="w-full max-w-full overflow-x-auto flex-nowrap justify-start scrollbar-hide">
+              <TabsTrigger value="overview" className="shrink-0">Overview</TabsTrigger>
+              <TabsTrigger value="inventory" className="shrink-0">Inventory</TabsTrigger>
+              <TabsTrigger value="catalogue" className="shrink-0">Item Catalogue</TabsTrigger>
+              <TabsTrigger value="structure" className="shrink-0">Structure</TabsTrigger>
+              <TabsTrigger value="movements" className="shrink-0">Movements</TabsTrigger>
+              <TabsTrigger value="counts" className="shrink-0">Counting</TabsTrigger>
+              <TabsTrigger value="grn" className="shrink-0 gap-2">
                 <ReceiptIcon className="h-4 w-4" />
                 Goods Receipt
               </TabsTrigger>
-              <TabsTrigger value="consumption" className="gap-2">
+              <TabsTrigger value="consumption" className="shrink-0 gap-2">
                 <ClipboardList className="h-4 w-4" />
                 Consumption
               </TabsTrigger>
-              <TabsTrigger value="reports">Reports</TabsTrigger>
+              <TabsTrigger value="reports" className="shrink-0">Reports</TabsTrigger>
             </TabsList>
           </div>
 
