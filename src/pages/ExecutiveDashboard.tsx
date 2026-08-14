@@ -94,14 +94,8 @@ const ExecutiveDashboard = () => {
       if (!res.success || !res.data) return [];
       const items = res.data.items ?? [];
       if (items.length > 0)
-        console.log("MRF requester fields:", {
-          requester_id: items[0].requester_id,
-          requesterId: items[0].requesterId,
-          requester: items[0].requester,
-        });
       return items.filter((mrf: any) => {
-        const requesterId =
-          mrf.requester_id ?? mrf.requesterId ?? mrf.requester?.id;
+        const requesterId = mrf.requesterId ?? mrf.requester_id ?? mrf.requester?.id;
         return String(requesterId) === String(user?.id);
       });
     },
@@ -319,10 +313,7 @@ const ExecutiveDashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0">
-              {(() => {
-                console.log("myRequests", myRequests, "user id", user?.id);
-                return null;
-              })()}
+              
               {loadingMyRequests ? (
                 <TableSkeleton rows={3} />
               ) : myRequests.length === 0 ? (
