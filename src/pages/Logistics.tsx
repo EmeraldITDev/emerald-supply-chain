@@ -219,8 +219,8 @@ const Logistics = () => {
           {/* Header */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Logistics Management</h1>
-              <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">
+              <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold tracking-tight">Logistics Management</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">
                 Comprehensive logistics, fleet, and journey management
               </p>
             </div>
@@ -470,7 +470,7 @@ const Logistics = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
+                      <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                       Recent Trips
                     </CardTitle>
                     <CardDescription>Latest scheduled and active trips</CardDescription>
@@ -586,56 +586,56 @@ const Logistics = () => {
                     <CardTitle>Quick Actions</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3 lg:grid-cols-6">
                       <Button 
                         variant="outline" 
-                        className="h-auto py-4 flex-col gap-2"
+                        className="h-auto py-2 sm:py-4 flex-col gap-1 sm:gap-2"
                         onClick={() => setActiveTab("trips")}
                       >
-                        <Calendar className="h-5 w-5" />
-                        <span className="text-sm">Schedule Trip</span>
+                        <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="text-[11px] sm:text-sm">Schedule Trip</span>
                       </Button>
                       <Button 
                         variant="outline" 
-                        className="h-auto py-4 flex-col gap-2"
+                        className="h-auto py-2 sm:py-4 flex-col gap-1 sm:gap-2"
                         onClick={() => setActiveTab("journeys")}
                       >
-                        <Navigation className="h-5 w-5" />
-                        <span className="text-sm">Track Journeys</span>
+                        <Navigation className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="text-[11px] sm:text-sm">Track Journeys</span>
                       </Button>
                       <Button 
                         variant="outline" 
-                        className="h-auto py-4 flex-col gap-2"
+                        className="h-auto py-2 sm:py-4 flex-col gap-1 sm:gap-2"
                         onClick={() => setActiveTab("fleet")}
                       >
-                        <Truck className="h-5 w-5" />
-                        <span className="text-sm">Manage Fleet</span>
+                        <Truck className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="text-[11px] sm:text-sm">Manage Fleet</span>
                       </Button>
                       <Button 
                         variant="outline" 
-                        className="h-auto py-4 flex-col gap-2"
+                        className="h-auto py-2 sm:py-4 flex-col gap-1 sm:gap-2"
                         onClick={() => setActiveTab("materials")}
                       >
-                        <Package className="h-5 w-5" />
-                        <span className="text-sm">Track Materials</span>
+                        <Package className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="text-[11px] sm:text-sm">Track Materials</span>
                       </Button>
                       <Button
                         variant="outline"
-                        className="h-auto py-4 flex-col gap-2"
+                        className="h-auto py-2 sm:py-4 flex-col gap-1 sm:gap-2"
                         onClick={() => setActiveTab("trips")}
                         title="Open a completed trip to issue its JCC"
                       >
-                        <FileText className="h-5 w-5" />
-                        <span className="text-sm">Generate JCC</span>
+                        <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="text-[11px] sm:text-sm">Generate JCC</span>
                       </Button>
                       <Button
                         variant="outline"
-                        className="h-auto py-4 flex-col gap-2"
+                        className="h-auto py-2 sm:py-4 flex-col gap-1 sm:gap-2"
                         onClick={() => setActiveTab("movements")}
                         title="Issue a Material JCC from a movement"
                       >
-                        <Package className="h-5 w-5" />
-                        <span className="text-sm">Material JCC</span>
+                        <Package className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="text-[11px] sm:text-sm">Material JCC</span>
                       </Button>
                     </div>
                   </CardContent>
