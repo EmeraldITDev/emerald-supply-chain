@@ -239,6 +239,25 @@ const ExecutiveDashboard = () => {
               <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">
                 View and monitor Material Requisition Forms
               </p>
+              <div className="flex gap-2 mt-3">
+                <Button
+                  size="sm"
+                  onClick={() => navigate('/new-mrf')}
+                  className="flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  New MRF
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate('/new-srf')}
+                  className="flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  New SRF
+                </Button>
+              </div>
             </div>
             <Button
               variant="outline"
