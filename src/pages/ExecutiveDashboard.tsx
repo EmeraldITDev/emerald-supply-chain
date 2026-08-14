@@ -320,13 +320,13 @@ const ExecutiveDashboard = () => {
                   {myRequests.map((mrf) => (
                     <div
                       key={mrf.id}
-                      className="flex items-center justify-between gap-3 py-2 border-b last:border-0"
+                      className="flex items-center justify-between gap-2 py-1.5 sm:py-2 border-b last:border-0"
                     >
                       <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">
+                        <p className="font-medium text-xs sm:text-sm truncate">
                           {mrf.title}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                           {getDisplayId(mrf)} •{" "}
                           {getWorkflowStageLabel(
                             mrf.current_stage || mrf.currentStage || mrf.status,
@@ -510,7 +510,7 @@ const ExecutiveDashboard = () => {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex gap-2 pt-4">
+                            <div className="flex flex-wrap gap-2 pt-4">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -697,7 +697,7 @@ const ExecutiveDashboard = () => {
                                     }
                                     className="min-h-[60px]"
                                   />
-                                  <div className="flex gap-2">
+                                  <div className="flex flex-wrap gap-2">
                                     <Button
                                       size="sm"
                                       disabled={actionLoading === mrf.id}
@@ -795,7 +795,7 @@ const ExecutiveDashboard = () => {
                                 </div>
                               )}
 
-                              <div className="flex gap-2 pt-2">
+                              <div className="flex flex-wrap gap-2 pt-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
