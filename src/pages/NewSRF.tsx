@@ -30,7 +30,8 @@ const NewSRF = () => {
     (isEmployeeRole(getScmRole(user)) ||
       getScmRole(user) === "logistics_manager" ||
       getScmRole(user) === "logistics" ||
-      getScmRole(user) === "logistics_officer");
+      getScmRole(user) === "logistics_officer" ||
+      getScmRole(user) === "executive");
 
   // Staff and logistics roles can create SRF
   useEffect(() => {

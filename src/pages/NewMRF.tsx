@@ -26,7 +26,7 @@ const NewMRF = () => {
 
   // Staff and Logistics Manager can create MRF
   useEffect(() => {
-    if (user && !isEmployeeRole(getScmRole(user)) && getScmRole(user) !== "logistics_manager") {
+    if (user && !isEmployeeRole(getScmRole(user)) && getScmRole(user) !== "logistics_manager" && getScmRole(user) !== "executive") {
       toast({
         title: "Access Denied",
         description: "Only staff members can create Material Request Forms. Please contact your administrator.",
