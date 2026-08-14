@@ -291,11 +291,11 @@ const NewSRF = () => {
         <div>
           <Button
             variant="ghost"
-            onClick={() => navigate("/procurement")}
+            onClick={() => navigate("/dashboard")}
             className="mb-4"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Procurement
+            Back to Dashboard
           </Button>
           <h1 className="text-3xl font-bold tracking-tight">New Service Request Form</h1>
           <p className="text-muted-foreground mt-2">Submit a new service requisition request</p>
