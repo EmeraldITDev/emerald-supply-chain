@@ -90,8 +90,20 @@ const ExecutiveDashboard = () => {
     queryKey: ["executive-my-requests", user?.id],
     enabled: Boolean(user?.id),
     queryFn: async () => {
-      const res = await mrfApi.list({ requester_id: user?.id, per_page: 25 });
-      return res.success && res.data ? res.data.items : [];
+      const res = await mrfApi.list({ requester_id: user?.id, per_page: 100 });
+      if (!res.success || !res.data) return [];
+      const items = res.data.items ?? [];
+      if (items.length > 0)
+        console.log("MRF requester fields:", {
+          requester_id: items[0].requester_id,
+          requesterId: items[0].requesterId,
+          requester: items[0].requester,
+        });
+      return items.filter((mrf: any) => {
+        const requesterId =
+          mrf.requester_id ?? mrf.requesterId ?? mrf.requester?.id;
+        return String(requesterId) === String(user?.id);
+      });
     },
     ...WORKFLOW_QUERY_OPTIONS,
   });
@@ -242,7 +254,7 @@ const ExecutiveDashboard = () => {
               <div className="flex gap-2 mt-3">
                 <Button
                   size="sm"
-                  onClick={() => navigate('/new-mrf')}
+                  onClick={() => navigate("/new-mrf")}
                   className="flex items-center gap-2"
                 >
                   <FileText className="h-4 w-4" />
@@ -251,7 +263,7 @@ const ExecutiveDashboard = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => navigate('/new-srf')}
+                  onClick={() => navigate("/new-srf")}
                   className="flex items-center gap-2"
                 >
                   <FileText className="h-4 w-4" />
@@ -307,11 +319,13 @@ const ExecutiveDashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0">
-              {(() => { console.log('myRequests', myRequests, 'user id', user?.id); return null; })()}
+              {(() => {
+                console.log("myRequests", myRequests, "user id", user?.id);
+                return null;
+              })()}
               {loadingMyRequests ? (
                 <TableSkeleton rows={3} />
               ) : myRequests.length === 0 ? (
-                
                 <p className="text-sm text-muted-foreground">
                   You have not submitted any requests yet.
                 </p>
@@ -555,7 +569,7 @@ const ExecutiveDashboard = () => {
                                     className="text-xs"
                                   >
                                     {estimatedCost > 0
-                                      ? `${(mrf as any).currency === 'USD' ? '$' : (mrf as any).currency === 'GBP' ? '£' : (mrf as any).currency === 'EUR' ? '€' : '₦'}${estimatedCost.toLocaleString()}`
+                                      ? `${(mrf as any).currency === "USD" ? "$" : (mrf as any).currency === "GBP" ? "£" : (mrf as any).currency === "EUR" ? "€" : "₦"}${estimatedCost.toLocaleString()}`
                                       : "-"}
                                   </Badge>
                                   <Badge
@@ -971,11 +985,15 @@ const ExecutiveDashboard = () => {
                       Estimated Cost
                     </Label>
                     <p className="font-medium">
-                    {(selectedMRFForDetails as any).currency === 'USD' ? '$' :
-                    (selectedMRFForDetails as any).currency === 'GBP' ? '£' :
-                    (selectedMRFForDetails as any).currency === 'EUR' ? '€' : '₦'}
-                    {getEstimatedCost(selectedMRFForDetails).toLocaleString()}
-                  </p>
+                      {(selectedMRFForDetails as any).currency === "USD"
+                        ? "$"
+                        : (selectedMRFForDetails as any).currency === "GBP"
+                          ? "£"
+                          : (selectedMRFForDetails as any).currency === "EUR"
+                            ? "€"
+                            : "₦"}
+                      {getEstimatedCost(selectedMRFForDetails).toLocaleString()}
+                    </p>
                   </div>
                   <div className="col-span-2">
                     <Label className="text-muted-foreground">Description</Label>
