@@ -136,7 +136,9 @@ const AppRoutes = () => {
         </Routes>
       </Suspense>
       <AppUpdateBanner />
+      <PwaInstallPrompt />
     </BrowserRouter>
+
   );
 };
 
