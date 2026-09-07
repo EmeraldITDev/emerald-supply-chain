@@ -8,6 +8,8 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { PageLoader } from "@/components/ui/PageLoader";
 import { AppUpdateBanner } from "@/components/AppUpdateBanner";
+import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { getScmRole } from "@/utils/scmRole";
 import { canAccessProcurementPage } from "@/utils/procurementAccess";
