@@ -1,13 +1,13 @@
-import { useState, useMemo, useCallback } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { getDisplayId } from "@/utils/displayId";
-import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -15,23 +15,39 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-import { FileText, DollarSign, Loader2, RefreshCw, Eye } from "lucide-react";
+import { Loader2, RefreshCw, ShieldAlert, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { DashboardAlerts } from "@/components/DashboardAlerts";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
-import { mrfApi } from "@/services/api";
+import { mrfApi, srfApi, vendorApi, dashboardApi } from "@/services/api";
 import { getWorkflowStageLabel } from "@/utils/workflowStageLabels";
 import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
-import type { MRF } from "@/types";
-import { mrfUsesFinanceAp } from "@/utils/financeAPRouting";
+import type { MRF, SRF, Vendor } from "@/types";
+import {
+  AlertsPanel,
+  ConcentrationChart,
+  ExecMetric,
+  PipelineFlow,
+  SectionCard,
+  SpendTrendChart,
+  money,
+} from "@/components/chairman/ExecutiveWidgets";
+import { ExecDrilldownSheet } from "@/components/chairman/ExecDrilldownSheet";
+import {
+  BUCKET_LABELS,
+  buildAlerts,
+  buildSnapshot,
+  bucketRecords,
+  mrfCost,
+  pctChange,
+  type DrillBucket,
+} from "@/utils/executiveIntelligence";
 
 const ChairmanDashboard = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
+
   const {
     data: mrfRequests = [],
     isLoading: loading,
@@ -42,7 +58,33 @@ const ChairmanDashboard = () => {
     ...WORKFLOW_QUERY_OPTIONS,
   });
 
-  // Executive-originated MRFs awaiting Chairman approval
+  const { data: srfs = [] } = useQuery<SRF[]>({
+    queryKey: ["chairman-exec", "srfs"],
+    queryFn: async () => {
+      const res = await srfApi.list({ page: 1, per_page: 50, include_line_items: false });
+      return res.success && res.data ? res.data.items : [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: vendors = [] } = useQuery<Vendor[]>({
+    queryKey: ["chairman-exec", "vendors"],
+    queryFn: async () => {
+      const res = await vendorApi.list({ page: 1, per_page: 100 });
+      return res.success && res.data ? res.data.items : [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: activities = [] } = useQuery({
+    queryKey: queryKeys.dashboard.recentActivities(12),
+    queryFn: async () => {
+      const res = await dashboardApi.getRecentActivities(12);
+      return res.success && Array.isArray(res.data) ? res.data : [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
   const {
     data: chairmanQueue = [],
     isLoading: queueLoading,
@@ -60,9 +102,32 @@ const ChairmanDashboard = () => {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectingMrfId, setRejectingMrfId] = useState<string | null>(null);
   const [rejectRemarks, setRejectRemarks] = useState("");
+  const [drill, setDrill] = useState<{ bucket: DrillBucket; title: string } | null>(null);
 
   const getApiId = (mrf: MRF) =>
     String((mrf as unknown as Record<string, unknown>).mrf_id ?? mrf.id);
+
+  const snapshot = useMemo(() => buildSnapshot(mrfRequests, srfs), [mrfRequests, srfs]);
+  const alerts = useMemo(
+    () => buildAlerts(snapshot, mrfRequests, vendors),
+    [snapshot, mrfRequests, vendors],
+  );
+
+  const activeVendors = useMemo(
+    () =>
+      vendors.filter((v) =>
+        /active|approved/i.test(String((v as { status?: string }).status ?? "active")),
+      ).length,
+    [vendors],
+  );
+
+  const drillRecords = useMemo(
+    () => (drill ? bucketRecords(drill.bucket, mrfRequests) : []),
+    [drill, mrfRequests],
+  );
+
+  const openDrill = (bucket: DrillBucket) =>
+    setDrill({ bucket, title: BUCKET_LABELS[bucket] });
 
   const handleChairmanApprove = async (mrf: MRF) => {
     const id = getApiId(mrf);
@@ -97,341 +162,329 @@ const ChairmanDashboard = () => {
     }
   };
 
-  // Helper functions for field access
-  const getEstimatedCost = (mrf: MRF) => {
-    return parseFloat(String(mrf.estimated_cost || mrf.estimatedCost || "0"));
-  };
-
-  const getRequesterName = (mrf: MRF) => {
-    return mrf.requester_name || mrf.requester || "Unknown";
-  };
-
-  // Filter MRFs awaiting chairman approval (high-value items)
-  const pendingApproval = useMemo(() => {
-    return mrfRequests.filter(mrf => {
-      const status = (mrf.status || "").toLowerCase();
-      const stage = (mrf.current_stage || mrf.currentStage || "").toLowerCase();
-      
-      return (
-        stage === "chairman_review" ||
-        stage === "chairman" ||
-        status.includes("pending chairman") ||
-        status.includes("awaiting chairman")
-      );
-    });
-  }, [mrfRequests]);
-
-  // Filter MRFs awaiting payment approval (legacy internal only — not Finance AP)
-  const pendingPayment = useMemo(() => {
-    return mrfRequests.filter(mrf => {
-      if (mrfUsesFinanceAp(mrf)) return false;
-      const status = (mrf.status || "").toLowerCase();
-      const stage = (mrf.current_stage || mrf.currentStage || "").toLowerCase();
-      
-      return (
-        stage === "chairman_payment" ||
-        status === "processing payment" ||
-        status.includes("payment pending chairman")
-      );
-    });
-  }, [mrfRequests]);
-
   useScmAppRefreshListener(async () => {
     await fetchMRFs();
     await refetchQueue();
   });
 
-  // Calculate total value
-  const totalValue = useMemo(() => {
-    return [...pendingApproval, ...pendingPayment].reduce((sum, mrf) => sum + getEstimatedCost(mrf), 0);
-  }, [pendingApproval, pendingPayment]);
+  const criticalCount = alerts.filter((a) => a.severity === "critical").length;
+  const healthTone =
+    criticalCount > 0 ? "Needs attention" : alerts.length > 0 ? "Watchlist" : "Stable";
 
   return (
     <DashboardLayout>
-      <PullToRefresh onRefresh={async () => {
-        toast.info("Refreshing data...");
-        await fetchMRFs();
-        toast.success("Data refreshed");
-      }}>
-        <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Chairman Dashboard</h1>
-            <p className="text-muted-foreground">Monitor high-value items and payments</p>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => { void fetchMRFs(); }}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
-
-        {/* Dashboard Alerts */}
-        <DashboardAlerts userRole="chairman" maxAlerts={5} />
-
-        {/* Executive requests awaiting Chairman approval */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending Approvals</CardTitle>
-            <CardDescription>Executive requests awaiting your approval</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {queueLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <PullToRefresh
+        onRefresh={async () => {
+          await Promise.all([fetchMRFs(), refetchQueue()]);
+          toast.success("Data refreshed");
+        }}
+      >
+        <div className="space-y-5 sm:space-y-6">
+          {/* Header + health */}
+          <div className="rounded-xl border bg-gradient-to-br from-primary/10 via-card to-card p-4 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+                  Executive Supply Chain Command Centre
+                </p>
+                <h1 className="mt-1 text-xl font-bold sm:text-3xl">Chairman's View</h1>
+                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                  Organisation-wide procurement, purchase order, vendor and delivery oversight.
+                </p>
               </div>
-            ) : chairmanQueue.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No requests pending your approval.
-              </p>
-            ) : (
-              chairmanQueue.map((mrf) => {
-                const apiId = getApiId(mrf);
-                const cost = getEstimatedCost(mrf);
-                return (
-                  <div key={mrf.id} className="p-4 border rounded-lg space-y-2">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={criticalCount > 0 ? "destructive" : "secondary"}
+                  className="h-7 px-3 text-xs"
+                >
+                  <ShieldAlert className="mr-1 h-3.5 w-3.5" />
+                  {healthTone}
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void fetchMRFs();
+                    void refetchQueue();
+                  }}
+                  disabled={loading}
+                >
+                  <RefreshCw className={`h-4 w-4 sm:mr-2 ${loading ? "animate-spin" : ""}`} />
+                  <span className="hidden sm:inline">Refresh</span>
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-5 sm:gap-3 lg:grid-cols-4">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
+              ) : (
+                <>
+                  <ExecMetric
+                    label="Active SCM cases"
+                    value={snapshot.activeCases}
+                    hint={`${snapshot.openMaterial} material • ${snapshot.openService} service`}
+                    onClick={() => openDrill("open_material")}
+                  />
+                  <ExecMetric
+                    label="Active PO value"
+                    value={money(snapshot.activeValue)}
+                    hint={`${snapshot.activePOs} purchase orders`}
+                    delta={pctChange(snapshot.monthValue, snapshot.prevMonthValue)}
+                    onClick={() => openDrill("po_active")}
+                  />
+                  <ExecMetric
+                    label="Pending approvals"
+                    value={snapshot.pendingApproval}
+                    hint={money(snapshot.pendingValue)}
+                    tone={snapshot.stalled.length > 0 ? "warning" : "default"}
+                    onClick={() => openDrill("pending_approval")}
+                  />
+                  <ExecMetric
+                    label="Delayed / at risk"
+                    value={snapshot.posOverdue}
+                    hint={`${money(snapshot.atRiskValue)} exposed`}
+                    tone={snapshot.posOverdue > 0 ? "danger" : "success"}
+                    onClick={() => openDrill("po_overdue")}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Requires attention */}
+          <SectionCard
+            title="Requires attention"
+            description="Risks, bottlenecks and exposures ranked by severity"
+          >
+            <AlertsPanel alerts={alerts} onSelect={(a) => openDrill(a.bucket)} />
+          </SectionCard>
+
+          {/* Chairman approvals queue */}
+          <SectionCard
+            title="Awaiting your approval"
+            description="Executive-originated requests routed to the Chairman"
+            action={<Badge variant="outline">{chairmanQueue.length}</Badge>}
+          >
+            <div className="space-y-3">
+              {queueLoading ? (
+                <Skeleton className="h-20 w-full" />
+              ) : chairmanQueue.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No requests pending your approval.</p>
+              ) : (
+                chairmanQueue.map((mrf) => {
+                  const apiId = getApiId(mrf);
+                  const cost = mrfCost(mrf);
+                  return (
+                    <div key={mrf.id} className="space-y-2 rounded-lg border p-3 sm:p-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold">{mrf.title}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {getDisplayId(mrf)} • {mrf.requester_name || mrf.requester || "Unknown"}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {mrf.category || "—"} • {cost > 0 ? `₦${cost.toLocaleString()}` : "-"}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="shrink-0">
+                          {getWorkflowStageLabel(
+                            mrf.current_stage || mrf.currentStage || "chairman_review",
+                          )}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/mrfs/${apiId}`)}>
+                          View details
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={actionId === apiId}
+                          onClick={() => {
+                            void handleChairmanApprove(mrf);
+                          }}
+                        >
+                          {actionId === apiId ? <Loader2 className="h-4 w-4 animate-spin" /> : "Approve"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={actionId === apiId}
+                          onClick={() => {
+                            setRejectingMrfId(apiId);
+                            setRejectRemarks("");
+                            setRejectDialogOpen(true);
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </SectionCard>
+
+          {/* Pipeline + spend trend */}
+          <div className="grid gap-4 lg:grid-cols-3">
+            <SectionCard
+              title="Request pipeline"
+              description="Where work is accumulating"
+              className="lg:col-span-1"
+            >
+              <PipelineFlow
+                stages={snapshot.pipeline}
+                onSelect={(bucket) => openDrill(bucket as DrillBucket)}
+              />
+            </SectionCard>
+
+            <SectionCard
+              title="Procurement value trend"
+              description="Committed value raised per month"
+              className="lg:col-span-2"
+            >
+              <SpendTrendChart data={snapshot.trend} />
+            </SectionCard>
+          </div>
+
+          {/* Purchase order overview */}
+          <SectionCard
+            title="Purchase order overview"
+            description="Commitment status across the organisation"
+          >
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+              <ExecMetric
+                label="Active POs"
+                value={snapshot.activePOs}
+                hint={money(snapshot.activeValue)}
+                onClick={() => openDrill("po_active")}
+              />
+              <ExecMetric
+                label="Pending approval"
+                value={snapshot.posPendingApproval}
+                onClick={() => openDrill("po_pending")}
+              />
+              <ExecMetric
+                label="Awaiting delivery"
+                value={snapshot.posAwaitingDelivery}
+                hint={money(snapshot.awaitingDeliveryValue)}
+                onClick={() => openDrill("po_awaiting_delivery")}
+              />
+              <ExecMetric
+                label="Completed"
+                value={snapshot.posCompleted}
+                hint={money(snapshot.completedValue)}
+                tone="success"
+                onClick={() => openDrill("po_completed")}
+              />
+            </div>
+          </SectionCard>
+
+          {/* Exposure concentration */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <SectionCard title="Exposure by project" description="Where commitments are concentrated">
+              <ConcentrationChart data={snapshot.byProject} />
+            </SectionCard>
+            <SectionCard title="Exposure by vendor" description="Largest active vendor commitments">
+              <ConcentrationChart data={snapshot.byVendor} />
+            </SectionCard>
+          </div>
+
+          {/* Vendors + activity */}
+          <div className="grid gap-4 lg:grid-cols-3">
+            <SectionCard title="Vendor overview" description="Supply base at a glance">
+              <div className="grid grid-cols-2 gap-2">
+                <ExecMetric
+                  label="Active vendors"
+                  value={activeVendors}
+                  onClick={() => navigate("/vendors")}
+                />
+                <ExecMetric
+                  label="Total on record"
+                  value={vendors.length}
+                  onClick={() => navigate("/vendors")}
+                />
+              </div>
+              <div className="mt-3 space-y-2">
+                {snapshot.byVendor.slice(0, 4).map((v) => (
+                  <div
+                    key={v.name}
+                    className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs"
+                  >
+                    <span className="truncate">{v.name}</span>
+                    <span className="shrink-0 font-semibold tabular-nums">{money(v.value)}</span>
+                  </div>
+                ))}
+                {snapshot.byVendor.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No active vendor commitments yet.</p>
+                )}
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              title="Executive activity"
+              description="Significant recent supply chain events"
+              className="lg:col-span-2"
+            >
+              <div className="space-y-3">
+                {activities.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No recent activity recorded.</p>
+                ) : (
+                  activities.slice(0, 8).map((event) => (
+                    <div key={event.id} className="flex items-start gap-3">
+                      <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                        <Activity className="h-3.5 w-3.5 text-primary" />
+                      </div>
                       <div className="min-w-0">
-                        <p className="font-semibold truncate">{mrf.title}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {getDisplayId(mrf)} • Submitted by {getRequesterName(mrf)}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {mrf.category || "—"} • {cost > 0 ? `₦${cost.toLocaleString()}` : "-"}
+                        <p className="truncate text-sm font-medium">{event.title}</p>
+                        <p className="truncate text-xs text-muted-foreground">{event.description}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {event.timestamp ? new Date(event.timestamp).toLocaleString() : ""}
                         </p>
                       </div>
-                      <Badge variant="outline" className="shrink-0">
-                        {getWorkflowStageLabel(
-                          mrf.current_stage || mrf.currentStage || "chairman_review",
-                        )}
-                      </Badge>
                     </div>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => navigate(`/mrfs/${apiId}`)}
-                      >
-                        View Details
-                      </Button>
-                      <Button
-                        size="sm"
-                        disabled={actionId === apiId}
-                        onClick={() => { void handleChairmanApprove(mrf); }}
-                      >
-                        {actionId === apiId ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          "Approve"
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        disabled={actionId === apiId}
-                        onClick={() => {
-                          setRejectingMrfId(apiId);
-                          setRejectRemarks("");
-                          setRejectDialogOpen(true);
-                        }}
-                      >
-                        Reject
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-
-        <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-          <DialogContent className="max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Reject Request</DialogTitle>
-            </DialogHeader>
-            <Textarea
-              placeholder="Reason for rejection..."
-              value={rejectRemarks}
-              onChange={(e) => setRejectRemarks(e.target.value)}
-            />
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={!rejectRemarks.trim() || actionId === rejectingMrfId}
-                onClick={() => { void confirmChairmanReject(); }}
-              >
-                Confirm Rejection
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingApproval.length}</div>
-              <p className="text-xs text-muted-foreground">High-value MRFs</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Payment Approval</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingPayment.length}</div>
-              <p className="text-xs text-muted-foreground">Awaiting payment</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ₦{totalValue.toLocaleString()}
+                  ))
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">Pending decisions</p>
-            </CardContent>
-          </Card>
+            </SectionCard>
+          </div>
         </div>
-
-        {/* High-Value MRF Approvals */}
-        <Card>
-          <CardHeader>
-            <CardTitle>High-Value MRF Approvals</CardTitle>
-            <CardDescription>Items exceeding ₦1,000,000 requiring final approval</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : pendingApproval.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                <p>No high-value MRFs pending approval</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {pendingApproval.map((mrf) => {
-                  const estimatedCost = getEstimatedCost(mrf);
-
-                  return (
-                    <Card key={mrf.id} className="border-l-4 border-l-destructive">
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-lg">{mrf.title}</CardTitle>
-                            <CardDescription>
-                              {getDisplayId(mrf)} • {getRequesterName(mrf)} • {mrf.department || "N/A"}
-                            </CardDescription>
-                          </div>
-                          <Badge variant="destructive">
-                            ₦{estimatedCost.toLocaleString()}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid md:grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="font-semibold">Category:</p>
-                            <p className="text-muted-foreground">{mrf.category}</p>
-                          </div>
-                          <div>
-                            <p className="font-semibold">Quantity:</p>
-                            <p className="text-muted-foreground">{mrf.quantity}</p>
-                          </div>
-                          <div className="md:col-span-2">
-                            <p className="font-semibold">Description:</p>
-                            <p className="text-muted-foreground">{mrf.description}</p>
-                          </div>
-                          <div className="md:col-span-2">
-                            <p className="font-semibold">Justification:</p>
-                            <p className="text-muted-foreground">{mrf.justification}</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Badge variant="secondary">
-                            <Eye className="h-3 w-3 mr-1" />
-                            Read-Only View
-                          </Badge>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Payment Approvals */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Payment Approvals</CardTitle>
-            <CardDescription>Final payment authorization from Finance</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : pendingPayment.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <DollarSign className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                <p>No payments pending approval</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {pendingPayment.map((mrf) => {
-                  const estimatedCost = getEstimatedCost(mrf);
-
-                  return (
-                    <Card key={mrf.id} className="border-l-4 border-l-primary">
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-lg">{mrf.title}</CardTitle>
-                            <CardDescription>
-                              {getDisplayId(mrf)} • PO: {mrf.po_number || mrf.poNumber || "N/A"}
-                            </CardDescription>
-                          </div>
-                          <Badge>₦{estimatedCost.toLocaleString()}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <Badge variant="secondary">
-                          <Eye className="h-3 w-3 mr-1" />
-                          Read-Only View
-                        </Badge>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
       </PullToRefresh>
+
+      <ExecDrilldownSheet
+        open={Boolean(drill)}
+        onOpenChange={(open) => !open && setDrill(null)}
+        title={drill?.title ?? ""}
+        records={drillRecords}
+      />
+
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Reject Request</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            placeholder="Reason for rejection..."
+            value={rejectRemarks}
+            onChange={(e) => setRejectRemarks(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!rejectRemarks.trim() || actionId === rejectingMrfId}
+              onClick={() => {
+                void confirmChairmanReject();
+              }}
+            >
+              Confirm Rejection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
