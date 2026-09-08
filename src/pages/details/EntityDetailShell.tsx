@@ -33,14 +33,23 @@ export function EntityDetailShell({
 }: EntityDetailShellProps) {
   const navigate = useNavigate();
 
+  // Prefer returning to wherever the user came from (dashboard, list, search),
+  // falling back to the canonical section only on direct/deep-link entry.
+  const historyIndex = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+  const canGoBack = historyIndex > 0;
+
   const header = (
     <div className="flex items-center gap-4">
-      <Button variant="ghost" onClick={() => navigate(backTo)}>
+      <Button
+        variant="ghost"
+        onClick={() => (canGoBack ? navigate(-1) : navigate(backTo))}
+      >
         <ArrowLeft className="mr-2 h-4 w-4" />
-        {backLabel}
+        {canGoBack ? "Back" : backLabel}
       </Button>
     </div>
   );
+
 
   if (loading) {
     return (
