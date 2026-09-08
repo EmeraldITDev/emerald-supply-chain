@@ -635,7 +635,7 @@ export const SupplyChainCommandCentre = ({
                                   <Button size="sm" onClick={() => openItem(item)}>
                                     Review registration
                                   </Button>
-                                ) : (
+                                ) : item.kind === "po" ? null : (
                                   <>
                                     <Button
                                       size="sm"
