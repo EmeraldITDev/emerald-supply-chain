@@ -59,7 +59,8 @@ export function formatScmRoleLabel(role?: string | null): string {
 }
 
 /** Route of the dashboard that belongs to the given user's SCM role. */
-export function getDashboardPath(user?: ScmRoleFields | null): string {
+export function getDashboardPath(user?: (ScmRoleFields & { is_admin?: boolean }) | null): string {
+  if (user?.is_admin) return "/chairman";
   switch (getScmRole(user)) {
     case "executive":
       return "/executive";
@@ -72,6 +73,7 @@ export function getDashboardPath(user?: ScmRoleFields | null): string {
       return "/dashboard";
   }
 }
+
 
 /** Resolve SCM role from a User API record; never returns null. */
 export function getUserScmRole(user: Pick<User, "supply_chain_role" | "role">): string | undefined {
