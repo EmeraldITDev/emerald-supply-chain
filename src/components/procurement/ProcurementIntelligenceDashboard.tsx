@@ -322,7 +322,7 @@ const ProcurementIntelligenceDashboard = () => {
     {
       label: "Purchase orders generated",
       value: String(kpis?.totalPosGenerated ?? poStats.created),
-      delta: pctChange(posThis, posPrev),
+      delta: backendDelta("pos_generated") ?? pctChange(posThis, posPrev),
       context: `${posThis} created in ${range.label.toLowerCase()}`,
       spark: sparkline(mrfs.filter(hasPO), range, (m) => poAt(m) ?? mrfCreated(m)),
       bucket: "active_po" as ProcBucket,
@@ -330,7 +330,7 @@ const ProcurementIntelligenceDashboard = () => {
     {
       label: "MRFs approved",
       value: String(kpis?.totalMrfsApproved ?? approvedThis),
-      delta: pctChange(approvedThis, approvedPrev),
+      delta: backendDelta("approved_mrfs") ?? pctChange(approvedThis, approvedPrev),
       context: `${pendingMrfs.length} currently awaiting approval`,
       spark: sparkline(mrfs, range, approvedAt),
       bucket: "pending_approval" as ProcBucket,
@@ -373,9 +373,10 @@ const ProcurementIntelligenceDashboard = () => {
       label: "On-time delivery",
       value: onTimePct != null ? `${onTimePct}%` : "-",
       delta:
-        delivery.onTimePct != null && delivery.prevOnTimePct != null
+        backendDelta("on_time_delivery_rate") ??
+        (delivery.onTimePct != null && delivery.prevOnTimePct != null
           ? delivery.onTimePct - delivery.prevOnTimePct
-          : null,
+          : null),
       deltaLabel: "points vs previous period",
       context: `${delivery.late} late • ${delivery.overdue} overdue`,
       tone: delivery.overdue > 0 ? ("danger" as const) : undefined,
@@ -384,7 +385,7 @@ const ProcurementIntelligenceDashboard = () => {
     {
       label: "Pending MRFs",
       value: String(pmStats?.pendingMRFs ?? pendingMrfs.length),
-      delta: pctChange(pendingMrfs.length, pendingPrev),
+      delta: backendDelta("pending_mrfs") ?? pctChange(pendingMrfs.length, pendingPrev),
       invertDelta: true,
       context:
         processing.oldestPendingDays > 0
