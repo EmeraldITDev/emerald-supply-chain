@@ -175,6 +175,31 @@ const ProcurementIntelligenceDashboard = () => {
     staleTime: 2 * 60 * 1000,
   });
 
+  const periodDays = useMemo(() => {
+    const r = periodRange(filters.period, { from: filters.from, to: filters.to });
+    return Math.max(1, Math.round((r.to.getTime() - r.from.getTime()) / 86_400_000));
+  }, [filters.period, filters.from, filters.to]);
+
+  // Backend period comparison snapshot (current vs previous period).
+  const statsQuery = useQuery({
+    queryKey: ["procurement-intel", "period-stats", periodDays],
+    queryFn: async () => {
+      const res = await dashboardApi.getProcurementStats(periodDays);
+      return res.success && res.data ? res.data.stats : null;
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Backend stage timings (average days per workflow stage, slow-stage flags).
+  const stageQuery = useQuery({
+    queryKey: ["procurement-intel", "pipeline-stats", periodDays],
+    queryFn: async () => {
+      const res = await dashboardApi.getProcurementPipelineStats(periodDays);
+      return res.success && res.data ? res.data : [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
   const refreshAll = async () => {
     await Promise.all([
       mrfQuery.refetch(),
@@ -184,6 +209,8 @@ const ProcurementIntelligenceDashboard = () => {
       pmQuery.refetch(),
       registrationsQuery.refetch(),
       activitiesQuery.refetch(),
+      statsQuery.refetch(),
+      stageQuery.refetch(),
     ]);
   };
 
@@ -197,6 +224,16 @@ const ProcurementIntelligenceDashboard = () => {
   const pmStats = pmQuery.data?.stats;
   const registrations = registrationsQuery.data ?? [];
   const activities = activitiesQuery.data ?? [];
+  const periodStats = statsQuery.data ?? null;
+  const stageTimings = stageQuery.data ?? [];
+
+  /** Backend-supplied percentage change for a metric, when it exists. */
+  const backendDelta = (key: string): number | undefined => {
+    const v = periodStats?.[`${key}_change_pct`];
+    const n = typeof v === "number" ? v : parseFloat(String(v ?? ""));
+    return Number.isFinite(n) ? n : undefined;
+  };
+
 
   /* ------------------------- derived ------------------------- */
 
@@ -285,7 +322,7 @@ const ProcurementIntelligenceDashboard = () => {
     {
       label: "Purchase orders generated",
       value: String(kpis?.totalPosGenerated ?? poStats.created),
-      delta: pctChange(posThis, posPrev),
+      delta: backendDelta("pos_generated") ?? pctChange(posThis, posPrev),
       context: `${posThis} created in ${range.label.toLowerCase()}`,
       spark: sparkline(mrfs.filter(hasPO), range, (m) => poAt(m) ?? mrfCreated(m)),
       bucket: "active_po" as ProcBucket,
@@ -293,7 +330,7 @@ const ProcurementIntelligenceDashboard = () => {
     {
       label: "MRFs approved",
       value: String(kpis?.totalMrfsApproved ?? approvedThis),
-      delta: pctChange(approvedThis, approvedPrev),
+      delta: backendDelta("approved_mrfs") ?? pctChange(approvedThis, approvedPrev),
       context: `${pendingMrfs.length} currently awaiting approval`,
       spark: sparkline(mrfs, range, approvedAt),
       bucket: "pending_approval" as ProcBucket,
@@ -336,9 +373,10 @@ const ProcurementIntelligenceDashboard = () => {
       label: "On-time delivery",
       value: onTimePct != null ? `${onTimePct}%` : "-",
       delta:
-        delivery.onTimePct != null && delivery.prevOnTimePct != null
+        backendDelta("on_time_delivery_rate") ??
+        (delivery.onTimePct != null && delivery.prevOnTimePct != null
           ? delivery.onTimePct - delivery.prevOnTimePct
-          : null,
+          : null),
       deltaLabel: "points vs previous period",
       context: `${delivery.late} late • ${delivery.overdue} overdue`,
       tone: delivery.overdue > 0 ? ("danger" as const) : undefined,
@@ -347,7 +385,7 @@ const ProcurementIntelligenceDashboard = () => {
     {
       label: "Pending MRFs",
       value: String(pmStats?.pendingMRFs ?? pendingMrfs.length),
-      delta: pctChange(pendingMrfs.length, pendingPrev),
+      delta: backendDelta("pending_mrfs") ?? pctChange(pendingMrfs.length, pendingPrev),
       invertDelta: true,
       context:
         processing.oldestPendingDays > 0
@@ -631,7 +669,36 @@ const ProcurementIntelligenceDashboard = () => {
                   setDrill(map[key] ?? "open");
                 }} />
               )}
+
+              {stageTimings.length > 0 && (
+                <div className="mt-4 border-t pt-3">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Time spent per stage (server measured)
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {stageTimings.map((s) => (
+                      <div
+                        key={s.name}
+                        className={`rounded-lg border p-2.5 text-xs ${s.is_slow ? "border-destructive/50 bg-destructive/5" : ""}`}
+                      >
+                        <p className="truncate font-medium capitalize">
+                          {String(s.name).replace(/_/g, " ")}
+                        </p>
+                        <p className="mt-0.5 text-muted-foreground">
+                          {s.avg_days != null ? `${Number(s.avg_days).toFixed(1)} day(s) avg` : "No timing yet"}
+                          {" • "}
+                          {s.volume ?? 0} request(s)
+                        </p>
+                        {s.is_slow && (
+                          <p className="mt-1 font-medium text-destructive">Slowest stage</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </Section>
+
 
             <Section title="Approval &amp; processing speed" description="Current period vs the previous one">
               <div className="space-y-3">

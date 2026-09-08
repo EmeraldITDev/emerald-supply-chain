@@ -108,6 +108,9 @@ export interface POFormPayload {
   payment_terms?: string;
   /** ISO date `yyyy-MM-dd`. */
   delivery_date?: string;
+  /** Promised delivery date used by backend on-time delivery reporting. */
+  expected_delivery_date?: string;
+
   /**
    * Structured payment milestones (preferred over free-text `payment_terms`).
    * Backend must accept and validate that sum of `percentage` === 100.

@@ -3546,11 +3546,62 @@ export const vendorAuthApi = {
 };
 
 // Dashboard API
+export interface ProcurementPeriodStats {
+  [key: string]: number | string | null | undefined;
+}
+
+export interface ProcurementPipelineStage {
+  name: string;
+  avg_days: number | null;
+  volume: number;
+  is_slow?: boolean;
+}
+
+export interface GroupedActivityBucket {
+  group: string;
+  label?: string;
+  count?: number;
+  activities: Array<Record<string, unknown>>;
+}
+
 export const dashboardApi = {
-  getProcurementManagerDashboard: async (): Promise<
+  /** Period KPI snapshot with current vs previous comparisons. */
+  getProcurementStats: async (
+    periodDays = 30,
+  ): Promise<ApiResponse<{ period_days: number; stats: ProcurementPeriodStats }>> => {
+    const res = await apiRequestFull(`/dashboard/procurement?period_days=${periodDays}`);
+    const body = (res.body ?? {}) as Record<string, any>;
+    if (!res.success) {
+      return { success: false, error: body?.message ?? 'Failed to load procurement stats' } as any;
+    }
+    const stats = (body.stats ?? body.data?.stats ?? body.data ?? {}) as ProcurementPeriodStats;
+    return {
+      success: true,
+      data: { period_days: Number(body.period_days ?? periodDays), stats },
+    };
+  },
+
+  /** Average days and volume per workflow stage. */
+  getProcurementPipelineStats: async (
+    periodDays = 30,
+  ): Promise<ApiResponse<ProcurementPipelineStage[]>> => {
+    const res = await apiRequestFull(`/procurement/pipeline-stats?period_days=${periodDays}`);
+    const body = (res.body ?? {}) as Record<string, any>;
+    if (!res.success) {
+      return { success: false, error: body?.message ?? 'Failed to load pipeline stats' } as any;
+    }
+    const stages = body.data?.stages ?? body.stages ?? body.data ?? [];
+    return { success: true, data: Array.isArray(stages) ? stages : [] };
+  },
+
+  getProcurementManagerDashboard: async (
+    periodDays?: number,
+  ): Promise<
     ApiResponse<import('@/utils/normalizeProcurementDashboard').ProcurementManagerDashboardPayload>
   > => {
-    const res = await apiRequest<Record<string, unknown>>('/dashboard/procurement-manager');
+    const query = periodDays ? `?period_days=${periodDays}` : '';
+    const res = await apiRequest<Record<string, unknown>>(`/dashboard/procurement-manager${query}`);
+
     if (res.success && res.data) {
       const { normalizeProcurementManagerDashboard } = await import(
         '@/utils/normalizeProcurementDashboard'
@@ -3604,6 +3655,41 @@ export const dashboardApi = {
     // No role parameter needed - backend handles filtering automatically
     return apiRequest(`/dashboard/recent-activities?limit=${limit}`);
   },
+
+  /** Grouped / filtered activity feed (backend groups by day, type, vendor, project). */
+  getGroupedActivities: async (params: {
+    group_by?: 'day' | 'type' | 'vendor' | 'project';
+    event_types?: string[];
+    vendor_id?: string | number;
+    project?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+  } = {}): Promise<ApiResponse<{ grouped: GroupedActivityBucket[]; total: number; filtered: number }>> => {
+    const q = new URLSearchParams();
+    if (params.group_by) q.append('group_by', params.group_by);
+    if (params.event_types?.length) q.append('event_types', params.event_types.join(','));
+    if (params.vendor_id != null) q.append('vendor_id', String(params.vendor_id));
+    if (params.project) q.append('project', params.project);
+    if (params.from) q.append('from', params.from);
+    if (params.to) q.append('to', params.to);
+    q.append('limit', String(params.limit ?? 50));
+    const res = await apiRequestFull(`/dashboard/recent-activities?${q.toString()}`);
+    const body = (res.body ?? {}) as Record<string, any>;
+    if (!res.success) {
+      return { success: false, error: body?.message ?? 'Failed to load activities' } as any;
+    }
+    const grouped = body.data?.grouped ?? body.grouped ?? [];
+    return {
+      success: true,
+      data: {
+        grouped: Array.isArray(grouped) ? grouped : [],
+        total: Number(body.data?.total ?? body.total ?? 0) || 0,
+        filtered: Number(body.data?.filtered ?? body.filtered ?? 0) || 0,
+      },
+    };
+  },
+
 };
 
 // Notification API

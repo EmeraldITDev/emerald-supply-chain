@@ -118,29 +118,72 @@ export const approvedAt = (m: MRF): Date | null =>
   toDate(
     raw(m, "director_approved_at") ??
       raw(m, "scd_approved_at") ??
+      raw(m, "scdApprovedAt") ??
       raw(m, "executive_approved_at") ??
+      raw(m, "executiveApprovedAt") ??
       raw(m, "chairman_approved_at"),
   );
+
+/** When procurement approved the request for sourcing. */
+export const procurementApprovedAt = (m: MRF): Date | null =>
+  toDate(raw(m, "procurement_approved_at") ?? raw(m, "procurementApprovedAt"));
+
+/** When finance signed off. */
+export const financeApprovedAt = (m: MRF): Date | null =>
+  toDate(raw(m, "finance_approved_at") ?? raw(m, "financeApprovedAt"));
+
+/** When the first RFQ was issued. */
+export const rfqIssuedAt = (m: MRF): Date | null =>
+  toDate(raw(m, "rfq_issued_at") ?? raw(m, "rfqIssuedAt"));
+
+/** When the first vendor quotation arrived. */
+export const quotationReceivedAt = (m: MRF): Date | null =>
+  toDate(raw(m, "quotation_received_at") ?? raw(m, "quotationReceivedAt"));
 
 /** When a purchase order came into existence for this request. */
 export const poAt = (m: MRF): Date | null =>
   toDate(
-    raw(m, "po_generated_at") ??
-      raw(m, "po_created_at") ??
+    raw(m, "po_created_at") ??
+      raw(m, "poCreatedAt") ??
+      raw(m, "po_generated_at") ??
+      raw(m, "poGeneratedAt") ??
       raw(m, "procurement_review_started_at"),
   );
 
-/** When goods were actually received (GRN completion is the only delivery proof captured). */
+/** When goods were actually received. */
 export const deliveredAt = (m: MRF): Date | null =>
-  toDate(raw(m, "grn_completed_at") ?? raw(m, "grnCompletedAt"));
+  toDate(
+    raw(m, "actual_delivery_date") ??
+      raw(m, "actualDeliveryDate") ??
+      raw(m, "delivered_at") ??
+      raw(m, "deliveredAt") ??
+      raw(m, "goods_received_at") ??
+      raw(m, "grn_completed_at") ??
+      raw(m, "grnCompletedAt"),
+  );
 
-/** Expected delivery date, if the backend ever supplies one. */
+/** Promised delivery date recorded on the purchase order. */
 export const expectedDeliveryAt = (m: MRF): Date | null =>
   toDate(
     raw(m, "expected_delivery_date") ??
+      raw(m, "expectedDeliveryDate") ??
       raw(m, "delivery_due_date") ??
       raw(m, "required_by_date"),
   );
+
+/** Backend-computed delivery status, when supplied. */
+export const deliveryStatusOf = (m: MRF): string =>
+  String(raw(m, "delivery_status") ?? raw(m, "deliveryStatus") ?? "").toLowerCase();
+
+/** PO value recorded by the backend, falling back to the estimate. */
+export const poValue = (m: MRF): number => {
+  const r = m as unknown as Record<string, unknown>;
+  const v = r.po_value ?? r.poValue ?? r.final_amount;
+
+  const n = parseFloat(String(v ?? "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : mrfCost(m);
+};
+
 
 export const srfCreated = (s: SRF): Date | null =>
   toDate((s as { created_at?: string }).created_at ?? s.createdAt ?? s.date);
@@ -172,25 +215,42 @@ export const isApproved = (m: MRF): boolean =>
   !isRejected(m) && (approvedAt(m) != null || hasPO(m) || isCompleted(m) ||
     /approved|procurement|rfq|quote|vendor_select|po_/.test(mrfState(m)));
 
-export const isDelivered = (m: MRF): boolean =>
-  deliveredAt(m) != null || isCompleted(m);
+export const isDelivered = (m: MRF): boolean => {
+  const status = deliveryStatusOf(m);
+  if (status === "on_time" || status === "late" || status === "delivered") return true;
+  return deliveredAt(m) != null || isCompleted(m);
+};
 
-export const deliveryLate = (m: MRF): boolean => {
+/** Days a delivery ran past its promised date (null when not measurable). */
+export const deliveryDelayDays = (m: MRF): number | null => {
   const done = deliveredAt(m);
   const expected = expectedDeliveryAt(m);
-  if (done && expected) return done.getTime() > expected.getTime();
+  if (!done || !expected) return null;
+  return Math.round((done.getTime() - expected.getTime()) / 86_400_000);
+};
+
+export const deliveryLate = (m: MRF): boolean => {
+  const status = deliveryStatusOf(m);
+  if (status === "late") return true;
+  if (status === "on_time") return false;
+  const delay = deliveryDelayDays(m);
+  if (delay != null) return delay > 0;
   const started = poAt(m) ?? approvedAt(m) ?? mrfCreated(m);
-  const elapsed = days(started, done);
+  const elapsed = days(started, deliveredAt(m));
   return elapsed != null && elapsed > DELIVERY_SLA_DAYS;
 };
 
 export const isOverdueDelivery = (m: MRF): boolean => {
+  const status = deliveryStatusOf(m);
+  if (status === "overdue") return true;
+  if (status === "on_time" || status === "late" || status === "delivered") return false;
   if (!hasPO(m) || isDelivered(m) || isRejected(m)) return false;
   const expected = expectedDeliveryAt(m);
   if (expected) return expected.getTime() < Date.now();
   const started = poAt(m) ?? approvedAt(m) ?? mrfCreated(m);
   return daysSince(started) > DELIVERY_SLA_DAYS;
 };
+
 
 /* ------------------------------------------------------------------ */
 /* Filters                                                             */
@@ -425,7 +485,25 @@ export interface VendorPerf {
   value: number;
   kycPending: boolean;
   score: number;
+  /** Average days from purchase order to goods received (backend-supplied). */
+  avgDeliveryDays: number | null;
+  /** Share of orders the vendor completed (backend-supplied). */
+  fulfilmentRate: number | null;
 }
+
+interface VendorPerformancePayload {
+  total_pos?: number;
+  completed_pos?: number;
+  on_time_deliveries?: number;
+  late_deliveries?: number;
+  average_delivery_days?: number;
+  fulfilment_rate?: number;
+}
+
+const numOrNull = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : parseFloat(String(v ?? ""));
+  return Number.isFinite(n) ? n : null;
+};
 
 export function buildVendorPerformance(mrfs: MRF[], vendors: Vendor[]): VendorPerf[] {
   const byName = new Map<string, MRF[]>();
@@ -442,32 +520,50 @@ export function buildVendorPerformance(mrfs: MRF[], vendors: Vendor[]): VendorPe
   const rows: VendorPerf[] = [];
   for (const [name, rowsForVendor] of byName) {
     const v = vendorIndex.get(name.toLowerCase());
+    const vRec = (v ?? {}) as unknown as Record<string, unknown>;
+    const perf = (vRec.performance ?? {}) as VendorPerformancePayload;
+
     const delivered = rowsForVendor.filter(isDelivered);
-    const late = delivered.filter(deliveryLate).length;
+    const localLate = delivered.filter(deliveryLate).length;
+
+    // Backend fulfilment history wins when present; local records fill the gap.
+    const totalPOs = numOrNull(perf.total_pos ?? vRec.total_orders) ?? rowsForVendor.length;
+    const completed =
+      numOrNull(perf.completed_pos ?? vRec.completed_orders) ?? delivered.length;
+    const onTime = numOrNull(perf.on_time_deliveries ?? vRec.on_time_deliveries);
+    const late = numOrNull(perf.late_deliveries) ??
+      (onTime != null ? Math.max(0, completed - onTime) : localLate);
     const overdue = rowsForVendor.filter(isOverdueDelivery).length;
-    const onTimePct = delivered.length
-      ? Math.round(((delivered.length - late) / delivered.length) * 100)
-      : null;
-    const rating = v && Number.isFinite(v.rating) && v.rating > 0 ? v.rating : null;
+    const onTimePct =
+      onTime != null && completed > 0
+        ? Math.round((onTime / completed) * 100)
+        : delivered.length
+          ? Math.round(((delivered.length - localLate) / delivered.length) * 100)
+          : null;
+
+    const rating = numOrNull(vRec.rating) && Number(vRec.rating) > 0 ? Number(vRec.rating) : null;
     rows.push({
       name,
       rating,
       activePOs: rowsForVendor.filter((m) => !isDelivered(m)).length,
-      totalPOs: rowsForVendor.length,
-      delivered: delivered.length,
+      totalPOs,
+      delivered: completed,
       late,
       overdue,
       onTimePct,
-      value: sumBy(rowsForVendor, mrfCost),
+      value: sumBy(rowsForVendor, poValue),
       kycPending: !!v && /pending|inactive/i.test(String(v.status ?? "")),
+      avgDeliveryDays: numOrNull(perf.average_delivery_days),
+      fulfilmentRate: numOrNull(perf.fulfilment_rate),
       score:
         (rating ?? 3) * 10 +
         (onTimePct ?? 60) -
         overdue * 12 -
         late * 6 +
-        Math.min(10, rowsForVendor.length),
+        Math.min(10, totalPOs),
     });
   }
+
   return rows.sort((a, b) => b.score - a.score);
 }
 
@@ -552,7 +648,7 @@ export function buildPoStats(mrfs: MRF[], r: Range): PoStats {
       const name = keyFn(m);
       if (!name) continue;
       const e = map.get(name) ?? { name, value: 0, count: 0 };
-      e.value += mrfCost(m);
+      e.value += poValue(m);
       e.count += 1;
       map.set(name, e);
     }
@@ -567,11 +663,11 @@ export function buildPoStats(mrfs: MRF[], r: Range): PoStats {
     delayed: withPO.filter(isOverdueDelivery).length,
     awaitingDelivery: withPO.filter((m) => !isDelivered(m)).length,
     avgCompletionDays: avg(completed.map((m) => days(poAt(m) ?? mrfCreated(m), deliveredAt(m)))),
-    totalValue: sumBy(withPO, mrfCost),
-    activeValue: sumBy(withPO.filter((m) => !isDelivered(m)), mrfCost),
+    totalValue: sumBy(withPO, poValue),
+    activeValue: sumBy(withPO.filter((m) => !isDelivered(m)), poValue),
     topActive: withPO
       .filter((m) => !isDelivered(m))
-      .sort((a, b) => mrfCost(b) - mrfCost(a))
+      .sort((a, b) => poValue(b) - poValue(a))
       .slice(0, 5),
     byVendor: group(vendorName),
     byProject: group(projectName),
@@ -579,9 +675,10 @@ export function buildPoStats(mrfs: MRF[], r: Range): PoStats {
       label: b.label,
       value: sumBy(
         withPO.filter((m) => inRange(poAt(m) ?? mrfDate(m), { ...r, from: b.from, to: b.to })),
-        mrfCost,
+        poValue,
       ),
     })),
+
   };
 }
 
@@ -1011,7 +1108,7 @@ export function detectDataGaps(mrfs: MRF[], vendors: Vendor[]): DataGap[] {
     gaps.push({
       field: "Expected delivery date on the purchase order",
       purpose:
-        "Right now late/overdue is estimated from a 21-day window. A promised date makes delivery performance exact.",
+        "Without a promised date, late and overdue fall back to a 21-day estimate instead of the real deadline.",
     });
   }
   if (withPO.length && !withPO.some(poAt)) {
@@ -1032,12 +1129,26 @@ export function detectDataGaps(mrfs: MRF[], vendors: Vendor[]): DataGap[] {
       purpose: "Needed for average approval time and bottleneck detection.",
     });
   }
-  if (vendors.length && !vendors.some((v) => Number(v.rating) > 0)) {
+  if (mrfs.length && !mrfs.some(rfqIssuedAt)) {
+    gaps.push({
+      field: "RFQ issued and quotation received timestamps",
+      purpose: "Needed to measure how long sourcing and vendor responses take.",
+    });
+  }
+  if (
+    vendors.length &&
+    !vendors.some((v) => {
+      const r = v as unknown as Record<string, unknown>;
+      const perf = (r.performance ?? {}) as VendorPerformancePayload;
+      return Number(r.rating) > 0 || Number(perf.total_pos) > 0 || Number(r.total_orders) > 0;
+    })
+  ) {
     gaps.push({
       field: "Vendor rating and fulfilment history",
       purpose: "Needed to rank suppliers and flag underperformers.",
     });
   }
+
   if (mrfs.length && !mrfs.some((m) => Number(mrfCost(m)) > 0)) {
     gaps.push({
       field: "Estimated cost / purchase order value",

@@ -864,6 +864,11 @@ export function CreatePOForm({
       delivery_date: form.delivery_date
         ? format(form.delivery_date, 'yyyy-MM-dd')
         : undefined,
+      // Backend stores the promised delivery date used for on-time reporting.
+      expected_delivery_date: form.delivery_date
+        ? format(form.delivery_date, 'yyyy-MM-dd')
+        : undefined,
+
     };
 
     if (fastTrack) base.fast_track = true;
