@@ -1108,7 +1108,7 @@ export function detectDataGaps(mrfs: MRF[], vendors: Vendor[]): DataGap[] {
     gaps.push({
       field: "Expected delivery date on the purchase order",
       purpose:
-        "Right now late/overdue is estimated from a 21-day window. A promised date makes delivery performance exact.",
+        "Without a promised date, late and overdue fall back to a 21-day estimate instead of the real deadline.",
     });
   }
   if (withPO.length && !withPO.some(poAt)) {
@@ -1129,12 +1129,26 @@ export function detectDataGaps(mrfs: MRF[], vendors: Vendor[]): DataGap[] {
       purpose: "Needed for average approval time and bottleneck detection.",
     });
   }
-  if (vendors.length && !vendors.some((v) => Number(v.rating) > 0)) {
+  if (mrfs.length && !mrfs.some(rfqIssuedAt)) {
+    gaps.push({
+      field: "RFQ issued and quotation received timestamps",
+      purpose: "Needed to measure how long sourcing and vendor responses take.",
+    });
+  }
+  if (
+    vendors.length &&
+    !vendors.some((v) => {
+      const r = v as unknown as Record<string, unknown>;
+      const perf = (r.performance ?? {}) as VendorPerformancePayload;
+      return Number(r.rating) > 0 || Number(perf.total_pos) > 0 || Number(r.total_orders) > 0;
+    })
+  ) {
     gaps.push({
       field: "Vendor rating and fulfilment history",
       purpose: "Needed to rank suppliers and flag underperformers.",
     });
   }
+
   if (mrfs.length && !mrfs.some((m) => Number(mrfCost(m)) > 0)) {
     gaps.push({
       field: "Estimated cost / purchase order value",
