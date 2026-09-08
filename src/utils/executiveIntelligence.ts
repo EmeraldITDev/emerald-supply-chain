@@ -42,8 +42,11 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-export const mrfCost = (m: MRF): number =>
-  num((m as { estimated_cost?: string }).estimated_cost ?? m.estimatedCost);
+export const mrfCost = (m: MRF): number => {
+  const r = m as unknown as Record<string, unknown>;
+  // Prefer the actual purchase order value once the backend records it.
+  return num((r.po_value ?? r.poValue ?? r.estimated_cost ?? m.estimatedCost) as never);
+};
 
 export const mrfState = (m: MRF): string =>
   String(
@@ -107,8 +110,19 @@ export const HIGH_VALUE_THRESHOLD = 5_000_000;
 export const isStalled = (m: MRF): boolean =>
   isPendingApproval(m) && daysSince(mrfDate(m)) >= STALL_DAYS;
 
-export const isOverduePO = (m: MRF): boolean =>
-  isAwaitingDelivery(m) && daysSince(mrfCreated(m)) >= OVERDUE_DAYS;
+export const isOverduePO = (m: MRF): boolean => {
+  if (!isAwaitingDelivery(m)) return false;
+  const r = m as unknown as Record<string, unknown>;
+  const status = String(r.delivery_status ?? r.deliveryStatus ?? "").toLowerCase();
+  if (status === "overdue") return true;
+  if (status === "on_time" || status === "late" || status === "delivered") return false;
+  const expectedRaw = r.expected_delivery_date ?? r.expectedDeliveryDate;
+  if (expectedRaw) {
+    const expected = new Date(String(expectedRaw));
+    if (!Number.isNaN(expected.getTime())) return expected.getTime() < Date.now();
+  }
+  return daysSince(mrfCreated(m)) >= OVERDUE_DAYS;
+};
 
 export const vendorName = (m: MRF): string =>
   String(
