@@ -63,6 +63,13 @@ import { ViewPoDocumentsButton } from "@/components/procurement/ViewPoDocumentsB
 const ExecutiveDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Bunmi Babajide gets the Executive Intelligence & Approval Centre;
+  // every other executive keeps the dashboard they already know.
+  if (isExecutiveIntelAccount(user)) {
+    return <ExecutiveCommandCentre />;
+  }
+
   const {
     data: mrfRequests = [],
     isLoading: loading,
