@@ -99,11 +99,15 @@ interface Props {
   pendingSrfs: SRF[];
   pendingTrips: Record<string, unknown>[];
   vendorRegistrations: VendorRegistration[];
+  /** MRFs with an unsigned PO awaiting the director's review and signature. */
+  pendingPOs: MRF[];
   loading: boolean;
   onRefresh: () => Promise<void> | void;
   onOpenMrf: (mrf: MRF) => void;
   onOpenSrf: (srf: SRF) => void;
   onOpenTrip: (trip: Record<string, unknown>) => void;
+  /** Full inline purchase-order tools (download, documents, sign, upload, reject). */
+  renderPoWorkspace: (mrf: MRF) => React.ReactNode;
 }
 
 const toneRing: Record<string, string> = {
