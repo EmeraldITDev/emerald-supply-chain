@@ -1046,3 +1046,39 @@ Frontend changes:
 - `src/components/logistics/TripRequestWorkflowActions.tsx`: conversion success no
   longer force-overwrites `workflow_state` when the API returns one, and invalidates
   the `dashboard` query key so the SCD card updates immediately.
+
+## AI Assistant — Gemini chat proxy (Sep 2026)
+
+**POST `/api/ai/chat`** — authenticated (Sanctum). Rate limited to **20 requests/minute/user** (`throttle:ai-chat`).
+
+Request:
+```json
+{
+  "message": "string (required, max 2000)",
+  "history": [
+    { "role": "user|assistant", "content": "string (max 4000)" }
+  ]
+}
+```
+`history` is optional, max 20 items. Frontend sends the last 10 turns (excluding the initial greeting).
+
+Response:
+```json
+{
+  "success": true,
+  "data": {
+    "reply": "assistant text; may end with ACTION:{\"type\":\"navigate\",\"path\":\"/new-mrf\"}",
+    "model": "gemini-2.0-flash"
+  }
+}
+```
+
+Errors: `503` when Gemini is unavailable / key missing; `500` on unexpected failures; throttle returns Laravel’s standard 429.
+
+Frontend (`src/components/AIChatbot.tsx`):
+- Calls `POST /api/ai/chat` via `apiRequest` (Bearer token; API key never on the client).
+- Role-aware greeting from `useAuth` / `getScmRole`.
+- Parses trailing `ACTION:{...}` for optional **Go there now →** navigation.
+- Typing indicator, timestamps, Enter to send / Shift+Enter newline, auto-scroll.
+
+Backend: `AIChatController` proxies to Google Gemini (`GEMINI_API_KEY`, `GEMINI_MODEL=gemini-2.0-flash` in `.env`). Config under `config/services.php` → `gemini`.
