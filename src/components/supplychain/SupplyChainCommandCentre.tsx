@@ -21,6 +21,7 @@ import {
   Info,
   Loader2,
   RefreshCw,
+  ShoppingCart,
   Truck,
   Users,
   XCircle,
