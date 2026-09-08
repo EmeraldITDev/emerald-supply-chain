@@ -439,13 +439,14 @@ export const VendorPerformanceTable = ({
   }
   return (
     <div className="-mx-1 overflow-x-auto">
-      <table className="w-full min-w-[520px] text-sm">
+      <table className="w-full min-w-[600px] text-sm">
         <thead>
           <tr className="border-b text-left text-[11px] uppercase tracking-wide text-muted-foreground">
             <th className="px-2 py-2 font-medium">Vendor</th>
             <th className="px-2 py-2 text-right font-medium">Rating</th>
             <th className="px-2 py-2 text-right font-medium">Active POs</th>
             <th className="px-2 py-2 text-right font-medium">On time</th>
+            <th className="px-2 py-2 text-right font-medium">Avg delivery</th>
             <th className="px-2 py-2 text-right font-medium">Value</th>
           </tr>
         </thead>
@@ -476,6 +477,9 @@ export const VendorPerformanceTable = ({
                 )}
               >
                 {v.onTimePct != null ? `${v.onTimePct}%` : "-"}
+              </td>
+              <td className="px-2 py-2.5 text-right tabular-nums">
+                {v.avgDeliveryDays != null ? `${v.avgDeliveryDays.toFixed(1)}d` : "-"}
               </td>
               <td className="px-2 py-2.5 text-right tabular-nums">{money(v.value)}</td>
             </tr>
