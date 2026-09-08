@@ -534,7 +534,7 @@ export const SupplyChainCommandCentre = ({
               ))}
             </TabsList>
 
-            {(["all", "mrf", "srf", "trip", "vendor"] as const).map((key) => {
+            {(["all", "mrf", "srf", "trip", "vendor", "po"] as const).map((key) => {
               const rows = filtered(key);
               return (
                 <TabsContent key={key} value={key} className="mt-0 space-y-2">
