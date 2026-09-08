@@ -177,8 +177,9 @@ export const deliveryStatusOf = (m: MRF): string =>
 
 /** PO value recorded by the backend, falling back to the estimate. */
 export const poValue = (m: MRF): number => {
-  const v = (m as Record<string, unknown>).po_value ?? (m as Record<string, unknown>).poValue ??
-    (m as Record<string, unknown>).final_amount;
+  const r = m as unknown as Record<string, unknown>;
+  const v = r.po_value ?? r.poValue ?? r.final_amount;
+
   const n = parseFloat(String(v ?? "").replace(/[^0-9.-]/g, ""));
   return Number.isFinite(n) && n > 0 ? n : mrfCost(m);
 };
