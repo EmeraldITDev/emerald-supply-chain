@@ -370,7 +370,7 @@ export const SupplyChainCommandCentre = ({
   };
 
   const openItem = (item: ScdApprovalItem) => {
-    if (item.kind === "mrf" && item.mrf) onOpenMrf(item.mrf);
+    if ((item.kind === "mrf" || item.kind === "po") && item.mrf) onOpenMrf(item.mrf);
     else if (item.kind === "srf" && item.srf) onOpenSrf(item.srf);
     else if (item.kind === "trip" && item.trip) onOpenTrip(item.trip);
     else navigate("/vendors?tab=registrations");
