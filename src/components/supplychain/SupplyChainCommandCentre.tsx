@@ -260,8 +260,9 @@ export const SupplyChainCommandCentre = ({
         srfs: pendingSrfs,
         trips: pendingTrips,
         registrations: vendorRegistrations,
+        pos: pendingPOs,
       }),
-    [pendingMrfs, pendingSrfs, pendingTrips, vendorRegistrations],
+    [pendingMrfs, pendingSrfs, pendingTrips, vendorRegistrations, pendingPOs],
   );
 
   const stalled = useMemo(() => bucketFor("stalled_approval", allMrfs), [allMrfs]);
