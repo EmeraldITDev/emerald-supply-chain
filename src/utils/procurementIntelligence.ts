@@ -485,7 +485,25 @@ export interface VendorPerf {
   value: number;
   kycPending: boolean;
   score: number;
+  /** Average days from purchase order to goods received (backend-supplied). */
+  avgDeliveryDays: number | null;
+  /** Share of orders the vendor completed (backend-supplied). */
+  fulfilmentRate: number | null;
 }
+
+interface VendorPerformancePayload {
+  total_pos?: number;
+  completed_pos?: number;
+  on_time_deliveries?: number;
+  late_deliveries?: number;
+  average_delivery_days?: number;
+  fulfilment_rate?: number;
+}
+
+const numOrNull = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : parseFloat(String(v ?? ""));
+  return Number.isFinite(n) ? n : null;
+};
 
 export function buildVendorPerformance(mrfs: MRF[], vendors: Vendor[]): VendorPerf[] {
   const byName = new Map<string, MRF[]>();
@@ -502,32 +520,50 @@ export function buildVendorPerformance(mrfs: MRF[], vendors: Vendor[]): VendorPe
   const rows: VendorPerf[] = [];
   for (const [name, rowsForVendor] of byName) {
     const v = vendorIndex.get(name.toLowerCase());
+    const vRec = (v ?? {}) as unknown as Record<string, unknown>;
+    const perf = (vRec.performance ?? {}) as VendorPerformancePayload;
+
     const delivered = rowsForVendor.filter(isDelivered);
-    const late = delivered.filter(deliveryLate).length;
+    const localLate = delivered.filter(deliveryLate).length;
+
+    // Backend fulfilment history wins when present; local records fill the gap.
+    const totalPOs = numOrNull(perf.total_pos ?? vRec.total_orders) ?? rowsForVendor.length;
+    const completed =
+      numOrNull(perf.completed_pos ?? vRec.completed_orders) ?? delivered.length;
+    const onTime = numOrNull(perf.on_time_deliveries ?? vRec.on_time_deliveries);
+    const late = numOrNull(perf.late_deliveries) ??
+      (onTime != null ? Math.max(0, completed - onTime) : localLate);
     const overdue = rowsForVendor.filter(isOverdueDelivery).length;
-    const onTimePct = delivered.length
-      ? Math.round(((delivered.length - late) / delivered.length) * 100)
-      : null;
-    const rating = v && Number.isFinite(v.rating) && v.rating > 0 ? v.rating : null;
+    const onTimePct =
+      onTime != null && completed > 0
+        ? Math.round((onTime / completed) * 100)
+        : delivered.length
+          ? Math.round(((delivered.length - localLate) / delivered.length) * 100)
+          : null;
+
+    const rating = numOrNull(vRec.rating) && Number(vRec.rating) > 0 ? Number(vRec.rating) : null;
     rows.push({
       name,
       rating,
       activePOs: rowsForVendor.filter((m) => !isDelivered(m)).length,
-      totalPOs: rowsForVendor.length,
-      delivered: delivered.length,
+      totalPOs,
+      delivered: completed,
       late,
       overdue,
       onTimePct,
-      value: sumBy(rowsForVendor, mrfCost),
+      value: sumBy(rowsForVendor, poValue),
       kycPending: !!v && /pending|inactive/i.test(String(v.status ?? "")),
+      avgDeliveryDays: numOrNull(perf.average_delivery_days),
+      fulfilmentRate: numOrNull(perf.fulfilment_rate),
       score:
         (rating ?? 3) * 10 +
         (onTimePct ?? 60) -
         overdue * 12 -
         late * 6 +
-        Math.min(10, rowsForVendor.length),
+        Math.min(10, totalPOs),
     });
   }
+
   return rows.sort((a, b) => b.score - a.score);
 }
 
