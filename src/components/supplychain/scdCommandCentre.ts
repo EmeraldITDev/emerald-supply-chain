@@ -11,7 +11,7 @@ import { getDisplayId } from "@/utils/displayId";
 import { daysSince, mrfCreated, mrfDate, mrfCost } from "@/utils/executiveIntelligence";
 import { HIGH_VALUE } from "@/utils/procurementIntelligence";
 
-export type ApprovalKind = "mrf" | "srf" | "trip" | "vendor";
+export type ApprovalKind = "mrf" | "srf" | "trip" | "vendor" | "po";
 
 export interface ScdApprovalItem {
   key: string;
