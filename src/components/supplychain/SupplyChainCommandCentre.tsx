@@ -130,11 +130,13 @@ export const SupplyChainCommandCentre = ({
   pendingSrfs,
   pendingTrips,
   vendorRegistrations,
+  pendingPOs,
   loading,
   onRefresh,
   onOpenMrf,
   onOpenSrf,
   onOpenTrip,
+  renderPoWorkspace,
 }: Props) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
