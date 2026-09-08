@@ -606,7 +606,20 @@ export const SupplyChainCommandCentre = ({
                                 </p>
                               </div>
 
-                              {rejecting === item.key && (
+                              {item.kind === "mrf" && (
+                                <p className="rounded-md bg-muted/60 p-2 text-xs text-muted-foreground">
+                                  Parallel with Executive — first approval wins; then Procurement
+                                  review.
+                                </p>
+                              )}
+
+                              {item.kind === "po" && item.mrf && (
+                                <div className="rounded-md border bg-background p-3">
+                                  {renderPoWorkspace(item.mrf)}
+                                </div>
+                              )}
+
+                              {rejecting === item.key && item.kind !== "po" && (
                                 <Textarea
                                   value={remarks[item.key] ?? ""}
                                   onChange={(e) =>
