@@ -175,6 +175,31 @@ const ProcurementIntelligenceDashboard = () => {
     staleTime: 2 * 60 * 1000,
   });
 
+  const periodDays = useMemo(() => {
+    const r = periodRange(filters.period, { from: filters.from, to: filters.to });
+    return Math.max(1, Math.round((r.to.getTime() - r.from.getTime()) / 86_400_000));
+  }, [filters.period, filters.from, filters.to]);
+
+  // Backend period comparison snapshot (current vs previous period).
+  const statsQuery = useQuery({
+    queryKey: ["procurement-intel", "period-stats", periodDays],
+    queryFn: async () => {
+      const res = await dashboardApi.getProcurementStats(periodDays);
+      return res.success && res.data ? res.data.stats : null;
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Backend stage timings (average days per workflow stage, slow-stage flags).
+  const stageQuery = useQuery({
+    queryKey: ["procurement-intel", "pipeline-stats", periodDays],
+    queryFn: async () => {
+      const res = await dashboardApi.getProcurementPipelineStats(periodDays);
+      return res.success && res.data ? res.data : [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
   const refreshAll = async () => {
     await Promise.all([
       mrfQuery.refetch(),
@@ -184,6 +209,8 @@ const ProcurementIntelligenceDashboard = () => {
       pmQuery.refetch(),
       registrationsQuery.refetch(),
       activitiesQuery.refetch(),
+      statsQuery.refetch(),
+      stageQuery.refetch(),
     ]);
   };
 
@@ -197,6 +224,16 @@ const ProcurementIntelligenceDashboard = () => {
   const pmStats = pmQuery.data?.stats;
   const registrations = registrationsQuery.data ?? [];
   const activities = activitiesQuery.data ?? [];
+  const periodStats = statsQuery.data ?? null;
+  const stageTimings = stageQuery.data ?? [];
+
+  /** Backend-supplied percentage change for a metric, when it exists. */
+  const backendDelta = (key: string): number | undefined => {
+    const v = periodStats?.[`${key}_change_pct`];
+    const n = typeof v === "number" ? v : parseFloat(String(v ?? ""));
+    return Number.isFinite(n) ? n : undefined;
+  };
+
 
   /* ------------------------- derived ------------------------- */
 
