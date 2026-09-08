@@ -79,7 +79,7 @@ export function AppSidebar() {
       label: "Operations",
       items: [
         {
-          title: "Procurement",
+          title: "Procurement Ops",
           url: "/procurement",
           icon: ShoppingCart,
           subItems: [
@@ -120,7 +120,7 @@ export function AppSidebar() {
           label: "Operations",
           items: [
             {
-              title: "Procurement",
+              title: "Procurement Ops",
               url: "/procurement",
               icon: ShoppingCart,
               subItems: [{ title: "Overview", url: "/procurement" }],

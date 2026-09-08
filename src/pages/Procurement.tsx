@@ -2190,7 +2190,7 @@ const Procurement = () => {
           <div className="flex flex-col gap-2 sm:gap-4">
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
-                {isLogisticsOverviewOnly ? "Procurement Overview" : "Procurement Dashboard"}
+                {isLogisticsOverviewOnly ? "Procurement Overview" : "Procurement Operations"}
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 {isLogisticsOverviewOnly
