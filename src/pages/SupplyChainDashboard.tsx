@@ -105,6 +105,7 @@ import { SRFDirectorApprovalDialog } from "@/components/SRFDirectorApprovalDialo
 import { bucketScdMrfs } from "@/utils/mrfDashboardBuckets";
 import { DashboardSummaryStats } from "@/components/dashboard/DashboardSummaryStats";
 import { DashboardMrfHistoryList } from "@/components/dashboard/DashboardMrfHistoryList";
+import { SupplyChainCommandCentre } from "@/components/supplychain/SupplyChainCommandCentre";
 
 function readStoredUserSignatureUrl(): string | null {
   try {
