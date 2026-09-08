@@ -122,6 +122,7 @@ const kindIcon: Record<ApprovalKind, typeof ClipboardList> = {
   srf: Info,
   trip: Truck,
   vendor: Users,
+  po: ShoppingCart,
 };
 
 export const SupplyChainCommandCentre = ({
