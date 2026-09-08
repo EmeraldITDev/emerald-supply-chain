@@ -194,7 +194,7 @@ const ProcurementIntelligenceDashboard = () => {
   const srfs = srfQuery.data ?? [];
   const vendors = vendorQuery.data ?? [];
   const kpis = kpiQuery.data ?? null;
-  const pmStats = (pmQuery.data as { stats?: Record<string, number> } | null)?.stats;
+  const pmStats = pmQuery.data?.stats;
   const registrations = registrationsQuery.data ?? [];
   const activities = activitiesQuery.data ?? [];
 
