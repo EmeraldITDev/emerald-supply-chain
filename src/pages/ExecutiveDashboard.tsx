@@ -59,10 +59,15 @@ import { DashboardMrfHistoryList } from "@/components/dashboard/DashboardMrfHist
 import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { getWorkflowStageLabel } from "@/utils/workflowStageLabels";
 import { ViewPoDocumentsButton } from "@/components/procurement/ViewPoDocumentsButton";
+import { isExecutiveIntelAccount } from "@/utils/scmRole";
+import ExecutiveCommandCentre from "@/components/executive/ExecutiveCommandCentre";
 
-const ExecutiveDashboard = () => {
+const LegacyExecutiveDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+
+
   const {
     data: mrfRequests = [],
     isLoading: loading,
@@ -1007,6 +1012,19 @@ const ExecutiveDashboard = () => {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
+  );
+};
+
+/**
+ * Bunmi Babajide gets the Executive Intelligence & Approval Centre.
+ * Every other executive keeps the dashboard they already know.
+ */
+const ExecutiveDashboard = () => {
+  const { user } = useAuth();
+  return isExecutiveIntelAccount(user) ? (
+    <ExecutiveCommandCentre />
+  ) : (
+    <LegacyExecutiveDashboard />
   );
 };
 

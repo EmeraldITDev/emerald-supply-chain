@@ -66,6 +66,23 @@ export function isChairmanAccount(user?: { email?: string | null } | null): bool
   return (user?.email ?? "").trim().toLowerCase() === CHAIRMAN_EMAIL;
 }
 
+/**
+ * The single executive account that gets the Executive Intelligence &
+ * Approval Centre. Matched on email first, with a name fallback so the
+ * account still resolves if the mailbox domain differs.
+ */
+export const EXECUTIVE_INTEL_EMAIL = "bunmi.babajide@emeraldcfze.com";
+
+export function isExecutiveIntelAccount(
+  user?: { email?: string | null; name?: string | null } | null,
+): boolean {
+  const email = (user?.email ?? "").trim().toLowerCase();
+  if (email === EXECUTIVE_INTEL_EMAIL) return true;
+  if (email.startsWith("bunmi.babajide@")) return true;
+  const name = (user?.name ?? "").trim().toLowerCase();
+  return name.includes("bunmi") && name.includes("babajide");
+}
+
 /** Route of the dashboard that belongs to the given user's SCM role. */
 export function getDashboardPath(user?: (ScmRoleFields & { is_admin?: boolean; email?: string | null }) | null): string {
   if (isChairmanAccount(user)) return "/chairman";
