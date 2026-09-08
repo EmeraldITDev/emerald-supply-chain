@@ -1015,4 +1015,17 @@ const LegacyExecutiveDashboard = () => {
   );
 };
 
+/**
+ * Bunmi Babajide gets the Executive Intelligence & Approval Centre.
+ * Every other executive keeps the dashboard they already know.
+ */
+const ExecutiveDashboard = () => {
+  const { user } = useAuth();
+  return isExecutiveIntelAccount(user) ? (
+    <ExecutiveCommandCentre />
+  ) : (
+    <LegacyExecutiveDashboard />
+  );
+};
+
 export default ExecutiveDashboard;
