@@ -669,7 +669,36 @@ const ProcurementIntelligenceDashboard = () => {
                   setDrill(map[key] ?? "open");
                 }} />
               )}
+
+              {stageTimings.length > 0 && (
+                <div className="mt-4 border-t pt-3">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Time spent per stage (server measured)
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {stageTimings.map((s) => (
+                      <div
+                        key={s.name}
+                        className={`rounded-lg border p-2.5 text-xs ${s.is_slow ? "border-destructive/50 bg-destructive/5" : ""}`}
+                      >
+                        <p className="truncate font-medium capitalize">
+                          {String(s.name).replace(/_/g, " ")}
+                        </p>
+                        <p className="mt-0.5 text-muted-foreground">
+                          {s.avg_days != null ? `${Number(s.avg_days).toFixed(1)} day(s) avg` : "No timing yet"}
+                          {" • "}
+                          {s.volume ?? 0} request(s)
+                        </p>
+                        {s.is_slow && (
+                          <p className="mt-1 font-medium text-destructive">Slowest stage</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </Section>
+
 
             <Section title="Approval &amp; processing speed" description="Current period vs the previous one">
               <div className="space-y-3">
