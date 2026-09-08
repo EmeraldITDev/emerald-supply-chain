@@ -20,6 +20,7 @@ import { formatDateLagos, formatRelativeTime as formatRelativeTimeUtil } from "@
 import type { VendorRegistration } from "@/types";
 import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
 import { getScmRole, formatScmRoleLabel, isChairmanAccount } from "@/utils/scmRole";
+import ProcurementIntelligenceDashboard from "@/components/procurement/ProcurementIntelligenceDashboard";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -63,6 +64,11 @@ const Dashboard = () => {
 
   if (getScmRole(user) === "logistics" || getScmRole(user) === "logistics_manager") {
     return <Navigate to="/logistics" replace />;
+  }
+
+  // Procurement manager gets the full procurement & supply chain intelligence view.
+  if (getScmRole(user) === "procurement_manager") {
+    return <ProcurementIntelligenceDashboard />;
   }
 
   useEffect(() => {
