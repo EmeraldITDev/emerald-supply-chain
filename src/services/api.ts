@@ -3655,6 +3655,41 @@ export const dashboardApi = {
     // No role parameter needed - backend handles filtering automatically
     return apiRequest(`/dashboard/recent-activities?limit=${limit}`);
   },
+
+  /** Grouped / filtered activity feed (backend groups by day, type, vendor, project). */
+  getGroupedActivities: async (params: {
+    group_by?: 'day' | 'type' | 'vendor' | 'project';
+    event_types?: string[];
+    vendor_id?: string | number;
+    project?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+  } = {}): Promise<ApiResponse<{ grouped: GroupedActivityBucket[]; total: number; filtered: number }>> => {
+    const q = new URLSearchParams();
+    if (params.group_by) q.append('group_by', params.group_by);
+    if (params.event_types?.length) q.append('event_types', params.event_types.join(','));
+    if (params.vendor_id != null) q.append('vendor_id', String(params.vendor_id));
+    if (params.project) q.append('project', params.project);
+    if (params.from) q.append('from', params.from);
+    if (params.to) q.append('to', params.to);
+    q.append('limit', String(params.limit ?? 50));
+    const res = await apiRequestFull(`/dashboard/recent-activities?${q.toString()}`);
+    const body = (res.body ?? {}) as Record<string, any>;
+    if (!res.success) {
+      return { success: false, error: body?.message ?? 'Failed to load activities' } as any;
+    }
+    const grouped = body.data?.grouped ?? body.grouped ?? [];
+    return {
+      success: true,
+      data: {
+        grouped: Array.isArray(grouped) ? grouped : [],
+        total: Number(body.data?.total ?? body.total ?? 0) || 0,
+        filtered: Number(body.data?.filtered ?? body.filtered ?? 0) || 0,
+      },
+    };
+  },
+
 };
 
 // Notification API
