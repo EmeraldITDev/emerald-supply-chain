@@ -15,7 +15,7 @@ const routeLabels: Record<string, string> = {
   executive: "Executive Dashboard",
   chairman: "Chairman Dashboard",
   "supply-chain": "Supply Chain",
-  procurement: "Procurement",
+  procurement: "Procurement Operations",
   vendors: "Vendors",
   logistics: "Logistics",
   inventory: "Inventory",
