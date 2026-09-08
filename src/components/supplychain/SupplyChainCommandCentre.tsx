@@ -42,6 +42,7 @@ import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { ExecDrilldownSheet } from "@/components/chairman/ExecDrilldownSheet";
 import {
   ActivityTrendChart,
+  SERIES_META,
   DeliveryBreakdown,
   HealthOverview,
   InsightCards,
@@ -719,7 +720,10 @@ export const SupplyChainCommandCentre = ({
           <PipelineBoard stages={pipeline} onSelect={() => openDrill("open")} />
         </Section>
         <Section title="Activity over time" description="Requests and approvals per period.">
-          <ActivityTrendChart data={series} />
+          <ActivityTrendChart
+            data={series}
+            visible={Object.fromEntries(SERIES_META.map((m) => [m.key, true]))}
+          />
         </Section>
       </div>
 
@@ -749,8 +753,8 @@ export const SupplyChainCommandCentre = ({
           </CardHeader>
           <CardContent className="space-y-1.5">
             {gaps.map((g) => (
-              <p key={g.id} className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{g.label}:</span> {g.impact}
+              <p key={g.field} className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{g.field}:</span> {g.purpose}
               </p>
             ))}
           </CardContent>
