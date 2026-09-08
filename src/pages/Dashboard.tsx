@@ -47,9 +47,8 @@ const Dashboard = () => {
     return <Navigate to="/executive" replace />;
   }
 
-  // Chairman — and platform admins (executive oversight accounts) — get the
-  // Executive Supply Chain Command Centre.
-  if (getScmRole(user) === "chairman" || user?.is_admin) {
+  // Only the Chairman account gets the Executive Supply Chain Command Centre.
+  if (isChairmanAccount(user)) {
     return <Navigate to="/chairman" replace />;
   }
 
