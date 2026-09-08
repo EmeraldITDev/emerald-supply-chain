@@ -981,29 +981,37 @@ const SupplyChainDashboard = () => {
         }}
       >
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">
-                Supply Chain Director Dashboard
-              </h1>
-              <p className="text-muted-foreground">
-                Review, sign and upload Purchase Orders
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                void fetchMRFs();
-              }}
-              disabled={loading}
-            >
-              <RefreshCw
-                className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
+          <SupplyChainCommandCentre
+            pendingMrfs={mrfRequests}
+            pendingSrfs={pendingDirectorSrfs}
+            pendingTrips={pendingTripApprovals}
+            vendorRegistrations={vendorRegistrations}
+            loading={loading || pendingDirectorSrfsLoading}
+            onRefresh={async () => {
+              await Promise.all([
+                fetchMRFs(),
+                fetchPendingDirectorSrfs(),
+                fetchVendorRegistrations(),
+                refetchPendingTripApprovals(),
+              ]);
+            }}
+            onOpenMrf={(mrf) => void openMrfDetails(mrf)}
+            onOpenSrf={(srf) => {
+              setSrfForDirectorApproval(srf);
+              setSrfDirectorApprovalOpen(true);
+            }}
+            onOpenTrip={(trip) => setSelectedTripForDetails(trip)}
+          />
+
+          <div className="border-t pt-4">
+            <h2 className="text-lg font-semibold text-foreground">
+              Detailed operations &amp; purchase order workspace
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Full request records, price comparisons, signing and uploads.
+            </p>
           </div>
+
 
           {/* Dashboard Alerts */}
           <DashboardAlerts userRole="supply_chain" maxAlerts={5} />
