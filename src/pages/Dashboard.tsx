@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateLagos, formatRelativeTime as formatRelativeTimeUtil } from "@/utils/dateUtils";
 import type { VendorRegistration } from "@/types";
 import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
-import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { getScmRole, formatScmRoleLabel, isChairmanAccount } from "@/utils/scmRole";
 
 const Dashboard = () => {
   const navigate = useNavigate();
