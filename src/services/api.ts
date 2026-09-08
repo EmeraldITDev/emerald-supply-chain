@@ -3546,11 +3546,62 @@ export const vendorAuthApi = {
 };
 
 // Dashboard API
+export interface ProcurementPeriodStats {
+  [key: string]: number | string | null | undefined;
+}
+
+export interface ProcurementPipelineStage {
+  name: string;
+  avg_days: number | null;
+  volume: number;
+  is_slow?: boolean;
+}
+
+export interface GroupedActivityBucket {
+  group: string;
+  label?: string;
+  count?: number;
+  activities: Array<Record<string, unknown>>;
+}
+
 export const dashboardApi = {
-  getProcurementManagerDashboard: async (): Promise<
+  /** Period KPI snapshot with current vs previous comparisons. */
+  getProcurementStats: async (
+    periodDays = 30,
+  ): Promise<ApiResponse<{ period_days: number; stats: ProcurementPeriodStats }>> => {
+    const res = await apiRequestFull(`/dashboard/procurement?period_days=${periodDays}`);
+    const body = (res.body ?? {}) as Record<string, any>;
+    if (!res.success) {
+      return { success: false, error: body?.message ?? 'Failed to load procurement stats' } as any;
+    }
+    const stats = (body.stats ?? body.data?.stats ?? body.data ?? {}) as ProcurementPeriodStats;
+    return {
+      success: true,
+      data: { period_days: Number(body.period_days ?? periodDays), stats },
+    };
+  },
+
+  /** Average days and volume per workflow stage. */
+  getProcurementPipelineStats: async (
+    periodDays = 30,
+  ): Promise<ApiResponse<ProcurementPipelineStage[]>> => {
+    const res = await apiRequestFull(`/procurement/pipeline-stats?period_days=${periodDays}`);
+    const body = (res.body ?? {}) as Record<string, any>;
+    if (!res.success) {
+      return { success: false, error: body?.message ?? 'Failed to load pipeline stats' } as any;
+    }
+    const stages = body.data?.stages ?? body.stages ?? body.data ?? [];
+    return { success: true, data: Array.isArray(stages) ? stages : [] };
+  },
+
+  getProcurementManagerDashboard: async (
+    periodDays?: number,
+  ): Promise<
     ApiResponse<import('@/utils/normalizeProcurementDashboard').ProcurementManagerDashboardPayload>
   > => {
-    const res = await apiRequest<Record<string, unknown>>('/dashboard/procurement-manager');
+    const query = periodDays ? `?period_days=${periodDays}` : '';
+    const res = await apiRequest<Record<string, unknown>>(`/dashboard/procurement-manager${query}`);
+
     if (res.success && res.data) {
       const { normalizeProcurementManagerDashboard } = await import(
         '@/utils/normalizeProcurementDashboard'
