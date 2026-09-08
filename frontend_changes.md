@@ -1082,3 +1082,12 @@ Frontend (`src/components/AIChatbot.tsx`):
 - Typing indicator, timestamps, Enter to send / Shift+Enter newline, auto-scroll.
 
 Backend: `AIChatController` proxies to Google Gemini (`GEMINI_API_KEY`, `GEMINI_MODEL=gemini-2.0-flash` in `.env`). Config under `config/services.php` → `gemini`.
+
+### AI Assistant fix — retired Gemini model (Sep 2026)
+
+`gemini-2.0-flash` is shut down by Google; new API keys get HTTP 404, which the proxy surfaced as "AI service temporarily unavailable."
+
+- Backend default / remap → `gemini-2.5-flash` (retired ids auto-remapped).
+- Auth via `x-goog-api-key` header (key no longer in URL).
+- Clearer 503 codes: `GEMINI_KEY_MISSING` vs `GEMINI_API_ERROR` (+ `gemini_message`).
+- **Ops:** `GEMINI_API_KEY` / `GEMINI_MODEL` must be set on **Render** (backend), not Vercel. Vercel only needs `VITE_API_BASE_URL`. After changing Render env, redeploy/restart the backend.

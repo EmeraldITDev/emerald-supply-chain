@@ -153,13 +153,25 @@ export const AIChatbot = () => {
           ]);
         }
       } else {
+        const raw =
+          response.raw && typeof response.raw === "object"
+            ? (response.raw as Record<string, unknown>)
+            : null;
+        const geminiMessage =
+          typeof raw?.gemini_message === "string" ? raw.gemini_message : null;
+        const detail = geminiMessage
+          ? ` (${geminiMessage})`
+          : response.code
+            ? ` [${response.code}]`
+            : "";
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
             content:
-              response.error ||
-              "Sorry, I could not reach the AI service. Please try again.",
+              (response.error ||
+                "Sorry, I could not reach the AI service. Please try again.") +
+              detail,
             timestamp: new Date(),
           },
         ]);
