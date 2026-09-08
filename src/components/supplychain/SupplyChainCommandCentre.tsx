@@ -511,7 +511,7 @@ export const SupplyChainCommandCentre = ({
       <div id="scd-approvals">
         <Section
           title="Approval workspace"
-          description="Material requests, service requests, trips and vendor registrations — approve or return without leaving this page."
+          description="Material requests, service requests, trips, vendor registrations and purchase orders — review, approve, sign or return without leaving this page."
         >
           <Tabs defaultValue="all">
             <TabsList className="mb-3 flex w-full flex-wrap justify-start gap-1">
@@ -522,6 +522,7 @@ export const SupplyChainCommandCentre = ({
                   ["srf", "Service"],
                   ["trip", "Trips"],
                   ["vendor", "Vendors"],
+                  ["po", "Purchase orders"],
                 ] as const
               ).map(([key, label]) => (
                 <TabsTrigger key={key} value={key} className="text-xs">
