@@ -47,9 +47,12 @@ const Dashboard = () => {
     return <Navigate to="/executive" replace />;
   }
 
-  if (getScmRole(user) === "chairman") {
+  // Chairman — and platform admins (executive oversight accounts) — get the
+  // Executive Supply Chain Command Centre.
+  if (getScmRole(user) === "chairman" || user?.is_admin) {
     return <Navigate to="/chairman" replace />;
   }
+
 
   if (getScmRole(user) === "supply_chain_director" || getScmRole(user) === "supply_chain") {
     return <Navigate to="/supply-chain" replace />;
