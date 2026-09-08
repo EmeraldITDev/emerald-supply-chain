@@ -21,6 +21,7 @@ import {
   Info,
   Loader2,
   RefreshCw,
+  ShoppingCart,
   Truck,
   Users,
   XCircle,
@@ -98,11 +99,15 @@ interface Props {
   pendingSrfs: SRF[];
   pendingTrips: Record<string, unknown>[];
   vendorRegistrations: VendorRegistration[];
+  /** MRFs with an unsigned PO awaiting the director's review and signature. */
+  pendingPOs: MRF[];
   loading: boolean;
   onRefresh: () => Promise<void> | void;
   onOpenMrf: (mrf: MRF) => void;
   onOpenSrf: (srf: SRF) => void;
   onOpenTrip: (trip: Record<string, unknown>) => void;
+  /** Full inline purchase-order tools (download, documents, sign, upload, reject). */
+  renderPoWorkspace: (mrf: MRF) => React.ReactNode;
 }
 
 const toneRing: Record<string, string> = {
@@ -117,6 +122,7 @@ const kindIcon: Record<ApprovalKind, typeof ClipboardList> = {
   srf: Info,
   trip: Truck,
   vendor: Users,
+  po: ShoppingCart,
 };
 
 export const SupplyChainCommandCentre = ({
@@ -124,11 +130,13 @@ export const SupplyChainCommandCentre = ({
   pendingSrfs,
   pendingTrips,
   vendorRegistrations,
+  pendingPOs,
   loading,
   onRefresh,
   onOpenMrf,
   onOpenSrf,
   onOpenTrip,
+  renderPoWorkspace,
 }: Props) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -252,8 +260,9 @@ export const SupplyChainCommandCentre = ({
         srfs: pendingSrfs,
         trips: pendingTrips,
         registrations: vendorRegistrations,
+        pos: pendingPOs,
       }),
-    [pendingMrfs, pendingSrfs, pendingTrips, vendorRegistrations],
+    [pendingMrfs, pendingSrfs, pendingTrips, vendorRegistrations, pendingPOs],
   );
 
   const stalled = useMemo(() => bucketFor("stalled_approval", allMrfs), [allMrfs]);
@@ -361,7 +370,7 @@ export const SupplyChainCommandCentre = ({
   };
 
   const openItem = (item: ScdApprovalItem) => {
-    if (item.kind === "mrf" && item.mrf) onOpenMrf(item.mrf);
+    if ((item.kind === "mrf" || item.kind === "po") && item.mrf) onOpenMrf(item.mrf);
     else if (item.kind === "srf" && item.srf) onOpenSrf(item.srf);
     else if (item.kind === "trip" && item.trip) onOpenTrip(item.trip);
     else navigate("/vendors?tab=registrations");
@@ -502,7 +511,7 @@ export const SupplyChainCommandCentre = ({
       <div id="scd-approvals">
         <Section
           title="Approval workspace"
-          description="Material requests, service requests, trips and vendor registrations — approve or return without leaving this page."
+          description="Material requests, service requests, trips, vendor registrations and purchase orders — review, approve, sign or return without leaving this page."
         >
           <Tabs defaultValue="all">
             <TabsList className="mb-3 flex w-full flex-wrap justify-start gap-1">
@@ -513,6 +522,7 @@ export const SupplyChainCommandCentre = ({
                   ["srf", "Service"],
                   ["trip", "Trips"],
                   ["vendor", "Vendors"],
+                  ["po", "Purchase orders"],
                 ] as const
               ).map(([key, label]) => (
                 <TabsTrigger key={key} value={key} className="text-xs">
@@ -524,7 +534,7 @@ export const SupplyChainCommandCentre = ({
               ))}
             </TabsList>
 
-            {(["all", "mrf", "srf", "trip", "vendor"] as const).map((key) => {
+            {(["all", "mrf", "srf", "trip", "vendor", "po"] as const).map((key) => {
               const rows = filtered(key);
               return (
                 <TabsContent key={key} value={key} className="mt-0 space-y-2">
@@ -596,7 +606,20 @@ export const SupplyChainCommandCentre = ({
                                 </p>
                               </div>
 
-                              {rejecting === item.key && (
+                              {item.kind === "mrf" && (
+                                <p className="rounded-md bg-muted/60 p-2 text-xs text-muted-foreground">
+                                  Parallel with Executive — first approval wins; then Procurement
+                                  review.
+                                </p>
+                              )}
+
+                              {item.kind === "po" && item.mrf && (
+                                <div className="rounded-md border bg-background p-3">
+                                  {renderPoWorkspace(item.mrf)}
+                                </div>
+                              )}
+
+                              {rejecting === item.key && item.kind !== "po" && (
                                 <Textarea
                                   value={remarks[item.key] ?? ""}
                                   onChange={(e) =>
@@ -612,7 +635,7 @@ export const SupplyChainCommandCentre = ({
                                   <Button size="sm" onClick={() => openItem(item)}>
                                     Review registration
                                   </Button>
-                                ) : (
+                                ) : item.kind === "po" ? null : (
                                   <>
                                     <Button
                                       size="sm"
