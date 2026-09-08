@@ -118,29 +118,71 @@ export const approvedAt = (m: MRF): Date | null =>
   toDate(
     raw(m, "director_approved_at") ??
       raw(m, "scd_approved_at") ??
+      raw(m, "scdApprovedAt") ??
       raw(m, "executive_approved_at") ??
+      raw(m, "executiveApprovedAt") ??
       raw(m, "chairman_approved_at"),
   );
+
+/** When procurement approved the request for sourcing. */
+export const procurementApprovedAt = (m: MRF): Date | null =>
+  toDate(raw(m, "procurement_approved_at") ?? raw(m, "procurementApprovedAt"));
+
+/** When finance signed off. */
+export const financeApprovedAt = (m: MRF): Date | null =>
+  toDate(raw(m, "finance_approved_at") ?? raw(m, "financeApprovedAt"));
+
+/** When the first RFQ was issued. */
+export const rfqIssuedAt = (m: MRF): Date | null =>
+  toDate(raw(m, "rfq_issued_at") ?? raw(m, "rfqIssuedAt"));
+
+/** When the first vendor quotation arrived. */
+export const quotationReceivedAt = (m: MRF): Date | null =>
+  toDate(raw(m, "quotation_received_at") ?? raw(m, "quotationReceivedAt"));
 
 /** When a purchase order came into existence for this request. */
 export const poAt = (m: MRF): Date | null =>
   toDate(
-    raw(m, "po_generated_at") ??
-      raw(m, "po_created_at") ??
+    raw(m, "po_created_at") ??
+      raw(m, "poCreatedAt") ??
+      raw(m, "po_generated_at") ??
+      raw(m, "poGeneratedAt") ??
       raw(m, "procurement_review_started_at"),
   );
 
-/** When goods were actually received (GRN completion is the only delivery proof captured). */
+/** When goods were actually received. */
 export const deliveredAt = (m: MRF): Date | null =>
-  toDate(raw(m, "grn_completed_at") ?? raw(m, "grnCompletedAt"));
+  toDate(
+    raw(m, "actual_delivery_date") ??
+      raw(m, "actualDeliveryDate") ??
+      raw(m, "delivered_at") ??
+      raw(m, "deliveredAt") ??
+      raw(m, "goods_received_at") ??
+      raw(m, "grn_completed_at") ??
+      raw(m, "grnCompletedAt"),
+  );
 
-/** Expected delivery date, if the backend ever supplies one. */
+/** Promised delivery date recorded on the purchase order. */
 export const expectedDeliveryAt = (m: MRF): Date | null =>
   toDate(
     raw(m, "expected_delivery_date") ??
+      raw(m, "expectedDeliveryDate") ??
       raw(m, "delivery_due_date") ??
       raw(m, "required_by_date"),
   );
+
+/** Backend-computed delivery status, when supplied. */
+export const deliveryStatusOf = (m: MRF): string =>
+  String(raw(m, "delivery_status") ?? raw(m, "deliveryStatus") ?? "").toLowerCase();
+
+/** PO value recorded by the backend, falling back to the estimate. */
+export const poValue = (m: MRF): number => {
+  const v = (m as Record<string, unknown>).po_value ?? (m as Record<string, unknown>).poValue ??
+    (m as Record<string, unknown>).final_amount;
+  const n = parseFloat(String(v ?? "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : mrfCost(m);
+};
+
 
 export const srfCreated = (s: SRF): Date | null =>
   toDate((s as { created_at?: string }).created_at ?? s.createdAt ?? s.date);
