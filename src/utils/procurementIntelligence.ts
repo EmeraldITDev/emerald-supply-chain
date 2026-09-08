@@ -215,25 +215,42 @@ export const isApproved = (m: MRF): boolean =>
   !isRejected(m) && (approvedAt(m) != null || hasPO(m) || isCompleted(m) ||
     /approved|procurement|rfq|quote|vendor_select|po_/.test(mrfState(m)));
 
-export const isDelivered = (m: MRF): boolean =>
-  deliveredAt(m) != null || isCompleted(m);
+export const isDelivered = (m: MRF): boolean => {
+  const status = deliveryStatusOf(m);
+  if (status === "on_time" || status === "late" || status === "delivered") return true;
+  return deliveredAt(m) != null || isCompleted(m);
+};
 
-export const deliveryLate = (m: MRF): boolean => {
+/** Days a delivery ran past its promised date (null when not measurable). */
+export const deliveryDelayDays = (m: MRF): number | null => {
   const done = deliveredAt(m);
   const expected = expectedDeliveryAt(m);
-  if (done && expected) return done.getTime() > expected.getTime();
+  if (!done || !expected) return null;
+  return Math.round((done.getTime() - expected.getTime()) / 86_400_000);
+};
+
+export const deliveryLate = (m: MRF): boolean => {
+  const status = deliveryStatusOf(m);
+  if (status === "late") return true;
+  if (status === "on_time") return false;
+  const delay = deliveryDelayDays(m);
+  if (delay != null) return delay > 0;
   const started = poAt(m) ?? approvedAt(m) ?? mrfCreated(m);
-  const elapsed = days(started, done);
+  const elapsed = days(started, deliveredAt(m));
   return elapsed != null && elapsed > DELIVERY_SLA_DAYS;
 };
 
 export const isOverdueDelivery = (m: MRF): boolean => {
+  const status = deliveryStatusOf(m);
+  if (status === "overdue") return true;
+  if (status === "on_time" || status === "late" || status === "delivered") return false;
   if (!hasPO(m) || isDelivered(m) || isRejected(m)) return false;
   const expected = expectedDeliveryAt(m);
   if (expected) return expected.getTime() < Date.now();
   const started = poAt(m) ?? approvedAt(m) ?? mrfCreated(m);
   return daysSince(started) > DELIVERY_SLA_DAYS;
 };
+
 
 /* ------------------------------------------------------------------ */
 /* Filters                                                             */
