@@ -3,12 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  AlertTriangle,
   Database,
   FileText,
-  Loader2,
   RefreshCw,
-  ShieldCheck,
 } from "lucide-react";
 
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -63,7 +60,6 @@ import {
 } from "@/utils/mrfDashboardBuckets";
 import {
   hasPO,
-  isPendingApproval,
   isRejected,
   mrfCost,
   mrfCreated,
