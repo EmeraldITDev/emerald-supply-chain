@@ -77,8 +77,40 @@ export function buildScdApprovalQueue(input: {
   srfs: SRF[];
   trips: Record<string, unknown>[];
   registrations: VendorRegistration[];
+  /** MRFs with an unsigned Purchase Order awaiting the director's signature. */
+  pos?: MRF[];
 }): ScdApprovalItem[] {
   const items: ScdApprovalItem[] = [];
+
+  for (const mrf of input.pos ?? []) {
+    const r = rec(mrf);
+    const submitted =
+      toDate(r.po_created_at ?? r.poCreatedAt) ?? mrfCreated(mrf) ?? mrfDate(mrf);
+    const waitingDays = daysSince(submitted);
+    const value = mrfCost(mrf) || null;
+    const highValue = (value ?? 0) >= HIGH_VALUE;
+    const priority: ScdApprovalItem["priority"] =
+      waitingDays > 3 || highValue ? "high" : "medium";
+    const poNumber = text(mrf, "po_number", "poNumber") || getDisplayId(mrf);
+    items.push({
+      key: `po-${mrf.id}`,
+      kind: "po",
+      apiId: String(r.mrf_id ?? mrf.id),
+      title: mrf.title || "Purchase order",
+      typeLabel: "Purchase order",
+      reference: poNumber,
+      requester: mrf.requester_name || mrf.requester || "Unknown",
+      unit: String(mrf.department ?? "—"),
+      priority,
+      submitted,
+      waitingDays,
+      summary: "Review, sign and forward this Purchase Order to Finance",
+      value,
+      highValue,
+      score: scoreOf(priority, waitingDays, highValue) + 10,
+      mrf,
+    });
+  }
 
   for (const mrf of input.mrfs) {
     const submitted = mrfCreated(mrf) ?? mrfDate(mrf);
