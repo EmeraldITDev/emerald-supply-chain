@@ -58,9 +58,17 @@ export function formatScmRoleLabel(role?: string | null): string {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1).replace(/_/g, " ");
 }
 
+/** The single Chairman account allowed into the Executive Command Centre. */
+export const CHAIRMAN_EMAIL = "lazarus.angbazo@emeraldcfze.com";
+
+/** True only for the Chairman's own account (matched by email). */
+export function isChairmanAccount(user?: { email?: string | null } | null): boolean {
+  return (user?.email ?? "").trim().toLowerCase() === CHAIRMAN_EMAIL;
+}
+
 /** Route of the dashboard that belongs to the given user's SCM role. */
-export function getDashboardPath(user?: (ScmRoleFields & { is_admin?: boolean }) | null): string {
-  if (user?.is_admin) return "/chairman";
+export function getDashboardPath(user?: (ScmRoleFields & { is_admin?: boolean; email?: string | null }) | null): string {
+  if (isChairmanAccount(user)) return "/chairman";
   switch (getScmRole(user)) {
     case "executive":
       return "/executive";

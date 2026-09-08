@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateLagos, formatRelativeTime as formatRelativeTimeUtil } from "@/utils/dateUtils";
 import type { VendorRegistration } from "@/types";
 import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
-import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { getScmRole, formatScmRoleLabel, isChairmanAccount } from "@/utils/scmRole";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -47,9 +47,8 @@ const Dashboard = () => {
     return <Navigate to="/executive" replace />;
   }
 
-  // Chairman — and platform admins (executive oversight accounts) — get the
-  // Executive Supply Chain Command Centre.
-  if (getScmRole(user) === "chairman" || user?.is_admin) {
+  // Only the Chairman account gets the Executive Supply Chain Command Centre.
+  if (isChairmanAccount(user)) {
     return <Navigate to="/chairman" replace />;
   }
 
