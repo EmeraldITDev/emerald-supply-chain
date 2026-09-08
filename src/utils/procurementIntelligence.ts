@@ -648,7 +648,7 @@ export function buildPoStats(mrfs: MRF[], r: Range): PoStats {
       const name = keyFn(m);
       if (!name) continue;
       const e = map.get(name) ?? { name, value: 0, count: 0 };
-      e.value += mrfCost(m);
+      e.value += poValue(m);
       e.count += 1;
       map.set(name, e);
     }
@@ -663,11 +663,11 @@ export function buildPoStats(mrfs: MRF[], r: Range): PoStats {
     delayed: withPO.filter(isOverdueDelivery).length,
     awaitingDelivery: withPO.filter((m) => !isDelivered(m)).length,
     avgCompletionDays: avg(completed.map((m) => days(poAt(m) ?? mrfCreated(m), deliveredAt(m)))),
-    totalValue: sumBy(withPO, mrfCost),
-    activeValue: sumBy(withPO.filter((m) => !isDelivered(m)), mrfCost),
+    totalValue: sumBy(withPO, poValue),
+    activeValue: sumBy(withPO.filter((m) => !isDelivered(m)), poValue),
     topActive: withPO
       .filter((m) => !isDelivered(m))
-      .sort((a, b) => mrfCost(b) - mrfCost(a))
+      .sort((a, b) => poValue(b) - poValue(a))
       .slice(0, 5),
     byVendor: group(vendorName),
     byProject: group(projectName),
@@ -675,9 +675,10 @@ export function buildPoStats(mrfs: MRF[], r: Range): PoStats {
       label: b.label,
       value: sumBy(
         withPO.filter((m) => inRange(poAt(m) ?? mrfDate(m), { ...r, from: b.from, to: b.to })),
-        mrfCost,
+        poValue,
       ),
     })),
+
   };
 }
 
