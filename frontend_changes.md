@@ -1091,3 +1091,9 @@ Backend: `AIChatController` proxies to Google Gemini (`GEMINI_API_KEY`, `GEMINI_
 - Auth via `x-goog-api-key` header (key no longer in URL).
 - Clearer 503 codes: `GEMINI_KEY_MISSING` vs `GEMINI_API_ERROR` (+ `gemini_message`).
 - **Ops:** `GEMINI_API_KEY` / `GEMINI_MODEL` must be set on **Render** (backend), not Vercel. Vercel only needs `VITE_API_BASE_URL`. After changing Render env, redeploy/restart the backend.
+
+### AI Assistant — navigation paths + chat history (Sep 2026)
+
+- Backend `getNavigationMap()` / system prompt now list **verified** React Router paths only (`/procurement`, `/supply-chain`, `/executive`, etc.). Forbidden invented paths like `/supply-chain-dashboard`. Tab destinations (MRFs/RFQs/POs) point at `/procurement` with tab instructions.
+- Backend builds Gemini `contents` from `history` + current `message`, strips leading `model` turns, merges consecutive same-role turns.
+- Frontend sends last 10 prior turns as `history` (greeting excluded); uses `messagesRef` so history is not stale. **Go there now** uses `useNavigate` and an approved-path allowlist. **Clear chat** resets to the role greeting.

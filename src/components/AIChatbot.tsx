@@ -21,6 +21,30 @@ interface AiChatReply {
   model?: string | null;
 }
 
+/** Must match verified React Router paths in App.tsx / AIChatController. */
+const APPROVED_NAV_PATHS = new Set([
+  "/dashboard",
+  "/procurement",
+  "/supply-chain",
+  "/executive",
+  "/chairman",
+  "/new-mrf",
+  "/new-srf",
+  "/department",
+  "/vendors",
+  "/logistics",
+  "/warehouse",
+  "/reports",
+  "/reports/procurement",
+  "/trips",
+  "/trip-request",
+  "/vendor-portal",
+  "/settings",
+  "/accounts-payable",
+  "/accounts-receivable",
+  "/budget",
+]);
+
 const getGreeting = (role: string) => {
   switch (role) {
     case "procurement_manager":
@@ -49,7 +73,29 @@ const formatTime = (date: Date) =>
   date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 const stripActionBlock = (reply: string) =>
-  reply.replace(/\n?ACTION:\{.*\}\s*$/s, "").trim();
+  reply.replace(/\n?ACTION:\{[\s\S]*?\}\s*$/m, "").trim();
+
+const parseNavigatePath = (reply: string): string | null => {
+  const actionMatch = reply.match(/ACTION:(\{[\s\S]*?\})\s*$/m);
+  if (!actionMatch) return null;
+  try {
+    const action = JSON.parse(actionMatch[1]) as { type?: string; path?: string };
+    if (action.type !== "navigate" || !action.path) return null;
+    const path = action.path.split("?")[0];
+    if (!APPROVED_NAV_PATHS.has(path)) return null;
+    return action.path.startsWith("/") ? action.path : `/${action.path}`;
+  } catch {
+    return null;
+  }
+};
+
+const buildHistoryPayload = (currentMessages: Message[]) => {
+  // Exclude the initial greeting so Gemini contents start with a user turn.
+  const withoutGreeting = currentMessages.filter(
+    (msg, index) => !(index === 0 && msg.role === "assistant")
+  );
+  return withoutGreeting.slice(-10).map(({ role, content }) => ({ role, content }));
+};
 
 export const AIChatbot = () => {
   const { user } = useAuth();
@@ -68,7 +114,12 @@ export const AIChatbot = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef(messages);
   const greetingRoleRef = useRef(role);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
     if (greetingRoleRef.current === role) return;
@@ -91,6 +142,18 @@ export const AIChatbot = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading, pendingNavigation]);
 
+  const clearChat = () => {
+    setMessages([
+      {
+        role: "assistant",
+        content: getGreeting(role),
+        timestamp: new Date(),
+      },
+    ]);
+    setPendingNavigation(null);
+    setInput("");
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -98,15 +161,16 @@ export const AIChatbot = () => {
     setInput("");
     setPendingNavigation(null);
 
-    const historyForApi = messages
-      .filter((_, index) => !(index === 0 && messages[0]?.role === "assistant"))
-      .slice(-10)
-      .map(({ role: msgRole, content }) => ({ role: msgRole, content }));
+    // Snapshot prior turns BEFORE adding the new user message.
+    // Backend appends `message` itself — do not duplicate it in history.
+    const history = buildHistoryPayload(messagesRef.current);
 
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", content: userMessage, timestamp: new Date() },
-    ]);
+    const userTurn: Message = {
+      role: "user",
+      content: userMessage,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userTurn]);
     setIsLoading(true);
 
     try {
@@ -114,43 +178,26 @@ export const AIChatbot = () => {
         method: "POST",
         body: JSON.stringify({
           message: userMessage,
-          history: historyForApi,
+          history,
         }),
       });
 
       if (response.success && response.data?.reply) {
         const reply = response.data.reply;
-        const actionMatch = reply.match(/ACTION:(\{.*\})\s*$/s);
+        const navPath = parseNavigatePath(reply);
+        const cleanReply = stripActionBlock(reply) || reply;
 
-        if (actionMatch) {
-          try {
-            const action = JSON.parse(actionMatch[1]) as {
-              type?: string;
-              path?: string;
-            };
-            const cleanReply = stripActionBlock(reply);
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: "assistant",
-                content: cleanReply || reply,
-                timestamp: new Date(),
-              },
-            ]);
-            if (action.type === "navigate" && action.path) {
-              setPendingNavigation(action.path);
-            }
-          } catch {
-            setMessages((prev) => [
-              ...prev,
-              { role: "assistant", content: reply, timestamp: new Date() },
-            ]);
-          }
-        } else {
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant", content: reply, timestamp: new Date() },
-          ]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: cleanReply,
+            timestamp: new Date(),
+          },
+        ]);
+
+        if (navPath) {
+          setPendingNavigation(navPath);
         }
       } else {
         const raw =
@@ -227,15 +274,24 @@ export const AIChatbot = () => {
               <p className="text-xs text-white/80">Always here to help</p>
             </div>
           </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => setIsOpen(false)}
-            className="h-8 w-8 text-white hover:bg-white/20"
-            aria-label="Close AI Assistant"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={clearChat}
+              className="text-xs text-white/80 hover:text-white px-2 py-1 rounded hover:bg-white/20"
+            >
+              Clear chat
+            </button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setIsOpen(false)}
+              className="h-8 w-8 text-white hover:bg-white/20"
+              aria-label="Close AI Assistant"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <ScrollArea className="flex-1 p-4">
