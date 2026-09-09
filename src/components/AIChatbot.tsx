@@ -8,17 +8,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { getScmRole } from "@/utils/scmRole";
-import { apiRequest } from "@/services/api";
+import { API_BASE_URL, getAuthToken } from "@/services/api";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
-}
-
-interface AiChatReply {
-  reply: string;
-  model?: string | null;
 }
 
 /** Must match verified React Router paths in App.tsx / AIChatController. */
@@ -90,11 +85,17 @@ const parseNavigatePath = (reply: string): string | null => {
 };
 
 const buildHistoryPayload = (currentMessages: Message[]) => {
-  // Exclude the initial greeting so Gemini contents start with a user turn.
   const withoutGreeting = currentMessages.filter(
     (msg, index) => !(index === 0 && msg.role === "assistant")
   );
   return withoutGreeting.slice(-10).map(({ role, content }) => ({ role, content }));
+};
+
+const extractStreamText = (data: Record<string, unknown>): string => {
+  const candidates = data.candidates;
+  if (!Array.isArray(candidates) || candidates.length === 0) return "";
+  const first = candidates[0] as { content?: { parts?: Array<{ text?: string }> } };
+  return first?.content?.parts?.[0]?.text ?? "";
 };
 
 export const AIChatbot = () => {
@@ -161,75 +162,184 @@ export const AIChatbot = () => {
     setInput("");
     setPendingNavigation(null);
 
-    // Snapshot prior turns BEFORE adding the new user message.
-    // Backend appends `message` itself — do not duplicate it in history.
     const history = buildHistoryPayload(messagesRef.current);
+    const { token, expired } = getAuthToken();
 
-    const userTurn: Message = {
-      role: "user",
-      content: userMessage,
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, userTurn]);
+    if (!token || expired) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "user",
+          content: userMessage,
+          timestamp: new Date(),
+        },
+        {
+          role: "assistant",
+          content: "Your session has expired. Please log in again.",
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
+
+    const assistantTimestamp = new Date();
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: userMessage, timestamp: new Date() },
+      { role: "assistant", content: "", timestamp: assistantTimestamp },
+    ]);
     setIsLoading(true);
 
+    let assistantMessage = "";
+
     try {
-      const response = await apiRequest<AiChatReply>("/ai/chat", {
+      const response = await fetch(`${API_BASE_URL}/ai/chat`, {
         method: "POST",
+        headers: {
+          Accept: "text/event-stream",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           message: userMessage,
           history,
         }),
       });
 
-      if (response.success && response.data?.reply) {
-        const reply = response.data.reply;
-        const navPath = parseNavigatePath(reply);
-        const cleanReply = stripActionBlock(reply) || reply;
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: cleanReply,
-            timestamp: new Date(),
-          },
-        ]);
-
-        if (navPath) {
-          setPendingNavigation(navPath);
+      if (!response.ok) {
+        let errorText = "Sorry, I could not reach the AI service. Please try again.";
+        try {
+          const errJson = (await response.json()) as {
+            error?: string;
+            gemini_message?: string;
+            code?: string;
+          };
+          errorText =
+            errJson.error ||
+            errJson.gemini_message ||
+            `${errorText}${errJson.code ? ` [${errJson.code}]` : ""}`;
+        } catch {
+          /* non-JSON error body */
         }
-      } else {
-        const raw =
-          response.raw && typeof response.raw === "object"
-            ? (response.raw as Record<string, unknown>)
-            : null;
-        const geminiMessage =
-          typeof raw?.gemini_message === "string" ? raw.gemini_message : null;
-        const detail = geminiMessage
-          ? ` (${geminiMessage})`
-          : response.code
-            ? ` [${response.code}]`
-            : "";
         setMessages((prev) => [
-          ...prev,
+          ...prev.slice(0, -1),
           {
             role: "assistant",
-            content:
-              (response.error ||
-                "Sorry, I could not reach the AI service. Please try again.") +
-              detail,
-            timestamp: new Date(),
+            content: errorText,
+            timestamp: assistantTimestamp,
           },
         ]);
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          {
+            role: "assistant",
+            content: "Sorry, I could not reach the AI service. Please try again.",
+            timestamp: assistantTimestamp,
+          },
+        ]);
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let streamError: string | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line.startsWith("data:")) continue;
+
+          const payload = line.replace(/^data:\s?/, "");
+          if (!payload || payload === "[DONE]") continue;
+
+          try {
+            const data = JSON.parse(payload) as Record<string, unknown>;
+            if (typeof data.error === "string") {
+              streamError =
+                data.error +
+                (typeof data.gemini_message === "string"
+                  ? ` (${data.gemini_message})`
+                  : typeof data.code === "string"
+                    ? ` [${data.code}]`
+                    : "");
+              continue;
+            }
+
+            const text = extractStreamText(data);
+            if (!text) continue;
+
+            assistantMessage += text;
+            const display = stripActionBlock(assistantMessage) || assistantMessage;
+            setMessages((prev) => [
+              ...prev.slice(0, -1),
+              {
+                role: "assistant",
+                content: display,
+                timestamp: assistantTimestamp,
+              },
+            ]);
+          } catch {
+            /* skip malformed / partial JSON lines */
+          }
+        }
+      }
+
+      if (streamError) {
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          {
+            role: "assistant",
+            content: streamError,
+            timestamp: assistantTimestamp,
+          },
+        ]);
+        return;
+      }
+
+      if (!assistantMessage.trim()) {
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          {
+            role: "assistant",
+            content: "I could not generate a response. Please try again.",
+            timestamp: assistantTimestamp,
+          },
+        ]);
+        return;
+      }
+
+      const navPath = parseNavigatePath(assistantMessage);
+      const cleanReply = stripActionBlock(assistantMessage) || assistantMessage;
+      setMessages((prev) => [
+        ...prev.slice(0, -1),
+        {
+          role: "assistant",
+          content: cleanReply,
+          timestamp: assistantTimestamp,
+        },
+      ]);
+      if (navPath) {
+        setPendingNavigation(navPath);
       }
     } catch {
       setMessages((prev) => [
-        ...prev,
+        ...prev.slice(0, -1),
         {
           role: "assistant",
           content: "Sorry, I could not reach the AI service. Please try again.",
-          timestamp: new Date(),
+          timestamp: assistantTimestamp,
         },
       ]);
     } finally {
@@ -243,6 +353,11 @@ export const AIChatbot = () => {
       void sendMessage();
     }
   };
+
+  const lastMessage = messages[messages.length - 1];
+  const showTypingDots =
+    isLoading &&
+    !(lastMessage?.role === "assistant" && lastMessage.content.length > 0);
 
   return (
     <>
@@ -296,38 +411,48 @@ export const AIChatbot = () => {
 
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4">
-            {messages.map((message, index) => (
-              <div
-                key={`${message.role}-${index}-${message.timestamp.getTime()}`}
-                className={cn(
-                  "flex",
-                  message.role === "user" ? "justify-end" : "justify-start"
-                )}
-              >
+            {messages.map((message, index) => {
+              if (
+                message.role === "assistant" &&
+                message.content === "" &&
+                index === messages.length - 1 &&
+                isLoading
+              ) {
+                return null;
+              }
+              return (
                 <div
+                  key={`${message.role}-${index}-${message.timestamp.getTime()}`}
                   className={cn(
-                    "max-w-[80%] rounded-lg px-4 py-2 shadow-md transition-all duration-200 hover:shadow-lg",
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
+                    "flex",
+                    message.role === "user" ? "justify-end" : "justify-start"
                   )}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  <p
+                  <div
                     className={cn(
-                      "text-[10px] mt-1 opacity-70",
+                      "max-w-[80%] rounded-lg px-4 py-2 shadow-md transition-all duration-200 hover:shadow-lg",
                       message.role === "user"
-                        ? "text-primary-foreground/80"
-                        : "text-muted-foreground"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
                     )}
                   >
-                    {formatTime(message.timestamp)}
-                  </p>
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p
+                      className={cn(
+                        "text-[10px] mt-1 opacity-70",
+                        message.role === "user"
+                          ? "text-primary-foreground/80"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {formatTime(message.timestamp)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
-            {isLoading && (
+            {showTypingDots && (
               <div className="flex justify-start">
                 <div className="bg-muted rounded-lg px-4 py-3 shadow-md">
                   <div className="flex gap-1 items-center" aria-label="Assistant is typing">

@@ -1097,3 +1097,9 @@ Backend: `AIChatController` proxies to Google Gemini (`GEMINI_API_KEY`, `GEMINI_
 - Backend `getNavigationMap()` / system prompt now list **verified** React Router paths only (`/procurement`, `/supply-chain`, `/executive`, etc.). Forbidden invented paths like `/supply-chain-dashboard`. Tab destinations (MRFs/RFQs/POs) point at `/procurement` with tab instructions.
 - Backend builds Gemini `contents` from `history` + current `message`, strips leading `model` turns, merges consecutive same-role turns.
 - Frontend sends last 10 prior turns as `history` (greeting excluded); uses `messagesRef` so history is not stale. **Go there now** uses `useNavigate` and an approved-path allowlist. **Clear chat** resets to the role greeting.
+
+### AI Assistant — SSE streaming (Sep 2026)
+
+- `POST /api/ai/chat` now streams Gemini via `:streamGenerateContent?alt=sse` (`text/event-stream`).
+- Frontend `AIChatbot` reads the body with `ReadableStream`, appends tokens live, then parses `ACTION` for navigation.
+- `CompressJsonResponse` skips `StreamedResponse` / `text/event-stream` so SSE is not buffered or gzipped.
