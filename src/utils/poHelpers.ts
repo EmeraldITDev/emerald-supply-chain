@@ -91,8 +91,85 @@ export const isPORevisionRequired = (po: any): boolean => {
 };
 
 /** True if the PO is awaiting SCD signature. */
-export const isPOAwaitingSignature = (po: any): boolean =>
-  getPOStatus(po) === "awaiting_scd_signature";
+export const isPOAwaitingSignature = (po: any): boolean => {
+  const s = getPOStatus(po);
+  const wf = String(po?.workflow_state ?? po?.workflowState ?? "")
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  return (
+    s === "awaiting_scd_signature" ||
+    s === "pending_scd_signature" ||
+    wf === "pending_scd_signature" ||
+    wf === "po_generated"
+  );
+};
+
+export const getPoRevisionNumber = (po: unknown): number => {
+  const r = (po ?? {}) as Record<string, unknown>;
+  const n = Number(r.revision_number ?? r.revisionNumber ?? 0);
+  return Number.isFinite(n) ? n : 0;
+};
+
+export const isPoPendingRevision = (po: unknown): boolean => {
+  const r = (po ?? {}) as Record<string, unknown>;
+  const s = String(r.status ?? "").toLowerCase();
+  const wf = String(r.workflow_state ?? r.workflowState ?? "").toLowerCase();
+  return s === "pending_revision" || wf === "pending_revision";
+};
+
+export const isPoSignedLocked = (po: unknown): boolean => {
+  if (!po || isPoPendingRevision(po)) return false;
+  const r = po as Record<string, unknown>;
+  const signed = r.signed_po_url || r.signedPOUrl;
+  const s = String(r.status ?? "").toLowerCase();
+  const wf = String(r.workflow_state ?? r.workflowState ?? "").toLowerCase();
+  return Boolean(signed) && (
+    wf === "po_signed" ||
+    s === "signed" ||
+    s === "po_signed" ||
+    s.includes("signed")
+  );
+};
+
+export const canUnlockSignedPo = (
+  role?: string | null,
+  user?: { is_admin?: boolean } | null,
+): boolean => {
+  if (user?.is_admin) return true;
+  const r = String(role ?? "").toLowerCase();
+  return r === "procurement_manager" || r === "procurement" || r === "admin";
+};
+
+export const getLatestRevisionChanges = (
+  po: unknown,
+): Array<{
+  field: string;
+  label?: string;
+  before?: unknown;
+  after?: unknown;
+  before_display?: string;
+  after_display?: string;
+}> => {
+  const r = (po ?? {}) as Record<string, unknown>;
+  const latest = r.latest_revision_summary ?? r.latestRevisionSummary;
+  if (Array.isArray(latest) && latest.length > 0) {
+    return latest as Array<{
+      field: string;
+      label?: string;
+      before?: unknown;
+      after?: unknown;
+      before_display?: string;
+      after_display?: string;
+    }>;
+  }
+  const history = r.revision_history ?? r.revisionHistory;
+  if (Array.isArray(history) && history.length > 0) {
+    const last = history[history.length - 1] as Record<string, unknown>;
+    const fields = last?.changed_fields ?? last?.changedFields;
+    return Array.isArray(fields) ? fields : [];
+  }
+  return [];
+};
 
 /** Pull a rejection reason from any of the common backend keys. */
 export const getRejectionReason = (po: any): string | undefined => {

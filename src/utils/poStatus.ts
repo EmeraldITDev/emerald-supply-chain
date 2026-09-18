@@ -26,8 +26,11 @@ export function formatPOStatus(input: POProjection): { key: POStatusKey; label: 
   if (status === 'pending_po_upload') {
     return { key: 'awaiting_po', label: 'Awaiting PO' };
   }
-  if (status === 'awaiting_scd_signature') {
-    return { key: 'pending_signature', label: 'Pending Signature' };
+  if (status === 'awaiting_scd_signature' || status === 'pending_scd_signature' || wf === 'pending_scd_signature') {
+    return { key: 'pending_signature', label: status === 'pending_scd_signature' || wf === 'pending_scd_signature' ? 'Revised — pending signature' : 'Pending Signature' };
+  }
+  if (status === 'pending_revision' || wf === 'pending_revision') {
+    return { key: 'draft', label: 'Pending revision' };
   }
   if (status === 'supply_chain') {
     return { key: 'with_supply_chain', label: 'With Supply Chain' };

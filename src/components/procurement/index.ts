@@ -3,3 +3,5 @@ export { PriceComparisonTable, validatePriceComparison, makeEmptyRow } from './P
 export { ManualPOQuickStartDialog } from './ManualPOQuickStartDialog';
 export { EmeraldPurchaseOrderPreview } from './EmeraldPurchaseOrderPreview';
 export { ViewPoDocumentsButton } from './ViewPoDocumentsButton';
+export { UnlockSignedPoDialog } from './UnlockSignedPoDialog';
+export { PoRevisionSummary, PoRevisedBadge } from './PoRevisionSummary';

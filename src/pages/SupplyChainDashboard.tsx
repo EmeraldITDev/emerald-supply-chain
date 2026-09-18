@@ -89,6 +89,7 @@ import {
 } from "@/utils/emeraldPoDocumentModel";
 import { buildEmeraldPurchaseOrderPdf } from "@/utils/emeraldPOPdf";
 import { ViewPoDocumentsButton } from "@/components/procurement/ViewPoDocumentsButton";
+import { PoRevisedBadge, PoRevisionSummary } from "@/components/procurement/PoRevisionSummary";
 import {
   resolveUserSignatureDataUrl,
   readCachedUserSignature,
@@ -452,13 +453,18 @@ const SupplyChainDashboard = () => {
     return mrfRequests.filter((mrf) => {
       const stage = (mrf.current_stage || mrf.currentStage || "").toLowerCase();
       const workflowState = getWorkflowState(mrf);
+      const status = String(mrf.status || "").toLowerCase();
       const unsignedUrl = getUnsignedPOUrl(mrf);
       const signedUrl = getSignedPOUrl(mrf);
 
       return (
-        (stage === "supply_chain" || workflowState === "po_generated") &&
-        unsignedUrl && // PO already uploaded by Procurement
-        !signedUrl // Not yet signed
+        (stage === "supply_chain" ||
+          workflowState === "po_generated" ||
+          workflowState === "pending_scd_signature" ||
+          status === "pending_scd_signature" ||
+          status === "awaiting_scd_signature") &&
+        unsignedUrl &&
+        !signedUrl
       );
     });
   }, [mrfRequests]);
@@ -1015,6 +1021,9 @@ const SupplyChainDashboard = () => {
                     <p>
                       <span className="text-muted-foreground">PO number: </span>
                       <span className="font-mono">{poNumber}</span>
+                      <span className="ml-2 inline-flex items-center">
+                        <PoRevisedBadge mrf={mrf} />
+                      </span>
                       {poVersion > 1 && (
                         <Badge variant="secondary" className="ml-2 text-[10px]">
                           v{poVersion} (Resubmitted)
@@ -1034,6 +1043,8 @@ const SupplyChainDashboard = () => {
                       {mrf.quantity ?? "-"}
                     </p>
                   </div>
+
+                  <PoRevisionSummary mrf={mrf} />
 
                   {mrf.description && (
                     <p className="text-xs text-muted-foreground">

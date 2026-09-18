@@ -8,8 +8,8 @@
  * All numbers come from live API data. Anything the backend does not yet return
  * is shown as a dash and listed under "Data not yet available".
  */
-import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -92,6 +92,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { formatMRFDate } from "@/utils/dateUtils";
 import type { MRF, SRF, Vendor, VendorRegistration } from "@/types";
+import { PoRevisedBadge } from "@/components/procurement/PoRevisionSummary";
 
 interface Props {
   /** MRFs already waiting on the director (shared cache with the page). */
@@ -140,8 +141,11 @@ export const SupplyChainCommandCentre = ({
 }: Props) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const focusPo = (searchParams.get("po") || "").trim();
 
   const [period, setPeriod] = useState<PeriodKey>("30d");
+  const [queueFilter, setQueueFilter] = useState<"all" | ApprovalKind>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [remarks, setRemarks] = useState<Record<string, string>>({});
@@ -264,6 +268,34 @@ export const SupplyChainCommandCentre = ({
       }),
     [pendingMrfs, pendingSrfs, pendingTrips, vendorRegistrations, pendingPOs],
   );
+
+  useEffect(() => {
+    if (!focusPo) return;
+    const match = queue.find((item) => {
+      if (item.kind !== "po") return false;
+      const rec = item.mrf as Record<string, unknown> | undefined;
+      const ids = [
+        item.apiId,
+        item.reference,
+        rec?.id,
+        rec?.mrf_id,
+        rec?.mrfId,
+        rec?.po_number,
+        rec?.poNumber,
+      ]
+        .filter(Boolean)
+        .map((v) => String(v));
+      return ids.includes(focusPo);
+    });
+    if (!match) return;
+    setExpanded(match.key);
+    setQueueFilter("po");
+    requestAnimationFrame(() => {
+      document
+        .getElementById("scd-approvals")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [focusPo, queue]);
 
   const stalled = useMemo(() => bucketFor("stalled_approval", allMrfs), [allMrfs]);
   const overdue = useMemo(
@@ -480,6 +512,11 @@ export const SupplyChainCommandCentre = ({
                     {item.waitingDays === 1 ? "" : "s"}
                     {item.highValue ? " • high value" : ""}
                   </p>
+                  {item.kind === "po" && item.mrf && (
+                    <div className="mt-1">
+                      <PoRevisedBadge mrf={item.mrf} />
+                    </div>
+                  )}
                 </div>
                 <Badge
                   variant={item.priority === "high" ? "destructive" : "secondary"}
@@ -513,7 +550,12 @@ export const SupplyChainCommandCentre = ({
           title="Approval workspace"
           description="Material requests, service requests, trips, vendor registrations and purchase orders — review, approve, sign or return without leaving this page."
         >
-          <Tabs defaultValue="all">
+          <Tabs
+            value={queueFilter}
+            onValueChange={(value) =>
+              setQueueFilter(value as "all" | ApprovalKind)
+            }
+          >
             <TabsList className="mb-3 flex w-full flex-wrap justify-start gap-1">
               {(
                 [
@@ -569,6 +611,9 @@ export const SupplyChainCommandCentre = ({
                                 {item.reference} • {item.requester} • {item.unit}
                               </p>
                               <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                {item.kind === "po" && item.mrf && (
+                                  <PoRevisedBadge mrf={item.mrf} />
+                                )}
                                 <Badge
                                   variant={
                                     item.priority === "high" ? "destructive" : "secondary"

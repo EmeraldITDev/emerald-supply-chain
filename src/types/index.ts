@@ -50,6 +50,26 @@ export interface AuthResponse {
   requiresPasswordChange?: boolean;
 }
 
+export interface PoRevisionChange {
+  field: string;
+  label?: string;
+  before?: unknown;
+  after?: unknown;
+  before_display?: string;
+  after_display?: string;
+}
+
+export interface PoRevisionHistoryEntry {
+  revision_number?: number;
+  previous_unsigned_po_url?: string | null;
+  previous_signed_po_url?: string | null;
+  changed_fields?: PoRevisionChange[];
+  editor_user_id?: number;
+  editor_name?: string;
+  timestamp?: string;
+  unlock_reason?: string;
+}
+
 // MRF (Material Requisition Form) Types
 export interface MRF {
   id: string;
@@ -113,6 +133,18 @@ export interface MRF {
   po_rejection_reason?: string; // Backend snake_case variant
   poVersion?: number;
   po_version?: number; // Backend snake_case variant
+  revisionNumber?: number;
+  revision_number?: number;
+  revisionHistory?: PoRevisionHistoryEntry[];
+  revision_history?: PoRevisionHistoryEntry[];
+  latestRevisionSummary?: PoRevisionChange[];
+  latest_revision_summary?: PoRevisionChange[];
+  unlockedBy?: number | string | null;
+  unlocked_by?: number | string | null;
+  unlockedAt?: string;
+  unlocked_at?: string;
+  unlockReason?: string;
+  unlock_reason?: string;
   currency?: string;
   // Procurement manager approval timing
   procurementManagerApprovalTime?: string;

@@ -47,7 +47,7 @@ export function isPoReady(mrf: MRF | Record<string, unknown>): boolean {
   const unsigned = (m.unsigned_po_url ?? m.unsignedPOUrl) as string | undefined;
   if (unsigned && String(unsigned).trim().length > 0) return true;
   const wf = String(m.workflow_state ?? m.workflowState ?? '').toLowerCase();
-  return wf === 'po_generated' || wf === 'awaiting_scd_signature' || wf === 'po_signed';
+  return wf === 'po_generated' || wf === 'awaiting_scd_signature' || wf === 'pending_scd_signature' || wf === 'po_signed';
 }
 
 function wait(ms: number, signal?: AbortSignal): Promise<void> {

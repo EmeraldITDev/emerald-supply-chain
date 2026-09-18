@@ -43,11 +43,11 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-import { vendorApi } from '@/services/api';
+import { vendorApi, poApi } from '@/services/api';
 import { procurementApi, type GeneratePOResponse, type ResolvedVendorEntry } from '@/services/procurementApi';
 import { describeBackendError } from '@/utils/poStatus';
 import { pollForGeneratedPO, isPoReady } from '@/utils/pollPoGeneration';
-import { getEffectivePoNumber, hasEffectivePoIdentity } from '@/utils/poHelpers';
+import { getEffectivePoNumber, hasEffectivePoIdentity, isPoPendingRevision } from '@/utils/poHelpers';
 import type { ApiResponse, MRF, Vendor } from '@/types';
 import type {
   POFormPayload,
@@ -106,6 +106,11 @@ export interface CreatePOFormProps {
    * Used by the "Edit PO" entry point in the Purchase Orders list.
    */
   initialEditMode?: boolean;
+  /**
+   * When true, the form is editing a previously signed PO that was unlocked
+   * for revision. Save calls PUT /api/pos/{id} then POST .../submit-for-resign.
+   */
+  revisionMode?: boolean;
   /**
    * Pre-populated logistics PO payload (from an approved trip). When provided,
    * the form seeds the supplier rows / totals from the trip's approved
@@ -244,6 +249,7 @@ export function CreatePOForm({
   onDraftSaved,
   onRequestClose,
   initialEditMode = false,
+  revisionMode = false,
   preloaded = null,
 }: CreatePOFormProps) {
   /** Urgent / direct procurement: Purchase Orders tab or “no RFQ” path — still uses full price comparison, not vendor-ID shortcuts. */
@@ -710,6 +716,7 @@ export function CreatePOForm({
    * PO number.
    */
   const signedLocked = (() => {
+    if (revisionMode || isPoPendingRevision(finalisedMrf || mrf)) return false;
     const source = finalisedMrf || mrf;
     if (!source) return false;
     const s = source as MRF & { workflow_state?: string; workflowState?: string; signed_po_url?: string; signedPOUrl?: string };
@@ -717,8 +724,9 @@ export function CreatePOForm({
     const wf = String(s.workflow_state ?? s.workflowState ?? s.status ?? '').toLowerCase();
     return wf === 'po_signed' || wf === 'signed' || wf === 'completed';
   })();
+  const isRevision = revisionMode || isPoPendingRevision(finalisedMrf || mrf);
   const isFinalisedRaw = signedLocked;
-  const isFinalised = isFinalisedRaw && !editingFinalised;
+  const isFinalised = isFinalisedRaw && !editingFinalised && !isRevision;
 
   const ccBlocked = emailListContains(form.invoice_submission_cc, BLOCKED_EMAIL);
 
@@ -808,7 +816,7 @@ export function CreatePOForm({
     section1Valid &&
     pcErrors.length === 0 &&
     !isSaving &&
-    (!finalisedMrf || editingFinalised);
+    (!finalisedMrf || editingFinalised || isRevision);
 
   const hasAnyInput =
     form.ship_to_address.trim() ||
@@ -1210,12 +1218,91 @@ export function CreatePOForm({
     }
   }, [mrfId, rows, buildPayload, onFinalised, vendors, editingFinalised, uploadPendingDocs]);
 
+  const saveRevision = useCallback(async () => {
+    if (!(await acquireLock('finalise'))) return;
+    setServerFieldErrors({});
+    try {
+      const pcRes = await procurementApi.savePriceComparison(mrfId, rows);
+      if (!pcRes.success) {
+        if (pcRes.fieldErrors) {
+          setServerFieldErrors(flattenFieldErrors(pcRes.fieldErrors));
+        }
+        toast.error('Could not save price comparison', {
+          description: pcRes.error || 'Fix the errors and try again.',
+        });
+        return;
+      }
+
+      const selectedRows = rows.filter((r) => r.is_selected);
+      const lineSource = selectedRows.length > 0 ? selectedRows : rows;
+      const payload = buildPayload();
+      const updateRes = await poApi.update(mrfId, {
+        estimatedCost:
+          lineSource.reduce(
+            (sum, r) => sum + (Number(r.unit_price) || 0) * (Number(r.quantity) || 0),
+            0,
+          ) || undefined,
+        selectedVendorId: selectedRows[0]?.vendor_id || undefined,
+        expectedDeliveryDate: payload.expected_delivery_date || payload.delivery_date,
+        paymentTerms: payload.payment_terms,
+        remarks: payload.remarks,
+        customTerms: payload.custom_terms,
+        shipToAddress: payload.ship_to_address,
+        taxRate: payload.tax_rate,
+        currency: payload.currency,
+        items: lineSource.map((r) => ({
+          itemName: r.item_description || 'Item',
+          description: r.item_description || '',
+          quantity: Number(r.quantity) || 1,
+          unitPrice: Number(r.unit_price) || 0,
+        })),
+      });
+      if (!updateRes.success) {
+        if (updateRes.fieldErrors) {
+          setServerFieldErrors(flattenFieldErrors(updateRes.fieldErrors));
+        }
+        toast.error('Could not save PO changes', {
+          description: describeBackendError(updateRes.raw, updateRes.error || 'Please try again.'),
+        });
+        return;
+      }
+
+      const resignRes = await poApi.submitForResign(mrfId);
+      if (!resignRes.success) {
+        toast.error('PO saved, but re-sign request failed', {
+          description: describeBackendError(resignRes.raw, resignRes.error || 'Please try again.'),
+        });
+        return;
+      }
+
+      const updated = (resignRes.data || updateRes.data) as MRF | undefined;
+      toast.success('PO updated and SCD notified for re-signing', {
+        description: updated
+          ? `${getEffectivePoNumber(updated) || 'PO'} has been revised. The Supply Chain Director has been asked to sign again.`
+          : 'The Supply Chain Director has been asked to sign the revised PO.',
+      });
+      if (updated) {
+        setMrf((prev) => (prev ? { ...prev, ...updated } : updated));
+        onFinalised?.(updated);
+      } else {
+        onFinalised?.(mrf as MRF);
+      }
+      await uploadPendingDocs();
+    } catch (err) {
+      toast.error('Could not submit revised PO', {
+        description: err instanceof Error ? err.message : 'Unexpected error.',
+      });
+    } finally {
+      releaseLock();
+    }
+  }, [mrfId, rows, buildPayload, onFinalised, mrf, uploadPendingDocs]);
+
   // -------------------------------------------------------------------------
   // Autosave — debounced 3s, draft mode only, lock-protected,
   // paused 5s after manual save, skipped on validation failure.
   // -------------------------------------------------------------------------
   useEffect(() => {
-    if (hydrating || isFinalised) return;
+    if (hydrating || isFinalised || isRevision) return;
     if (!dirtyRef.current) return;
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     // Task 3 — strict 1500ms debounce so keystrokes never block the UI.
@@ -1314,6 +1401,13 @@ export function CreatePOForm({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden">
       <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overflow-x-hidden pr-1 pb-1">
+      {isRevision && (
+        <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-950">
+          <p className="font-semibold">
+            You are editing a previously signed PO. All changes will require re-approval and a new SCD signature.
+          </p>
+        </div>
+      )}
       {/* Progress chip + draft banner */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1995,7 +2089,7 @@ export function CreatePOForm({
           {isSaving && (
             <span className="inline-flex items-center gap-1">
               <Loader2 className="h-3 w-3 animate-spin" />
-              {savingMode === 'finalise' ? 'Generating PO…' : 'Saving draft…'}
+              {isSaving && savingMode === 'finalise' ? 'Generating PO…' : isRevision ? 'Saving revision…' : 'Saving draft…'}
             </span>
           )}
           {!isSaving && isAutoSaving && (
@@ -2028,7 +2122,7 @@ export function CreatePOForm({
           <Button
             variant="outline"
             onClick={() => void saveDraft()}
-            disabled={isSaving || !hasAnyInput || isFinalised}
+            disabled={isSaving || !hasAnyInput || isFinalised || isRevision}
           >
             {isSaving && savingMode === 'draft' ? (
               <>
@@ -2043,7 +2137,7 @@ export function CreatePOForm({
             )}
           </Button>
           <Button
-            onClick={() => void finalisePO()}
+            onClick={() => void (isRevision ? saveRevision() : finalisePO())}
             disabled={!canFinalise}
             title={
               !canFinalise && !isSaving
@@ -2061,7 +2155,9 @@ export function CreatePOForm({
             ) : (
               <>
                 <Send className="h-3.5 w-3.5 mr-1" />
-                {editingFinalised
+                {isRevision
+                  ? 'Save & notify SCD for re-signing'
+                  : editingFinalised
                   ? 'Regenerate & replace SCD queue'
                   : fastTrack
                     ? 'Generate & route to SCD (fast-track)'

@@ -64,7 +64,7 @@ import {
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { POGenerationDialog } from "@/components/POGenerationDialog";
-import { CreatePOForm, ManualPOQuickStartDialog } from "@/components/procurement";
+import { CreatePOForm, ManualPOQuickStartDialog, UnlockSignedPoDialog } from "@/components/procurement";
 import { LogisticsPoQueue } from "@/components/procurement/LogisticsPoQueue";
 import type { TripPoPayload } from "@/types/trip-request";
 import {
@@ -125,6 +125,9 @@ import {
   getRejectionReason,
   getEffectivePoNumber,
   hasEffectivePoIdentity,
+  isPoSignedLocked,
+  isPoPendingRevision,
+  canUnlockSignedPo,
 } from "@/utils/poHelpers";
 import {
   Select,
@@ -265,6 +268,9 @@ const Procurement = () => {
   /** True when opening PO generator without an RFQ (manual PO or MRF overview no-RFQ path). */
   const [createPOAllowMissingRfq, setCreatePOAllowMissingRfq] = useState(false);
   const [createPOEditMode, setCreatePOEditMode] = useState(false);
+  const [createPORevisionMode, setCreatePORevisionMode] = useState(false);
+  const [unlockSignedPo, setUnlockSignedPo] = useState<MRF | null>(null);
+  const [unlockingSignedPo, setUnlockingSignedPo] = useState(false);
   const [manualPOOpen, setManualPOOpen] = useState(false);
   /** RFQ dialog opened from MRF row vs SRF row (affects `rfqApi.create` payload). */
   const [rfqCreateSource, setRfqCreateSource] = useState<"mrf" | "srf">("mrf");
@@ -791,7 +797,8 @@ const Procurement = () => {
     const wf = getWorkflowState(mrf as MRF);
     const raw = String((mrf as MRF).status ?? "").trim();
     const norm = (wf || raw).toLowerCase().replace(/[\s-]+/g, "_");
-    if (norm === "awaiting_scd_signature") return "SCD signature pending";
+    if (norm === "awaiting_scd_signature" || norm === "pending_scd_signature") return "SCD signature pending";
+    if (norm === "pending_revision") return "Pending revision";
     if (raw) return raw;
     if (wf) return wf;
     return "Pending";
@@ -4116,6 +4123,7 @@ const Procurement = () => {
                                 })()
                               )}
                               {hasEffectivePoIdentity(mrf as MRF) && !isDraft && (
+                                (!isPoSignedLocked(mrf) || canUnlockSignedPo(getScmRole(user), user)) && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -4130,12 +4138,17 @@ const Procurement = () => {
                                       });
                                       return;
                                     }
+                                    if (isPoSignedLocked(mrf)) {
+                                      setUnlockSignedPo(mrf as MRF);
+                                      return;
+                                    }
                                     const noRfq =
                                       getQuotationsForMRF(mrf).length === 0;
                                     setCreatePOFastTrack(noRfq);
                                     setCreatePOAllowMissingRfq(noRfq);
                                     setCreatePOMrfId(apiId);
                                     setCreatePOEditMode(true);
+                                    setCreatePORevisionMode(isPoPendingRevision(mrf));
                                     setCreatePOOpen(true);
                                   }}
                                   title="Edit this PO and regenerate. The previous version is archived; the SCD's approval queue is replaced with the new revision."
@@ -4143,6 +4156,7 @@ const Procurement = () => {
                                   <Pencil className="h-4 w-4 mr-2" />
                                   Edit PO
                                 </Button>
+                                )
                               )}
                             </div>
                           </div>
@@ -4210,13 +4224,16 @@ const Procurement = () => {
             setCreatePOFastTrack(false);
             setCreatePOAllowMissingRfq(false);
             setCreatePOEditMode(false);
+            setCreatePORevisionMode(false);
           }
         }}
       >
         <CreatePODialogContent className="flex w-[95vw] max-w-5xl max-h-[85vh] flex-col gap-4 overflow-hidden p-6">
           <CreatePODialogHeader className="flex-shrink-0 pr-8">
             <CreatePODialogTitle>
-              {createPOFastTrack || createPOAllowMissingRfq
+              {createPORevisionMode
+                ? 'Edit signed purchase order'
+                : createPOFastTrack || createPOAllowMissingRfq
                 ? 'Create Purchase Order (fast-track)'
                 : 'Create Purchase Order'}
             </CreatePODialogTitle>
@@ -4229,6 +4246,7 @@ const Procurement = () => {
                 fastTrack={createPOFastTrack}
                 allowMissingRfq={createPOAllowMissingRfq}
                 initialEditMode={createPOEditMode}
+                revisionMode={createPORevisionMode}
                 preloaded={logisticsPoPayload}
                 onFinalised={async () => {
                   await refreshPoListAfterSave();
@@ -4244,6 +4262,7 @@ const Procurement = () => {
                   setCreatePOFastTrack(false);
                   setCreatePOAllowMissingRfq(false);
                   setCreatePOEditMode(false);
+                  setCreatePORevisionMode(false);
                   setLogisticsPoPayload(null);
                 }}
               />
@@ -4251,6 +4270,48 @@ const Procurement = () => {
           )}
         </CreatePODialogContent>
       </CreatePODialog>
+
+      <UnlockSignedPoDialog
+        open={Boolean(unlockSignedPo)}
+        onOpenChange={(open) => {
+          if (!open) setUnlockSignedPo(null);
+        }}
+        poNumber={unlockSignedPo ? getEffectivePoNumber(unlockSignedPo) : undefined}
+        submitting={unlockingSignedPo}
+        onConfirm={async (reason) => {
+          if (!unlockSignedPo) return;
+          const apiId = getMrfApiId(unlockSignedPo);
+          if (!apiId) {
+            toast({
+              title: "Missing MRF identifier",
+              variant: "destructive",
+            });
+            return;
+          }
+          setUnlockingSignedPo(true);
+          try {
+            const res = await poApi.unlockForEdit(apiId, reason);
+            if (!res.success) {
+              toast({
+                title: "Could not unlock PO",
+                description: res.error || "Please try again.",
+                variant: "destructive",
+              });
+              return;
+            }
+            const noRfq = getQuotationsForMRF(unlockSignedPo).length === 0;
+            setCreatePOFastTrack(noRfq);
+            setCreatePOAllowMissingRfq(noRfq);
+            setCreatePOMrfId(apiId);
+            setCreatePOEditMode(true);
+            setCreatePORevisionMode(true);
+            setUnlockSignedPo(null);
+            setCreatePOOpen(true);
+          } finally {
+            setUnlockingSignedPo(false);
+          }
+        }}
+      />
 
       <Dialog
         open={vendorSelectionDialogOpen}

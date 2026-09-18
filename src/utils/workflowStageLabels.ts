@@ -12,8 +12,9 @@ export function getWorkflowStageLabel(stage?: string | null): string {
   if (s === "executive_review" || s === "executive")
     return "Executive approval";
   if (s === "director_review") return "Director review";
-  if (s === "awaiting_scd_signature" || s === "awaiting-scd-signature")
+  if (s === "awaiting_scd_signature" || s === "awaiting-scd-signature" || s === "pending_scd_signature")
     return "SCD signature pending";
+  if (s === "pending_revision") return "Pending revision";
   if (s === "supply_chain_director_review" || s === "supply_chain")
     return "Supply Chain Director approval";
   if (s === "supply_chain_director_approved")

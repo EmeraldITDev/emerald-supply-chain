@@ -3998,6 +3998,35 @@ export const poApi = {
       method: 'POST',
     });
   },
+
+  /** Unlock a signed PO for revision. POST /api/pos/{id}/unlock-for-edit */
+  unlockForEdit: async (
+    poId: string,
+    reason: string,
+  ): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/pos/${encodeURIComponent(poId)}/unlock-for-edit`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  /** Update draft or pending_revision PO fields. PUT /api/pos/{id} */
+  update: async (
+    poId: string,
+    payload: Record<string, unknown>,
+  ): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/pos/${encodeURIComponent(poId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /** Regenerate the unsigned PDF and notify SCD. POST /api/pos/{id}/submit-for-resign */
+  submitForResign: async (poId: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/pos/${encodeURIComponent(poId)}/submit-for-resign`, {
+      method: 'POST',
+    });
+  },
 };
 
 export const fleetApi = {
