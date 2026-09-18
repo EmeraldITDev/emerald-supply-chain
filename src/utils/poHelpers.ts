@@ -120,15 +120,10 @@ export const isPoPendingRevision = (po: unknown): boolean => {
 export const isPoSignedLocked = (po: unknown): boolean => {
   if (!po || isPoPendingRevision(po)) return false;
   const r = po as Record<string, unknown>;
-  const signed = r.signed_po_url || r.signedPOUrl;
-  const s = String(r.status ?? "").toLowerCase();
-  const wf = String(r.workflow_state ?? r.workflowState ?? "").toLowerCase();
-  return Boolean(signed) && (
-    wf === "po_signed" ||
-    s === "signed" ||
-    s === "po_signed" ||
-    s.includes("signed")
-  );
+  // Match backend PurchaseOrderRevisionService::isSignedAndLocked —
+  // any signed PDF locks the PO until unlock-for-edit, even after
+  // workflow advances past po_signed (delivery / finance stages).
+  return Boolean(r.signed_po_url || r.signedPOUrl);
 };
 
 export const canUnlockSignedPo = (

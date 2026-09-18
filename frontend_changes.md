@@ -1200,3 +1200,9 @@ New fields on PO/MRF responses: `revision_number`, `revision_history[]`, `latest
 Frontend:
 - SCD dashboard / signing queue: amber **Revised** badge when `revision_number > 0`.
 - SCD PO workspace and PO detail: **Revision Summary** table with previous vs new values side by side.
+
+### PO search fuzzy match + signed PO edit unlock (Sep 2026)
+
+**Search:** `GET /api/mrfs?search=` and `GET /api/pos?search=` (via `PurchaseOrderService::listQuery`) now use case-insensitive **contains** (`ILIKE %term%`) on `po_number`, `mrf_id`, `formatted_id`, `linked_po_id`, `title`, `requester_name`. Searching `bluegate` matches `PO-180926-BLUEGATE-0002`. Global `/api/search` also matches `po_number` / `linked_po_id`.
+
+**Signed PO edit:** `isSignedAndLocked` / frontend `isPoSignedLocked` treat any non-empty `signed_po_url` as locked (unless `pending_revision`), so POs that advanced past `po_signed` still require unlock. Price comparison `bulkReplace` uses the same lock check and allows saves after unlock-for-edit.
