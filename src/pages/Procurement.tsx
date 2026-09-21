@@ -820,14 +820,18 @@ const Procurement = () => {
     return "Pending";
   };
 
-  const getMRFContractType = (mrf: MRF): string => {
-    const ct = (mrf as any).contract_type || (mrf as any).contractType || "";
+  const getMRFContractType = useCallback((mrf: MRF): string => {
+    const ct =
+      (mrf as MRF & { contract_type?: string; contractType?: string }).contract_type ||
+      (mrf as MRF & { contractType?: string }).contractType ||
+      "";
     return typeof ct === "string" ? ct : String(ct || "");
-  };
+  }, []);
 
-  const isEmeraldContract = (mrf: MRF): boolean => {
-    return getMRFContractType(mrf).toLowerCase().includes("emerald");
-  };
+  const isEmeraldContract = useCallback(
+    (mrf: MRF): boolean => getMRFContractType(mrf).toLowerCase().includes("emerald"),
+    [getMRFContractType],
+  );
 
   const confirmVendorSelectionSend = useCallback(async () => {
     const reason = vendorSelectionReason.trim();
