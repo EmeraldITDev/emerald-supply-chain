@@ -54,8 +54,6 @@ import { queryKeys } from "@/lib/queryKeys";
 import { LIST_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { invalidateMrfLists, invalidatePoLists, optimisticallyRemoveMrfFromCache, afterPoDeleted } from "@/lib/invalidateScmCache";
 import { ListControls } from "@/components/dashboard/ListControls";
-import { WorkflowGatesPanel } from "@/components/procurement/WorkflowGatesPanel";
-import { MrfBulkActionsBar, MrfSelectCheckbox } from "@/components/procurement/MrfBulkActionsBar";
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
 import {
@@ -936,6 +934,7 @@ const Procurement = () => {
     fetchMRFs,
     refreshProcurementRfqs,
     refreshSRFs,
+    isEmeraldContract,
   ]);
 
   // Helper to check if Supply Chain Director has approved (either initial MRF approval or vendor selection approval)
@@ -1423,7 +1422,6 @@ const Procurement = () => {
           getMRFPONumber(mrf as MRF) ||
           Boolean((mrf as MRF & { is_po_draft?: boolean }).is_po_draft),
       ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [mrfRequests],
   );
 
@@ -1454,7 +1452,7 @@ const Procurement = () => {
   };
 
   const poStatusBucket = (mrf: MRF): string => {
-    if (Boolean((mrf as MRF & { is_po_draft?: boolean }).is_po_draft)) {
+    if ((mrf as MRF & { is_po_draft?: boolean }).is_po_draft) {
       return "draft";
     }
     const raw = `${getWorkflowState(mrf)} ${String(mrf.status ?? "")} ${String(
@@ -3492,8 +3490,6 @@ const Procurement = () => {
                                     {/* Send Request to Vendors button - Shown after the FIRST required approval */}
                                     {/* The handleGeneratePO function checks canGeneratePO before proceeding */}
                                     {(() => {
-                                      if (import.meta.env.DEV) {
-                                      }
                                       const workflowState = getWorkflowState(
                                         request as MRF,
                                       );
@@ -3518,9 +3514,6 @@ const Procurement = () => {
                                           (getMRFStage(request as MRF) ===
                                             "procurement" &&
                                             hasInitialApproval));
-
-                                      if (import.meta.env.DEV) {
-                                      }
 
                                       if (!canShowPOButton) return null;
 
