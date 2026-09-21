@@ -750,6 +750,8 @@ export const mrfApi = {
     requester_id?: string | number;
     has_po?: boolean;
     po_list?: boolean;
+    /** active | historical | completed | closed — server-side lifecycle filter */
+    lifecycle?: string;
     sort_by?: string;
     sort_direction?: 'asc' | 'desc';
     sort?: import('@/utils/listFilters').ListSort;
@@ -770,6 +772,7 @@ export const mrfApi = {
       requester_id: params?.requester_id,
       has_po: params?.has_po ? 1 : undefined,
       po_list: params?.po_list ? 1 : undefined,
+      lifecycle: params?.lifecycle,
       sort_by: params?.sort_by ?? sortApi?.sort_by,
       sort_direction: params?.sort_direction ?? sortApi?.sort_direction,
       dropdown: params?.dropdown ? 1 : undefined,
@@ -1078,9 +1081,52 @@ export const mrfApi = {
   },
 
   // Procurement Manager deletes/clears PO
-  deletePO: async (id: string): Promise<ApiResponse<MRF>> => {
-    return apiRequest<MRF>(`/mrfs/${id}/po`, {
+  deletePO: async (id: string): Promise<ApiResponse<MRF & {
+    mrfId?: string;
+    removedFromPoList?: boolean;
+    invalidate?: string[];
+  }>> => {
+    return apiRequest(`/mrfs/${id}/po`, {
       method: 'DELETE',
+    });
+  },
+
+  /** Bulk approve — same stage rules as individual approve. */
+  bulkApprove: async (
+    ids: Array<string | number>,
+    remarks?: string,
+  ): Promise<ApiResponse<{
+    succeeded: Array<{ id: string; workflowState?: string; message?: string }>;
+    failed: Array<{ id: string; error: string; code?: string }>;
+  }>> => {
+    return apiRequest('/mrfs/bulk-approve', {
+      method: 'POST',
+      body: JSON.stringify({ ids, remarks }),
+    });
+  },
+
+  /** Bulk reject — reason required. */
+  bulkReject: async (
+    ids: Array<string | number>,
+    reason: string,
+  ): Promise<ApiResponse<{
+    succeeded: Array<{ id: string; workflowState?: string; message?: string }>;
+    failed: Array<{ id: string; error: string; code?: string }>;
+  }>> => {
+    return apiRequest('/mrfs/bulk-reject', {
+      method: 'POST',
+      body: JSON.stringify({ ids, reason, remarks: reason }),
+    });
+  },
+
+  /** Export selected MRFs as JSON rows or trigger CSV download via format=csv. */
+  bulkExport: async (
+    ids: Array<string | number>,
+    format: 'json' | 'csv' = 'json',
+  ): Promise<ApiResponse<Array<Record<string, unknown>>>> => {
+    return apiRequest('/mrfs/bulk-export', {
+      method: 'POST',
+      body: JSON.stringify({ ids, format }),
     });
   },
 
@@ -1975,6 +2021,14 @@ export const rfqApi = {
       payload.srfId = data.srfId;
       payload.srf_id = data.srfId;
     }
+    if (data.customPaymentTerms) {
+      payload.customPaymentTerms = data.customPaymentTerms;
+      payload.custom_payment_terms = data.customPaymentTerms;
+    }
+    if (data.paymentTermMode) {
+      payload.paymentTermMode = data.paymentTermMode;
+      payload.payment_term_mode = data.paymentTermMode;
+    }
     return apiRequest<RFQ>('/rfqs', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -2777,6 +2831,10 @@ export const vendorApi = {
     includeInactive?: boolean;
     /** Backend lightweight dropdown mode: returns max 20 {id,name} rows. */
     dropdown?: boolean;
+    /** Allow empty search to return Active vendors (RFQ Manual Select). */
+    allowEmpty?: boolean;
+    purpose?: 'rfq' | 'po' | 'manual_select';
+    activeOnly?: boolean;
   }): Promise<ApiResponse<PaginatedResult<Vendor>>> => {
     const qs = buildListQueryParams({
       page: params?.page ?? 1,
@@ -2788,6 +2846,9 @@ export const vendorApi = {
       sort_direction: params?.sort_direction ?? 'asc',
       include_inactive: params?.includeInactive ? 1 : undefined,
       dropdown: params?.dropdown ? 1 : undefined,
+      allow_empty: params?.allowEmpty ? 1 : undefined,
+      purpose: params?.purpose,
+      active_only: params?.activeOnly ? 1 : undefined,
     });
     const res = await apiRequestFull(`/vendors?${qs.toString()}`);
     if (!res.success) {
@@ -4025,6 +4086,32 @@ export const poApi = {
   submitForResign: async (poId: string): Promise<ApiResponse<MRF>> => {
     return apiRequest<MRF>(`/pos/${encodeURIComponent(poId)}/submit-for-resign`, {
       method: 'POST',
+    });
+  },
+
+  /** Normal closure when ClosureReadiness.canClose is true. */
+  close: async (poId: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/pos/${encodeURIComponent(poId)}/close`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Exception path when Finance AP did not update status.
+   * Roles: admin, procurement_manager. Reason required.
+   */
+  forceClose: async (
+    poId: string,
+    reason: string,
+  ): Promise<ApiResponse<{
+    mrfId?: string;
+    poNumber?: string;
+    workflowState?: string;
+    forceCloseReason?: string;
+  }>> => {
+    return apiRequest(`/pos/${encodeURIComponent(poId)}/force-close`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
     });
   },
 };

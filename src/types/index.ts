@@ -373,7 +373,7 @@ export interface RFQ {
 }
 
 export interface CreateRFQData {
-  /** Set for material requisitions */
+  /** Set for material requisitions; omit for standalone RFQ */
   mrfId?: string;
   /** Set for service requisitions */
   srfId?: string;
@@ -385,6 +385,9 @@ export interface CreateRFQData {
   title?: string;
   category?: string;
   paymentTerms?: string;
+  /** Free-text custom arrangement, e.g. "75% upfront / 25% upon delivery" */
+  customPaymentTerms?: string;
+  paymentTermMode?: 'template' | 'custom' | 'predefined' | 'free_text';
   notes?: string;
   /** Bug C — extra fields that must be forwarded to the vendor portal. */
   termsAndConditions?: string;
@@ -548,6 +551,12 @@ export interface AvailableActions {
   financeRoute?: 'legacy_internal' | 'finance_ap'; // Which finance system handles this MRF
   cutoverDate?: string | null; // Configured cutover date (ISO date) or null if not configured
   canViewFinanceSync?: boolean; // true for finance roles on Finance AP MRFs
+  canForceClose?: boolean;
+  canClose?: boolean;
+  canUploadHistoricalSupportingDocument?: boolean;
+  canUploadWaybill?: boolean;
+  canUploadJcc?: boolean;
+  canUploadDeliveryConfirmation?: boolean;
 }
 
 export interface FinanceDashboardRouting {

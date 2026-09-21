@@ -59,19 +59,39 @@ export function optimisticallyRemoveMrfFromCache(
   queryClient: QueryClient,
   mrfId: string,
 ): void {
+  const strip = (old: PaginatedResult<MRF> | undefined) => {
+    if (!old?.items?.length) return old;
+    const items = old.items.filter((m) => !mrfMatchesId(m, mrfId));
+    if (items.length === old.items.length) return old;
+    const pagination = old.pagination
+      ? {
+          ...old.pagination,
+          total: Math.max(0, (old.pagination.total ?? items.length) - 1),
+        }
+      : old.pagination;
+    return { ...old, items, pagination };
+  };
+
   queryClient.setQueriesData<PaginatedResult<MRF>>(
     { queryKey: queryKeys.mrfs.all },
-    (old) => {
-      if (!old?.items?.length) return old;
-      const items = old.items.filter((m) => !mrfMatchesId(m, mrfId));
-      if (items.length === old.items.length) return old;
-      const pagination = old.pagination
-        ? {
-            ...old.pagination,
-            total: Math.max(0, (old.pagination.total ?? items.length) - 1),
-          }
-        : old.pagination;
-      return { ...old, items, pagination };
-    },
+    strip,
   );
+  // PO list is also MRF-backed — clear the row from active PO table immediately.
+  queryClient.setQueriesData<PaginatedResult<MRF>>(
+    { queryKey: queryKeys.pos.all },
+    strip,
+  );
+}
+
+/** After PO clear (deletePO), remove from PO list caches and invalidate related keys. */
+export async function afterPoDeleted(
+  queryClient: QueryClient,
+  mrfId: string,
+): Promise<void> {
+  optimisticallyRemoveMrfFromCache(queryClient, mrfId);
+  await Promise.all([
+    invalidatePoLists(queryClient),
+    invalidateMrfLists(queryClient),
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+  ]);
 }

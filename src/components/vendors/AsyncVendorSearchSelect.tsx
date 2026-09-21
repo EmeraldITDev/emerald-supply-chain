@@ -18,6 +18,9 @@ interface AsyncVendorSearchSelectProps {
   label?: string;
   placeholder?: string;
   disabled?: boolean;
+  /** When true (default), load Active vendors even before the user types. */
+  loadOnOpen?: boolean;
+  purpose?: 'rfq' | 'po' | 'manual_select';
 }
 
 export function AsyncVendorSearchSelect({
@@ -26,6 +29,8 @@ export function AsyncVendorSearchSelect({
   label = 'Vendor',
   placeholder = 'Search vendors by name or email…',
   disabled = false,
+  loadOnOpen = true,
+  purpose = 'po',
 }: AsyncVendorSearchSelectProps) {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<Vendor[]>([]);
@@ -34,17 +39,20 @@ export function AsyncVendorSearchSelect({
   useEffect(() => {
     if (disabled) return;
     const handle = window.setTimeout(async () => {
-      if (!search.trim()) {
+      if (!search.trim() && !loadOnOpen) {
         setResults([]);
         return;
       }
       setLoading(true);
       try {
         const res = await vendorApi.list({
-          search: search.trim(),
-          per_page: 20,
+          search: search.trim() || undefined,
+          per_page: 50,
           page: 1,
           dropdown: true,
+          allowEmpty: true,
+          purpose,
+          activeOnly: true,
         });
         if (res.success && res.data) {
           setResults(res.data.items);
@@ -56,7 +64,7 @@ export function AsyncVendorSearchSelect({
       }
     }, 300);
     return () => window.clearTimeout(handle);
-  }, [search, disabled]);
+  }, [search, disabled, loadOnOpen, purpose]);
 
   return (
     <div className="space-y-2">
@@ -73,25 +81,20 @@ export function AsyncVendorSearchSelect({
           const vendor = results.find((v) => String(v.id) === id);
           onChange(id, vendor);
         }}
-        disabled={disabled || (!results.length && !value)}
+        disabled={disabled || (!results.length && !value && !loading)}
       >
         <SelectTrigger>
-          <SelectValue placeholder={loading ? 'Searching…' : 'Select vendor from results'} />
+          <SelectValue placeholder={loading ? 'Loading…' : 'Select vendor'} />
         </SelectTrigger>
         <SelectContent>
           {loading && (
             <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Searching…
+              {search.trim() ? 'Searching…' : 'Loading vendors…'}
             </div>
           )}
-          {!loading && search.trim() && results.length === 0 && (
+          {!loading && results.length === 0 && (
             <div className="px-3 py-2 text-sm text-muted-foreground">No vendors found</div>
-          )}
-          {!search.trim() && (
-            <div className="px-3 py-2 text-sm text-muted-foreground">
-              Type to search — vendors are not loaded until you search
-            </div>
           )}
           {results.map((v) => (
             <SelectItem key={String(v.id)} value={String(v.id)}>

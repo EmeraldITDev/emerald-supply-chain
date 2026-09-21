@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useApp } from "@/contexts/AppContext";
 import { useToast } from "@/hooks/use-toast";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
@@ -115,7 +116,14 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
         vendorIds: rfq.vendor_ids || rfq.vendorIds || [],
         quotationsCount: rfq.quotations_count ?? rfq.quotationsCount ?? 0,
         vendorsCount: rfq.vendors_count ?? rfq.vendorsCount ?? rfq.vendorIds?.length ?? 0,
-      })) as (RFQ & { quotationsCount?: number; vendorsCount?: number })[],
+        isStandalone: Boolean(rfq.isStandalone ?? rfq.is_standalone ?? !(rfq.mrf_id || rfq.mrfId)),
+        selectionReason: rfq.selectionReason ?? rfq.selection_reason ?? null,
+      })) as (RFQ & {
+        quotationsCount?: number;
+        vendorsCount?: number;
+        isStandalone?: boolean;
+        selectionReason?: string | null;
+      })[],
     [rfqListItems],
   );
 
@@ -174,6 +182,14 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
   const [deadline, setDeadline] = useState('');
   const [deliveryTerms, setDeliveryTerms] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('');
+  const [paymentTermMode, setPaymentTermMode] = useState<'predefined' | 'custom'>('predefined');
+  const [customPaymentTerms, setCustomPaymentTerms] = useState('');
+  const [rfqLinkMode, setRfqLinkMode] = useState<'mrf' | 'standalone'>('mrf');
+  const [standaloneTitle, setStandaloneTitle] = useState('');
+  const [standaloneDescription, setStandaloneDescription] = useState('');
+  const [standaloneQuantity, setStandaloneQuantity] = useState('1');
+  const [standaloneEstimatedCost, setStandaloneEstimatedCost] = useState('');
+  const [standaloneCategory, setStandaloneCategory] = useState('General');
   const [technicalReqs, setTechnicalReqs] = useState('');
   const [minRating, setMinRating] = useState(0);
   // Bug C — additional RFQ fields that must reach the vendor portal.
@@ -190,10 +206,6 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
   useEffect(() => {
     if (!createDialogOpen) return;
     const handle = window.setTimeout(async () => {
-      if (!vendorSearch.trim() && selectionMethod !== "all_category") {
-        setVendors([]);
-        return;
-      }
       setLoadingVendors(true);
       try {
         const response = await vendorApi.list({
@@ -201,23 +213,30 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
           category: selectionMethod === "all_category" && selectedCategory ? selectedCategory : undefined,
           per_page: 50,
           page: 1,
+          dropdown: true,
+          allowEmpty: true,
+          purpose: 'rfq',
+          activeOnly: true,
         });
         if (response.success && response.data) {
           const transformedVendors = response.data.items.map((vendor: any) => ({
-            id: vendor.id,
+            id: vendor.id || vendor.vendor_id,
             name: vendor.name || vendor.company_name,
             category: vendor.category || "Unknown",
             categoryOther: pickCategoryOtherFromUnknown(vendor) ?? null,
             status: vendor.status || "Active",
-            kyc: vendor.kyc_status || "Verified",
-            rating: vendor.rating || 0,
-            orders: vendor.total_orders || vendor.totalOrders || 0,
+            kyc: vendor.kyc_status || vendor.kyc || "Verified",
+            rating: Number(vendor.rating || 0),
+            orders: Number(vendor.total_orders || vendor.totalOrders || vendor.orders || 0),
             email: vendor.email || "",
           }));
           setVendors(transformedVendors);
+        } else {
+          setVendors([]);
         }
       } catch (error) {
         console.error("Failed to fetch vendors:", error);
+        setVendors([]);
       } finally {
         setLoadingVendors(false);
       }
@@ -307,14 +326,16 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
     );
   }, [mrfRequests, rfqs, contextRfqs]);
 
-  // Get active vendors sorted by performance
+  // Get active vendors sorted by performance (KYC optional — dropdown rows often omit it)
   const activeVendors = useMemo(() => {
     return vendors
-      .filter(v => v.status === 'Active' && v.kyc === 'Verified')
+      .filter((v) => {
+        const status = String(v.status || "").toLowerCase();
+        return status === "active" || status === "";
+      })
       .sort((a, b) => {
-        // Calculate composite score
-        const scoreA = (a.rating * 0.4) + ((a.orders / 100) * 0.3) + 0.3;
-        const scoreB = (b.rating * 0.4) + ((b.orders / 100) * 0.3) + 0.3;
+        const scoreA = a.rating * 0.4 + (a.orders / 100) * 0.3 + 0.3;
+        const scoreB = b.rating * 0.4 + (b.orders / 100) * 0.3 + 0.3;
         return scoreB - scoreA;
       });
   }, [vendors]);
@@ -495,10 +516,43 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
   };
 
   const handleCreateRFQ = async () => {
-    if (!selectedMRF || !deadline) {
+    const isStandalone = rfqLinkMode === 'standalone';
+    if (!deadline) {
       toast({
         title: "Validation Error",
-        description: "Please select an MRF and set a deadline",
+        description: "Please set a deadline",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!isStandalone && !selectedMRF) {
+      toast({
+        title: "Validation Error",
+        description: "Select an approved MRF, or switch to Standalone RFQ",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (isStandalone && !standaloneTitle.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Enter a title for the standalone RFQ",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (isStandalone && !standaloneDescription.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Enter a description for the standalone RFQ",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (paymentTermMode === 'custom' && customPaymentTerms.trim().length < 5) {
+      toast({
+        title: "Validation Error",
+        description: "Describe the custom payment arrangement (e.g. 75% upfront / 25% upon delivery)",
         variant: "destructive",
       });
       return;
@@ -508,7 +562,7 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
 
     if (selectionMethod === 'all_category' && selectedCategory) {
       vendorIds = vendors
-        .filter(v => v.category === selectedCategory && v.status === 'Active')
+        .filter(v => v.category === selectedCategory && String(v.status).toLowerCase() === 'active')
         .map(v => v.id);
     } else if (selectionMethod === 'preferred') {
       vendorIds = activeVendors
@@ -531,30 +585,39 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
     setIsCreatingRFQ(true);
     
     try {
-      // Create RFQ via API
+      const resolvedPaymentTerms =
+        paymentTermMode === 'custom'
+          ? customPaymentTerms.trim()
+          : (paymentTerms || undefined);
+
       const response = await rfqApi.create({
-      mrfId: selectedMRF.id,
-        title: selectedMRF.title,
-      description: selectedMRF.description || '',
-        category: selectedMRF.category || 'General',
-        deadline: deadline,
-        quantity: selectedMRF.quantity || '1',
-        estimatedCost: selectedMRF.estimatedCost || '0',
-        vendorIds: vendorIds,
-        paymentTerms: paymentTerms || undefined,
+        ...(isStandalone ? {} : { mrfId: selectedMRF!.id }),
+        title: isStandalone ? standaloneTitle.trim() : selectedMRF!.title,
+        description: isStandalone
+          ? standaloneDescription.trim()
+          : (selectedMRF!.description || ''),
+        category: isStandalone
+          ? (standaloneCategory || 'General')
+          : (selectedMRF!.category || 'General'),
+        deadline,
+        quantity: isStandalone
+          ? (standaloneQuantity || '1')
+          : (selectedMRF!.quantity || '1'),
+        estimatedCost: isStandalone
+          ? (standaloneEstimatedCost || '0')
+          : (selectedMRF!.estimatedCost || '0'),
+        vendorIds,
+        paymentTerms: resolvedPaymentTerms,
+        customPaymentTerms:
+          paymentTermMode === 'custom' ? customPaymentTerms.trim() : undefined,
+        paymentTermMode: paymentTermMode === 'custom' ? 'custom' : 'predefined',
         notes: additionalNotes || undefined,
         termsAndConditions: termsAndConditions || undefined,
         deliveryTerms: deliveryTerms || undefined,
         technicalRequirements: technicalReqs || undefined,
-        // Note: supportingDocuments handled separately once backend exposes
-        // a multipart endpoint for RFQ attachments (tracked in
-        // frontend_changes.md → Bug C). They are kept in local state so the
-        // user does not lose them on re-render.
-      } as any);
+      });
 
       if (response.success) {
-        // Bug C — upload any attached supporting documents now that the RFQ
-        // record exists. Non-fatal: warn the user but keep the RFQ.
         const newRfqId =
           (response.data as any)?.id ??
           (response.data as any)?.rfq?.id ??
@@ -574,22 +637,25 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
             });
           }
         } else if (supportingDocuments.length > 0 && !newRfqId) {
-          // eslint-disable-next-line no-console
           console.warn(
             "[RFQ] create succeeded but no id returned in response; skipping attachments upload",
             response.data,
           );
         }
 
-        // Persist the chosen payment schedule template on the MRF (Phase 1).
-        if (selectedScheduleTemplateKey && !scheduleLocked) {
+        // Persist milestone template on linked MRF only (schedule is MRF-owned).
+        if (
+          !isStandalone &&
+          selectedMRF &&
+          selectedScheduleTemplateKey &&
+          !scheduleLocked &&
+          paymentTermMode !== 'custom'
+        ) {
           const scheduleRes = await paymentScheduleApi.createSchedule(
             String(selectedMRF.id),
             { templateKey: selectedScheduleTemplateKey },
           );
           if (!scheduleRes.success) {
-            // Non-fatal — RFQ is already out. Surface a warning so the user
-            // can retry from the MRF detail view.
             toast({
               title: "Payment schedule not saved",
               description: scheduleRes.error || "Couldn't attach the chosen payment schedule to this MRF.",
@@ -599,7 +665,9 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
         }
     toast({
       title: "RFQ Created & Dispatched",
-      description: `RFQ sent to ${vendorIds.length} vendor(s). They will see it in their portal.`,
+      description: isStandalone
+        ? `Standalone RFQ sent to ${vendorIds.length} vendor(s).`
+        : `RFQ sent to ${vendorIds.length} vendor(s). They will see it in their portal.`,
     });
 
     // Reset form
@@ -607,21 +675,26 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
     setSelectedMRF(null);
     setSelectedVendorIds([]);
     setDeadline('');
-    setSelectionMethod('manual');
-    setSelectedCategory('');
+    setRfqLinkMode('mrf');
+    setStandaloneTitle('');
+    setStandaloneDescription('');
+    setStandaloneQuantity('1');
+    setStandaloneEstimatedCost('');
+    setPaymentTermMode('predefined');
+    setCustomPaymentTerms('');
+    setPaymentTerms('');
+    setSelectedScheduleTemplateKey('');
+    setSupportingDocuments([]);
     setAdditionalNotes('');
     setTermsAndConditions('');
     setDeliveryTerms('');
     setTechnicalReqs('');
-    setSupportingDocuments([]);
-    
-    // Refresh RFQs after creation
     await refreshRfqModuleData();
     window.dispatchEvent(new CustomEvent("app:refresh"));
       } else {
         toast({
-          title: "Error",
-          description: response.error || "Failed to create RFQ",
+          title: "Failed to create RFQ",
+          description: response.error || "Please try again",
           variant: "destructive",
         });
       }
@@ -964,6 +1037,13 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                   <div>
                     <CardTitle className="text-base">{rfq.mrfTitle}</CardTitle>
                     <CardDescription className="mt-1">{getDisplayId(rfq)}</CardDescription>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {(rfq as { isStandalone?: boolean }).isStandalone ? (
+                        <Badge variant="outline" className="text-[10px]">Standalone RFQ</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px]">Linked to MRF</Badge>
+                      )}
+                    </div>
                   </div>
                   <Badge 
                     className={
@@ -1080,13 +1160,37 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Request for Quotation</DialogTitle>
-            <DialogDescription>Select an MRF and vendors to request quotes from</DialogDescription>
+            <DialogDescription>
+              Link an approved MRF or create a standalone RFQ, then select vendors
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
-            {/* Select MRF */}
+            {/* Linked MRF vs Standalone */}
             <div className="space-y-2">
-              <Label>Select MRF</Label>
+              <Label>RFQ type</Label>
+              <Tabs
+                value={rfqLinkMode}
+                onValueChange={(v) => {
+                  setRfqLinkMode(v as 'mrf' | 'standalone');
+                  if (v === 'standalone') setSelectedMRF(null);
+                }}
+              >
+                <TabsList className="grid grid-cols-2 w-full">
+                  <TabsTrigger value="mrf">From approved MRF</TabsTrigger>
+                  <TabsTrigger value="standalone">Standalone RFQ</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <p className="text-xs text-muted-foreground">
+                {rfqLinkMode === 'mrf'
+                  ? 'MRF details will flow into the RFQ. MRF approval controls are unchanged.'
+                  : 'Create an RFQ without an MRF. You can still run the full quote → select → PO flow.'}
+              </p>
+            </div>
+
+            {rfqLinkMode === 'mrf' ? (
+            <div className="space-y-2">
+              <Label>Select MRF (optional path — preferred when an approved request exists)</Label>
               <Select 
                 value={selectedMRF?.id || ''} 
                 onValueChange={(val) => setSelectedMRF(mrfRequests.find(m => m.id === val) || null)}
@@ -1103,11 +1207,59 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                 </SelectContent>
               </Select>
               {eligibleMRFs.length === 0 && (
-                <p className="text-sm text-muted-foreground">No approved MRFs available for RFQ</p>
+                <p className="text-sm text-muted-foreground">
+                  No approved MRFs available — switch to Standalone RFQ, or wait for MRF approval.
+                </p>
               )}
             </div>
+            ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2 col-span-2">
+                <Label>Title</Label>
+                <Input
+                  value={standaloneTitle}
+                  onChange={(e) => setStandaloneTitle(e.target.value)}
+                  placeholder="e.g. Office furniture supply"
+                />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Description</Label>
+                <Textarea
+                  value={standaloneDescription}
+                  onChange={(e) => setStandaloneDescription(e.target.value)}
+                  rows={3}
+                  placeholder="Describe what you need quoted"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Quantity</Label>
+                <Input
+                  value={standaloneQuantity}
+                  onChange={(e) => setStandaloneQuantity(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Estimated cost</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={standaloneEstimatedCost}
+                  onChange={(e) => setStandaloneEstimatedCost(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Category</Label>
+                <Input
+                  value={standaloneCategory}
+                  onChange={(e) => setStandaloneCategory(e.target.value)}
+                  placeholder="General"
+                />
+              </div>
+            </div>
+            )}
 
-            {selectedMRF && (
+            {selectedMRF && rfqLinkMode === 'mrf' && (
               <Card className="bg-accent/30">
                 <CardContent className="pt-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1141,7 +1293,20 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
               </div>
               <div className="space-y-2">
                 <Label>Payment Terms</Label>
-                <Select value={paymentTerms} onValueChange={setPaymentTerms}>
+                <Select
+                  value={paymentTermMode === 'custom' ? 'custom' : (paymentTerms || undefined)}
+                  onValueChange={(v) => {
+                    if (v === 'custom') {
+                      setPaymentTermMode('custom');
+                      setPaymentTerms('');
+                      setSelectedScheduleTemplateKey('');
+                    } else {
+                      setPaymentTermMode('predefined');
+                      setPaymentTerms(v);
+                      setCustomPaymentTerms('');
+                    }
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select terms" />
                   </SelectTrigger>
@@ -1150,12 +1315,30 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                     <SelectItem value="net60">Net 60</SelectItem>
                     <SelectItem value="advance">100% Advance</SelectItem>
                     <SelectItem value="50-50">50% Advance, 50% on Delivery</SelectItem>
+                    <SelectItem value="custom">Custom Payment Terms…</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Payment Schedule (Finance AP Phase 1) */}
+            {paymentTermMode === 'custom' && (
+              <div className="space-y-2">
+                <Label htmlFor="custom-payment-terms">Custom payment arrangement</Label>
+                <Textarea
+                  id="custom-payment-terms"
+                  value={customPaymentTerms}
+                  onChange={(e) => setCustomPaymentTerms(e.target.value)}
+                  placeholder="e.g. 75% upfront / 25% upon delivery — or 30% / 40% / 30% after installation"
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Free-form. Saved on the RFQ and visible to selected vendors throughout quotation and comparison.
+                </p>
+              </div>
+            )}
+
+            {/* Payment Schedule (Finance AP Phase 1) — MRF-linked only */}
+            {rfqLinkMode === 'mrf' && paymentTermMode !== 'custom' && (
             <div className="space-y-2">
               <Label>Payment Schedule (Milestones)</Label>
               <Select
@@ -1197,6 +1380,7 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                 </p>
               )}
             </div>
+            )}
 
             {/* Bug C — extra context for vendors */}
             <div className="space-y-2">
@@ -1265,9 +1449,15 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                 </TabsList>
 
                 <TabsContent value="manual" className="space-y-4">
-                  <div className="flex gap-2 items-center">
+                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                    <Input
+                      value={vendorSearch}
+                      onChange={(e) => setVendorSearch(e.target.value)}
+                      placeholder="Search vendors by name, ID, email…"
+                      className="flex-1"
+                    />
                     <Select value={selectedCategory || "all"} onValueChange={(v) => setSelectedCategory(v === "all" ? "" : v)}>
-                      <SelectTrigger className="w-[200px]">
+                      <SelectTrigger className="w-full sm:w-[200px]">
                         <SelectValue placeholder="Filter by category" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1278,7 +1468,7 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                       </SelectContent>
                     </Select>
                     <Select value={minRating.toString()} onValueChange={(v) => setMinRating(parseFloat(v))}>
-                      <SelectTrigger className="w-[160px]">
+                      <SelectTrigger className="w-full sm:w-[160px]">
                         <SelectValue placeholder="Min rating" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1407,7 +1597,15 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={isCreatingRFQ}>Cancel</Button>
-            <Button onClick={handleCreateRFQ} disabled={!selectedMRF || !deadline || isCreatingRFQ}>
+            <Button
+              onClick={handleCreateRFQ}
+              disabled={
+                !deadline ||
+                isCreatingRFQ ||
+                (rfqLinkMode === 'mrf' && !selectedMRF) ||
+                (rfqLinkMode === 'standalone' && (!standaloneTitle.trim() || !standaloneDescription.trim()))
+              }
+            >
               {isCreatingRFQ ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1441,6 +1639,14 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                 </span>
               )}
             </DialogDescription>
+            {(selectedRFQ as { selectionReason?: string | null } | null)?.selectionReason && (
+              <Alert className="mt-2">
+                <AlertTitle className="text-sm">Selection reason (auditable)</AlertTitle>
+                <AlertDescription className="text-sm">
+                  {(selectedRFQ as { selectionReason?: string }).selectionReason}
+                </AlertDescription>
+              </Alert>
+            )}
             {rfqQuotations.length > 0 && (
               <div className="flex justify-end pt-2">
                 <div className="inline-flex rounded-md border p-0.5 text-xs">

@@ -52,8 +52,10 @@ import { usePaginatedListQuery } from "@/hooks/usePaginatedListQuery";
 import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { queryKeys } from "@/lib/queryKeys";
 import { LIST_QUERY_OPTIONS } from "@/lib/queryOptions";
-import { invalidateMrfLists, invalidatePoLists, optimisticallyRemoveMrfFromCache } from "@/lib/invalidateScmCache";
+import { invalidateMrfLists, invalidatePoLists, optimisticallyRemoveMrfFromCache, afterPoDeleted } from "@/lib/invalidateScmCache";
 import { ListControls } from "@/components/dashboard/ListControls";
+import { WorkflowGatesPanel } from "@/components/procurement/WorkflowGatesPanel";
+import { MrfBulkActionsBar, MrfSelectCheckbox } from "@/components/procurement/MrfBulkActionsBar";
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
 import {
@@ -91,6 +93,7 @@ import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import GRNCompletionDialog from "@/components/GRNCompletionDialog";
 import ProcurementDocumentsPanel from "@/components/procurement/ProcurementDocumentsPanel";
 import WorkflowGatesPanel from "@/components/procurement/WorkflowGatesPanel";
+import { MrfBulkActionsBar, MrfSelectCheckbox } from "@/components/procurement/MrfBulkActionsBar";
 import DeliveryConfirmationPanel from "@/components/procurement/DeliveryConfirmationPanel";
 import MrfFinanceSyncSection from "@/components/procurement/MrfFinanceSyncSection";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
@@ -309,6 +312,7 @@ const Procurement = () => {
   const [mrfControls, setMrfControls] = useState<ListControlsState>(
     defaultListControls,
   );
+  const [selectedMrfIds, setSelectedMrfIds] = useState<string[]>([]);
   const [srfControls, setSrfControls] = useState<ListControlsState>(
     defaultListControls,
   );
@@ -352,15 +356,29 @@ const Procurement = () => {
   const prevMrfSearchDebounced = useRef(mrfSearchDebounced);
 
   const mrfListParams = useMemo(
-    () => ({
-      page: mrfPage,
-      per_page: 25,
-      search: mrfSearchDebounced || undefined,
-      status: mrfControls.status !== "all" ? mrfControls.status : undefined,
-      date_from: mrfControls.dateFrom || undefined,
-      date_to: mrfControls.dateTo || undefined,
-      sort: mrfControls.sort,
-    }),
+    () => {
+      const status = mrfControls.status;
+      const isActiveDefault = !status || status === "all";
+      return {
+        page: mrfPage,
+        per_page: 25,
+        search: mrfSearchDebounced || undefined,
+        status:
+          !isActiveDefault && status !== "completed"
+            ? status
+            : status === "completed"
+              ? "completed"
+              : undefined,
+        lifecycle: isActiveDefault
+          ? "active"
+          : status === "completed"
+            ? "historical"
+            : undefined,
+        date_from: mrfControls.dateFrom || undefined,
+        date_to: mrfControls.dateTo || undefined,
+        sort: mrfControls.sort,
+      };
+    },
     [
       mrfPage,
       mrfSearchDebounced,
@@ -1105,16 +1123,29 @@ const Procurement = () => {
   const mrfDeepLinkHandled = useRef<string>("");
 
   const poListParams = useMemo(
-    () => ({
-      page: poPage,
-      per_page: 25,
-      po_list: true as const,
-      search: poSearchDebounced || undefined,
-      status: poControls.status !== "all" ? poControls.status : undefined,
-      date_from: poControls.dateFrom || undefined,
-      date_to: poControls.dateTo || undefined,
-      sort: poControls.sort,
-    }),
+    () => {
+      const status = poControls.status;
+      // Default "all" = active/ongoing only (completed POs live under Completed / historical).
+      const isActiveDefault = !status || status === "all";
+      return {
+        page: poPage,
+        per_page: 25,
+        po_list: true as const,
+        search: poSearchDebounced || undefined,
+        status:
+          !isActiveDefault && status !== "include_all"
+            ? status
+            : undefined,
+        lifecycle: isActiveDefault
+          ? "active"
+          : status === "include_all"
+            ? "all"
+            : undefined,
+        date_from: poControls.dateFrom || undefined,
+        date_to: poControls.dateTo || undefined,
+        sort: poControls.sort,
+      };
+    },
     [
       poPage,
       poSearchDebounced,
@@ -2003,18 +2034,28 @@ const Procurement = () => {
   const confirmDeletePO = async () => {
     if (!selectedMRFForPODelete) return;
 
+    const deletedId = getMrfApiId(selectedMRFForPODelete as MRF);
     setIsDeletingPO(true);
+    // Optimistic: drop from PO list immediately (no full page refresh).
+    if (deletedId) {
+      optimisticallyRemoveMrfFromCache(queryClient, deletedId);
+    }
     try {
-      const response = await mrfApi.deletePO(
-        getMrfApiId(selectedMRFForPODelete as MRF),
-      );
+      const response = await mrfApi.deletePO(deletedId);
       if (response.success) {
         toast({
           title: "PO Deleted",
           description: "PO has been cleared. You can now regenerate it.",
         });
+        setDeletePODialogOpen(false);
+        setSelectedMRFForPODelete(null);
+        setSelectedMRFForPODetails(null);
+        await afterPoDeleted(queryClient, deletedId);
+        await refetchPoList();
         await fetchMRFs();
       } else {
+        await invalidatePoLists(queryClient);
+        await refetchPoList();
         toast({
           title: "Error",
           description: response.error || "Failed to delete PO",
@@ -2022,6 +2063,8 @@ const Procurement = () => {
         });
       }
     } catch (error) {
+      await invalidatePoLists(queryClient);
+      await refetchPoList();
       toast({
         title: "Error",
         description: "Failed to connect to server",
@@ -2152,28 +2195,30 @@ const Procurement = () => {
     });
   };
 
+  const poStatusOptions = [
+    { label: "Active (ongoing)", value: "all" },
+    { label: "Draft", value: "draft" },
+    { label: "Awaiting signature", value: "pending" },
+    { label: "Signed / Approved", value: "signed" },
+    { label: "Rejected", value: "rejected" },
+    { label: "Completed / historical", value: "completed" },
+    { label: "All including completed", value: "include_all" },
+  ];
+
   const statusOptions = [
-    { label: "All Requests", value: "all" },
+    { label: "Active requests", value: "all" },
     { label: "Pending My Review", value: "pending" },
     { label: "With Finance", value: "finance" },
     { label: "With Chairman", value: "chairman" },
     { label: "Approved", value: "approved" },
     { label: "Rejected", value: "rejected" },
+    { label: "Completed / historical", value: "completed" },
   ];
 
   const srfStatusOptions = [
     { label: "All statuses", value: "all" },
     { label: "Pending", value: "pending" },
     { label: "Approved", value: "approved" },
-    { label: "Rejected", value: "rejected" },
-    { label: "Completed", value: "completed" },
-  ];
-
-  const poStatusOptions = [
-    { label: "All statuses", value: "all" },
-    { label: "Draft", value: "draft" },
-    { label: "Awaiting signature", value: "pending" },
-    { label: "Signed / Approved", value: "signed" },
     { label: "Rejected", value: "rejected" },
     { label: "Completed", value: "completed" },
   ];
@@ -2807,6 +2852,14 @@ const Procurement = () => {
 
                     {/* Results */}
                     <div className="space-y-4 mt-4">
+                      <MrfBulkActionsBar
+                        selectedIds={selectedMrfIds}
+                        onClear={() => setSelectedMrfIds([])}
+                        onDone={() => {
+                          void refetchMrfList();
+                          void invalidateMrfLists(queryClient);
+                        }}
+                      />
                       {mrfListError && (
                         <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
                           <div className="flex items-start justify-between gap-3">
@@ -2833,13 +2886,25 @@ const Procurement = () => {
                         <>
                           {filteredMRFs.map((request) => {
                             const timerColor = getApprovalTimerColor(request);
+                            const rowId = getMrfApiId(request as MRF) || String(request.id);
+                            const isSelected = selectedMrfIds.includes(rowId);
                             return (
                               <div
-                                key={getMrfApiId(request as MRF) || request.id}
+                                key={rowId}
                                 className="group flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 p-5 sm:p-6 border rounded-xl hover:shadow-lg hover:border-primary/30 transition-all duration-200 bg-card hover:bg-accent/30 cursor-pointer"
                                 onClick={() => handleMRFClick(request)}
                               >
                                 <div className="flex items-start gap-4 min-w-0 flex-1">
+                                  <MrfSelectCheckbox
+                                    checked={isSelected}
+                                    onCheckedChange={(next) => {
+                                      setSelectedMrfIds((prev) =>
+                                        next
+                                          ? Array.from(new Set([...prev, rowId]))
+                                          : prev.filter((id) => id !== rowId),
+                                      );
+                                    }}
+                                  />
                                   <div className="w-12 h-12 bg-gradient-to-br from-primary/15 to-primary/5 rounded-xl flex items-center justify-center flex-shrink-0 ring-1 ring-primary/10 group-hover:ring-primary/30 transition-all">
                                     <Package className="h-6 w-6 text-primary" />
                                   </div>
@@ -3937,7 +4002,9 @@ const Procurement = () => {
                 <CardHeader className="flex flex-row items-start justify-between gap-4">
                   <div>
                     <CardTitle>Purchase Orders</CardTitle>
-                    <CardDescription>List of all purchase orders</CardDescription>
+                    <CardDescription>
+                      Active procurement POs by default — switch filter to Completed / historical for closed work
+                    </CardDescription>
                   </div>
                   {!isLogisticsOverviewOnly && (
                     <Button size="sm" onClick={() => setManualPOOpen(true)}>
@@ -4671,6 +4738,11 @@ const Procurement = () => {
                   getMrfApiId(selectedMRFForPODetails as unknown as MRF) ||
                   String((selectedMRFForPODetails as any).id ?? "")
                 }
+                onClosed={() => {
+                  void refetchPoList();
+                  void invalidatePoLists(queryClient);
+                  setSelectedMRFForPODetails(null);
+                }}
               />
               {/* Phase 5 — Delivery confirmation checklist (PM) */}
               <DeliveryConfirmationPanel
