@@ -142,6 +142,13 @@ export interface InventoryRecord {
   valuation_method?: ValuationMethod | string | null;
   is_quarantined?: boolean;
   last_movement_at?: string | null;
+  /** Present when row is sourced from a closed / force-closed PO (MRF-backed). */
+  mrf_id?: string | null;
+  po_number?: string | null;
+  vendor_name?: string | null;
+  force_closed?: boolean;
+  workflow_state?: string | null;
+  status?: string | null;
 }
 
 export type StockMovementType =

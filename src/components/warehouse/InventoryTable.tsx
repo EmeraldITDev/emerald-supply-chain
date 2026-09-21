@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,15 @@ const fmtQty = (v: number | null | undefined) => (v == null ? '—' : new Intl.N
 export const InventoryTable = () => {
   const [search, setSearch] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const onRefresh = () => {
+      void queryClient.invalidateQueries({ queryKey: ['warehouse', 'inventory'] });
+    };
+    window.addEventListener('app:refresh', onRefresh);
+    return () => window.removeEventListener('app:refresh', onRefresh);
+  }, [queryClient]);
 
   const { data: inventory = [], isLoading, error } = useQuery({
     queryKey: ['warehouse', 'inventory', search],
@@ -28,7 +37,9 @@ export const InventoryTable = () => {
     <Card>
       <CardHeader>
         <CardTitle>Inventory</CardTitle>
-        <CardDescription>Real-time stock across every warehouse location, down to bin level</CardDescription>
+        <CardDescription>
+          Stock from warehouse locations plus completed / force-closed purchase orders
+        </CardDescription>
         <div className="flex flex-wrap gap-2 pt-2">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -90,6 +101,8 @@ export const InventoryTable = () => {
                       <TableCell>
                         {r.is_quarantined ? (
                           <Badge variant="destructive">Quarantine</Badge>
+                        ) : r.force_closed ? (
+                          <Badge variant="outline">Force closed</Badge>
                         ) : low ? (
                           <Badge variant="outline" className="border-amber-500 text-amber-600">
                             Low stock

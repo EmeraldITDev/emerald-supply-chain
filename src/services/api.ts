@@ -4099,16 +4099,31 @@ export const poApi = {
   /**
    * Exception path when Finance AP did not update status.
    * Roles: admin, procurement_manager. Reason required.
+   * Optional waybill file via multipart (field: waybill).
    */
   forceClose: async (
     poId: string,
     reason: string,
+    waybill?: File | null,
   ): Promise<ApiResponse<{
     mrfId?: string;
     poNumber?: string;
     workflowState?: string;
+    status?: string;
     forceCloseReason?: string;
+    waybillDocumentId?: number;
+    waybillError?: string | null;
+    invalidate?: string[];
   }>> => {
+    if (waybill) {
+      const form = new FormData();
+      form.append('reason', reason);
+      form.append('waybill', waybill);
+      return apiRequest(`/pos/${encodeURIComponent(poId)}/force-close`, {
+        method: 'POST',
+        body: form,
+      });
+    }
     return apiRequest(`/pos/${encodeURIComponent(poId)}/force-close`, {
       method: 'POST',
       body: JSON.stringify({ reason }),

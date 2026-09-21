@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -74,6 +75,7 @@ export const WorkflowGatesPanel = ({
   const [closing, setClosing] = useState(false);
   const [forceDialogOpen, setForceDialogOpen] = useState(false);
   const [forceReason, setForceReason] = useState("");
+  const [forceWaybill, setForceWaybill] = useState<File | null>(null);
   const [forceClosing, setForceClosing] = useState(false);
   const [canForceCloseFlag, setCanForceCloseFlag] = useState(false);
 
@@ -142,14 +144,18 @@ export const WorkflowGatesPanel = ({
     }
     setForceClosing(true);
     try {
-      const res = await poApi.forceClose(mrfId, reason);
+      const res = await poApi.forceClose(mrfId, reason, forceWaybill);
       if (res.success) {
+        const waybillErr = res.data?.waybillError;
         toast({
           title: "Force closed",
-          description: "Exception closure recorded with audit trail.",
+          description: waybillErr
+            ? `PO and MRF closed. Waybill upload failed: ${waybillErr}`
+            : "PO and associated MRF closed with audit trail. Visible under Inventory when completed.",
         });
         setForceDialogOpen(false);
         setForceReason("");
+        setForceWaybill(null);
         await fetchGates();
         onClosed?.();
         window.dispatchEvent(new CustomEvent("app:refresh"));
@@ -372,23 +378,47 @@ export const WorkflowGatesPanel = ({
         </CardContent>
       </Card>
 
-      <Dialog open={forceDialogOpen} onOpenChange={setForceDialogOpen}>
+      <Dialog
+        open={forceDialogOpen}
+        onOpenChange={(open) => {
+          setForceDialogOpen(open);
+          if (!open) {
+            setForceReason("");
+            setForceWaybill(null);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Force Close — Finance AP Status Not Updated</DialogTitle>
             <DialogDescription>
               Exception path only. Does not replace normal Finance AP closure. A reason is required and audited.
+              The associated MRF is closed with the PO. Attach a waybill if available.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="force-close-reason">Reason (mandatory)</Label>
-            <Textarea
-              id="force-close-reason"
-              value={forceReason}
-              onChange={(e) => setForceReason(e.target.value)}
-              rows={4}
-              placeholder="e.g. Payment posted in Finance AP but case_closed webhook never arrived…"
-            />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="force-close-reason">Reason (mandatory)</Label>
+              <Textarea
+                id="force-close-reason"
+                value={forceReason}
+                onChange={(e) => setForceReason(e.target.value)}
+                rows={4}
+                placeholder="e.g. Payment posted in Finance AP but case_closed webhook never arrived…"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="force-close-waybill">Waybill (optional)</Label>
+              <Input
+                id="force-close-waybill"
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+                onChange={(e) => setForceWaybill(e.target.files?.[0] ?? null)}
+              />
+              {forceWaybill ? (
+                <p className="text-xs text-muted-foreground truncate">{forceWaybill.name}</p>
+              ) : null}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setForceDialogOpen(false)} disabled={forceClosing}>
