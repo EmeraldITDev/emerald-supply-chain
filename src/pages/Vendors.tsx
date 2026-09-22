@@ -1064,9 +1064,11 @@ const Vendors = () => {
                           <span className="text-sm font-semibold">{vendor.score.toFixed(1)}</span>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2 text-[10px] sm:text-xs text-muted-foreground">
-                        <span>Orders: {vendor.orders}</span>
-                        <span>Category: {formatVendorCategoryDisplay(vendor.category, vendor.categoryOther)}</span>
+                      <div className="flex flex-col gap-1 text-[10px] sm:text-xs text-muted-foreground min-w-0">
+                        <span className="shrink-0">Orders: {vendor.orders}</span>
+                        <span className="min-w-0 break-words">
+                          Category: {formatVendorCategoryDisplay(vendor.category, vendor.categoryOther)}
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -1172,21 +1174,27 @@ const Vendors = () => {
                   <div className="space-y-2 flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold whitespace-nowrap">{vendor.id}</span>
-                      <span className="text-sm truncate">{vendor.name}</span>
+                      <span className="text-sm truncate min-w-0">{vendor.name}</span>
                       <Badge className={getStatusColor(vendor.status)}>{vendor.status}</Badge>
                       <Badge className={getStatusColor(vendor.kyc)}>{vendor.kyc}</Badge>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-                      <span className="whitespace-nowrap">Category: {formatVendorCategoryDisplay(vendor.category, (vendor as { categoryOther?: string | null }).categoryOther)}</span>
-                      <span className="whitespace-nowrap">Orders: {vendor.orders}</span>
-                      <span className="flex items-center gap-1 whitespace-nowrap">
+                    <div className="flex flex-col gap-1.5 min-w-0 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 text-xs sm:text-sm text-muted-foreground">
+                      <p className="min-w-0 break-words">
+                        Category:{" "}
+                        {formatVendorCategoryDisplay(
+                          vendor.category,
+                          (vendor as { categoryOther?: string | null }).categoryOther,
+                        )}
+                      </p>
+                      <span className="shrink-0 whitespace-nowrap">Orders: {vendor.orders}</span>
+                      <span className="flex items-center gap-1 shrink-0 whitespace-nowrap">
                         <Star className="h-3 w-3 fill-primary text-primary" />
                         {vendor.rating}
                       </span>
                     </div>
                   </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 self-start sm:self-center">
+                  <div className="flex flex-wrap gap-2 self-start sm:self-center shrink-0">
                     <Button
                       variant="outline"
                       size="sm"
