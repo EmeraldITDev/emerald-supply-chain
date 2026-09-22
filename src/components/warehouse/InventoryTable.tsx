@@ -6,20 +6,43 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/LoadingSkeleton';
+import { ServerPaginationBar } from '@/components/ui/ServerPaginationBar';
 import { ScanLine, Search } from 'lucide-react';
 import { warehouseInventoryApi } from '@/services/warehouseInventoryApi';
 import { BarcodeScannerDialog } from './BarcodeScannerDialog';
 import { InventoryDetailSheet } from './InventoryDetailSheet';
 import type { InventoryRecord } from '@/types/warehouse-inventory';
+import type { PaginationMeta } from '@/types/pagination';
+
+const PAGE_SIZE = 25;
 
 const fmtQty = (v: number | null | undefined) => (v == null ? '—' : new Intl.NumberFormat('en-NG').format(v));
 
+const emptyPagination = (page: number): PaginationMeta => ({
+  page,
+  per_page: PAGE_SIZE,
+  total: 0,
+  total_pages: 1,
+  from: null,
+  to: null,
+});
+
 export const InventoryTable = () => {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [selected, setSelected] = useState<InventoryRecord | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [search]);
 
   useEffect(() => {
     const onRefresh = () => {
@@ -29,12 +52,18 @@ export const InventoryTable = () => {
     return () => window.removeEventListener('app:refresh', onRefresh);
   }, [queryClient]);
 
-  const { data: inventory = [], isLoading, error } = useQuery({
-    queryKey: ['warehouse', 'inventory', search],
-    queryFn: () => warehouseInventoryApi.getInventory(search ? { search } : {}),
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['warehouse', 'inventory', debouncedSearch, page, PAGE_SIZE],
+    queryFn: () =>
+      warehouseInventoryApi.getInventory({
+        search: debouncedSearch || undefined,
+        page,
+        per_page: PAGE_SIZE,
+      }),
   });
 
-  const rows = useMemo<InventoryRecord[]>(() => inventory, [inventory]);
+  const rows = useMemo<InventoryRecord[]>(() => data?.items ?? [], [data]);
+  const pagination = data?.pagination ?? emptyPagination(page);
 
   const openDetail = (row: InventoryRecord) => {
     setSelected(row);
@@ -63,7 +92,7 @@ export const InventoryTable = () => {
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {isLoading && <TableSkeleton rows={6} />}
         {!isLoading && error && (
           <p className="py-6 text-center text-sm text-muted-foreground">
@@ -138,6 +167,12 @@ export const InventoryTable = () => {
             </Table>
           </div>
         )}
+
+        <ServerPaginationBar
+          pagination={pagination}
+          page={page}
+          onPageChange={setPage}
+        />
       </CardContent>
       <BarcodeScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} onDetected={(code) => setSearch(code)} />
       <InventoryDetailSheet

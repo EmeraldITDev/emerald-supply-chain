@@ -122,12 +122,33 @@ export const warehouseInventoryApi = {
       category?: string;
       low_stock?: boolean;
       quarantined?: boolean;
+      page?: number;
       per_page?: number;
     } = {},
-  ) {
-    const res = await apiRequest<unknown>(`/warehouse/inventory${qs({ per_page: 100, ...params })}`);
+  ): Promise<{ items: InventoryRecord[]; pagination: import('@/types/pagination').PaginationMeta }> {
+    const page = params.page ?? 1;
+    const perPage = params.per_page ?? 25;
+    const res = await apiRequest<unknown>(
+      `/warehouse/inventory${qs({ per_page: perPage, page, ...params })}`,
+    );
     if (!res.success) throw new Error(res.error || 'Failed to load inventory');
-    return listOf<InventoryRecord>(res, 'inventory');
+    const data = (res.data ?? {}) as Record<string, unknown>;
+    const items = listOf<InventoryRecord>(res, 'inventory');
+    const rawPag = (data.pagination ?? {}) as Record<string, unknown>;
+    const total = Number(rawPag.total ?? items.length);
+    const totalPages = Number(rawPag.total_pages ?? Math.max(1, Math.ceil(total / perPage)));
+    const currentPage = Number(rawPag.page ?? page);
+    return {
+      items,
+      pagination: {
+        page: currentPage,
+        per_page: Number(rawPag.per_page ?? perPage),
+        total,
+        total_pages: totalPages,
+        from: rawPag.from != null ? Number(rawPag.from) : total === 0 ? null : (currentPage - 1) * perPage + 1,
+        to: rawPag.to != null ? Number(rawPag.to) : total === 0 ? null : Math.min(total, currentPage * perPage),
+      },
+    };
   },
   async getLowStockAlerts() {
     const res = await apiRequest<unknown>('/warehouse/inventory/low-stock');
