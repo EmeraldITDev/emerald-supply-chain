@@ -227,9 +227,13 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
     const handle = window.setTimeout(async () => {
       setLoadingVendors(true);
       try {
+        // Never pass By Category's selectedCategory here — Manual Select and Preferred
+        // must always load the full eligible vendor set. Category filtering is client-side.
         const response = await vendorApi.list({
-          search: vendorSearch.trim() || undefined,
-          category: selectedCategory || undefined,
+          search:
+            selectionMethod === 'manual' && vendorSearch.trim()
+              ? vendorSearch.trim()
+              : undefined,
           per_page: 100,
           page: 1,
           dropdown: true,
@@ -265,7 +269,7 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
       }
     }, 300);
     return () => window.clearTimeout(handle);
-  }, [createDialogOpen, vendorSearch, selectionMethod, selectedCategory]);
+  }, [createDialogOpen, vendorSearch, selectionMethod]);
 
   useEffect(() => {
     let cancelled = false;
@@ -364,19 +368,14 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
   }, [vendors]);
 
   // Filter vendors by category or other criteria
+  // Manual Select list: search + optional min rating only — never By Category's selection.
   const filteredVendors = useMemo(() => {
     let filtered = activeVendors;
-    
-    if (selectedCategory) {
-      filtered = filtered.filter((v) => vendorMatchesCategory(v, selectedCategory));
-    }
-    
     if (minRating > 0) {
-      filtered = filtered.filter(v => v.rating >= minRating);
+      filtered = filtered.filter((v) => v.rating >= minRating);
     }
-
     return filtered;
-  }, [activeVendors, selectedCategory, minRating]);
+  }, [activeVendors, minRating]);
 
   // Fetch enhanced quotation data from API
   const fetchEnhancedQuotations = async (rfqId: string) => {
@@ -699,6 +698,10 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
     setCreateDialogOpen(false);
     setSelectedMRF(null);
     setSelectedVendorIds([]);
+    setSelectedCategory('');
+    setSelectionMethod('manual');
+    setVendorSearch('');
+    setMinRating(0);
     setDeadline('');
     setRfqLinkMode('mrf');
     setStandaloneTitle('');
@@ -1539,7 +1542,22 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
             {/* Vendor Selection Method */}
             <div className="space-y-4">
               <Label className="text-base font-semibold">Vendor Selection</Label>
-              <Tabs value={selectionMethod} onValueChange={(v) => setSelectionMethod(v as any)}>
+              <Tabs
+                value={selectionMethod}
+                onValueChange={(v) => {
+                  const next = v as 'all_category' | 'manual' | 'preferred';
+                  setSelectionMethod(next);
+                  // Keep tabs independent: category filter only applies inside By Category.
+                  if (next !== 'all_category') {
+                    setSelectedCategory('');
+                    categorySyncKeyRef.current = '';
+                  }
+                  if (next !== 'manual') {
+                    setVendorSearch('');
+                    setMinRating(0);
+                  }
+                }}
+              >
                 <TabsList className="grid grid-cols-3 w-full">
                   <TabsTrigger value="manual">Manual Select</TabsTrigger>
                   <TabsTrigger value="all_category">By Category</TabsTrigger>
@@ -1554,17 +1572,6 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                       placeholder="Search vendors by name, ID, email…"
                       className="flex-1"
                     />
-                    <Select value={selectedCategory || "all"} onValueChange={(v) => setSelectedCategory(v === "all" ? "" : v)}>
-                      <SelectTrigger className="w-full sm:w-[200px]">
-                        <SelectValue placeholder="Filter by category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Categories</SelectItem>
-                        {categories.map(cat => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                     <Select value={minRating.toString()} onValueChange={(v) => setMinRating(parseFloat(v))}>
                       <SelectTrigger className="w-full sm:w-[160px]">
                         <SelectValue placeholder="Min rating" />
@@ -1642,7 +1649,23 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
 
                 <TabsContent value="all_category" className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Select Category</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label>Select Category</Label>
+                      {selectedCategory && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedCategory('');
+                            setSelectedVendorIds([]);
+                            categorySyncKeyRef.current = '';
+                          }}
+                        >
+                          Clear category
+                        </Button>
+                      )}
+                    </div>
                     <Select
                       value={selectedCategory || undefined}
                       onValueChange={(v) => {
@@ -1659,7 +1682,15 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                       </SelectContent>
                     </Select>
                   </div>
-                  {selectedCategory && (
+                  {!selectedCategory ? (
+                    <div className="flex flex-col items-center justify-center border rounded-lg py-10 text-center">
+                      <Users className="h-8 w-8 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">Select a category to see matching vendors</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        You can clear the category at any time to pick a different one.
+                      </p>
+                    </div>
+                  ) : (
                     <>
                       <p className="text-sm text-muted-foreground">
                         {categoryVendorCount === 0
@@ -1694,7 +1725,7 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                                 variant="ghost"
                                 onClick={() => setSelectedVendorIds([])}
                               >
-                                Clear
+                                Clear selection
                               </Button>
                             </div>
                             {categoryVendors.map((vendor) => {
