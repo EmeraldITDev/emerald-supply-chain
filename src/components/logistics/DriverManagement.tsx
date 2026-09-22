@@ -84,7 +84,17 @@ export const DriverManagement = () => {
     try {
       const res = await driversApi.list();
       if (res.success && res.data) {
-        const arr = Array.isArray(res.data) ? res.data : (res.data as any).drivers || [];
+        const raw = res.data as unknown;
+        let arr: any[] = [];
+        if (Array.isArray(raw)) {
+          arr = raw;
+        } else if (raw && typeof raw === "object") {
+          const nested = (raw as any).drivers ?? (raw as any).data;
+          if (Array.isArray(nested)) arr = nested;
+          else if (nested && typeof nested === "object" && Array.isArray(nested.data)) {
+            arr = nested.data;
+          }
+        }
         setDrivers(arr.map(normalize));
       } else {
         setDrivers([]);

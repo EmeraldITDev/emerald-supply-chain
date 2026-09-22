@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { usePaginatedListQuery } from "@/hooks/usePaginatedListQuery";
 import { queryKeys } from "@/lib/queryKeys";
 import { LIST_QUERY_OPTIONS } from "@/lib/queryOptions";
@@ -584,17 +584,16 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
     let vendorIds: string[] = [];
 
     if (selectionMethod === 'all_category' && selectedCategory) {
-      vendorIds = vendors
-        .filter((v) =>
-          vendorMatchesCategory(v, selectedCategory) &&
-          String(v.status).toLowerCase() === 'active',
-        )
-        .map(v => v.id);
+      // Use the user's checklist (pre-selected for the category, with optional deselections).
+      const allowed = new Set(categoryVendors.map((v) => v.id));
+      vendorIds = selectedVendorIds.filter((id) => allowed.has(id));
     } else if (selectionMethod === 'preferred') {
-      vendorIds = activeVendors
-        .filter(v => v.rating >= 4.0 && v.orders >= 10)
-        .slice(0, 5)
-        .map(v => v.id);
+      vendorIds = preferredVendors
+        .filter((v) => selectedVendorIds.includes(v.id))
+        .map((v) => v.id);
+      if (vendorIds.length === 0) {
+        vendorIds = preferredVendors.map((v) => v.id);
+      }
     } else {
       vendorIds = selectedVendorIds;
     }
@@ -884,18 +883,80 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
     }
   };
 
+  const preferredVendors = useMemo(() => {
+    // Prefer highly rated vendors; do not require order history (many rated vendors are new).
+    const rated = activeVendors
+      .filter((v) => Number(v.rating) >= 4.0)
+      .sort((a, b) => {
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return b.orders - a.orders;
+      });
+    if (rated.length > 0) return rated.slice(0, 5);
+    // Fallback: top-rated active vendors even below 4.0 so the tab is never empty when vendors exist.
+    return [...activeVendors]
+      .sort((a, b) => {
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return b.orders - a.orders;
+      })
+      .slice(0, 5);
+  }, [activeVendors]);
+
+  // Preferred Only: pre-select listed vendors when switching into the tab;
+  // preserve manual deselections when the preferred list merely refreshes.
+  useEffect(() => {
+    if (selectionMethod !== 'preferred') return;
+    setSelectedVendorIds((prev) => {
+      const allIds = preferredVendors.map((v) => v.id);
+      if (allIds.length === 0) return [];
+      if (prev.length === 0) return allIds;
+      const allowed = new Set(allIds);
+      const kept = prev.filter((id) => allowed.has(id));
+      return kept.length > 0 ? kept : allIds;
+    });
+  }, [selectionMethod, preferredVendors]);
+
   const categories = categoryOptions.length > 0
     ? categoryOptions
     : [...new Set(vendors.flatMap((v) => v.categories).filter(Boolean))];
 
-  const categoryVendorCount = useMemo(() => {
-    if (!selectedCategory) return 0;
+  const categoryVendors = useMemo(() => {
+    if (!selectedCategory) return [];
     return vendors.filter(
       (v) =>
         vendorMatchesCategory(v, selectedCategory) &&
         String(v.status).toLowerCase() === 'active',
-    ).length;
+    );
   }, [vendors, selectedCategory]);
+
+  const categoryVendorCount = categoryVendors.length;
+  const categorySyncKeyRef = useRef('');
+
+  // By Category: select all matching vendors when category/mode changes;
+  // preserve user deselections when the vendor list merely refreshes.
+  useEffect(() => {
+    if (selectionMethod !== 'all_category' || !selectedCategory) {
+      categorySyncKeyRef.current = '';
+      return;
+    }
+    const syncKey = `${selectionMethod}:${selectedCategory}`;
+    const categoryChanged = categorySyncKeyRef.current !== syncKey;
+    categorySyncKeyRef.current = syncKey;
+    const allIds = categoryVendors.map((v) => v.id);
+
+    setSelectedVendorIds((prev) => {
+      if (categoryChanged || prev.length === 0) return allIds;
+      const allowed = new Set(allIds);
+      return prev.filter((id) => allowed.has(id));
+    });
+  }, [selectionMethod, selectedCategory, categoryVendors]);
+
+  const toggleCategoryVendor = (vendorId: string) => {
+    setSelectedVendorIds((prev) =>
+      prev.includes(vendorId)
+        ? prev.filter((id) => id !== vendorId)
+        : [...prev, vendorId],
+    );
+  };
 
   const fetchRfqExportPage = useCallback(async (page: number, perPage: number) => {
     const response = await rfqApi.list({
@@ -1582,7 +1643,12 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                 <TabsContent value="all_category" className="space-y-4">
                   <div className="space-y-2">
                     <Label>Select Category</Label>
-                    <Select value={selectedCategory || undefined} onValueChange={setSelectedCategory}>
+                    <Select
+                      value={selectedCategory || undefined}
+                      onValueChange={(v) => {
+                        setSelectedCategory(v);
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
                       </SelectTrigger>
@@ -1594,39 +1660,145 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                     </Select>
                   </div>
                   {selectedCategory && (
-                    <p className="text-sm text-muted-foreground">
-                      RFQ will be sent to all {categoryVendorCount} active vendor{categoryVendorCount === 1 ? '' : 's'} in {selectedCategory}
-                    </p>
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        {categoryVendorCount === 0
+                          ? `No active vendors found in ${selectedCategory}.`
+                          : `${selectedVendorIds.filter((id) => categoryVendors.some((v) => v.id === id)).length} of ${categoryVendorCount} active vendor${categoryVendorCount === 1 ? '' : 's'} in ${selectedCategory} selected. Uncheck any vendor to exclude them.`}
+                      </p>
+                      <ScrollArea className="h-[300px] border rounded-lg p-4">
+                        {loadingVendors ? (
+                          <div className="flex items-center justify-center h-full">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            <span className="ml-2 text-muted-foreground">Loading vendors...</span>
+                          </div>
+                        ) : categoryVendors.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-full text-center py-8">
+                            <Users className="h-8 w-8 text-muted-foreground mb-2" />
+                            <p className="text-muted-foreground">No active vendors in this category</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex justify-end gap-2 pb-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setSelectedVendorIds(categoryVendors.map((v) => v.id))}
+                              >
+                                Select all
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setSelectedVendorIds([])}
+                              >
+                                Clear
+                              </Button>
+                            </div>
+                            {categoryVendors.map((vendor) => {
+                              const checked = selectedVendorIds.includes(vendor.id);
+                              return (
+                                <div
+                                  key={vendor.id}
+                                  className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                                    checked
+                                      ? 'bg-primary/10 border-primary'
+                                      : 'hover:bg-accent'
+                                  }`}
+                                  onClick={() => toggleCategoryVendor(vendor.id)}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <Checkbox
+                                      checked={checked}
+                                      onCheckedChange={() => toggleCategoryVendor(vendor.id)}
+                                    />
+                                    <div>
+                                      <div className="flex items-center">
+                                        <p className="font-medium">{vendor.name}</p>
+                                        {getVendorBadge(vendor)}
+                                      </div>
+                                      <p className="text-sm text-muted-foreground">
+                                        {formatVendorCategoryDisplay(vendor.category, vendor.categoryOther)}
+                                        {vendor.email ? ` · ${vendor.email}` : ''}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="flex items-center gap-1 justify-end">
+                                      <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                                      <span className="font-medium">{vendor.rating.toFixed(1)}</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{vendor.orders} orders</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </ScrollArea>
+                    </>
                   )}
                 </TabsContent>
 
                 <TabsContent value="preferred" className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    RFQ will be sent to top 5 preferred vendors (rating 4.0+ and 10+ orders)
+                    Top preferred vendors by rating (4.0+ preferred). Uncheck any vendor to exclude them from this RFQ.
                   </p>
-                  <div className="space-y-2">
-                    {activeVendors
-                      .filter(v => v.rating >= 4.0 && v.orders >= 10)
-                      .slice(0, 5)
-                      .map(vendor => (
-                        <div key={vendor.id} className="flex items-center justify-between p-3 bg-accent/50 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <Award className="h-5 w-5 text-amber-500" />
-                            <div>
-                              <p className="font-medium">{vendor.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {formatVendorCategoryDisplay(vendor.category, vendor.categoryOther)}
-                              </p>
+                  {preferredVendors.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center border rounded-lg py-10 text-center">
+                      <Users className="h-8 w-8 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">No active vendors available</p>
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[300px] border rounded-lg p-4">
+                      <div className="space-y-2">
+                        {preferredVendors.map((vendor) => {
+                          const checked = selectedVendorIds.includes(vendor.id);
+                          return (
+                            <div
+                              key={vendor.id}
+                              className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                                checked
+                                  ? 'bg-primary/10 border-primary'
+                                  : 'hover:bg-accent'
+                              }`}
+                              onClick={() => toggleCategoryVendor(vendor.id)}
+                            >
+                              <div className="flex items-center gap-3">
+                                <Checkbox
+                                  checked={checked}
+                                  onCheckedChange={() => toggleCategoryVendor(vendor.id)}
+                                />
+                                <Award className="h-5 w-5 text-amber-500 shrink-0" />
+                                <div>
+                                  <div className="flex items-center">
+                                    <p className="font-medium">{vendor.name}</p>
+                                    {getVendorBadge(vendor)}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">
+                                    {formatVendorCategoryDisplay(vendor.category, vendor.categoryOther)}
+                                    {vendor.email ? ` · ${vendor.email}` : ''}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="flex items-center gap-1 justify-end">
+                                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                                  <span className="font-medium">{Number(vendor.rating).toFixed(1)}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{vendor.orders} orders</p>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                            <span>{vendor.rating}</span>
-                          </div>
-                        </div>
-                      ))
-                    }
-                  </div>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
+                  )}
+                  <p className="text-sm text-muted-foreground">
+                    {selectedVendorIds.filter((id) => preferredVendors.some((v) => v.id === id)).length} of {preferredVendors.length} preferred vendor(s) selected
+                  </p>
                 </TabsContent>
               </Tabs>
             </div>
