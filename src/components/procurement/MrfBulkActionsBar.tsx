@@ -11,25 +11,44 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle2, Download, Loader2, XCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { CheckCircle2, Download, Loader2, Trash2, XCircle } from "lucide-react";
 import { mrfApi } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+
+export type MrfBulkActionsVariant = "manage" | "approve";
 
 interface MrfBulkActionsBarProps {
   selectedIds: string[];
   onClear: () => void;
   onDone: () => void;
+  /**
+   * `manage` — Procurement MRF list: Bulk Delete + Export.
+   * `approve` — SCD / Executive / Chairman dashboards: Bulk Approve + Reject + Export.
+   */
+  variant?: MrfBulkActionsVariant;
 }
 
 export function MrfBulkActionsBar({
   selectedIds,
   onClear,
   onDone,
+  variant = "manage",
 }: MrfBulkActionsBarProps) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (selectedIds.length === 0) return null;
 
@@ -83,6 +102,28 @@ export function MrfBulkActionsBar({
     }
   };
 
+  const runDelete = async () => {
+    setBusy(true);
+    try {
+      const res = await mrfApi.bulkDelete(selectedIds);
+      const succeeded = res.data?.succeeded?.length ?? 0;
+      const failed = res.data?.failed?.length ?? 0;
+      toast({
+        title: res.success ? "Bulk delete complete" : "Bulk delete finished with errors",
+        description: `${succeeded} deleted, ${failed} failed`,
+        variant: failed && !succeeded ? "destructive" : "default",
+      });
+      if (failed > 0 && res.data?.failed) {
+        console.warn("[bulk-delete] failures", res.data.failed);
+      }
+      setDeleteOpen(false);
+      onClear();
+      onDone();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const runExport = async () => {
     setBusy(true);
     try {
@@ -114,14 +155,39 @@ export function MrfBulkActionsBar({
     <>
       <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3 shadow-sm">
         <span className="text-sm font-medium mr-2">{selectedIds.length} selected</span>
-        <Button size="sm" onClick={() => void runApprove()} disabled={busy}>
-          {busy ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
-          Bulk Approve
-        </Button>
-        <Button size="sm" variant="destructive" onClick={() => setRejectOpen(true)} disabled={busy}>
-          <XCircle className="h-3.5 w-3.5 mr-1.5" />
-          Bulk Reject
-        </Button>
+
+        {variant === "approve" ? (
+          <>
+            <Button size="sm" onClick={() => void runApprove()} disabled={busy}>
+              {busy ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Bulk Approve
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => setRejectOpen(true)}
+              disabled={busy}
+            >
+              <XCircle className="h-3.5 w-3.5 mr-1.5" />
+              Bulk Reject
+            </Button>
+          </>
+        ) : (
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => setDeleteOpen(true)}
+            disabled={busy}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+            Bulk Delete
+          </Button>
+        )}
+
         <Button size="sm" variant="outline" onClick={() => void runExport()} disabled={busy}>
           <Download className="h-3.5 w-3.5 mr-1.5" />
           Bulk Export
@@ -158,6 +224,32 @@ export function MrfBulkActionsBar({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.length} MRF(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the selected material request forms when your role and the
+              MRF stage allow it. Items that cannot be deleted will be reported and left unchanged.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={busy}
+              onClick={(e) => {
+                e.preventDefault();
+                void runDelete();
+              }}
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Delete selected
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

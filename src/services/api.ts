@@ -1091,7 +1091,7 @@ export const mrfApi = {
     });
   },
 
-  /** Bulk approve — same stage rules as individual approve. */
+  /** Bulk approve — same stage rules as individual approve (SCD / Executive / Chairman). */
   bulkApprove: async (
     ids: Array<string | number>,
     remarks?: string,
@@ -1116,6 +1116,19 @@ export const mrfApi = {
     return apiRequest('/mrfs/bulk-reject', {
       method: 'POST',
       body: JSON.stringify({ ids, reason, remarks: reason }),
+    });
+  },
+
+  /** Bulk delete — same permission/stage rules as individual DELETE /mrfs/{id}. */
+  bulkDelete: async (
+    ids: Array<string | number>,
+  ): Promise<ApiResponse<{
+    succeeded: Array<{ id: string; message?: string }>;
+    failed: Array<{ id: string; error: string; code?: string }>;
+  }>> => {
+    return apiRequest('/mrfs/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
     });
   },
 

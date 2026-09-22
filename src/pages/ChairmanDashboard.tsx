@@ -26,6 +26,10 @@ import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import type { MRF, SRF, Vendor } from "@/types";
 import {
+  MrfBulkActionsBar,
+  MrfSelectCheckbox,
+} from "@/components/procurement/MrfBulkActionsBar";
+import {
   AlertsPanel,
   ConcentrationChart,
   ExecMetric,
@@ -103,6 +107,7 @@ const ChairmanDashboard = () => {
   const [rejectingMrfId, setRejectingMrfId] = useState<string | null>(null);
   const [rejectRemarks, setRejectRemarks] = useState("");
   const [drill, setDrill] = useState<{ bucket: DrillBucket; title: string } | null>(null);
+  const [selectedMrfIds, setSelectedMrfIds] = useState<string[]>([]);
 
   const getApiId = (mrf: MRF) =>
     String((mrf as unknown as Record<string, unknown>).mrf_id ?? mrf.id);
@@ -267,6 +272,15 @@ const ChairmanDashboard = () => {
             action={<Badge variant="outline">{chairmanQueue.length}</Badge>}
           >
             <div className="space-y-3">
+              <MrfBulkActionsBar
+                variant="approve"
+                selectedIds={selectedMrfIds}
+                onClear={() => setSelectedMrfIds([])}
+                onDone={() => {
+                  void refetchQueue();
+                  void fetchMRFs();
+                }}
+              />
               {queueLoading ? (
                 <Skeleton className="h-20 w-full" />
               ) : chairmanQueue.length === 0 ? (
@@ -275,17 +289,32 @@ const ChairmanDashboard = () => {
                 chairmanQueue.map((mrf) => {
                   const apiId = getApiId(mrf);
                   const cost = mrfCost(mrf);
+                  const isSelected = selectedMrfIds.includes(apiId);
                   return (
                     <div key={mrf.id} className="space-y-2 rounded-lg border p-3 sm:p-4">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold">{mrf.title}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {getDisplayId(mrf)} • {mrf.requester_name || mrf.requester || "Unknown"}
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {mrf.category || "—"} • {cost > 0 ? `₦${cost.toLocaleString()}` : "-"}
-                          </p>
+                        <div className="flex min-w-0 items-start gap-3">
+                          <MrfSelectCheckbox
+                            checked={isSelected}
+                            onCheckedChange={(next) =>
+                              setSelectedMrfIds((prev) =>
+                                next
+                                  ? prev.includes(apiId)
+                                    ? prev
+                                    : [...prev, apiId]
+                                  : prev.filter((id) => id !== apiId),
+                              )
+                            }
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">{mrf.title}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {getDisplayId(mrf)} • {mrf.requester_name || mrf.requester || "Unknown"}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {mrf.category || "—"} • {cost > 0 ? `₦${cost.toLocaleString()}` : "-"}
+                            </p>
+                          </div>
                         </div>
                         <Badge variant="outline" className="shrink-0">
                           {getWorkflowStageLabel(

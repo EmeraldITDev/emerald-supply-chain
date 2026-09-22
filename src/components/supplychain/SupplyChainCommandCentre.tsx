@@ -87,6 +87,10 @@ import {
   type ApprovalKind,
   type ScdApprovalItem,
 } from "@/components/supplychain/scdCommandCentre";
+import {
+  MrfBulkActionsBar,
+  MrfSelectCheckbox,
+} from "@/components/procurement/MrfBulkActionsBar";
 import { mrfApi, srfApi, vendorApi, tripRequestApi } from "@/services/api";
 import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
@@ -150,6 +154,7 @@ export const SupplyChainCommandCentre = ({
   const [busy, setBusy] = useState<string | null>(null);
   const [remarks, setRemarks] = useState<Record<string, string>>({});
   const [rejecting, setRejecting] = useState<string | null>(null);
+  const [selectedMrfIds, setSelectedMrfIds] = useState<string[]>([]);
   const [drill, setDrill] = useState<{ title: string; records: MRF[] } | null>(
     null,
   );
@@ -587,10 +592,21 @@ export const SupplyChainCommandCentre = ({
                       Nothing waiting here.
                     </p>
                   ) : (
-                    rows.map((item) => {
+                    <>
+                      <MrfBulkActionsBar
+                        variant="approve"
+                        selectedIds={selectedMrfIds}
+                        onClear={() => setSelectedMrfIds([])}
+                        onDone={() => {
+                          setSelectedMrfIds([]);
+                          void invalidate();
+                        }}
+                      />
+                      {rows.map((item) => {
                       const Icon = kindIcon[item.kind];
                       const isOpen = expanded === item.key;
                       const working = busy === item.key;
+                      const canSelectMrf = item.kind === "mrf";
                       return (
                         <div
                           key={item.key}
@@ -599,11 +615,26 @@ export const SupplyChainCommandCentre = ({
                             isOpen && "border-primary/40 bg-muted/30",
                           )}
                         >
-                          <button
-                            type="button"
-                            onClick={() => setExpanded(isOpen ? null : item.key)}
-                            className="flex w-full items-start gap-3 p-3 text-left"
-                          >
+                          <div className="flex w-full items-start gap-3 p-3">
+                            {canSelectMrf && (
+                              <MrfSelectCheckbox
+                                checked={selectedMrfIds.includes(item.apiId)}
+                                onCheckedChange={(next) =>
+                                  setSelectedMrfIds((prev) =>
+                                    next
+                                      ? prev.includes(item.apiId)
+                                        ? prev
+                                        : [...prev, item.apiId]
+                                      : prev.filter((id) => id !== item.apiId),
+                                  )
+                                }
+                              />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setExpanded(isOpen ? null : item.key)}
+                              className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                            >
                             <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-semibold">{item.title}</p>
@@ -636,7 +667,8 @@ export const SupplyChainCommandCentre = ({
                                 isOpen && "rotate-180",
                               )}
                             />
-                          </button>
+                            </button>
+                          </div>
 
                           {isOpen && (
                             <div className="space-y-3 border-t p-3">
@@ -723,7 +755,8 @@ export const SupplyChainCommandCentre = ({
                           )}
                         </div>
                       );
-                    })
+                    })}
+                    </>
                   )}
                 </TabsContent>
               );

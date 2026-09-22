@@ -16,6 +16,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { ApprovalItem } from "@/utils/executiveApprovalIntel";
 import { formatValue } from "@/utils/executiveApprovalIntel";
+import {
+  MrfBulkActionsBar,
+  MrfSelectCheckbox,
+} from "@/components/procurement/MrfBulkActionsBar";
 
 interface Props {
   items: ApprovalItem[];
@@ -28,6 +32,9 @@ interface Props {
   onViewDetails: (item: ApprovalItem) => void;
   onOpenFull: (item: ApprovalItem) => void;
   emptyMessage?: string;
+  selectedMrfIds?: string[];
+  onSelectedMrfIdsChange?: (ids: string[]) => void;
+  onBulkDone?: () => void;
 }
 
 const priorityTone: Record<ApprovalItem["priority"], string> = {
@@ -43,6 +50,12 @@ const waitTone = (days: number) =>
       ? "text-amber-600 dark:text-amber-400"
       : "text-muted-foreground";
 
+const mrfApiId = (item: ApprovalItem): string | null => {
+  if (item.kind !== "mrf" || !item.mrf) return null;
+  const raw = item.mrf as unknown as Record<string, unknown>;
+  return String(raw.mrf_id ?? item.mrf.id ?? "");
+};
+
 export const ExecutiveApprovalWorkspace = ({
   items,
   actionable,
@@ -54,6 +67,9 @@ export const ExecutiveApprovalWorkspace = ({
   onViewDetails,
   onOpenFull,
   emptyMessage = "Nothing is waiting for your decision.",
+  selectedMrfIds = [],
+  onSelectedMrfIdsChange,
+  onBulkDone,
 }: Props) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -67,65 +83,96 @@ export const ExecutiveApprovalWorkspace = ({
     );
   }
 
+  const toggleMrf = (id: string, next: boolean) => {
+    if (!onSelectedMrfIdsChange) return;
+    onSelectedMrfIdsChange(
+      next
+        ? selectedMrfIds.includes(id)
+          ? selectedMrfIds
+          : [...selectedMrfIds, id]
+        : selectedMrfIds.filter((x) => x !== id),
+    );
+  };
+
   return (
     <div className="space-y-2">
+      {onSelectedMrfIdsChange && (
+        <MrfBulkActionsBar
+          variant="approve"
+          selectedIds={selectedMrfIds}
+          onClear={() => onSelectedMrfIdsChange([])}
+          onDone={() => {
+            onSelectedMrfIdsChange([]);
+            onBulkDone?.();
+          }}
+        />
+      )}
       {items.map((item) => {
         const open = !!expanded[item.key];
         const busy = busyKey === item.key;
         const canAct = actionable(item);
         const remark = remarks[item.key] ?? "";
+        const apiId = mrfApiId(item);
+        const canSelect = !!apiId && !!onSelectedMrfIdsChange && canAct;
 
         return (
           <div
             key={item.key}
             className={cn("rounded-lg border border-l-4 bg-card", priorityTone[item.priority])}
           >
-            {/* Summary row */}
             <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-start sm:justify-between sm:p-4">
-              <button
-                type="button"
-                onClick={() => setExpanded((p) => ({ ...p, [item.key]: !open }))}
-                className="flex min-w-0 flex-1 items-start gap-2 text-left"
-              >
-                {open ? (
-                  <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="flex min-w-0 flex-1 items-start gap-2">
+                {canSelect && apiId && (
+                  <MrfSelectCheckbox
+                    checked={selectedMrfIds.includes(apiId)}
+                    onCheckedChange={(next) => toggleMrf(apiId, next)}
+                  />
                 )}
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold sm:text-base">{item.title}</p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {item.typeLabel} • {item.reference} • {item.requester}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {item.unit} • {item.summary}
-                  </p>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <Badge
-                      variant={item.priority === "high" ? "destructive" : "secondary"}
-                      className="text-[10px] capitalize"
-                    >
-                      {item.priority} priority
-                    </Badge>
-                    {item.value != null && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((p) => ({ ...p, [item.key]: !open }))}
+                  className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                >
+                  {open ? (
+                    <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold sm:text-base">{item.title}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {item.typeLabel} • {item.reference} • {item.requester}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {item.unit} • {item.summary}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <Badge
-                        variant={item.highValue ? "destructive" : "outline"}
-                        className="text-[10px]"
+                        variant={item.priority === "high" ? "destructive" : "secondary"}
+                        className="text-[10px] capitalize"
                       >
-                        {formatValue(item.value, item.currency)}
+                        {item.priority} priority
                       </Badge>
-                    )}
-                    <span className={cn("text-[11px] font-medium", waitTone(item.waitingDays))}>
-                      Waiting {item.waitingDays} day{item.waitingDays === 1 ? "" : "s"}
-                    </span>
-                    {item.submitted && (
-                      <span className="text-[11px] text-muted-foreground">
-                        Submitted {item.submitted.toLocaleDateString()}
+                      {item.value != null && (
+                        <Badge
+                          variant={item.highValue ? "destructive" : "outline"}
+                          className="text-[10px]"
+                        >
+                          {formatValue(item.value, item.currency)}
+                        </Badge>
+                      )}
+                      <span className={cn("text-[11px] font-medium", waitTone(item.waitingDays))}>
+                        Waiting {item.waitingDays} day{item.waitingDays === 1 ? "" : "s"}
                       </span>
-                    )}
+                      {item.submitted && (
+                        <span className="text-[11px] text-muted-foreground">
+                          Submitted {item.submitted.toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+              </div>
 
               <div className="flex shrink-0 flex-wrap gap-2">
                 {canAct ? (
@@ -160,7 +207,6 @@ export const ExecutiveApprovalWorkspace = ({
               </div>
             </div>
 
-            {/* Expanded detail */}
             {open && (
               <div className="space-y-3 border-t px-3 pb-3 pt-3 sm:px-4 sm:pb-4">
                 {item.mrf && (

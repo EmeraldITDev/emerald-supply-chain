@@ -2855,6 +2855,7 @@ const Procurement = () => {
                     {/* Results */}
                     <div className="space-y-4 mt-4">
                       <MrfBulkActionsBar
+                        variant="manage"
                         selectedIds={selectedMrfIds}
                         onClear={() => setSelectedMrfIds([])}
                         onDone={() => {

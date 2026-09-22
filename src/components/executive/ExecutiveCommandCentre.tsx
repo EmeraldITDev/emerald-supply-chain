@@ -115,6 +115,7 @@ const ExecutiveCommandCentre = () => {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [detailMrf, setDetailMrf] = useState<MRF | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedMrfIds, setSelectedMrfIds] = useState<string[]>([]);
   const [series, setSeriesVisible] = useState<Record<string, boolean>>({
     materialRequests: true,
     serviceRequests: true,
@@ -671,6 +672,12 @@ const ExecutiveCommandCentre = () => {
                       onReject={(i) => void reject(i)}
                       onViewDetails={viewDetails}
                       onOpenFull={openFull}
+                      selectedMrfIds={selectedMrfIds}
+                      onSelectedMrfIdsChange={setSelectedMrfIds}
+                      onBulkDone={() => {
+                        void approvalQ.refetch();
+                        void orgQ.refetch();
+                      }}
                     />
                   )}
                 </TabsContent>
