@@ -150,7 +150,7 @@ export const poAt = (m: MRF): Date | null =>
       raw(m, "procurement_review_started_at"),
   );
 
-/** When goods were actually received. */
+/** When goods were actually received (or force-closed as completed). */
 export const deliveredAt = (m: MRF): Date | null =>
   toDate(
     raw(m, "actual_delivery_date") ??
@@ -159,7 +159,9 @@ export const deliveredAt = (m: MRF): Date | null =>
       raw(m, "deliveredAt") ??
       raw(m, "goods_received_at") ??
       raw(m, "grn_completed_at") ??
-      raw(m, "grnCompletedAt"),
+      raw(m, "grnCompletedAt") ??
+      raw(m, "force_closed_at") ??
+      raw(m, "forceClosedAt"),
   );
 
 /** Promised delivery date recorded on the purchase order. */
@@ -216,9 +218,10 @@ export const isApproved = (m: MRF): boolean =>
     /approved|procurement|rfq|quote|vendor_select|po_/.test(mrfState(m)));
 
 export const isDelivered = (m: MRF): boolean => {
+  if (isCompleted(m)) return true;
   const status = deliveryStatusOf(m);
   if (status === "on_time" || status === "late" || status === "delivered") return true;
-  return deliveredAt(m) != null || isCompleted(m);
+  return deliveredAt(m) != null;
 };
 
 /** Days a delivery ran past its promised date (null when not measurable). */
@@ -230,9 +233,10 @@ export const deliveryDelayDays = (m: MRF): number | null => {
 };
 
 export const deliveryLate = (m: MRF): boolean => {
+  if (isCompleted(m) && !deliveredAt(m)) return false; // force-closed without GRN is not "late"
   const status = deliveryStatusOf(m);
   if (status === "late") return true;
-  if (status === "on_time") return false;
+  if (status === "on_time" || status === "delivered") return false;
   const delay = deliveryDelayDays(m);
   if (delay != null) return delay > 0;
   const started = poAt(m) ?? approvedAt(m) ?? mrfCreated(m);
@@ -241,10 +245,12 @@ export const deliveryLate = (m: MRF): boolean => {
 };
 
 export const isOverdueDelivery = (m: MRF): boolean => {
+  // Closed / force-closed / GRN-complete must never stay in overdue or active buckets.
+  if (isDelivered(m) || isRejected(m) || isCompleted(m)) return false;
   const status = deliveryStatusOf(m);
   if (status === "overdue") return true;
   if (status === "on_time" || status === "late" || status === "delivered") return false;
-  if (!hasPO(m) || isDelivered(m) || isRejected(m)) return false;
+  if (!hasPO(m)) return false;
   const expected = expectedDeliveryAt(m);
   if (expected) return expected.getTime() < Date.now();
   const started = poAt(m) ?? approvedAt(m) ?? mrfCreated(m);
@@ -802,7 +808,7 @@ export function bucketFor(bucket: ProcBucket, mrfs: MRF[]): MRF[] {
     case "awaiting_delivery":
       return live.filter((m) => hasPO(m) && !isDelivered(m));
     case "active_po":
-      return live.filter(hasPO);
+      return live.filter((m) => hasPO(m) && !isDelivered(m));
     case "completed":
       return live.filter(isDelivered);
     default:

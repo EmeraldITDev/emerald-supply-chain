@@ -84,9 +84,16 @@ export const hasPO = (m: MRF): boolean =>
   Boolean((m as { po_number?: string }).po_number || m.poNumber) ||
   /po_generated|po_signed|po_pending|delivery|grn/.test(mrfState(m));
 
-export const isCompleted = (m: MRF): boolean =>
-  /completed|closed|delivered|paid/.test(mrfState(m)) ||
-  Boolean((m as { grn_completed?: boolean }).grn_completed || m.grnCompleted);
+export const isCompleted = (m: MRF): boolean => {
+  const r = m as unknown as Record<string, unknown>;
+  if (r.force_closed_at || r.forceClosedAt || r.force_closed || r.forceClosed) {
+    return true;
+  }
+  return (
+    /completed|closed|delivered|paid/.test(mrfState(m)) ||
+    Boolean((m as { grn_completed?: boolean }).grn_completed || m.grnCompleted)
+  );
+};
 
 export const isRejected = (m: MRF): boolean => /reject|cancel/.test(mrfState(m));
 
