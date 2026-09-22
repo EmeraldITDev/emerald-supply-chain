@@ -9,6 +9,7 @@ import { TableSkeleton } from '@/components/LoadingSkeleton';
 import { ScanLine, Search } from 'lucide-react';
 import { warehouseInventoryApi } from '@/services/warehouseInventoryApi';
 import { BarcodeScannerDialog } from './BarcodeScannerDialog';
+import { InventoryDetailSheet } from './InventoryDetailSheet';
 import type { InventoryRecord } from '@/types/warehouse-inventory';
 
 const fmtQty = (v: number | null | undefined) => (v == null ? '—' : new Intl.NumberFormat('en-NG').format(v));
@@ -16,6 +17,8 @@ const fmtQty = (v: number | null | undefined) => (v == null ? '—' : new Intl.N
 export const InventoryTable = () => {
   const [search, setSearch] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [selected, setSelected] = useState<InventoryRecord | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -33,12 +36,17 @@ export const InventoryTable = () => {
 
   const rows = useMemo<InventoryRecord[]>(() => inventory, [inventory]);
 
+  const openDetail = (row: InventoryRecord) => {
+    setSelected(row);
+    setDetailOpen(true);
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Inventory</CardTitle>
         <CardDescription>
-          Stock from warehouse locations plus completed / force-closed purchase orders
+          Click a row to view line items and manage the waybill. Includes completed / force-closed purchase orders.
         </CardDescription>
         <div className="flex flex-wrap gap-2 pt-2">
           <div className="relative flex-1 min-w-[200px]">
@@ -86,7 +94,19 @@ export const InventoryTable = () => {
                 {rows.map((r) => {
                   const low = r.reorder_level != null && r.qty_on_hand <= r.reorder_level;
                   return (
-                    <TableRow key={r.id}>
+                    <TableRow
+                      key={r.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      tabIndex={0}
+                      role="button"
+                      onClick={() => openDetail(r)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          openDetail(r);
+                        }
+                      }}
+                    >
                       <TableCell className="font-medium">{r.sku}</TableCell>
                       <TableCell className="max-w-[240px] truncate">{r.description}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
@@ -120,6 +140,14 @@ export const InventoryTable = () => {
         )}
       </CardContent>
       <BarcodeScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} onDetected={(code) => setSearch(code)} />
+      <InventoryDetailSheet
+        record={selected}
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) setSelected(null);
+        }}
+      />
     </Card>
   );
 };

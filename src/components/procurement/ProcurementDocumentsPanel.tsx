@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { procurementApi } from "@/services/procurementApi";
+import { cn } from "@/lib/utils";
 import type {
   ProcurementDocument,
   ProcurementDocumentType,
@@ -52,10 +53,18 @@ interface ProcurementDocumentsPanelProps {
    * restricted to JCC and waybill only. All other document types are view-only.
    */
   restrictToLmTypes?: boolean;
+  /**
+   * When set, only these types appear in the upload picker and active list filter.
+   * Takes precedence over restrictToLmTypes for upload options.
+   */
+  allowedUploadTypes?: ProcurementDocumentType[];
+  /** Optional compact title for embedded contexts (e.g. inventory detail). */
+  title?: string;
   /** When true, hide the upload form (read-only document registry). */
   readOnly?: boolean;
   /** Seed from parent MRF hydrate (`include_documents=1`) to skip the first empty load. */
   initialData?: ProcurementDocumentsResponse | null;
+  className?: string;
 }
 
 const UPLOADABLE_TYPES: { value: ProcurementDocumentType; label: string }[] = [
@@ -104,8 +113,11 @@ export default function ProcurementDocumentsPanel({
   mrfId,
   defaultUploadType = "waybill",
   restrictToLmTypes = false,
+  allowedUploadTypes,
+  title = "Procurement Documents",
   readOnly = false,
   initialData = null,
+  className,
 }: ProcurementDocumentsPanelProps) {
   const { toast } = useToast();
   const [data, setData] = useState<ProcurementDocumentsResponse | null>(initialData);
@@ -234,15 +246,18 @@ export default function ProcurementDocumentsPanel({
     return out;
   }, [data, grouped]);
 
-  const availableTypes = useMemo(
-    () =>
-      restrictToLmTypes
-        ? UPLOADABLE_TYPES.filter((t) =>
-            (LM_UPLOADABLE_DOC_TYPES as readonly string[]).includes(t.value),
-          )
-        : UPLOADABLE_TYPES,
-    [restrictToLmTypes],
-  );
+  const availableTypes = useMemo(() => {
+    if (allowedUploadTypes?.length) {
+      const allow = new Set(allowedUploadTypes);
+      return UPLOADABLE_TYPES.filter((t) => allow.has(t.value));
+    }
+    if (restrictToLmTypes) {
+      return UPLOADABLE_TYPES.filter((t) =>
+        (LM_UPLOADABLE_DOC_TYPES as readonly string[]).includes(t.value),
+      );
+    }
+    return UPLOADABLE_TYPES;
+  }, [allowedUploadTypes, restrictToLmTypes]);
 
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = Array.from(e.target.files ?? []);
@@ -338,11 +353,21 @@ export default function ProcurementDocumentsPanel({
     ProcurementDocument[],
   ][];
 
+  const filterTypes = allowedUploadTypes?.length
+    ? new Set(allowedUploadTypes)
+    : null;
+  const visibleActiveEntries = filterTypes
+    ? activeEntries.filter(([type]) => filterTypes.has(type))
+    : activeEntries;
+  const visibleGroupedEntries = filterTypes
+    ? groupedEntries.filter(([type]) => filterTypes.has(type))
+    : groupedEntries;
+
   return (
     <>
-    <Card className="border-t">
+    <Card className={cn("border-t", className)}>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-base">Procurement Documents</CardTitle>
+        <CardTitle className="text-base">{title}</CardTitle>
         <Button
           size="sm"
           variant="ghost"
@@ -363,13 +388,15 @@ export default function ProcurementDocumentsPanel({
             <div className="flex items-center text-sm text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
             </div>
-          ) : activeEntries.length === 0 ? (
+          ) : visibleActiveEntries.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No documents in the registry yet.
+              {filterTypes?.has("waybill")
+                ? "No waybill uploaded yet. Add one below to attach or replace."
+                : "No documents in the registry yet."}
             </p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
-              {activeEntries.map(([type, doc]) => (
+              {visibleActiveEntries.map(([type, doc]) => (
                 <div
                   key={`active-${type}`}
                   className="flex items-start justify-between rounded-md border p-3"
@@ -398,7 +425,7 @@ export default function ProcurementDocumentsPanel({
                     ) : (
                       <ExternalLink className="h-3 w-3 mr-1" />
                     )}{" "}
-                    Open
+                    Download
                   </Button>
                   {!readOnly && (
                     <Button
@@ -423,13 +450,13 @@ export default function ProcurementDocumentsPanel({
         </section>
 
         {/* All versions */}
-        {groupedEntries.length > 0 && (
+        {visibleGroupedEntries.length > 0 && (
           <section className="space-y-2">
             <h4 className="text-sm font-semibold text-muted-foreground">
               All Versions
             </h4>
             <Accordion type="multiple" className="w-full">
-              {groupedEntries.map(([type, list]) => (
+              {visibleGroupedEntries.map(([type, list]) => (
                 <AccordionItem key={`group-${type}`} value={type}>
                   <AccordionTrigger className="text-sm">
                     {TYPE_LABELS[type] ?? type}
@@ -466,6 +493,7 @@ export default function ProcurementDocumentsPanel({
                             variant="ghost"
                             disabled={openingDocId === doc.id}
                             onClick={() => void openDocument(doc)}
+                            aria-label={`Download ${doc.fileName}`}
                           >
                             {openingDocId === doc.id ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
@@ -503,7 +531,11 @@ export default function ProcurementDocumentsPanel({
         {!readOnly && availableTypes.length > 0 && (
           <section className="space-y-3 rounded-md border bg-muted/30 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h4 className="text-sm font-semibold">Upload Supporting Documents</h4>
+              <h4 className="text-sm font-semibold">
+                {filterTypes?.has("waybill") && availableTypes.length === 1
+                  ? "Upload / replace waybill"
+                  : "Upload Supporting Documents"}
+              </h4>
               <Button
                 type="button"
                 size="sm"
@@ -523,9 +555,11 @@ export default function ProcurementDocumentsPanel({
                 disabled={uploading}
               />
             </div>
-            {restrictToLmTypes && (
+            {(restrictToLmTypes || (filterTypes?.has("waybill") && availableTypes.length === 1)) && (
               <p className="text-xs text-muted-foreground">
-                Your role can upload JCC and Waybill documents only.
+                {filterTypes?.has("waybill") && availableTypes.length === 1
+                  ? "Uploading a new file replaces the active waybill (previous versions stay in history)."
+                  : "Your role can upload JCC and Waybill documents only."}
               </p>
             )}
             {pending.length === 0 ? (

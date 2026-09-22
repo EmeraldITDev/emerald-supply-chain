@@ -145,10 +145,25 @@ export interface InventoryRecord {
   /** Present when row is sourced from a closed / force-closed PO (MRF-backed). */
   mrf_id?: string | null;
   po_number?: string | null;
+  title?: string | null;
   vendor_name?: string | null;
   force_closed?: boolean;
+  force_close_reason?: string | null;
   workflow_state?: string | null;
   status?: string | null;
+  line_items?: InventoryLineItem[] | null;
+  line_item_count?: number | null;
+  source?: string | null;
+}
+
+export interface InventoryLineItem {
+  id?: number | string | null;
+  item_name: string;
+  description?: string | null;
+  quantity: number;
+  unit?: string | null;
+  unit_price?: number | null;
+  total_price?: number | null;
 }
 
 export type StockMovementType =
