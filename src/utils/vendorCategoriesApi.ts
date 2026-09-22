@@ -19,6 +19,36 @@ export function pickCategoryOtherFromUnknown(source: unknown): string | undefine
 }
 
 /**
+ * Split a vendor's stored category field(s) into individual labels.
+ * Supports `categories[]`, comma-separated `category`, and ignores placeholder "Unknown".
+ */
+export function parseVendorCategoryLabels(source: unknown): string[] {
+  if (!source || typeof source !== "object") return [];
+  const o = source as Record<string, unknown>;
+
+  if (Array.isArray(o.categories)) {
+    return o.categories
+      .map((c) => String(c ?? "").trim())
+      .filter((c) => c.length > 0 && c.toLowerCase() !== "unknown");
+  }
+
+  const raw = String(o.category ?? "").trim();
+  if (!raw || raw.toLowerCase() === "unknown") return [];
+
+  return raw
+    .split(",")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0 && p.toLowerCase() !== "unknown");
+}
+
+/** True when the vendor belongs to the given category label (case-insensitive). */
+export function vendorMatchesCategory(source: unknown, category: string): boolean {
+  const target = category.trim().toLowerCase();
+  if (!target) return false;
+  return parseVendorCategoryLabels(source).some((label) => label.toLowerCase() === target);
+}
+
+/**
  * Renders stored `category` (comma-separated labels) with an optional Others elaboration,
  * e.g. `Accommodation/Hotel, Others` + `Logistics` → `Accommodation/Hotel, Others: Logistics`.
  */

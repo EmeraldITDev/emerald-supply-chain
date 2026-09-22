@@ -33,7 +33,8 @@ import { normalizeQuotation, displayNumeric, displayString, displayCurrency, for
 import type { NormalizedQuotation } from "@/utils/normalizeQuotation";
 import { normalizeAttachments } from "@/utils/attachments";
 import type { MRFRequest, RFQ, Quotation } from "@/contexts/AppContext";
-import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown } from "@/utils/vendorCategoriesApi";
+import { formatVendorCategoryDisplay, pickCategoryOtherFromUnknown, parseVendorCategoriesApiPayload, parseVendorCategoryLabels, vendorMatchesCategory } from "@/utils/vendorCategoriesApi";
+import { VENDOR_CATEGORIES } from "@/types/vendor-registration";
 import { useTableExport } from "@/hooks/useTableExport";
 import { TableExportMenu } from "@/components/export/TableExportMenu";
 import { RFQ_EXPORT_COLUMNS } from "@/config/tableExportPresets";
@@ -42,6 +43,7 @@ interface Vendor {
   id: string;
   name: string;
   category: string;
+  categories: string[];
   categoryOther?: string | null;
   rating: number;
   orders: number;
@@ -178,6 +180,7 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
   // RFQ Creation form state
   const [selectionMethod, setSelectionMethod] = useState<'all_category' | 'manual' | 'preferred'>('manual');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([...VENDOR_CATEGORIES]);
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
   const [deadline, setDeadline] = useState('');
   const [deliveryTerms, setDeliveryTerms] = useState('');
@@ -205,13 +208,29 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
 
   useEffect(() => {
     if (!createDialogOpen) return;
+    let cancelled = false;
+    (async () => {
+      const res = await vendorApi.getCategories();
+      if (cancelled || !res.success || res.data == null) return;
+      const { categoryLabels } = parseVendorCategoriesApiPayload(res.data);
+      if (categoryLabels.length > 0) {
+        setCategoryOptions(categoryLabels);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [createDialogOpen]);
+
+  useEffect(() => {
+    if (!createDialogOpen) return;
     const handle = window.setTimeout(async () => {
       setLoadingVendors(true);
       try {
         const response = await vendorApi.list({
           search: vendorSearch.trim() || undefined,
-          category: selectionMethod === "all_category" && selectedCategory ? selectedCategory : undefined,
-          per_page: 50,
+          category: selectedCategory || undefined,
+          per_page: 100,
           page: 1,
           dropdown: true,
           allowEmpty: true,
@@ -219,17 +238,21 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
           activeOnly: true,
         });
         if (response.success && response.data) {
-          const transformedVendors = response.data.items.map((vendor: any) => ({
-            id: vendor.id || vendor.vendor_id,
-            name: vendor.name || vendor.company_name,
-            category: vendor.category || "Unknown",
-            categoryOther: pickCategoryOtherFromUnknown(vendor) ?? null,
-            status: vendor.status || "Active",
-            kyc: vendor.kyc_status || vendor.kyc || "Verified",
-            rating: Number(vendor.rating || 0),
-            orders: Number(vendor.total_orders || vendor.totalOrders || vendor.orders || 0),
-            email: vendor.email || "",
-          }));
+          const transformedVendors = response.data.items.map((vendor: any) => {
+            const labels = parseVendorCategoryLabels(vendor);
+            return {
+              id: vendor.id || vendor.vendor_id,
+              name: vendor.name || vendor.company_name,
+              category: labels.join(', ') || '',
+              categories: labels,
+              categoryOther: pickCategoryOtherFromUnknown(vendor) ?? null,
+              status: vendor.status || "Active",
+              kyc: vendor.kyc_status || vendor.kyc || "Verified",
+              rating: Number(vendor.rating || 0),
+              orders: Number(vendor.total_orders || vendor.totalOrders || vendor.orders || 0),
+              email: vendor.email || "",
+            };
+          });
           setVendors(transformedVendors);
         } else {
           setVendors([]);
@@ -345,7 +368,7 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
     let filtered = activeVendors;
     
     if (selectedCategory) {
-      filtered = filtered.filter(v => v.category === selectedCategory);
+      filtered = filtered.filter((v) => vendorMatchesCategory(v, selectedCategory));
     }
     
     if (minRating > 0) {
@@ -562,7 +585,10 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
 
     if (selectionMethod === 'all_category' && selectedCategory) {
       vendorIds = vendors
-        .filter(v => v.category === selectedCategory && String(v.status).toLowerCase() === 'active')
+        .filter((v) =>
+          vendorMatchesCategory(v, selectedCategory) &&
+          String(v.status).toLowerCase() === 'active',
+        )
         .map(v => v.id);
     } else if (selectionMethod === 'preferred') {
       vendorIds = activeVendors
@@ -858,7 +884,18 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
     }
   };
 
-  const categories = [...new Set(vendors.map(v => v.category))];
+  const categories = categoryOptions.length > 0
+    ? categoryOptions
+    : [...new Set(vendors.flatMap((v) => v.categories).filter(Boolean))];
+
+  const categoryVendorCount = useMemo(() => {
+    if (!selectedCategory) return 0;
+    return vendors.filter(
+      (v) =>
+        vendorMatchesCategory(v, selectedCategory) &&
+        String(v.status).toLowerCase() === 'active',
+    ).length;
+  }, [vendors, selectedCategory]);
 
   const fetchRfqExportPage = useCallback(async (page: number, perPage: number) => {
     const response = await rfqApi.list({
@@ -1545,7 +1582,7 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                 <TabsContent value="all_category" className="space-y-4">
                   <div className="space-y-2">
                     <Label>Select Category</Label>
-                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <Select value={selectedCategory || undefined} onValueChange={setSelectedCategory}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
                       </SelectTrigger>
@@ -1558,7 +1595,7 @@ export const RFQManagement = ({ onVendorSelected, enabled = true }: RFQManagemen
                   </div>
                   {selectedCategory && (
                     <p className="text-sm text-muted-foreground">
-                      RFQ will be sent to all {vendors.filter(v => v.category === selectedCategory && v.status === 'Active').length} active vendors in {selectedCategory}
+                      RFQ will be sent to all {categoryVendorCount} active vendor{categoryVendorCount === 1 ? '' : 's'} in {selectedCategory}
                     </p>
                   )}
                 </TabsContent>
