@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -110,8 +110,33 @@ const Auth = () => {
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
             </form>
+            <p className="mt-4 text-center text-xs text-muted-foreground">
+              By signing in you agree to our{" "}
+              <Link to="/terms" className="text-primary hover:underline">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link to="/privacy" className="text-primary hover:underline">
+                Privacy Policy
+              </Link>
+              .
+            </p>
           </CardContent>
         </Card>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          <Link to="/vendor-portal" className="hover:text-foreground hover:underline">
+            Vendor Portal
+          </Link>
+          {" · "}
+          <Link to="/terms" className="hover:text-foreground hover:underline">
+            Terms
+          </Link>
+          {" · "}
+          <Link to="/privacy" className="hover:text-foreground hover:underline">
+            Privacy
+          </Link>
+        </p>
 
       </div>
     </div>

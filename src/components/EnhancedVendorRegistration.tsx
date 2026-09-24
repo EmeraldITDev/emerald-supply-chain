@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -919,6 +920,17 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
             <strong className="block mt-2">
               Documents that expire annually may require re-upload before expiry.
             </strong>
+            <span className="block mt-2 text-xs">
+              By submitting, you agree to Emerald CFZE&apos;s{" "}
+              <Link to="/terms" className="text-primary underline-offset-2 hover:underline" target="_blank" rel="noopener noreferrer">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link to="/privacy" className="text-primary underline-offset-2 hover:underline" target="_blank" rel="noopener noreferrer">
+                Privacy Policy
+              </Link>
+              .
+            </span>
           </AlertDescription>
         </Alert>
 

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp, X, Check, ChevronUp, ChevronDown, Send, Loader2, Building, Mail, Phone, MapPin, Globe, Calendar, Star, User, Download, AlertTriangle, Edit, Save, RotateCcw, Trash2, KeyRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "@/assets/emerald-logo.png";
 import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
@@ -1276,6 +1276,17 @@ const VendorPortal = () => {
                 Register as Vendor
               </button>
             </div>
+            <p className="text-center text-xs text-muted-foreground pt-2">
+              By continuing you agree to our{" "}
+              <Link to="/terms" className="text-primary hover:underline">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link to="/privacy" className="text-primary hover:underline">
+                Privacy Policy
+              </Link>
+              .
+            </p>
           </CardContent>
         </Card>
 

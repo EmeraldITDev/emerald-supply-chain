@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Package, ArrowRight } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -33,6 +33,19 @@ const Index = () => {
           Get Started
           <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
         </Button>
+        <p className="text-xs text-muted-foreground">
+          <Link to="/terms" className="hover:text-foreground hover:underline">
+            Terms of Service
+          </Link>
+          {" · "}
+          <Link to="/privacy" className="hover:text-foreground hover:underline">
+            Privacy Policy
+          </Link>
+          {" · "}
+          <Link to="/vendor-portal" className="hover:text-foreground hover:underline">
+            Vendor Portal
+          </Link>
+        </p>
       </div>
     </div>
   );
