@@ -321,8 +321,12 @@ const Procurement = () => {
   const [poPage, setPoPage] = useState(1);
 
   const vendorFromState = (location.state as any)?.vendor as string | undefined;
+  const vendorIdFromState = (location.state as any)?.vendorId as string | number | undefined;
+  const poLifecycleFromState = (location.state as any)?.poLifecycle as string | undefined;
   const vendorFromQuery = searchParams.get("vendor") || undefined;
+  const vendorIdFromQuery = searchParams.get("vendor_id") || searchParams.get("vendorId") || undefined;
   const vendorFilter = vendorFromState || vendorFromQuery || undefined;
+  const vendorIdFilter = vendorIdFromState ?? vendorIdFromQuery ?? undefined;
 
   const [tab, setTab] = useState<string>(vendorFilter ? "po" : "mrf");
 
@@ -1124,6 +1128,7 @@ const Procurement = () => {
 
   const srfDeepLinkHandled = useRef<string>("");
   const mrfDeepLinkHandled = useRef<string>("");
+  const vendorDeepLinkHandled = useRef<string>("");
 
   const poListParams = useMemo(
     () => {
@@ -1135,6 +1140,9 @@ const Procurement = () => {
         per_page: 25,
         po_list: true as const,
         search: poSearchDebounced || undefined,
+        vendor_id: vendorIdFilter != null && String(vendorIdFilter) !== ""
+          ? String(vendorIdFilter)
+          : undefined,
         status:
           !isActiveDefault && status !== "include_all"
             ? status
@@ -1152,6 +1160,7 @@ const Procurement = () => {
     [
       poPage,
       poSearchDebounced,
+      vendorIdFilter,
       poControls.status,
       poControls.dateFrom,
       poControls.dateTo,
@@ -1237,20 +1246,34 @@ const Procurement = () => {
 
   useEffect(() => {
     if (vendorFromState && !vendorFromQuery) {
-      setSearchParams(
-        { vendor: vendorFromState } as any,
-        { replace: true } as any,
-      );
+      const next: Record<string, string> = { vendor: vendorFromState };
+      if (vendorIdFromState != null && String(vendorIdFromState) !== "") {
+        next.vendor_id = String(vendorIdFromState);
+      }
+      setSearchParams(next as any, { replace: true } as any);
     }
-  }, [vendorFromState, vendorFromQuery, setSearchParams]);
+  }, [vendorFromState, vendorFromQuery, vendorIdFromState, setSearchParams]);
 
   useEffect(() => {
-    if (vendorFilter) {
-      setTab("po");
-      // Seed the PO list search with the vendor so the deep link actually filters.
-      setPoControls((prev) => ({ ...prev, search: vendorFilter }));
+    if (!vendorFilter && vendorIdFilter == null) {
+      vendorDeepLinkHandled.current = "";
+      return;
     }
-  }, [vendorFilter]);
+    const key = `${vendorFilter ?? ""}|${String(vendorIdFilter ?? "")}|${poLifecycleFromState ?? ""}`;
+    if (vendorDeepLinkHandled.current === key) return;
+    vendorDeepLinkHandled.current = key;
+    setTab("po");
+    // Seed PO search with vendor name and include completed so View Orders is not empty
+    // when the only PO for that vendor is historical.
+    setPoControls((prev) => ({
+      ...prev,
+      search: vendorFilter || prev.search,
+      status:
+        poLifecycleFromState === "all" || searchParams.get("lifecycle") === "all"
+          ? "include_all"
+          : prev.status,
+    }));
+  }, [vendorFilter, vendorIdFilter, poLifecycleFromState, searchParams]);
 
   // Deep links: /procurement?srf=SRF-... or ?mrf=MRF-...
   useEffect(() => {

@@ -553,7 +553,10 @@ const Vendors = () => {
       status: vendor.status || "Active",
       kyc: vendor.kyc_status || "Verified",
       rating: vendor.rating || 0,
-      orders: vendor.total_orders || 0,
+      orders: Math.max(
+        Number(vendor.total_orders ?? vendor.totalOrders ?? 0),
+        Number(vendor.performance?.total_pos ?? 0),
+      ),
       email: vendor.email || "",
       phone: vendor.phone || "",
       address: vendor.address || "",
@@ -1622,7 +1625,13 @@ const Vendors = () => {
                   className="flex-1"
                   onClick={() => {
                     setVendorDetailsOpen(false);
-                    navigate("/procurement", { state: { vendor: selectedVendor?.name } });
+                    navigate("/procurement", {
+                      state: {
+                        vendor: selectedVendor?.name,
+                        vendorId: selectedVendor?.id,
+                        poLifecycle: "all",
+                      },
+                    });
                   }}
                 >
                   View Orders

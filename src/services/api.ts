@@ -752,6 +752,8 @@ export const mrfApi = {
     po_list?: boolean;
     /** active | historical | completed | closed — server-side lifecycle filter */
     lifecycle?: string;
+    /** Filter POs by selected vendor (vendor_id string or numeric PK). */
+    vendor_id?: string | number;
     sort_by?: string;
     sort_direction?: 'asc' | 'desc';
     sort?: import('@/utils/listFilters').ListSort;
@@ -773,6 +775,7 @@ export const mrfApi = {
       has_po: params?.has_po ? 1 : undefined,
       po_list: params?.po_list ? 1 : undefined,
       lifecycle: params?.lifecycle,
+      vendor_id: params?.vendor_id,
       sort_by: params?.sort_by ?? sortApi?.sort_by,
       sort_direction: params?.sort_direction ?? sortApi?.sort_direction,
       dropdown: params?.dropdown ? 1 : undefined,
@@ -3364,6 +3367,7 @@ export const vendorApi = {
     }
   ): Promise<ApiResponse<Vendor>> => {
     const map: Array<[string, string, unknown]> = [
+      ['name', 'name', data.companyName],
       ['company_name', 'companyName', data.companyName],
       ['contact_person', 'contactPerson', data.contactPerson],
       ['contact_person_title', 'contactPersonTitle', data.contactPersonTitle],
