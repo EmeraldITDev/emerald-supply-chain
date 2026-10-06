@@ -553,6 +553,9 @@ export interface AvailableActions {
   canViewFinanceSync?: boolean; // true for finance roles on Finance AP MRFs
   canForceClose?: boolean;
   canClose?: boolean;
+  canConfirmDelivery?: boolean;
+  showDeliveryConfirmationPanel?: boolean;
+  canManageDeliveryConfirmation?: boolean;
   canUploadHistoricalSupportingDocument?: boolean;
   canUploadWaybill?: boolean;
   canUploadJcc?: boolean;

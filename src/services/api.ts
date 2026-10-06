@@ -923,6 +923,25 @@ export const mrfApi = {
     return res;
   },
 
+  /**
+   * POST /api/mrfs/{id}/confirm-delivery — close out delivery_confirmation_pending.
+   */
+  confirmDelivery: async (
+    mrfId: string,
+    payload?: { delivery_notes?: string; delivery_confirmed_at?: string },
+  ): Promise<ApiResponse<{
+    mrf_id?: string;
+    mrfId?: string;
+    workflow_state?: string;
+    workflowState?: string;
+    status?: string;
+  }>> => {
+    return apiRequest(`/mrfs/${encodeURIComponent(mrfId)}/confirm-delivery`, {
+      method: 'POST',
+      body: JSON.stringify(payload ?? {}),
+    });
+  },
+
   create: async (data: CreateMRFData): Promise<ApiResponse<MRF>> => {
     return apiRequest<MRF>('/mrfs', {
       method: 'POST',

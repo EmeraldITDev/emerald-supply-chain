@@ -3,6 +3,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -29,6 +39,7 @@ interface DeliveryConfirmationPanelProps {
   /** Bump to force re-fetch after external mutations. */
   refreshKey?: number;
   className?: string;
+  onConfirmed?: () => void;
 }
 
 const ACCEPT = ".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg";
@@ -41,12 +52,16 @@ export const DeliveryConfirmationPanel = ({
   mrfId,
   refreshKey = 0,
   className,
+  onConfirmed,
 }: DeliveryConfirmationPanelProps) => {
   const { toast } = useToast();
   const [data, setData] = useState<DeliveryConfirmationResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyType, setBusyType] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deliveryNotes, setDeliveryNotes] = useState("");
+  const [confirming, setConfirming] = useState(false);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const fetchData = useCallback(async () => {
@@ -95,13 +110,14 @@ export const DeliveryConfirmationPanel = ({
     );
   }
 
-  // Hide entirely when backend says we shouldn't show (advance-only schedules, etc.)
-  if (!data || data.showPanel === false) return null;
+  // Hide when panel is off, unless confirm-delivery is available for stuck records.
+  const canConfirmDelivery = Boolean(data?.permissions?.canConfirmDelivery);
+  if ((!data || data.showPanel === false) && !canConfirmDelivery) return null;
 
-  const checklist = data.checklist ?? [];
-  const perms = data.permissions ?? {};
+  const checklist = data?.checklist ?? [];
+  const perms = data?.permissions ?? {};
   const readOnly =
-    data.satisfied === true || !perms.canManageDeliveryConfirmation;
+    data?.satisfied === true || !perms.canManageDeliveryConfirmation;
 
   const triggerUpload = (type: ProcurementDocumentType) => {
     fileInputs.current[type]?.click();
@@ -163,6 +179,34 @@ export const DeliveryConfirmationPanel = ({
     }
   };
 
+  const handleConfirmDelivery = async () => {
+    setConfirming(true);
+    try {
+      const res = await procurementApi.confirmDelivery(mrfId, {
+        delivery_notes: deliveryNotes.trim() || undefined,
+      });
+      if (res.success) {
+        toast({
+          title: "Delivery confirmed",
+          description: "Request closed out successfully. Finance has been notified.",
+        });
+        setConfirmOpen(false);
+        setDeliveryNotes("");
+        await fetchData();
+        onConfirmed?.();
+        window.dispatchEvent(new CustomEvent("app:refresh"));
+      } else {
+        toast({
+          title: "Confirm failed",
+          description: res.error || "Failed to confirm delivery.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setConfirming(false);
+    }
+  };
+
   const canActFor = (item: DeliveryChecklistItem): boolean => {
     if (readOnly) return false;
     switch (item.type) {
@@ -187,21 +231,21 @@ export const DeliveryConfirmationPanel = ({
             <CardTitle className="flex items-center gap-2 text-base">
               <FileCheck className="h-4 w-4" />
               Delivery Confirmation
-              {data.satisfied ? (
+              {data?.satisfied ? (
                 <Badge variant="default" className="text-[10px] gap-1">
                   <CheckCircle2 className="h-3 w-3" /> Satisfied
                 </Badge>
-              ) : data.required ? (
+              ) : data?.required ? (
                 <Badge variant="secondary" className="text-[10px]">Pending</Badge>
               ) : (
                 <Badge variant="outline" className="text-[10px]">Not required</Badge>
               )}
             </CardTitle>
             <CardDescription className="mt-1">
-              {data.workflowState && (
+              {data?.workflowState && (
                 <>State: <span className="font-medium">{prettyState(data.workflowState)}</span></>
               )}
-              {data.currentMilestone?.label && (
+              {data?.currentMilestone?.label && (
                 <span className="ml-2">
                   · Milestone:{" "}
                   <span className="font-medium">
@@ -221,7 +265,23 @@ export const DeliveryConfirmationPanel = ({
       </CardHeader>
 
       <CardContent className="space-y-3">
-        {readOnly && data.satisfied && (
+        {canConfirmDelivery && (
+          <div className="flex flex-col gap-2 rounded-md border border-emerald-600/30 bg-emerald-600/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              Delivery fulfilled? Close out this request and notify Finance that payment can proceed.
+            </p>
+            <Button
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 shrink-0"
+              onClick={() => setConfirmOpen(true)}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+              Confirm Delivery & Close Out
+            </Button>
+          </div>
+        )}
+
+        {readOnly && data?.satisfied && (
           <Alert className="py-2">
             <CheckCircle2 className="h-4 w-4" />
             <AlertTitle className="text-xs">Delivery confirmed</AlertTitle>
@@ -283,7 +343,6 @@ export const DeliveryConfirmationPanel = ({
                         size="sm"
                         variant="outline"
                         onClick={async () => {
-                          // Re-fetch MRF documents for a fresh pre-signed URL.
                           try {
                             const res = await procurementApi.getProcurementDocuments(mrfId, {
                               includeInactive: true,
@@ -372,16 +431,49 @@ export const DeliveryConfirmationPanel = ({
           </ul>
         )}
 
-        {(data.missingDocuments?.length ?? 0) > 0 && !data.satisfied && (
+        {(data?.missingDocuments?.length ?? 0) > 0 && !data?.satisfied && (
           <Alert className="py-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle className="text-xs">Still missing</AlertTitle>
             <AlertDescription className="text-xs">
-              {data.missingDocuments!.map((d) => d.replace(/_/g, " ")).join(", ")}
+              {data!.missingDocuments!.map((d) => d.replace(/_/g, " ")).join(", ")}
             </AlertDescription>
           </Alert>
         )}
       </CardContent>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delivery</DialogTitle>
+            <DialogDescription>
+              Confirming delivery will close out this request and notify Finance that payment can
+              proceed. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label htmlFor="delivery-notes">Delivery Notes (optional)</Label>
+            <Textarea
+              id="delivery-notes"
+              placeholder="e.g. All items received in good condition on 30 Sep 2026"
+              value={deliveryNotes}
+              onChange={(e) => setDeliveryNotes(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={confirming}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              onClick={handleConfirmDelivery}
+              disabled={confirming}
+            >
+              {confirming ? "Confirming..." : "Confirm Delivery"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

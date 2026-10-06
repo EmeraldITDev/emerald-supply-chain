@@ -167,6 +167,26 @@ export const procurementApi = {
   },
 
   /**
+   * POST /api/mrfs/{id}/confirm-delivery — manual close-out for stuck
+   * delivery_confirmation_pending records (PM / SCD / admin).
+   */
+  confirmDelivery: async (
+    mrfId: string,
+    payload?: { delivery_notes?: string; delivery_confirmed_at?: string },
+  ): Promise<ApiResponse<{
+    mrf_id?: string;
+    mrfId?: string;
+    workflow_state?: string;
+    workflowState?: string;
+    status?: string;
+  }>> => {
+    return apiRequest(`/mrfs/${encodeURIComponent(mrfId)}/confirm-delivery`, {
+      method: 'POST',
+      body: JSON.stringify(payload ?? {}),
+    });
+  },
+
+  /**
    * GET /api/mrfs/{id}/finance-sync — Finance AP Phase 6.
    * Returns Finance AP routing status, last sync events, and case linkage.
    */

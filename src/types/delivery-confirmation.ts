@@ -32,6 +32,7 @@ export interface DeliveryMilestoneContext {
 
 export interface DeliveryConfirmationPermissions {
   canManageDeliveryConfirmation?: boolean;
+  canConfirmDelivery?: boolean;
   canGenerateGRN?: boolean;
   canUploadGRN?: boolean;
   canUploadWaybill?: boolean;
