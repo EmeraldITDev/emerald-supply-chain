@@ -108,14 +108,23 @@ export function TripRequestWorkflowActions({ trip, onUpdated }: TripRequestWorkf
     }
   };
 
-  const showForward = isLm && actions.includes("forward");
+  const showForward =
+    isLm && (actions.includes("forward") || actions.includes("forward_to_scd"));
   const showReject = isLm && actions.includes("reject");
   const showChanges = isLm && actions.includes("request_changes");
   const showRemindScd = isLm && actions.includes("remind_scd");
   // Convert disappears the moment the trip has a logistics record or the
   // backend stops offering the action.
-  const showConvert = isLm && !isTripConverted(trip as unknown as Record<string, unknown>) &&
-    canConvertToLogistics(trip as unknown as Record<string, unknown>);
+  // Backend often lists `forward_to_scd` on submitted trips even though
+  // POST /trip-requests/{id}/convert is allowed (Branch A: convert → SCD).
+  const showConvert =
+    isLm &&
+    !isTripConverted(trip as unknown as Record<string, unknown>) &&
+    (canConvertToLogistics(trip as unknown as Record<string, unknown>) ||
+      actions.includes("convert") ||
+      actions.includes("convert_to_logistics") ||
+      actions.includes("forward_to_scd") ||
+      actions.includes("forward"));
   const showDirectorApprove = isDirector && approveAllowed;
   const showDirectorReturn = isDirector && (actions.includes("director_return") || (!actions.length && approveAllowed));
 
