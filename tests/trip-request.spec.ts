@@ -274,7 +274,7 @@ async function asukuCreateAndSubmitTrip(page: Page, markers: TripMarkers) {
   await page.getByRole('button', { name: /save as draft/i }).click();
   await expect(page.getByText(/draft saved/i).first()).toBeVisible({ timeout: 30_000 });
 
-  await page.getByText('My trip requests', { exact: true }).click();
+  await page.getByRole('tab', { name: 'My trip requests' }).click();
   const draftCard = page
     .locator('.space-y-3 > *')
     .filter({ hasText: markers.destination })
@@ -293,28 +293,33 @@ async function asukuCreateAndSubmitTrip(page: Page, markers: TripMarkers) {
   await logout(page);
 }
 
-/** Open pending TRQ Review dialog on /logistics for a destination. */
-async function josephOpenPendingReview(page: Page, destination: string) {
-  await login(page, USERS.joseph.email, USERS.joseph.password);
-  await gotoApp(page, '/logistics');
+/** Open pending TRQ Review dialog on /logistics Overview (caller must be logged in). */
+async function openPendingReviewDialog(page: Page, destination: string) {
+  // Force Overview — pending Review lives here, not on the Trips scheduling tab.
+  await gotoApp(page, '/logistics?tab=overview');
   await expect(page).toHaveURL(/logistics/, { timeout: 30_000 });
 
-  const row = page
-    .locator('tr, [class*="card"], .rounded-lg')
-    .filter({ hasText: destination })
-    .first();
-  await expect(row).toBeVisible({ timeout: 30_000 });
-
-  const reviewBtn = row.getByRole('button', { name: /review|view details|view/i }).first();
-  if (await reviewBtn.isVisible().catch(() => false)) {
-    await reviewBtn.click();
-  } else {
-    await page.getByText(destination).first().click();
+  const overviewTab = page.getByRole('tab', { name: /^overview$/i });
+  if (await overviewTab.isVisible().catch(() => false)) {
+    await overviewTab.click();
   }
 
+  // Pending queue uses a real <table> row + exact "Review" button.
+  const row = page.getByRole('row').filter({ hasText: destination }).first();
+  await expect(row).toBeVisible({ timeout: 45_000 });
+  await row.getByRole('button', { name: /^review$/i }).click();
+
   const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  await expect(dialog).toBeVisible({ timeout: 20_000 });
+  await expect(dialog.getByRole('heading', { name: destination })).toBeVisible({
+    timeout: 20_000,
+  });
   return dialog;
+}
+
+async function josephOpenPendingReview(page: Page, destination: string) {
+  await login(page, USERS.joseph.email, USERS.joseph.password);
+  return openPendingReviewDialog(page, destination);
 }
 
 /** Core fields Logistics Manager must see on Review. */
@@ -389,7 +394,7 @@ test('Asuku can submit the draft trip request', async ({ page, request }) => {
 
   await page.getByRole('link', { name: 'Trip Request' }).click();
   await page.waitForURL(/trip-request/, { timeout: 30_000 });
-  await page.getByText('My trip requests', { exact: true }).click();
+  await page.getByRole('tab', { name: 'My trip requests' }).click();
 
   const draftCard = page
     .locator('.space-y-3 > *')
@@ -442,23 +447,11 @@ test('Joseph converts the test trip and assigns an internal vehicle', async ({
   const tripId = await resolveCreatedTripId(request);
   await login(page, USERS.joseph.email, USERS.joseph.password);
 
-  await gotoApp(page, '/logistics');
-  await expect(page).toHaveURL(/logistics/, { timeout: 30_000 });
+  const reviewDialog = await openPendingReviewDialog(page, TEST_DESTINATION);
 
-  const row = page
-    .locator('tr, [class*="card"], .rounded-lg')
-    .filter({ hasText: TEST_DESTINATION })
-    .first();
-  await expect(row).toBeVisible({ timeout: 30_000 });
-
-  const openBtn = row.getByRole('button', { name: /review|view details|view/i }).first();
-  if (await openBtn.isVisible().catch(() => false)) {
-    await openBtn.click();
-  } else {
-    await page.getByText(TEST_DESTINATION).first().click();
-  }
-
-  const convertBtn = page.getByRole('button', { name: /convert to logistics request/i });
+  const convertBtn = reviewDialog.getByRole('button', {
+    name: /convert to logistics request/i,
+  });
   const convertVisible = await convertBtn.isVisible({ timeout: 8_000 }).catch(() => false);
 
   if (convertVisible) {
@@ -468,7 +461,9 @@ test('Joseph converts the test trip and assigns an internal vehicle', async ({
     });
 
     // Default is Internal vehicle — add an external passenger so canSubmit passes.
-    const dialog = page.getByRole('dialog');
+    const dialog = page.getByRole('dialog').filter({
+      has: page.getByRole('heading', { name: /convert to logistics request/i }),
+    });
     await dialog.getByRole('button', { name: /^add$/i }).click();
     await dialog.getByPlaceholder('Name').last().fill(TEST_PASSENGER);
 
