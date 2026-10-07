@@ -1,0 +1,4 @@
+{
+  "playwright.env": {},
+  "playwright.reuseBrowser": false
+}

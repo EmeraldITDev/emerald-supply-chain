@@ -1,11 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadEnv } from 'dotenv';
-import path from 'path';
+import path from 'node:path';
 
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
+// Load .env for TEST_* credentials used by e2e specs.
 loadEnv({ path: path.resolve(process.cwd(), '.env') });
 
 /**
