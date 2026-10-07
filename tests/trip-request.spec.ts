@@ -311,6 +311,8 @@ async function openPendingReviewDialog(page: Page, destination: string) {
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 20_000 });
+  // Wait for getById to finish — title stays "Trip request" while spinning.
+  await expect(dialog.locator('.animate-spin')).toHaveCount(0, { timeout: 45_000 });
   await expect(dialog.getByRole('heading', { name: destination })).toBeVisible({
     timeout: 20_000,
   });
@@ -341,17 +343,25 @@ async function expectLmTripDetailBasics(dialog: Locator, markers: TripMarkers) {
   await expect(dialog.getByText('Requester', { exact: true })).toBeVisible();
 }
 
+async function expectActionButton(dialog: Locator, name: RegExp, timeout = 30_000) {
+  const btn = dialog.getByRole('button', { name });
+  // Workflow actions sit below passengers/vehicle panels — bring into view first.
+  await btn.scrollIntoViewIfNeeded().catch(() => undefined);
+  await expect(btn).toBeVisible({ timeout });
+  return btn;
+}
+
 /**
  * Buttons expected on a freshly submitted TRQ in the pending Review dialog
  * (TripRequestWorkflowActions — Branch A / LM inbox).
+ * Staging available_actions for LM: forward_to_scd, request_changes, reject (+ Convert UI).
  */
 async function expectLmPendingActionButtons(dialog: Locator) {
-  await expect(
-    dialog.getByRole('button', { name: /convert to logistics request/i }),
-  ).toBeVisible({ timeout: 15_000 });
-  await expect(dialog.getByRole('button', { name: /^reject$/i })).toBeVisible();
-  await expect(dialog.getByRole('button', { name: /request changes/i })).toBeVisible();
-  await expect(dialog.getByRole('button', { name: /forward to director/i })).toBeVisible();
+  // Convert appears once available_actions load (forward_to_scd → Convert UI fallback).
+  await expectActionButton(dialog, /convert to logistics request/i, 45_000);
+  await expectActionButton(dialog, /forward to director/i);
+  await expectActionButton(dialog, /request changes/i);
+  await expectActionButton(dialog, /^reject$/i);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -610,10 +620,12 @@ test.describe('Logistics Manager pending-queue actions', () => {
 
     const dialog = await josephOpenPendingReview(page, markers.destination);
     await expectLmTripDetailBasics(dialog, markers);
-    await expectLmPendingActionButtons(dialog);
+    const changesBtn = await expectActionButton(dialog, /request changes/i, 45_000);
 
-    await dialog.getByRole('button', { name: /request changes/i }).click();
-    const reasonDialog = page.getByRole('dialog').filter({ hasText: /request changes/i });
+    await changesBtn.click();
+    const reasonDialog = page.getByRole('dialog').filter({
+      has: page.getByRole('heading', { name: /request changes/i }),
+    });
     await expect(reasonDialog.getByRole('heading', { name: /request changes/i })).toBeVisible({
       timeout: 10_000,
     });
@@ -632,10 +644,12 @@ test.describe('Logistics Manager pending-queue actions', () => {
     await asukuCreateAndSubmitTrip(page, markers);
 
     const dialog = await josephOpenPendingReview(page, markers.destination);
-    await expectLmPendingActionButtons(dialog);
+    const rejectBtn = await expectActionButton(dialog, /^reject$/i, 45_000);
 
-    await dialog.getByRole('button', { name: /^reject$/i }).click();
-    const reasonDialog = page.getByRole('dialog').filter({ hasText: /reject trip request/i });
+    await rejectBtn.click();
+    const reasonDialog = page.getByRole('dialog').filter({
+      has: page.getByRole('heading', { name: /reject trip request/i }),
+    });
     await expect(reasonDialog.getByRole('heading', { name: /reject trip request/i })).toBeVisible({
       timeout: 10_000,
     });
@@ -651,8 +665,10 @@ test.describe('Logistics Manager pending-queue actions', () => {
 
     // Close detail if still open, then confirm it left the pending inbox.
     await page.keyboard.press('Escape').catch(() => undefined);
-    await gotoApp(page, '/logistics');
-    await expect(page.getByText(markers.destination)).toHaveCount(0, { timeout: 30_000 });
+    await gotoApp(page, '/logistics?tab=overview');
+    await expect(page.getByRole('row').filter({ hasText: markers.destination })).toHaveCount(0, {
+      timeout: 30_000,
+    });
 
     await page.screenshot({ path: 'test-results/lm-reject.png' });
     console.log('✅ Reject removed trip from pending queue');
@@ -665,9 +681,9 @@ test.describe('Logistics Manager pending-queue actions', () => {
     await asukuCreateAndSubmitTrip(page, markers);
 
     const dialog = await josephOpenPendingReview(page, markers.destination);
-    await expectLmPendingActionButtons(dialog);
+    const forwardBtn = await expectActionButton(dialog, /forward to director/i, 45_000);
 
-    await dialog.getByRole('button', { name: /forward to director/i }).click();
+    await forwardBtn.click();
     await expect(
       page.getByText(/forwarded to supervising director|forwarded to supply chain director/i).first(),
     ).toBeVisible({ timeout: 45_000 });
@@ -683,9 +699,9 @@ test.describe('Logistics Manager pending-queue actions', () => {
     await asukuCreateAndSubmitTrip(page, markers);
 
     const dialog = await josephOpenPendingReview(page, markers.destination);
-    await expectLmPendingActionButtons(dialog);
+    const convertBtn = await expectActionButton(dialog, /convert to logistics request/i, 45_000);
 
-    await dialog.getByRole('button', { name: /convert to logistics request/i }).click();
+    await convertBtn.click();
     const convertDialog = page.getByRole('dialog').filter({
       has: page.getByRole('heading', { name: /convert to logistics request/i }),
     });
