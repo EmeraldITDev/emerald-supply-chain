@@ -1,15 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
-import dotenv from 'dotenv';
+import { config as loadEnv } from 'dotenv';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
  */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, '.env') });
+loadEnv({ path: path.resolve(process.cwd(), '.env') });
 
 /**
  * See https://playwright.dev/docs/test-configuration.
