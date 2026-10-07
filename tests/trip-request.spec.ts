@@ -1,4 +1,4 @@
-import { test, expect, Page, APIRequestContext } from '@playwright/test';
+import { test, expect, Page, Locator, APIRequestContext } from '@playwright/test';
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'https://emerald-supply-chain.vercel.app';
 const API_BASE_URL =
@@ -40,8 +40,6 @@ const TEST_DRIVER = `[TEST] Driver ${RUN_ID}`;
 
 /** Shared across serial tests after create/convert. */
 let createdTripRequestId: string | number | null = null;
-
-test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async ({ request }) => {
   await request.get(`${API_BASE_URL}/health`, { timeout: 90_000 }).catch(() => undefined);
@@ -238,6 +236,125 @@ async function resolveCreatedTripId(request: APIRequestContext) {
   return createdTripRequestId;
 }
 
+type TripMarkers = {
+  tag: string;
+  origin: string;
+  destination: string;
+  purpose: string;
+};
+
+/** Unique markers so parallel-ish action suites never collide with Branch A. */
+function makeMarkers(suffix: string): TripMarkers {
+  const tag = `${RUN_ID}-${suffix}`;
+  return {
+    tag,
+    origin: `[TEST] Calabar HQ ${tag}`,
+    destination: `[TEST] Lagos Office ${tag}`,
+    purpose: `[TEST] Playwright Automated Trip Request - Purpose ${tag}`,
+  };
+}
+
+async function asukuCreateAndSubmitTrip(page: Page, markers: TripMarkers) {
+  await login(page, USERS.asuku.email, USERS.asuku.password);
+
+  await page.getByRole('link', { name: 'Trip Request' }).click();
+  await page.waitForURL(/trip-request/, { timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: 'New trip request' })).toBeVisible({
+    timeout: 15_000,
+  });
+
+  await fieldInput(page, 'Origin').fill(markers.origin);
+  await fieldInput(page, 'Destination').fill(markers.destination);
+  await fieldInput(page, 'Purpose').fill(markers.purpose);
+
+  const datetimeInputs = page.locator('input[type="datetime-local"]');
+  await datetimeInputs.nth(0).fill(localDatetimeOffset(10));
+  await datetimeInputs.nth(1).fill(localDatetimeOffset(11));
+
+  await page.getByRole('button', { name: /save as draft/i }).click();
+  await expect(page.getByText(/draft saved/i).first()).toBeVisible({ timeout: 30_000 });
+
+  await page.getByText('My trip requests', { exact: true }).click();
+  const draftCard = page
+    .locator('.space-y-3 > *')
+    .filter({ hasText: markers.destination })
+    .filter({ hasText: /draft/i })
+    .first();
+  await expect(draftCard).toBeVisible({ timeout: 30_000 });
+  await draftCard.getByRole('button', { name: 'Edit' }).click();
+  await expect(page.getByRole('heading', { name: /edit trip request/i })).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.getByRole('dialog').getByRole('button', { name: /submit trip request/i }).click();
+  await expect(
+    page.getByText(/trip request submitted|your request has been sent/i).first(),
+  ).toBeVisible({ timeout: 30_000 });
+
+  await logout(page);
+}
+
+/** Open pending TRQ Review dialog on /logistics for a destination. */
+async function josephOpenPendingReview(page: Page, destination: string) {
+  await login(page, USERS.joseph.email, USERS.joseph.password);
+  await gotoApp(page, '/logistics');
+  await expect(page).toHaveURL(/logistics/, { timeout: 30_000 });
+
+  const row = page
+    .locator('tr, [class*="card"], .rounded-lg')
+    .filter({ hasText: destination })
+    .first();
+  await expect(row).toBeVisible({ timeout: 30_000 });
+
+  const reviewBtn = row.getByRole('button', { name: /review|view details|view/i }).first();
+  if (await reviewBtn.isVisible().catch(() => false)) {
+    await reviewBtn.click();
+  } else {
+    await page.getByText(destination).first().click();
+  }
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  return dialog;
+}
+
+/** Core fields Logistics Manager must see on Review. */
+async function expectLmTripDetailBasics(dialog: Locator, markers: TripMarkers) {
+  await expect(dialog.getByRole('heading', { name: markers.destination })).toBeVisible({
+    timeout: 15_000,
+  });
+  // Trip code subtitle (TRQ-…) when API returns it
+  await expect(dialog.getByText(/TRQ-|Trip #/i).first()).toBeVisible({ timeout: 15_000 });
+
+  await expect(dialog.getByText('Origin', { exact: true })).toBeVisible();
+  await expect(dialog.getByText(markers.origin)).toBeVisible();
+  await expect(dialog.getByText('Destination', { exact: true })).toBeVisible();
+  await expect(dialog.getByText(markers.destination).first()).toBeVisible();
+  await expect(dialog.getByText('Purpose', { exact: true })).toBeVisible();
+  await expect(dialog.getByText(markers.purpose)).toBeVisible();
+  await expect(dialog.getByText('Departure', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Return', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Requester', { exact: true })).toBeVisible();
+}
+
+/**
+ * Buttons expected on a freshly submitted TRQ in the pending Review dialog
+ * (TripRequestWorkflowActions — Branch A / LM inbox).
+ */
+async function expectLmPendingActionButtons(dialog: Locator) {
+  await expect(
+    dialog.getByRole('button', { name: /convert to logistics request/i }),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(dialog.getByRole('button', { name: /^reject$/i })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /request changes/i })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /forward to director/i })).toBeVisible();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Branch A happy path: create → submit → LM review → convert → SCD → journeys
+// ═══════════════════════════════════════════════════════════════════════════
+test.describe('Branch A happy path', () => {
+  test.describe.configure({ mode: 'serial' });
+
 // ─── TEST 1: Asuku creates a test trip request draft ─────────────────────────
 test('Asuku can create a test trip request', async ({ page }) => {
   await login(page, USERS.asuku.email, USERS.asuku.password);
@@ -298,29 +415,21 @@ test('Asuku can submit the draft trip request', async ({ page, request }) => {
   await logout(page);
 });
 
-// ─── TEST 3: Joseph reviews the submitted trip ───────────────────────────────
+// ─── TEST 3: Joseph reviews detail fields + action buttons ───────────────────
 test('Joseph can see and review the test trip as Logistics Manager', async ({ page }) => {
-  await login(page, USERS.joseph.email, USERS.joseph.password);
+  const markers: TripMarkers = {
+    tag: RUN_ID,
+    origin: TEST_ORIGIN,
+    destination: TEST_DESTINATION,
+    purpose: TEST_PURPOSE,
+  };
 
-  await gotoApp(page, '/logistics');
-  await expect(page).toHaveURL(/logistics/, { timeout: 30_000 });
-
-  const tripRow = page.getByText(TEST_DESTINATION).first();
-  await expect(tripRow).toBeVisible({ timeout: 30_000 });
-
-  const reviewBtn = page
-    .locator('tr, [class*="card"], .rounded-lg')
-    .filter({ hasText: TEST_DESTINATION })
-    .getByRole('button', { name: /review|view details|view/i })
-    .first();
-  if (await reviewBtn.isVisible().catch(() => false)) {
-    await reviewBtn.click();
-  } else {
-    await tripRow.click();
-  }
+  const dialog = await josephOpenPendingReview(page, TEST_DESTINATION);
+  await expectLmTripDetailBasics(dialog, markers);
+  await expectLmPendingActionButtons(dialog);
 
   await page.screenshot({ path: 'test-results/logistics-trip-detail.png' });
-  console.log('✅ Logistics Manager can see the test trip');
+  console.log('✅ Logistics Manager sees trip details and pending action buttons');
 
   await logout(page);
 });
@@ -490,4 +599,116 @@ test('Approved test trip appears in Journey Management', async ({ page }) => {
   console.log('✅ Test trip visible in Journey Management');
 
   await logout(page);
+});
+}); // end Branch A happy path
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Logistics Manager actions (each uses its own submitted TRQ — not Branch A)
+// Path: /logistics → Review → TripRequestWorkflowActions
+// ═══════════════════════════════════════════════════════════════════════════
+test.describe('Logistics Manager pending-queue actions', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  test('Request changes sends trip back with a reason', async ({ page }) => {
+    const markers = makeMarkers('CHG');
+    await asukuCreateAndSubmitTrip(page, markers);
+
+    const dialog = await josephOpenPendingReview(page, markers.destination);
+    await expectLmTripDetailBasics(dialog, markers);
+    await expectLmPendingActionButtons(dialog);
+
+    await dialog.getByRole('button', { name: /request changes/i }).click();
+    const reasonDialog = page.getByRole('dialog').filter({ hasText: /request changes/i });
+    await expect(reasonDialog.getByRole('heading', { name: /request changes/i })).toBeVisible({
+      timeout: 10_000,
+    });
+    await reasonDialog.getByRole('textbox').first().fill(`[TEST] Need clearer purpose ${markers.tag}`);
+    await reasonDialog.getByRole('button', { name: /^submit$/i }).click();
+
+    await expect(page.getByText(/change request sent/i).first()).toBeVisible({ timeout: 45_000 });
+    await page.screenshot({ path: 'test-results/lm-request-changes.png' });
+    console.log('✅ Request changes succeeded');
+
+    await logout(page);
+  });
+
+  test('Reject cancels a submitted trip from the pending queue', async ({ page }) => {
+    const markers = makeMarkers('REJ');
+    await asukuCreateAndSubmitTrip(page, markers);
+
+    const dialog = await josephOpenPendingReview(page, markers.destination);
+    await expectLmPendingActionButtons(dialog);
+
+    await dialog.getByRole('button', { name: /^reject$/i }).click();
+    const reasonDialog = page.getByRole('dialog').filter({ hasText: /reject trip request/i });
+    await expect(reasonDialog.getByRole('heading', { name: /reject trip request/i })).toBeVisible({
+      timeout: 10_000,
+    });
+    await reasonDialog
+      .getByRole('textbox')
+      .first()
+      .fill(`[TEST] Rejected by Playwright ${markers.tag}`);
+    await reasonDialog.getByRole('button', { name: /^submit$/i }).click();
+
+    await expect(page.getByText(/trip request rejected/i).first()).toBeVisible({
+      timeout: 45_000,
+    });
+
+    // Close detail if still open, then confirm it left the pending inbox.
+    await page.keyboard.press('Escape').catch(() => undefined);
+    await gotoApp(page, '/logistics');
+    await expect(page.getByText(markers.destination)).toHaveCount(0, { timeout: 30_000 });
+
+    await page.screenshot({ path: 'test-results/lm-reject.png' });
+    console.log('✅ Reject removed trip from pending queue');
+
+    await logout(page);
+  });
+
+  test('Forward to Director advances the trip and keeps LM informed', async ({ page }) => {
+    const markers = makeMarkers('FWD');
+    await asukuCreateAndSubmitTrip(page, markers);
+
+    const dialog = await josephOpenPendingReview(page, markers.destination);
+    await expectLmPendingActionButtons(dialog);
+
+    await dialog.getByRole('button', { name: /forward to director/i }).click();
+    await expect(
+      page.getByText(/forwarded to supervising director|forwarded to supply chain director/i).first(),
+    ).toBeVisible({ timeout: 45_000 });
+
+    await page.screenshot({ path: 'test-results/lm-forward.png' });
+    console.log('✅ Forward to Director succeeded');
+
+    await logout(page);
+  });
+
+  test('Convert dialog opens from Review with internal-vehicle path ready', async ({ page }) => {
+    const markers = makeMarkers('CVT');
+    await asukuCreateAndSubmitTrip(page, markers);
+
+    const dialog = await josephOpenPendingReview(page, markers.destination);
+    await expectLmPendingActionButtons(dialog);
+
+    await dialog.getByRole('button', { name: /convert to logistics request/i }).click();
+    const convertDialog = page.getByRole('dialog').filter({
+      has: page.getByRole('heading', { name: /convert to logistics request/i }),
+    });
+    await expect(
+      convertDialog.getByRole('heading', { name: /convert to logistics request/i }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Sanity: Branch A defaults + controls the LM must complete.
+    await expect(convertDialog.getByText(/internal vehicle/i).first()).toBeVisible();
+    await expect(convertDialog.getByText(/company vehicle/i).first()).toBeVisible();
+    await expect(convertDialog.getByRole('button', { name: /^convert$/i })).toBeVisible();
+    await expect(convertDialog.getByRole('button', { name: /^cancel$/i })).toBeVisible();
+
+    // Do not convert here — Branch A happy path already covers end-to-end convert.
+    await convertDialog.getByRole('button', { name: /^cancel$/i }).click();
+    await page.screenshot({ path: 'test-results/lm-convert-dialog.png' });
+    console.log('✅ Convert dialog opens with expected controls');
+
+    await logout(page);
+  });
 });
