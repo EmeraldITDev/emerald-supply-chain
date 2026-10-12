@@ -15,7 +15,7 @@ import { type MRFRequest } from "@/contexts/AppContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { mrfApi } from "@/services/api";
 import type { LineItem } from "@/types";
-import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { getScmRole, formatScmRoleLabel, hasAdminAccess } from "@/utils/scmRole";
 import { MultiFileDropzone } from "@/components/attachments/MultiFileDropzone";
 
 const NewMRF = () => {
@@ -24,17 +24,27 @@ const NewMRF = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Staff and Logistics Manager can create MRF
+  const role = getScmRole(user);
+  const canCreateMrf =
+    !!user &&
+    (isEmployeeRole(role) ||
+      role === "logistics_manager" ||
+      role === "logistics_officer" ||
+      role === "executive" ||
+      role === "admin" ||
+      hasAdminAccess(user));
+
+  // Staff, logistics, executive, and admin can create MRF
   useEffect(() => {
-    if (user && !isEmployeeRole(getScmRole(user)) && getScmRole(user) !== "logistics_manager" && getScmRole(user) !== "executive") {
+    if (user && !canCreateMrf) {
       toast({
         title: "Access Denied",
-        description: "Only staff members can create Material Request Forms. Please contact your administrator.",
+        description: "You do not have permission to create Material Request Forms.",
         variant: "destructive",
       });
       navigate("/dashboard", { replace: true });
     }
-  }, [user, navigate, toast]);
+  }, [user, navigate, toast, canCreateMrf]);
 
   // Fetch contract types on mount
   useEffect(() => {

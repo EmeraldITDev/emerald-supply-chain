@@ -217,10 +217,8 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
     if (!contactPersonEmail.trim()) errors.contactPersonEmail = "Contact person email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactPersonEmail)) errors.contactPersonEmail = "Invalid email format";
     if (!contactPersonPhone.trim()) errors.contactPersonPhone = "Contact person phone is required";
-    if (!website.trim()) errors.website = "Website is required";
     if (!yearEstablished) errors.yearEstablished = "Year established is required";
     if (!numberOfEmployees.trim()) errors.numberOfEmployees = "Number of employees is required";
-    if (!annualRevenue.trim()) errors.annualRevenue = "Annual revenue is required";
     
     // Financial information validation
     if (!bankName.trim()) errors.bankName = "Bank name is required";
@@ -429,7 +427,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               </div>
 
               <div className="space-y-2">
-                <Label>Website *</Label>
+                <Label>Website (optional)</Label>
                 <Input 
                   placeholder="https://yourcompany.com"
                   value={website}
@@ -443,7 +441,7 @@ export const EnhancedVendorRegistration = ({ onSubmit, onCancel, isRegistrationO
               </div>
 
               <div className="space-y-2">
-                <Label>Annual Revenue *</Label>
+                <Label>Annual Revenue (optional)</Label>
                 <Input 
                   type="text"
                   placeholder="e.g. 1M - 5M, 5M - 50M, +100M"

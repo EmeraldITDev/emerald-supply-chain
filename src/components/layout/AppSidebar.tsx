@@ -107,12 +107,21 @@ export function AppSidebar() {
 
   // Role-based navigation structure
   const getNavigationGroups = () => {
-    if (hasAdminAccess(user)) {
+    if (hasAdminAccess(user) || getScmRole(user) === "admin") {
       return [
         {
           label: "Main",
           items: [
             { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+          ],
+        },
+        {
+          label: "Requests",
+          items: [
+            { title: "My Requests", url: "/department", icon: FileText },
+            { title: "New MRF", url: "/new-mrf", icon: FileText },
+            { title: "New SRF", url: "/new-srf", icon: FileText },
+            ...tripRequestNavItem,
           ],
         },
         travelNavSection,

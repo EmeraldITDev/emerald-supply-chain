@@ -293,7 +293,6 @@ const VendorPortal = () => {
     }
     if (!has("address")) missing.push("Business address");
     if (!has("tax_id", "taxId")) missing.push("Tax information");
-    if (!has("website")) missing.push("Website");
     const bank = pickVendorBankDetails(v);
     if (!bank.bankName) missing.push("Bank name");
     if (!bank.accountName) missing.push("Account name");
@@ -2333,7 +2332,7 @@ const VendorPortal = () => {
                         )}
                       </div>
                       <div>
-                        <Label className="text-muted-foreground text-xs">Website</Label>
+                        <Label className="text-muted-foreground text-xs">Website (optional)</Label>
                         <Input
                           value={editProfileData.website}
                           onChange={(e) => setEditProfileData((prev) => ({ ...prev, website: e.target.value }))}
@@ -2366,7 +2365,7 @@ const VendorPortal = () => {
                         />
                       </div>
                       <div>
-                        <Label className="text-muted-foreground text-xs">Annual Revenue</Label>
+                        <Label className="text-muted-foreground text-xs">Annual Revenue (optional)</Label>
                         <Input
                           value={editProfileData.annualRevenue}
                           onChange={(e) => setEditProfileData((prev) => ({ ...prev, annualRevenue: e.target.value }))}

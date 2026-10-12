@@ -16,7 +16,7 @@ import { fleetApi } from "@/services/logisticsApi";
 import type { FleetVehicle } from "@/types/logistics";
 import type { LineItem } from "@/types";
 import { normalizeFleetVehicle, displayFleetVehiclePlate } from "@/utils/normalizeFleetVehicle";
-import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
+import { getScmRole, formatScmRoleLabel, hasAdminAccess } from "@/utils/scmRole";
 import { MultiFileDropzone } from "@/components/attachments/MultiFileDropzone";
 
 const NewSRF = () => {
@@ -25,15 +25,18 @@ const NewSRF = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const role = getScmRole(user);
   const canAccessNewSrf =
     !!user &&
-    (isEmployeeRole(getScmRole(user)) ||
-      getScmRole(user) === "logistics_manager" ||
-      getScmRole(user) === "logistics" ||
-      getScmRole(user) === "logistics_officer" ||
-      getScmRole(user) === "executive");
+    (isEmployeeRole(role) ||
+      role === "logistics_manager" ||
+      role === "logistics" ||
+      role === "logistics_officer" ||
+      role === "executive" ||
+      role === "admin" ||
+      hasAdminAccess(user));
 
-  // Staff and logistics roles can create SRF
+  // Staff, logistics, executive, and admin can create SRF
   useEffect(() => {
     if (user && !canAccessNewSrf) {
       toast({
