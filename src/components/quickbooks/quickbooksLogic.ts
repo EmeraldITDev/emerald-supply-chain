@@ -1,3 +1,12 @@
+/** Connect, Disconnect, and Item/Account lookup — matches backend QuickBooksRoles::CONNECTION_ROLES. */
+export const QUICKBOOKS_CONNECTION_ROLES = [
+  "admin",
+  "procurement_manager",
+  "supply_chain_director",
+  "supply_chain",
+] as const;
+
+/** Sync and pulls — matches backend QuickBooksRoles::SYNC_ROLES. */
 export const QUICKBOOKS_SYNC_ROLES = [
   "admin",
   "procurement_manager",
@@ -40,8 +49,27 @@ export function canAccessQuickBooks(role?: string | null): boolean {
   return QUICKBOOKS_SYNC_ROLES.includes((role ?? "") as (typeof QUICKBOOKS_SYNC_ROLES)[number]);
 }
 
+export function canManageQuickBooksConnection(role?: string | null): boolean {
+  return QUICKBOOKS_CONNECTION_ROLES.includes(
+    (role ?? "") as (typeof QUICKBOOKS_CONNECTION_ROLES)[number],
+  );
+}
+
+export function canConnect(role?: string | null): boolean {
+  return canManageQuickBooksConnection(role);
+}
+
+export function canDisconnect(role?: string | null): boolean {
+  return canManageQuickBooksConnection(role);
+}
+
+export function canUseSetupHelper(role?: string | null): boolean {
+  return canManageQuickBooksConnection(role);
+}
+
+/** @deprecated Prefer canConnect / canDisconnect / canUseSetupHelper */
 export function isQuickBooksAdmin(role?: string | null): boolean {
-  return role === "admin";
+  return canManageQuickBooksConnection(role);
 }
 
 export function dash(value: unknown): string {

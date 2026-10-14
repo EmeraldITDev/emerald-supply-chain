@@ -26,8 +26,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   bannerKind,
   callbackErrorMessage,
+  canConnect,
+  canDisconnect,
+  canUseSetupHelper,
   dash,
-  isQuickBooksAdmin,
   quickBooksErrorMessage,
   readCallbackQuery,
   stripCallbackParams,
@@ -50,12 +52,15 @@ function connectionLabel(status: QuickBooksStatus): string {
 export function QuickBooksIntegrations() {
   const { user } = useAuth();
   const role = getScmRole(user);
-  const admin = isQuickBooksAdmin(role);
+  const showConnect = canConnect(role);
+  const showDisconnect = canDisconnect(role);
+  const showSetupHelper = canUseSetupHelper(role);
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const handledCallback = useRef("");
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [loadSetup, setLoadSetup] = useState(false);
+  const [connectionForbidden, setConnectionForbidden] = useState(false);
   const [vendors, setVendors] = useState<QuickBooksVendorPull | null>(null);
   const [purchaseOrders, setPurchaseOrders] = useState<QuickBooksPoPull | null>(null);
 
@@ -85,6 +90,11 @@ export function QuickBooksIntegrations() {
   const connect = useMutation({
     mutationFn: () => quickbooksApi.connect(),
     onSuccess: (response) => {
+      if (response.status === 403 || response.code === "FORBIDDEN") {
+        setConnectionForbidden(true);
+        toast.error(quickBooksErrorMessage(response.code, response.status));
+        return;
+      }
       const url = response.data?.authorization_url;
       if (!response.success || !url) {
         toast.error(quickBooksErrorMessage(response.code, response.status));
@@ -97,6 +107,12 @@ export function QuickBooksIntegrations() {
   const disconnect = useMutation({
     mutationFn: () => quickbooksApi.disconnect(),
     onSuccess: async (response) => {
+      if (response.status === 403 || response.code === "FORBIDDEN") {
+        setConnectionForbidden(true);
+        toast.error(quickBooksErrorMessage(response.code, response.status));
+        setDisconnectOpen(false);
+        return;
+      }
       if (!response.success) {
         toast.error(quickBooksErrorMessage(response.code, response.status));
         return;
@@ -110,10 +126,16 @@ export function QuickBooksIntegrations() {
   const accountsQuery = useQuery({
     queryKey: ["quickbooks", "accounts-items"],
     queryFn: () => quickbooksApi.inspectAccountsItems(),
-    enabled: admin && loadSetup && status?.connected === true,
+    enabled: showSetupHelper && !connectionForbidden && loadSetup && status?.connected === true,
     staleTime: 60_000,
     retry: false,
   });
+
+  useEffect(() => {
+    if (accountsQuery.data?.status === 403 || accountsQuery.data?.code === "FORBIDDEN") {
+      setConnectionForbidden(true);
+    }
+  }, [accountsQuery.data]);
 
   const pullVendors = useMutation({
     mutationFn: () => quickbooksApi.pullVendors(),
@@ -184,15 +206,33 @@ export function QuickBooksIntegrations() {
                   <dd>{formatStamp(status.refresh_token_expires_at)}</dd>
                 </div>
               </dl>
-              {admin && (
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => connect.mutate()} disabled={connect.isPending || status.connected && !status.needs_reconnect}>
-                    {connect.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Connect
-                  </Button>
-                  <Button variant="outline" onClick={() => setDisconnectOpen(true)} disabled={!status.connected && !status.needs_reconnect}>
-                    Disconnect
-                  </Button>
+              {(showConnect || showDisconnect) && !connectionForbidden && (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {showConnect && (
+                      <Button
+                        onClick={() => connect.mutate()}
+                        disabled={connect.isPending || (status.connected && !status.needs_reconnect)}
+                      >
+                        {connect.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Connect
+                      </Button>
+                    )}
+                    {showDisconnect && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setDisconnectOpen(true)}
+                        disabled={!status.connected && !status.needs_reconnect}
+                      >
+                        Disconnect
+                      </Button>
+                    )}
+                  </div>
+                  {showConnect && (
+                    <p className="text-sm text-muted-foreground">
+                      You must sign in to QuickBooks with a user who is an administrator of the company file.
+                    </p>
+                  )}
                 </div>
               )}
             </>
@@ -231,7 +271,7 @@ export function QuickBooksIntegrations() {
         </Alert>
       )}
 
-      {admin && status?.connected && (
+      {showSetupHelper && !connectionForbidden && status?.connected && (
         <Card>
           <CardHeader>
             <CardTitle>Find your default Item or Account</CardTitle>
@@ -363,7 +403,7 @@ export function QuickBooksIntegrations() {
           <AlertDialogHeader>
             <AlertDialogTitle>Disconnect QuickBooks</AlertDialogTitle>
             <AlertDialogDescription>
-              This revokes SCM&apos;s access to QuickBooks. Synced PO links are kept.
+              This revokes SCM&apos;s access to QuickBooks for everyone. Synced PO links are kept.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
