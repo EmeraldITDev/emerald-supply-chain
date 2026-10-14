@@ -160,6 +160,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 import { resolveProcurementOverviewMode } from "@/utils/procurementAccess";
+import { formatPoAmount } from "@/utils/currency";
 import {
   canViewProcurementDocuments,
   isProcurementDocumentsReadOnly,
@@ -4074,6 +4075,13 @@ const Procurement = () => {
                           quotation.price ||
                           "0"
                           : getMRFEstimatedCost(mrf as MRF);
+                        // The PO's own currency is authoritative (the backend uses it for
+                        // the generated PO too). Quotation currency is only a fallback because
+                        // normalised quotations default a missing currency to NGN.
+                        const amountCurrency =
+                          (mrf as MRF).currency ||
+                          (quotation && quotation.currency) ||
+                          "NGN";
                         const unsignedPOUrl =
                           getMRFPOUrl(mrf as MRF) ||
                           getMRFPOShareUrl(mrf as MRF) ||
@@ -4103,7 +4111,7 @@ const Procurement = () => {
                                   {vendorName}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  Amount: ₦{parseFloat(amount).toLocaleString()}{" "}
+                                  Amount: {formatPoAmount(amount, amountCurrency)}{" "}
                                   • Status:{" "}
                                   {isDraft ? "Draft" : getWorkflowStageLabel(workflowState)} • Date:{" "}
                                   {formatMRFDate(getMRFDate(mrf as MRF))}

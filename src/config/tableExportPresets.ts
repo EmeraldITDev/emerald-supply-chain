@@ -2,6 +2,7 @@ import type { MRF } from '@/types';
 import type { SRF } from '@/types';
 import type { TableExportColumn } from '@/utils/tableExport';
 import { getDisplayId } from '@/utils/displayId';
+import { normalizeCurrencyCode } from '@/utils/currency';
 import { getSrfRequesterDisplayName } from '@/utils/srfRequester';
 import type { RFQ } from '@/contexts/AppContext';
 
@@ -47,6 +48,11 @@ export const PO_EXPORT_COLUMNS: TableExportColumn<MRF>[] = [
     key: 'estimated_cost',
     label: 'Estimated Cost',
     value: (m) => String(m.estimated_cost ?? m.estimatedCost ?? ''),
+  },
+  {
+    key: 'currency',
+    label: 'Currency',
+    value: (m) => normalizeCurrencyCode(m.currency),
   },
   {
     key: 'created_at',
