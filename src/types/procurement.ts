@@ -8,6 +8,12 @@ export type POType = 'goods' | 'services' | 'logistics';
 /** How standard vs custom clauses are applied on the generated PO. */
 export type POTermsMode = 'standard' | 'custom' | 'both';
 
+/** `per_line` = VAT is set on each line item (blank → 7.5%, 0 → not taxed). */
+export type POTaxMode = 'per_line';
+
+/** PO-level discount, taken before VAT: % of subtotal or a fixed amount. */
+export type PODiscountType = 'percentage' | 'amount';
+
 export interface POTermsTemplate {
   id?: number | string;
   po_type: string;
@@ -47,6 +53,8 @@ export interface PriceComparisonRow {
   item_description: string;
   unit_price: number | '';
   quantity: number | '';
+  /** Per-line VAT %. Blank → default 7.5%; 0 → not taxed. */
+  tax_rate: number | '';
   is_selected: boolean;
   selection_reason: string;
 }
@@ -62,6 +70,8 @@ export interface PriceComparisonEntry {
   unit_price: number | string;
   quantity: number | string;
   total_price?: number | string;
+  /** Per-line VAT %. null → default (7.5% for per-line POs, global rate for legacy POs). */
+  tax_rate?: number | string | null;
   is_selected: boolean;
   selection_reason?: string | null;
   created_at?: string;
@@ -78,7 +88,11 @@ export interface PriceComparisonEntry {
 export interface POFormPayload {
   po_type?: POType;
   custom_terms?: string;
-  tax_rate?: number | null;
+  /** Always `per_line`: VAT is carried on each price-comparison row. */
+  tax_mode?: POTaxMode;
+  /** PO discount before VAT. `null` clears an existing discount. */
+  discount_type?: PODiscountType | null;
+  discount_value?: number | null;
   ship_to_address?: string;
   invoice_submission_email?: string;
   invoice_submission_cc?: string;

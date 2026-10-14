@@ -18,6 +18,7 @@ import type { PriceComparisonRow, ManualVendor } from '@/types/procurement';
 import type { PaymentSchedule } from '@/types/payment-schedule';
 import { formatScheduleSummary } from '@/types/payment-schedule';
 import { currencySymbol, formatPoAmount } from '@/utils/currency';
+import { DEFAULT_VAT_RATE, lineTax, summariseLines, taxRateError } from '@/utils/poTax';
 
 export interface PriceComparisonTableProps {
   value: PriceComparisonRow[];
@@ -93,6 +94,7 @@ export const makeEmptyRow = (opts?: {
     item_description: '',
     unit_price: '',
     quantity: '',
+    tax_rate: '',
     is_selected: false,
     selection_reason: '',
   };
@@ -167,6 +169,7 @@ export function validatePriceComparison(rows: PriceComparisonRow[], vendors: Ven
     if (!Number.isFinite(up) || up <= 0) errors.push(`Row ${i + 1}: enter a unit price > 0.`);
     const qty = typeof r.quantity === 'number' ? r.quantity : Number(r.quantity);
     if (!Number.isFinite(qty) || qty <= 0) errors.push(`Row ${i + 1}: enter a quantity > 0.`);
+    if (taxRateError(r.tax_rate)) errors.push(`Row ${i + 1}: VAT must be between 0 and 100.`);
   });
   return errors;
 }
@@ -182,6 +185,7 @@ export interface RowFieldErrors {
   item_description?: string;
   unit_price?: string;
   quantity?: string;
+  tax_rate?: string;
 }
 
 function computeRowFieldErrors(row: PriceComparisonRow, vendors: Vendor[]): RowFieldErrors {
@@ -215,6 +219,8 @@ function computeRowFieldErrors(row: PriceComparisonRow, vendors: Vendor[]): RowF
   if (!Number.isFinite(up) || up <= 0) out.unit_price = 'Unit price must be > 0.';
   const qty = typeof row.quantity === 'number' ? row.quantity : Number(row.quantity);
   if (!Number.isFinite(qty) || qty <= 0) out.quantity = 'Qty must be > 0.';
+  const taxErr = taxRateError(row.tax_rate);
+  if (taxErr) out.tax_rate = taxErr;
   return out;
 }
 
@@ -538,11 +544,7 @@ export function PriceComparisonTable({
                 : clientDuplicateMatch
               : null;
           const isLookupPending = lookupLoading.has(group.key);
-          const subtotal = group.rows.reduce(
-            (acc, r) =>
-              acc + (Number(r.unit_price) || 0) * (Number(r.quantity) || 0),
-            0,
-          );
+          const totals = summariseLines(group.rows);
           const supplierLabel =
             headMode === 'manual'
               ? head.manual_vendor?.name?.trim() || `Supplier ${gIdx + 1}`
@@ -577,6 +579,9 @@ export function PriceComparisonTable({
                     <Label className="text-xs font-semibold uppercase tracking-wide">
                       Supplier {gIdx + 1}
                     </Label>
+                    <span className="text-[11px] text-muted-foreground">
+                      · {group.rows.length} item{group.rows.length === 1 ? '' : 's'}
+                    </span>
                     {groupSelected && (
                       <span className="text-[10px] font-semibold text-success uppercase tracking-wide">
                         Winning
@@ -823,27 +828,30 @@ export function PriceComparisonTable({
               </div>
 
               {/* Line items */}
-              <div className="rounded-md border bg-background/40">
-                <div className="grid grid-cols-[1fr_120px_90px_120px_40px] gap-2 px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="rounded-md border bg-background/40 overflow-x-auto">
+                <div className="grid grid-cols-[28px_1fr_120px_80px_90px_130px_40px] gap-2 min-w-[640px] px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  <span>#</span>
                   <span>Description *</span>
                   <span>Unit Price ({moneySymbol}) *</span>
                   <span>Qty *</span>
-                  <span className="text-right">Total ({moneySymbol})</span>
+                  <span title="Leave blank for {DEFAULT_VAT_RATE}%. Enter 0 if this item is not taxed.">VAT %</span>
+                  <span className="text-right">Total incl. VAT ({moneySymbol})</span>
                   <span />
                 </div>
-                <div className="divide-y">
+                <div className="divide-y min-w-[640px]">
                   {group.rows.map((row, idx) => {
-                    const up = Number(row.unit_price) || 0;
-                    const qty = Number(row.quantity) || 0;
-                    const total = up * qty;
+                    const tax = lineTax(row);
                     const fe = rowErrorMap.get(row._key) ?? {};
                     const canRemove =
                       !(group.rows.length <= 1) && value.length > 1;
                     return (
                       <div
                         key={row._key}
-                        className="grid grid-cols-[1fr_120px_90px_120px_40px] gap-2 px-3 py-2 items-start"
+                        className="grid grid-cols-[28px_1fr_120px_80px_90px_130px_40px] gap-2 px-3 py-2 items-start"
                       >
+                        <div className="pt-2 text-xs font-medium tabular-nums text-muted-foreground">
+                          {idx + 1}.
+                        </div>
                         <div>
                           <Input
                             value={row.item_description}
@@ -908,8 +916,37 @@ export function PriceComparisonTable({
                             </p>
                           )}
                         </div>
+                        <div>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.01"
+                            value={row.tax_rate}
+                            placeholder={String(DEFAULT_VAT_RATE)}
+                            onChange={(e) =>
+                              update(row._key, {
+                                tax_rate:
+                                  e.target.value === '' ? '' : Number(e.target.value),
+                              })
+                            }
+                            disabled={disabled}
+                            className={cn('h-9', fe.tax_rate && 'border-destructive')}
+                            aria-invalid={!!fe.tax_rate}
+                            aria-label={`VAT % for line item ${idx + 1}`}
+                          />
+                          {fe.tax_rate ? (
+                            <p className="mt-1 text-[11px] text-destructive">
+                              {fe.tax_rate}
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-[10px] text-muted-foreground tabular-nums">
+                              VAT {tax.net > 0 ? formatPoAmount(tax.vat, currency) : '—'}
+                            </p>
+                          )}
+                        </div>
                         <div className="pt-2 text-right font-medium tabular-nums text-sm">
-                          {total > 0 ? formatPoAmount(total, currency) : '—'}
+                          {tax.gross > 0 ? formatPoAmount(tax.gross, currency) : '—'}
                         </div>
                         <div className="pt-1">
                           <Button
@@ -943,9 +980,19 @@ export function PriceComparisonTable({
                     <Plus className="h-3.5 w-3.5 mr-1" />
                     Add line item
                   </Button>
-                  <div className="font-medium">
-                    Subtotal:{' '}
-                    <span className="tabular-nums">{formatPoAmount(subtotal, currency)}</span>
+                  <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
+                    <span className="text-muted-foreground">
+                      Subtotal:{' '}
+                      <span className="tabular-nums">{formatPoAmount(totals.subtotal, currency)}</span>
+                    </span>
+                    <span className="text-muted-foreground">
+                      VAT:{' '}
+                      <span className="tabular-nums">{formatPoAmount(totals.vat, currency)}</span>
+                    </span>
+                    <span className="font-medium">
+                      Total:{' '}
+                      <span className="tabular-nums">{formatPoAmount(totals.total, currency)}</span>
+                    </span>
                   </div>
                 </div>
               </div>

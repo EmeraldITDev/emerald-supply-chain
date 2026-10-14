@@ -76,6 +76,9 @@ export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplay
             ))}
           </tbody>
         </table>
+        {model.discountNote && (
+          <p className="mt-2 text-xs font-bold">{model.discountNote}</p>
+        )}
       </div>
 
       <div className="my-4 border-t border-dotted border-slate-400" />
@@ -139,6 +142,14 @@ export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplay
                 {fmt(model.subtotal)}
               </td>
             </tr>
+            {model.discountAmount > 0 && (
+              <tr>
+                <td className="border border-black px-2 py-1.5 font-bold">DISCOUNT</td>
+                <td className="border border-black px-2 py-1.5 text-right tabular-nums">
+                  -{fmt(model.discountAmount)}
+                </td>
+              </tr>
+            )}
             <tr>
               <td className="border border-black px-2 py-1.5 font-bold">TAX</td>
               <td className="border border-black px-2 py-1.5 text-right tabular-nums">

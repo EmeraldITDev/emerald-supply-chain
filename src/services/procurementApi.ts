@@ -1,4 +1,5 @@
 import { apiRequest, API_BASE_URL, getAuthToken } from '@/services/api';
+import { parseTaxRate } from '@/utils/poTax';
 import type { ApiResponse, MRF } from '@/types';
 import type {
   POFormPayload,
@@ -74,6 +75,8 @@ function serializeRow(row: PriceComparisonRow) {
     item_description: row.item_description,
     unit_price: typeof unit_price === 'number' ? unit_price : 0,
     quantity: typeof quantity === 'number' ? quantity : 0,
+    // Per-line VAT %: null = default (7.5%), 0 = not taxed.
+    tax_rate: parseTaxRate(row.tax_rate),
     is_selected: Boolean(row.is_selected),
     selection_reason: row.selection_reason || null,
   };

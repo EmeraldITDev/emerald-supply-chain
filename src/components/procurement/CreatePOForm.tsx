@@ -50,6 +50,7 @@ import { pollForGeneratedPO, isPoReady } from '@/utils/pollPoGeneration';
 import { getEffectivePoNumber, hasEffectivePoIdentity, isPoPendingRevision } from '@/utils/poHelpers';
 import type { ApiResponse, MRF, Vendor } from '@/types';
 import type {
+  PODiscountType,
   POFormPayload,
   POType,
   POTermsMode,
@@ -70,11 +71,13 @@ import { EmeraldPurchaseOrderPreview } from './EmeraldPurchaseOrderPreview';
 import { buildEmeraldPoDisplayModel, coercePOTermsMode, parseDeliveryDateFromRemarks, parsePaymentTermsFromCustomTerms, resolveSelectedSupplier, userClausesFromStoredCustomTerms, userRemarksFromStored } from '@/utils/emeraldPoDocumentModel';
 import { previewPoNumber } from '@/utils/poNumber';
 import {
+  currencySymbol,
   formatPoAmount,
   normalizeCurrencyCode,
   PO_CURRENCY_OPTIONS,
 } from '@/utils/currency';
 import { buildEmeraldPurchaseOrderPdf } from '@/utils/emeraldPOPdf';
+import { DEFAULT_VAT_RATE, PER_LINE_TAX_MODE, discountError, isPerLineTaxMode, normaliseDiscount, parseTaxRate, summariseLines } from '@/utils/poTax';
 import { openEmeraldPurchaseOrderPdfInNewTab } from '@/utils/emeraldPoPdfActions';
 import {
   PaymentMilestoneBuilder,
@@ -148,8 +151,10 @@ interface FormState {
   delivery_date: Date | undefined;
   ship_to_address: string;
   payment_terms: string;
-  tax_rate: string;
   currency: string;
+  /** PO discount before VAT: '' = none. */
+  discount_type: PODiscountType | '';
+  discount_value: string;
   invoice_submission_email: string;
   invoice_submission_cc: string;
   terms_mode: POTermsMode;
@@ -163,8 +168,9 @@ const initialState = (): FormState => ({
   delivery_date: undefined,
   ship_to_address: '',
   payment_terms: '',
-  tax_rate: '',
   currency: 'NGN',
+  discount_type: '',
+  discount_value: '',
   invoice_submission_email: DEFAULT_INVOICE_TO,
   invoice_submission_cc: DEFAULT_INVOICE_CC,
   terms_mode: 'standard',
@@ -230,6 +236,7 @@ const hydrateRow = (
   item_description: e.item_description ?? '',
   unit_price: typeof e.unit_price === 'string' ? Number(e.unit_price) || '' : e.unit_price,
   quantity: typeof e.quantity === 'string' ? Number(e.quantity) || '' : e.quantity,
+  tax_rate: parseTaxRate(e.tax_rate) ?? '',
   is_selected: Boolean(e.is_selected),
   selection_reason: e.selection_reason ?? '',
 });
@@ -452,6 +459,10 @@ export function CreatePOForm({
         po_special_terms?: string;
         ship_to_address?: string;
         tax_rate?: number | string | null;
+        tax_mode?: string | null;
+        taxMode?: string | null;
+        discount_type?: string | null;
+        discount_value?: number | string | null;
         invoice_submission_email?: string;
         invoice_submission_cc?: string;
         custom_terms?: string;
@@ -510,10 +521,12 @@ export function CreatePOForm({
         ship_to_address: m.ship_to_address ?? prev.ship_to_address,
         payment_terms: paymentTerms || prev.payment_terms,
         currency: normalizeCurrencyCode(m.currency),
-        tax_rate:
-          m.tax_rate === null || m.tax_rate === undefined || m.tax_rate === ''
-            ? ''
-            : String(m.tax_rate),
+        ...(() => {
+          const d = normaliseDiscount(m.discount_type, m.discount_value);
+          return d
+            ? { discount_type: d.type, discount_value: String(d.value) }
+            : { discount_type: '' as const, discount_value: '' };
+        })(),
         invoice_submission_email:
           m.invoice_submission_email || prev.invoice_submission_email,
         invoice_submission_cc: ensureProcurementCc(
@@ -553,7 +566,22 @@ export function CreatePOForm({
         incoming = pcRes.success && pcRes.data ? pcRes.data : undefined;
       }
       if (Array.isArray(incoming) && incoming.length > 0) {
-        setRows(incoming.map((e) => hydrateRow(e, groupKeyFor(e))));
+        let hydratedRows = incoming.map((e) => hydrateRow(e, groupKeyFor(e)));
+        // Legacy POs only carry the old global tax rate. When this PO was already
+        // drafted/generated and none of its lines has a rate yet, pre-fill every line
+        // with that global rate (even 0) so its totals don't change. This is local
+        // state only — it is persisted when the user saves. Never-drafted MRFs keep
+        // blank lines, which means the 7.5% default.
+        const legacyPrefillRate =
+          !isPerLineTaxMode(m.tax_mode ?? m.taxMode) &&
+          (m.po_draft_saved_at || hasEffectivePoIdentity(m)) &&
+          hydratedRows.every((r) => r.tax_rate === '')
+            ? parseTaxRate(m.tax_rate) ?? 0
+            : null;
+        if (legacyPrefillRate !== null) {
+          hydratedRows = hydratedRows.map((r) => ({ ...r, tax_rate: legacyPrefillRate }));
+        }
+        setRows(hydratedRows);
       }
 
       // Hydrate vendor directory entries for any vendor_ids already on the
@@ -608,7 +636,7 @@ export function CreatePOForm({
           delivery_date: Boolean(deliveryDate),
           payment_terms: Boolean(paymentTerms),
           ship_to: Boolean(m.ship_to_address),
-          tax_rate: m.tax_rate != null && m.tax_rate !== '',
+          tax_mode: m.tax_mode ?? m.taxMode ?? null,
           milestones: milestones.length,
           price_rows: Array.isArray(incoming) ? incoming.length : 0,
         },
@@ -746,6 +774,24 @@ export function CreatePOForm({
     [rows, vendors]
   );
 
+  /** PO discount (before VAT) applied to the selected supplier's lines. */
+  const poDiscount = useMemo(
+    () => normaliseDiscount(form.discount_type, form.discount_value),
+    [form.discount_type, form.discount_value],
+  );
+  const selectedSupplierRows = useMemo(
+    () =>
+      rows.some((r) => r.is_selected)
+        ? (resolveSelectedSupplier(rows, vendors).supplierRows as PriceComparisonRow[])
+        : [],
+    [rows, vendors],
+  );
+  const selectedTotals = useMemo(
+    () => summariseLines(selectedSupplierRows, poDiscount),
+    [selectedSupplierRows, poDiscount],
+  );
+  const discountErr = discountError(form.discount_type, form.discount_value, selectedTotals.subtotal);
+
   /**
    * Top-of-form blocker summary (1c). Aggregates Section 1 + Section 2 errors so
    * the PM can see every reason Generate & Route is disabled in one place.
@@ -778,8 +824,12 @@ export function CreatePOForm({
     termsModeCustomInvalid,
   ]);
   const blockingErrors = useMemo<string[]>(
-    () => [...section1Errors, ...pcErrors.map((e) => `Price Comparison: ${e}`)],
-    [section1Errors, pcErrors],
+    () => [
+      ...section1Errors,
+      ...pcErrors.map((e) => `Price Comparison: ${e}`),
+      ...(discountErr ? [`Discount: ${discountErr}`] : []),
+    ],
+    [section1Errors, pcErrors, discountErr],
   );
 
   const selectedSupplierLabel = useMemo(() => {
@@ -815,6 +865,7 @@ export function CreatePOForm({
   const canFinalise =
     section1Valid &&
     pcErrors.length === 0 &&
+    !discountErr &&
     !isSaving &&
     (!finalisedMrf || editingFinalised || isRevision);
 
@@ -823,7 +874,7 @@ export function CreatePOForm({
     form.payment_terms.trim() ||
     form.custom_terms.trim() ||
     form.remarks.trim() ||
-    form.tax_rate.trim() ||
+    form.discount_value.trim() ||
     rows.some((r) => r.vendor_id || r.item_description.trim() || r.unit_price || r.quantity);
 
   // Mark dirty whenever inputs change (after hydrate completes)
@@ -857,11 +908,11 @@ export function CreatePOForm({
       po_type: form.po_type,
       currency: form.currency,
       ship_to_address: form.ship_to_address.trim() || undefined,
-      // Allow explicit 0 — do NOT rely on truthiness (0 and "0" would be dropped).
-      tax_rate:
-        form.tax_rate.trim() === '' || Number.isNaN(Number(form.tax_rate))
-          ? undefined
-          : Number(form.tax_rate),
+      // VAT is set per line item on the price comparison rows.
+      tax_mode: PER_LINE_TAX_MODE,
+      // Always sent so clearing a discount (null) is persisted too.
+      discount_type: poDiscount?.type ?? null,
+      discount_value: poDiscount?.value ?? null,
       invoice_submission_email: form.invoice_submission_email.trim() || undefined,
       invoice_submission_cc: ensureProcurementCc(form.invoice_submission_cc.trim()) || undefined,
       terms_mode: form.terms_mode,
@@ -889,7 +940,7 @@ export function CreatePOForm({
     }
 
     return base;
-  }, [form, fastTrack, allowMissingRfq, paymentMilestones, paymentMilestonesValid]);
+  }, [form, poDiscount, fastTrack, allowMissingRfq, paymentMilestones, paymentMilestonesValid]);
 
   const emeraldPreviewModel = useMemo(() => {
     if (!mrf) return null;
@@ -900,10 +951,9 @@ export function CreatePOForm({
       ship_to_address:
         form.ship_to_address.trim() ||
         (mrf as MRF & { ship_to_address?: string }).ship_to_address,
-      tax_rate:
-        form.tax_rate.trim() === ''
-          ? (mrf as MRF & { tax_rate?: number | string }).tax_rate
-          : Number(form.tax_rate),
+      tax_mode: PER_LINE_TAX_MODE,
+      discount_type: poDiscount?.type ?? null,
+      discount_value: poDiscount?.value ?? null,
       invoice_submission_email: form.invoice_submission_email.trim() || undefined,
       invoice_submission_cc: ensureProcurementCc(form.invoice_submission_cc.trim()) || undefined,
       custom_terms: payload.custom_terms ?? (mrf as MRF & { custom_terms?: string }).custom_terms,
@@ -917,7 +967,13 @@ export function CreatePOForm({
             resolveSelectedSupplier(rows, vendors).supplierName,
             form.po_date ?? new Date(),
           )) as string,
-    } as MRF & { ship_to_address?: string; tax_rate?: number | string; custom_terms?: string };
+    } as MRF & {
+      ship_to_address?: string;
+      tax_mode?: string;
+      discount_type?: string | null;
+      discount_value?: number | null;
+      custom_terms?: string;
+    };
     return buildEmeraldPoDisplayModel({
       mrf: merged,
       rows,
@@ -932,6 +988,7 @@ export function CreatePOForm({
   }, [
     mrf,
     form,
+    poDiscount,
     rows,
     vendors,
     standardTerms,
@@ -1234,7 +1291,10 @@ export function CreatePOForm({
       }
 
       const selectedRows = rows.filter((r) => r.is_selected);
-      const lineSource = selectedRows.length > 0 ? selectedRows : rows;
+      // Only the selected card's first row carries is_selected; every line item
+      // under that supplier card belongs on the PO (and in its VAT totals).
+      const supplierRows = resolveSelectedSupplier(rows, vendors).supplierRows as PriceComparisonRow[];
+      const lineSource = supplierRows.length > 0 ? supplierRows : rows;
       const payload = buildPayload();
       const updateRes = await poApi.update(mrfId, {
         estimatedCost:
@@ -1248,13 +1308,16 @@ export function CreatePOForm({
         remarks: payload.remarks,
         customTerms: payload.custom_terms,
         shipToAddress: payload.ship_to_address,
-        taxRate: payload.tax_rate,
+        taxMode: PER_LINE_TAX_MODE,
+        discountType: payload.discount_type ?? null,
+        discountValue: payload.discount_value ?? null,
         currency: payload.currency,
         items: lineSource.map((r) => ({
           itemName: r.item_description || 'Item',
           description: r.item_description || '',
           quantity: Number(r.quantity) || 1,
           unitPrice: Number(r.unit_price) || 0,
+          taxRate: parseTaxRate(r.tax_rate),
         })),
       });
       if (!updateRes.success) {
@@ -1295,7 +1358,7 @@ export function CreatePOForm({
     } finally {
       releaseLock();
     }
-  }, [mrfId, rows, buildPayload, onFinalised, mrf, uploadPendingDocs]);
+  }, [mrfId, rows, vendors, buildPayload, onFinalised, mrf, uploadPendingDocs]);
 
   // -------------------------------------------------------------------------
   // Autosave — debounced 3s, draft mode only, lock-protected,
@@ -1311,7 +1374,7 @@ export function CreatePOForm({
       if (Date.now() - lastManualSaveRef.current < 5000) return;
       // Gate: autosave when PC is valid (prevents 422 spam).
       const pcInvalid = validatePriceComparison(rows, vendors).length > 0;
-      if (pcInvalid) return;
+      if (pcInvalid || discountErr) return;
       // Autosave uses its OWN lock so it never disables the manual buttons
       // or the input fields the user is typing into.
       void (async () => {
@@ -1344,7 +1407,7 @@ export function CreatePOForm({
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [form, rows, vendors, hydrating, isFinalised, mrfId, buildPayload, editingFinalised]);
+  }, [form, rows, vendors, hydrating, isFinalised, mrfId, buildPayload, editingFinalised, discountErr]);
 
   // -------------------------------------------------------------------------
   // Render — loading skeleton
@@ -1538,23 +1601,6 @@ export function CreatePOForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tax-rate">Tax Rate (%)</Label>
-            <Input
-              id="tax-rate"
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.tax_rate}
-              onChange={(e) => patchForm({ tax_rate: e.target.value })}
-              placeholder="e.g. 7.5 (enter 0 for no tax)"
-              aria-invalid={Boolean(serverFieldErrors.tax_rate)}
-              className={cn(serverFieldErrors.tax_rate && 'border-destructive focus-visible:ring-destructive')}
-            />
-            {serverFieldErrors.tax_rate && (
-              <p className="text-xs text-destructive">{serverFieldErrors.tax_rate}</p>
-            )}
-          </div>
-          <div className="space-y-2">
             <Label htmlFor="po-currency">Currency</Label>
             <Select
               value={form.currency}
@@ -1722,6 +1768,94 @@ export function CreatePOForm({
           currency={form.currency}
           defaultSupplierModeForNewRows={isDirectProcurement ? 'manual' : 'directory'}
         />
+
+        {/* PO discount — applies to the selected supplier, taken before VAT. */}
+        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label className="text-sm font-semibold">Discount</Label>
+            <span className="text-[11px] text-muted-foreground">
+              Applies to the selected supplier, before VAT.
+            </span>
+          </div>
+          <div className="flex flex-wrap items-start gap-3">
+            <ToggleGroup
+              type="single"
+              value={form.discount_type || 'none'}
+              onValueChange={(v) => {
+                if (!v) return;
+                patchForm({
+                  discount_type: v === 'none' ? '' : (v as PODiscountType),
+                  ...(v === 'none' ? { discount_value: '' } : {}),
+                });
+              }}
+              disabled={isFinalised}
+              variant="outline"
+              size="sm"
+            >
+              <ToggleGroupItem value="none" className="text-xs">No discount</ToggleGroupItem>
+              <ToggleGroupItem value="percentage" className="text-xs">Percentage (%)</ToggleGroupItem>
+              <ToggleGroupItem value="amount" className="text-xs">
+                Amount ({currencySymbol(form.currency)})
+              </ToggleGroupItem>
+            </ToggleGroup>
+            {form.discount_type && (
+              <div className="space-y-1">
+                <Input
+                  id="discount-value"
+                  type="number"
+                  min={0}
+                  max={form.discount_type === 'percentage' ? 100 : undefined}
+                  step="0.01"
+                  value={form.discount_value}
+                  onChange={(e) => patchForm({ discount_value: e.target.value })}
+                  placeholder={form.discount_type === 'percentage' ? 'e.g. 5' : 'e.g. 50000'}
+                  disabled={isFinalised}
+                  aria-label={
+                    form.discount_type === 'percentage'
+                      ? 'Discount percentage of subtotal'
+                      : `Discount amount in ${form.currency}`
+                  }
+                  aria-invalid={Boolean(discountErr || serverFieldErrors.discount_value)}
+                  className={cn(
+                    'h-9 w-40',
+                    (discountErr || serverFieldErrors.discount_value) && 'border-destructive',
+                  )}
+                />
+                {(discountErr || serverFieldErrors.discount_value) && (
+                  <p className="text-xs text-destructive">
+                    {discountErr || serverFieldErrors.discount_value}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          {selectedSupplierRows.length > 0 ? (
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:max-w-sm">
+              <dt className="text-muted-foreground">Subtotal</dt>
+              <dd className="text-right tabular-nums">
+                {formatPoAmount(selectedTotals.subtotal, form.currency)}
+              </dd>
+              <dt className="text-muted-foreground">Discount</dt>
+              <dd className="text-right tabular-nums">
+                {selectedTotals.discount > 0
+                  ? `-${formatPoAmount(selectedTotals.discount, form.currency)}`
+                  : '—'}
+              </dd>
+              <dt className="text-muted-foreground">VAT</dt>
+              <dd className="text-right tabular-nums">
+                {formatPoAmount(selectedTotals.vat, form.currency)}
+              </dd>
+              <dt className="font-semibold">PO Total</dt>
+              <dd className="text-right font-semibold tabular-nums">
+                {formatPoAmount(selectedTotals.total, form.currency)}
+              </dd>
+            </dl>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Select a supplier above to see the PO total with discount.
+            </p>
+          )}
+        </div>
       </section>
 
       {/* ============== SECTION 3 — Review & Submit ============== */}
@@ -1747,8 +1881,18 @@ export function CreatePOForm({
               <dd>{form.ship_to_address || '—'}</dd>
               <dt className="text-muted-foreground">Payment Terms</dt>
               <dd>{form.payment_terms || '—'}</dd>
-              <dt className="text-muted-foreground">Tax Rate</dt>
-              <dd>{form.tax_rate ? `${form.tax_rate}%` : '—'}</dd>
+              <dt className="text-muted-foreground">VAT</dt>
+              <dd>Per line item (blank = {DEFAULT_VAT_RATE}%, 0 = not taxed)</dd>
+              <dt className="text-muted-foreground">Discount</dt>
+              <dd>
+                {poDiscount
+                  ? `${poDiscount.type === 'percentage' ? `${poDiscount.value}% of subtotal` : formatPoAmount(poDiscount.value, form.currency)} (−${formatPoAmount(selectedTotals.discount, form.currency)}, before VAT)`
+                  : '—'}
+              </dd>
+              <dt className="text-muted-foreground">PO Total</dt>
+              <dd className="font-medium tabular-nums">
+                {selectedSupplierRows.length > 0 ? formatPoAmount(selectedTotals.total, form.currency) : '—'}
+              </dd>
               <dt className="text-muted-foreground">Currency</dt>
               <dd className="font-medium">{form.currency}</dd>
               <dt className="text-muted-foreground">Invoice To</dt>
@@ -1795,11 +1939,7 @@ export function CreatePOForm({
                     </p>
                     <ul className="text-xs space-y-3">
                       {groupsArr.map((g, i) => {
-                        const subtotal = g.rows.reduce(
-                          (acc, r) =>
-                            acc + (Number(r.unit_price) || 0) * (Number(r.quantity) || 0),
-                          0,
-                        );
+                        const totals = summariseLines(g.rows);
                         return (
                           <li
                             key={i}
@@ -1814,24 +1954,30 @@ export function CreatePOForm({
                                 {g.selected && ' ✓'}
                               </span>
                               <span className="tabular-nums">
-                                {formatPoAmount(subtotal, form.currency)}
+                                {formatPoAmount(totals.total, form.currency)}
                               </span>
                             </div>
+                            <p className="ml-3 text-[10px] text-muted-foreground tabular-nums">
+                              {g.rows.length} item{g.rows.length === 1 ? '' : 's'} · Subtotal{' '}
+                              {formatPoAmount(totals.subtotal, form.currency)} · VAT{' '}
+                              {formatPoAmount(totals.vat, form.currency)}
+                            </p>
                             <ul className="mt-1 ml-3 space-y-0.5 text-muted-foreground">
-                              {g.rows.map((r) => {
-                                const total =
-                                  (Number(r.unit_price) || 0) * (Number(r.quantity) || 0);
+                              {g.rows.map((r, idx) => {
+                                const line = summariseLines([r]);
+                                const rateLabel = r.tax_rate === '' ? `${DEFAULT_VAT_RATE}% (default)` : `${r.tax_rate}%`;
                                 return (
                                   <li key={r._key} className="flex justify-between gap-2">
                                     <span className="truncate">
-                                      • {r.item_description || '—'}{' '}
+                                      {idx + 1}. {r.item_description || '—'}{' '}
                                       <span className="text-[10px]">
                                         ({r.quantity || 0} ×{' '}
-                                        {formatPoAmount(Number(r.unit_price) || 0, form.currency)})
+                                        {formatPoAmount(Number(r.unit_price) || 0, form.currency)} · VAT{' '}
+                                        {rateLabel})
                                       </span>
                                     </span>
                                     <span className="tabular-nums">
-                                      {formatPoAmount(total, form.currency)}
+                                      {formatPoAmount(line.total, form.currency)}
                                     </span>
                                   </li>
                                 );

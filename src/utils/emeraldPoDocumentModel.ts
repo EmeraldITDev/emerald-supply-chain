@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import type { MRF, Vendor } from '@/types';
 import type { POTermsMode, PriceComparisonEntry, PriceComparisonRow } from '@/types/procurement';
+import { DEFAULT_VAT_RATE, discountAmount as poDiscountAmount, discountNote, formatTaxLabel, isPerLineTaxMode, lineTax, normaliseDiscount, parseTaxRate, summariseLines } from '@/utils/poTax';
 
 /** Display name shown on signed POs (Supply Chain Director). */
 export const EMERALD_PO_APPROVER_NAME = 'Mrs. Viva Musa';
@@ -65,6 +66,10 @@ export interface EmeraldPoDisplayModel {
   paymentMilestones?: EmeraldPoMilestone[];
   contractTypeDisplay: string;
   subtotal: number;
+  /** PO discount (before VAT); 0 when none. */
+  discountAmount: number;
+  /** e.g. "Discount: 5% of subtotal (before VAT)"; null when no discount. */
+  discountNote: string | null;
   taxAmount: number;
   total: number;
   currencyCode: string;
@@ -238,6 +243,13 @@ export function resolvePoTermsLines(input: {
 type MRFExtras = MRF & {
   ship_to_address?: string;
   tax_rate?: number | string | null;
+  /** `per_line` → VAT comes from each row's tax_rate; otherwise the legacy global rate. */
+  tax_mode?: string | null;
+  taxMode?: string | null;
+  discount_type?: string | null;
+  discountType?: string | null;
+  discount_value?: number | string | null;
+  discountValue?: number | string | null;
   invoice_submission_email?: string;
   invoice_submission_cc?: string;
   custom_terms?: string;
@@ -281,18 +293,40 @@ export function buildEmeraldPoDisplayModel(input: {
   // Falls back to just the selected row if no supplier identity is resolvable.
   const { supplierName, supplierRows } = resolveSelectedSupplier(rows, vendors);
 
-  const subtotal = supplierRows.reduce(
-    (acc, r) => acc + (Number(r.quantity) || 0) * (Number(r.unit_price) || 0),
-    0,
-  );
+  // Per-line VAT POs carry a rate on each row (blank → 7.5%). Legacy POs (no
+  // tax_mode and no row rates) keep the single global rate, applied to the subtotal.
+  const perLineTax =
+    isPerLineTaxMode(mrf.tax_mode ?? mrf.taxMode) ||
+    supplierRows.some((r) => parseTaxRate(r.tax_rate) !== null);
 
-  const traw =
-    mrf.tax_rate === undefined || mrf.tax_rate === null || mrf.tax_rate === ''
-      ? 7.5
-      : Number(mrf.tax_rate);
-  const taxRate = Number.isFinite(traw) ? traw : 7.5;
-  const taxAmount = subtotal * (taxRate / 100);
-  const total = subtotal + taxAmount;
+  const discount = normaliseDiscount(
+    mrf.discount_type ?? mrf.discountType,
+    mrf.discount_value ?? mrf.discountValue,
+  );
+  let subtotal: number;
+  let discountAmount = 0;
+  let taxAmount: number;
+  let total: number;
+  let taxRate = DEFAULT_VAT_RATE;
+  if (perLineTax) {
+    ({ subtotal, discount: discountAmount, vat: taxAmount, total } = summariseLines(
+      supplierRows,
+      discount,
+    ));
+  } else {
+    subtotal = supplierRows.reduce(
+      (acc, r) => acc + (Number(r.quantity) || 0) * (Number(r.unit_price) || 0),
+      0,
+    );
+    const traw =
+      mrf.tax_rate === undefined || mrf.tax_rate === null || mrf.tax_rate === ''
+        ? DEFAULT_VAT_RATE
+        : Number(mrf.tax_rate);
+    taxRate = Number.isFinite(traw) ? traw : DEFAULT_VAT_RATE;
+    discountAmount = poDiscountAmount(subtotal, discount);
+    taxAmount = (subtotal - discountAmount) * (taxRate / 100);
+    total = subtotal - discountAmount + taxAmount;
+  }
 
   const shipTo =
     mrf.ship_to_address?.trim() ||
@@ -352,7 +386,7 @@ export function buildEmeraldPoDisplayModel(input: {
   const contractTypeDisplay = formatContractTypeForPo(mrf);
 
   const categoryLine = (mrf.category || 'Procurement').replace(/-/g, ' ');
-  const taxLabel = `${taxRate}%`;
+  const legacyTaxLabel = `${taxRate}%`;
 
   const lineItems: EmeraldPoLineItem[] = (supplierRows.length > 0
     ? supplierRows
@@ -360,14 +394,16 @@ export function buildEmeraldPoDisplayModel(input: {
   ).map((r) => {
     const qty = Number(r?.quantity) || 0;
     const rate = Number(r?.unit_price) || 0;
+    const tax = perLineTax && r ? lineTax(r) : null;
     return {
       categoryLine,
       description:
         r?.item_description?.trim() || mrf.description?.trim() || mrf.title || '—',
       qty,
       rate,
-      taxLabel,
-      amount: qty * rate,
+      taxLabel: tax ? formatTaxLabel(tax.rate) : legacyTaxLabel,
+      // Per-line VAT POs show VAT-inclusive line amounts; legacy POs stay pre-VAT.
+      amount: tax ? tax.gross : qty * rate,
     };
   });
 
@@ -387,6 +423,17 @@ export function buildEmeraldPoDisplayModel(input: {
     paymentMilestones,
     contractTypeDisplay,
     subtotal,
+    discountAmount,
+    discountNote:
+      discountAmount > 0
+        ? discountNote(
+            discount,
+            `${mrf.currency?.toUpperCase() || 'NGN'} ${discountAmount.toLocaleString('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`,
+          )
+        : null,
     taxAmount,
     total,
     currencyCode: mrf.currency?.toUpperCase() || 'NGN',

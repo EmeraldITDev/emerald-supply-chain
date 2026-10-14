@@ -222,6 +222,14 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
   }
 
   doc.setDrawColor(120, 120, 120);
+  if (model.discountNote) {
+    y = ensureY(doc, y, 8);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text(model.discountNote, tableX + 2, y + 4);
+    y += 7;
+  }
+
   doc.setLineDashPattern([1, 2], 0);
   doc.line(COL_L, y, COL_L + COL_W, y);
   doc.setLineDashPattern([], 0);
@@ -271,6 +279,9 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
   let ty = splitY;
   const sumRows: [string, string][] = [
     ['SUBTOTAL', fmtMoney(model.subtotal, model.currencyCode)],
+    ...(model.discountAmount > 0
+      ? ([['DISCOUNT', `-${fmtMoney(model.discountAmount, model.currencyCode)}`]] as [string, string][])
+      : []),
     ['TAX', fmtMoney(model.taxAmount, model.currencyCode)],
     [`TOTAL ${model.currencyCode}`, fmtMoney(model.total, model.currencyCode)],
   ];
