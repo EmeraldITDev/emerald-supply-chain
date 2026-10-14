@@ -15,7 +15,7 @@
  *   MUST be assigned by the backend at generation time, because only the backend
  *   can guarantee an atomic, race-free, persistent counter. The frontend uses
  *   these helpers for previews, the (legacy) client-supplied path, validation,
- *   and display normalisation only. See PO_NUMBERING_BACKEND_SPEC.md.
+ *   and display normalisation only. See backend docs/po-numbering-spec.md.
  */
 
 export interface ParsedPoNumber {
