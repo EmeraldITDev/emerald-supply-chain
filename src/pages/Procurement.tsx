@@ -53,6 +53,7 @@ import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { queryKeys } from "@/lib/queryKeys";
 import { LIST_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { invalidateMrfLists, invalidatePoLists, optimisticallyRemoveMrfFromCache, afterPoDeleted } from "@/lib/invalidateScmCache";
+import { QuickBooksSyncControl } from "@/components/quickbooks/QuickBooksSyncControl";
 import { ListControls } from "@/components/dashboard/ListControls";
 import { ServerPaginationBar } from "@/components/ui/ServerPaginationBar";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
@@ -4182,6 +4183,7 @@ const Procurement = () => {
                                 <FileText className="h-4 w-4 mr-2" />
                                 View Details
                               </Button>
+                              <QuickBooksSyncControl mrf={mrf as MRF} />
                               {unsignedPOUrl && (
                                 (() => {
                                   const dlKey = poDownloadKey(mrf as MRF);

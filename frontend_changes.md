@@ -1206,3 +1206,7 @@ Frontend:
 **Search:** `GET /api/mrfs?search=` and `GET /api/pos?search=` (via `PurchaseOrderService::listQuery`) now use case-insensitive **contains** (`ILIKE %term%`) on `po_number`, `mrf_id`, `formatted_id`, `linked_po_id`, `title`, `requester_name`. Searching `bluegate` matches `PO-180926-BLUEGATE-0002`. Global `/api/search` also matches `po_number` / `linked_po_id`.
 
 **Signed PO edit:** `isSignedAndLocked` / frontend `isPoSignedLocked` treat any non-empty `signed_po_url` as locked (unless `pending_revision`), so POs that advanced past `po_signed` still require unlock. Price comparison `bulkReplace` uses the same lock check and allows saves after unlock-for-edit.
+
+## QuickBooks Integration
+
+Settings → Integrations (`/settings?tab=integrations`) for admin, procurement_manager, procurement, supply_chain_director, and supply_chain. Connect and Disconnect are admin only and use `POST /api/quickbooks/connect` (`authorization_url`) and `POST /api/quickbooks/disconnect`. The OAuth return is read from `quickbooks=connected` or `error=invalid_state|access_denied|token_exchange_failed`. Vendor pull and PO status pull are available to the same procurement roles. PO list and PO detail show Sync to QuickBooks, with a dry-run checklist that does not render the payload. Tokens, realm IDs, and client secrets are not displayed.

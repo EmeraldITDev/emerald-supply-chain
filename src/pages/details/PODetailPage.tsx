@@ -28,6 +28,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getMrfApiId } from "@/utils/displayId";
+import { QuickBooksSyncControl } from "@/components/quickbooks/QuickBooksSyncControl";
 
 const CONFIRM_DELIVERY_ROLES = [
   "procurement_manager",
@@ -210,6 +211,10 @@ export default function PODetailPage() {
                 Edit PO
               </Button>
             )}
+            <QuickBooksSyncControl
+              mrf={mrf}
+              onSynced={(patch) => setMrf((current) => (current ? { ...current, ...patch } : current))}
+            />
             {canConfirmDelivery && (
               <Button
                 size="sm"

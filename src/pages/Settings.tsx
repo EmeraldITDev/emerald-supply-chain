@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { AuditTrail } from "@/components/AuditTrail";
 import { NotificationPreferences } from "@/components/NotificationPreferences";
 import UserManagement from "@/pages/UserManagement";
-import { Settings as SettingsIcon, User, Bell, Shield, Database, Loader2, Trash2 } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, Database, Loader2, Trash2, Plug } from "lucide-react";
+import { QuickBooksIntegrations } from "@/components/quickbooks/QuickBooksIntegrations";
+import { canAccessQuickBooks } from "@/components/quickbooks/quickbooksLogic";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/services/api";
@@ -105,6 +107,23 @@ export default function Settings() {
   const canViewAuditTrail = ['chairman', 'executive', 'supply_chain_director', 'procurement', 'finance', 'logistics'].includes(getScmRole(user) || '');
   const canManageUsers = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain'].includes(getScmRole(user) || '');
   const normalizedRole = (getScmRole(user) || '').toLowerCase();
+  const canViewIntegrations = canAccessQuickBooks(getScmRole(user));
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(
+    requestedTab === "integrations" && canViewIntegrations
+      ? "integrations"
+      : isRegularEmployee
+        ? "security"
+        : "profile",
+  );
+
+  useEffect(() => {
+    if (requestedTab === "integrations" && canViewIntegrations) {
+      setActiveTab("integrations");
+    }
+  }, [requestedTab, canViewIntegrations]);
+
   const canUploadSignature = [
     'supply_chain_director',
     'supply_chain',
@@ -287,7 +306,16 @@ export default function Settings() {
           </div>
         </div>
 
-        <Tabs defaultValue={isRegularEmployee ? "security" : "profile"} className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => {
+            setActiveTab(value);
+            const next = new URLSearchParams(searchParams);
+            next.set("tab", value);
+            setSearchParams(next, { replace: true });
+          }}
+          className="space-y-6"
+        >
           <TabsList className="bg-muted">
             {canViewProfile && (
               <TabsTrigger value="profile" className="gap-2">
@@ -313,6 +341,12 @@ export default function Settings() {
               <TabsTrigger value="audit" className="gap-2">
                 <Database className="h-4 w-4" />
                 Audit Trail
+              </TabsTrigger>
+            )}
+            {canViewIntegrations && (
+              <TabsTrigger value="integrations" className="gap-2">
+                <Plug className="h-4 w-4" />
+                Integrations
               </TabsTrigger>
             )}
           </TabsList>
@@ -570,6 +604,11 @@ export default function Settings() {
           {canViewAuditTrail && (
             <TabsContent value="audit" className="space-y-6">
               <AuditTrail userRole={getScmRole(user)} />
+            </TabsContent>
+          )}
+          {canViewIntegrations && (
+            <TabsContent value="integrations" className="space-y-6">
+              <QuickBooksIntegrations />
             </TabsContent>
           )}
         </Tabs>

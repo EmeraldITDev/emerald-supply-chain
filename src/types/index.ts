@@ -122,6 +122,9 @@ export interface MRF {
   unsigned_po_share_url?: string; // Backend snake_case variant - view-only sharing link
   signedPOUrl?: string;
   signed_po_url?: string; // Backend snake_case variant
+  quickbooks_po_id?: string | null;
+  quickbooks_synced_at?: string | null;
+  quickbooks_sync_status?: string | null;
   signedPOShareUrl?: string;
   signed_po_share_url?: string; // Backend snake_case variant - view-only sharing link
   executiveComments?: string;
@@ -450,6 +453,7 @@ export interface Vendor {
   account_name?: string;
   accountNumber?: string;
   account_number?: string;
+  quickbooks_vendor_id?: string | null;
 }
 
 /** Match returned by GET /vendors/lookup (authoritative duplicate detection). */

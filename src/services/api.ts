@@ -27,6 +27,7 @@ import type {
   User,
 } from '@/types';
 import { RFQ_STANDARD_TERMS } from '@/data/rfqPoTermsTemplate';
+import type { QuickBooksCheck, QuickBooksStatus } from '@/components/quickbooks/quickbooksLogic';
 
 /**
  * Recover from Vite "Failed to fetch dynamically imported module" errors.
@@ -4980,4 +4981,110 @@ export const driverApi = {
       body: JSON.stringify(data),
     });
   },
+};
+
+export interface QuickBooksSyncResult {
+  dry_run: boolean;
+  passed: boolean;
+  results: QuickBooksCheck[];
+  assumptions?: string[];
+  blocked_reason: string | null;
+  quickbooks_po_id: string | null;
+  quickbooks_sync_status: string | null;
+}
+
+export interface QuickBooksAccountItem {
+  Id: string | null;
+  Name: string | null;
+  AccountType?: string | null;
+  Type?: string | null;
+}
+
+export interface QuickBooksVendorMatch {
+  scm_vendor_id: number;
+  scm_vendor_name?: string | null;
+  quickbooks_vendor_id: string;
+  quickbooks_name?: string | null;
+  match_method?: 'email' | 'name';
+  conflict: boolean;
+}
+
+export interface QuickBooksVendorPull {
+  matched: QuickBooksVendorMatch[];
+  unmatched: Array<{
+    id: string;
+    display_name?: string | null;
+    company_name?: string | null;
+    email?: string | null;
+  }>;
+}
+
+export interface QuickBooksPoPull {
+  updated: Array<{
+    mrf_id: number;
+    quickbooks_po_id: string | null;
+    quickbooks_sync_status?: string | null;
+    updated: boolean;
+  }>;
+  unlinked: Array<{
+    id: string;
+    doc_number?: string | null;
+    po_status?: string | null;
+  }>;
+}
+
+function withSyncBody(response: ApiResponse<QuickBooksSyncResult>): ApiResponse<QuickBooksSyncResult> {
+  if (response.data?.results) return response;
+  const raw = response.raw;
+  if (raw && typeof raw === 'object' && 'data' in raw) {
+    const data = (raw as { data?: QuickBooksSyncResult }).data;
+    if (data && Array.isArray(data.results)) {
+      return { ...response, data };
+    }
+  }
+  return response;
+}
+
+/**
+ * QuickBooks calls. apiRequest unwraps the `data` object.
+ * Connect's payload is `{ authorization_url }` after that unwrap.
+ */
+export const quickbooksApi = {
+  status: (): Promise<ApiResponse<QuickBooksStatus>> => apiRequest('/quickbooks/status'),
+
+  connect: async (): Promise<ApiResponse<{ authorization_url: string }>> => {
+    const response = await apiRequest<{ authorization_url?: string; auth_url?: string }>('/quickbooks/connect', {
+      method: 'POST',
+    });
+    const authorizationUrl = response.data?.authorization_url || response.data?.auth_url;
+    return {
+      ...response,
+      data: authorizationUrl ? { authorization_url: authorizationUrl } : undefined,
+    };
+  },
+
+  disconnect: (): Promise<ApiResponse<{ connected: boolean }>> =>
+    apiRequest('/quickbooks/disconnect', { method: 'POST' }),
+
+  syncPo: async (mrfId: string): Promise<ApiResponse<QuickBooksSyncResult>> => {
+    const response = await apiRequest<QuickBooksSyncResult>(`/quickbooks/sync-po/${encodeURIComponent(mrfId)}`, {
+      method: 'POST',
+    });
+    return withSyncBody(response);
+  },
+
+  inspectVendors: (): Promise<ApiResponse<Array<Record<string, unknown>>>> =>
+    apiRequest('/quickbooks/inspect/vendors'),
+
+  inspectPurchaseOrders: (): Promise<ApiResponse<Array<Record<string, unknown>>>> =>
+    apiRequest('/quickbooks/inspect/purchase-orders'),
+
+  inspectAccountsItems: (): Promise<ApiResponse<{ accounts: QuickBooksAccountItem[]; items: QuickBooksAccountItem[] }>> =>
+    apiRequest('/quickbooks/inspect/accounts-items'),
+
+  pullVendors: (): Promise<ApiResponse<QuickBooksVendorPull>> =>
+    apiRequest('/quickbooks/pull/vendors', { method: 'POST' }),
+
+  pullPurchaseOrders: (): Promise<ApiResponse<QuickBooksPoPull>> =>
+    apiRequest('/quickbooks/pull/purchase-orders', { method: 'POST' }),
 };
