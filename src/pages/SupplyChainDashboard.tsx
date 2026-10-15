@@ -59,8 +59,8 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
 import {
-  authApi,
   mrfApi,
+  poApi,
   vendorApi,
   dashboardApi,
   srfApi,
@@ -737,15 +737,91 @@ const SupplyChainDashboard = () => {
     const override = attachSignatureFiles[localKey] || null;
     setActionLoading(localKey);
     try {
-      const fullRes = await mrfApi.getById(apiId);
+      // Fast path: server stamps the saved signature (no client PDF rebuild).
+      // This is much faster than hydrate → terms → jsPDF → upload.
+      if (!override) {
+        const response = await poApi.sign(apiId);
+        if (response.success) {
+          toast.success(
+            "Signature attached — preparing the signed Purchase Order…",
+          );
+          setAttachSignatureFiles((prev) => ({ ...prev, [localKey]: null }));
+          setSignedPOs((prev) => ({ ...prev, [localKey]: null }));
+
+          // Sign returns 202 and finishes PDF generation after the response —
+          // poll briefly so the PO detail page can offer the signed download.
+          for (let i = 0; i < 10; i++) {
+            await new Promise((r) => setTimeout(r, 1200));
+            const check = await mrfApi.getById(apiId);
+            const signed =
+              check.data &&
+              ((check.data as { signed_po_url?: string }).signed_po_url ||
+                (check.data as { signedPOUrl?: string }).signedPOUrl ||
+                (check.data as { status?: string }).status === "po_signed" ||
+                (check.data as { workflow_state?: string }).workflow_state ===
+                  "po_signed");
+            if (signed) break;
+          }
+
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.dashboard.scdMrfs(),
+          });
+          try {
+            window.dispatchEvent(new Event("app:refresh"));
+          } catch {
+            /* ignore */
+          }
+          navigate(`/pos/${encodeURIComponent(apiId)}?signed=1`);
+          return;
+        }
+
+        const err = (response.error || "").toLowerCase();
+        if (
+          response.code === "VALIDATION_ERROR" ||
+          err.includes("signature") ||
+          err.includes("no signature")
+        ) {
+          toast.error(
+            response.error ||
+              "No signature available. Choose a PNG/JPG above, or upload one in Settings → Digital Signature.",
+          );
+          return;
+        }
+        toast.error(mapSignedPoError(response.error));
+        return;
+      }
+
+      // One-off override image: build signed PDF on the client, then upload.
+      if (override.size > 2 * 1024 * 1024) {
+        toast.error("Signature image must be 2MB or less.");
+        return;
+      }
+
+      const fullRes = await procurementApi.getMRFForPO(apiId);
       if (!fullRes.success || !fullRes.data) {
         toast.error(fullRes.error || "Could not load MRF for signing");
         return;
       }
-      const fullMrf = fullRes.data;
+      const fullMrf = fullRes.data as MRF & {
+        priceComparisons?: import("@/types/procurement").PriceComparisonEntry[];
+        po_type?: string;
+        custom_terms?: string;
+        customTerms?: string;
+        terms_mode?: string;
+        termsMode?: string;
+        selected_vendor_id?: string | number;
+        selectedVendorId?: string | number;
+      };
 
-      const pcRes = await procurementApi.getPriceComparison(apiId);
-      const rows = pcRes.success && pcRes.data ? pcRes.data : [];
+      let rows =
+        Array.isArray(fullMrf.priceComparisons) &&
+        fullMrf.priceComparisons.length > 0
+          ? fullMrf.priceComparisons
+          : [];
+      if (rows.length === 0) {
+        const pcRes = await procurementApi.getPriceComparison(apiId);
+        rows = pcRes.success && pcRes.data ? pcRes.data : [];
+      }
 
       const selectedRow = rows.find(
         (r) =>
@@ -755,75 +831,39 @@ const SupplyChainDashboard = () => {
       const vendorId =
         (selectedRow as { vendor_id?: string | number } | undefined)
           ?.vendor_id ??
-        (
-          fullMrf as {
-            selected_vendor_id?: string | number;
-            selectedVendorId?: string | number;
-          }
-        ).selected_vendor_id ??
-        (
-          fullMrf as {
-            selected_vendor_id?: string | number;
-            selectedVendorId?: string | number;
-          }
-        ).selectedVendorId;
+        fullMrf.selected_vendor_id ??
+        fullMrf.selectedVendorId;
+      const vendorName =
+        (selectedRow as { vendor_name?: string } | undefined)?.vendor_name ||
+        (selectedRow as { vendorName?: string } | undefined)?.vendorName;
 
-      let vendors: import("@/types").Vendor[] = [];
-      if (vendorId) {
+      const vendors: import("@/types").Vendor[] = [];
+      if (vendorName && vendorId) {
+        vendors.push({
+          id: String(vendorId),
+          name: vendorName,
+        } as import("@/types").Vendor);
+      } else if (vendorId) {
         const vRes = await vendorApi.getById(String(vendorId));
-        if (vRes.success && vRes.data) vendors = [vRes.data];
-      } else {
-        const vendorsRes = await vendorApi.list({ page: 1, per_page: 25 });
-        vendors =
-          vendorsRes.success && vendorsRes.data?.items
-            ? vendorsRes.data.items
-            : [];
+        if (vRes.success && vRes.data) vendors.push(vRes.data);
       }
 
-      let sigDataUrl: string | null = null;
-      const me = await authApi.getCurrentUser();
-      const signatureUrl =
-        (
-          me.data as
-            | { signature_url?: string; signatureUrl?: string }
-            | undefined
-        )?.signature_url ||
-        (
-          me.data as
-            | { signature_url?: string; signatureUrl?: string }
-            | undefined
-        )?.signatureUrl ||
-        user?.signature_url ||
-        readStoredUserSignatureUrl() ||
-        null;
-      const userId = me.data?.id ?? user?.id ?? null;
-
-      if (override) {
-        if (override.size > 2 * 1024 * 1024) {
-          toast.error("Signature image must be 2MB or less.");
-          return;
-        }
-        sigDataUrl = await resolveUserSignatureDataUrl({
-          userId,
-          overrideFile: override,
-        });
-      } else {
-        sigDataUrl = await resolveUserSignatureDataUrl({
-          userId,
-          signatureUrl,
-        });
-      }
+      const sigDataUrl = await resolveUserSignatureDataUrl({
+        userId: user?.id ?? null,
+        overrideFile: override,
+      });
 
       if (!sigDataUrl) {
         toast.error(
-          "No signature available. Choose a PNG/JPG above, or upload one in Settings → Digital Signature.",
+          "Could not read the selected signature image. Try another PNG/JPG.",
         );
         return;
       }
 
-      const poType = String(
-        (fullMrf as { po_type?: string }).po_type || "goods",
-      ) as "goods" | "services" | "logistics";
+      const poType = String(fullMrf.po_type || "goods") as
+        | "goods"
+        | "services"
+        | "logistics";
       let standardTermsBody: string | undefined;
       const termsRes = await procurementApi.getPOTermsTemplate(poType);
       if (termsRes.success && termsRes.data) {
@@ -836,15 +876,9 @@ const SupplyChainDashboard = () => {
         rows,
         vendors,
         standardTermsBody,
-        terms_mode: coercePOTermsMode(
-          (fullMrf as { terms_mode?: string; termsMode?: string }).terms_mode ??
-            (fullMrf as { terms_mode?: string; termsMode?: string }).termsMode,
-        ),
+        terms_mode: coercePOTermsMode(fullMrf.terms_mode ?? fullMrf.termsMode),
         user_terms_text: userClausesFromStoredCustomTerms(
-          (fullMrf as { custom_terms?: string; customTerms?: string })
-            .custom_terms ??
-            (fullMrf as { custom_terms?: string; customTerms?: string })
-              .customTerms,
+          fullMrf.custom_terms ?? fullMrf.customTerms,
         ),
         includeSignature: true,
         signatureDataUrl: sigDataUrl,
@@ -871,8 +905,6 @@ const SupplyChainDashboard = () => {
         } catch {
           /* ignore */
         }
-        // Take the SCD straight to the PO detail view she just signed, where she
-        // can immediately download the signed PO PDF (with her signature).
         navigate(`/pos/${encodeURIComponent(apiId)}?signed=1`);
       } else {
         toast.error(mapSignedPoError(response.error));

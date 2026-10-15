@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let storedUser = localStorage.getItem("userData");
     let tokenExpiry = localStorage.getItem("tokenExpiry");
     let storage: Storage = localStorage;
-    
+
     // If not in localStorage, check sessionStorage
     if (!token || !storedUser) {
       token = sessionStorage.getItem("authToken");
@@ -98,7 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       tokenExpiry = sessionStorage.getItem("tokenExpiry");
       storage = sessionStorage;
     }
-    
+
     if (token && storedUser) {
       // Check if token has expired
       if (tokenExpiry) {
@@ -110,54 +110,82 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
       }
-      
+
       try {
         const userData = JSON.parse(storedUser);
+        // Paint the app immediately from the cached session. Waiting on /auth/me
+        // previously blocked /dashboard behind a spinner for the entire Render
+        // cold-start window (often 30–50s+ on Chrome).
         setUser(userData);
-        
-        // Verify token is still valid by calling /auth/me
-        authApi.getCurrentUser().then((response) => {
-          if (response.success && response.data) {
-            const updatedUser = mapAuthUserFromApi(response.data);
-            setUser(updatedUser);
-            storage.setItem("userData", JSON.stringify(updatedUser));
-            fetchFinanceRoutingConfig(true).catch(() => undefined);
-            
-            // Update token expiration if provided
-            if ((response.data as any).tokenExpiresAt) {
-              storage.setItem("tokenExpiry", (response.data as any).tokenExpiresAt);
-            }
-            
-            // Check if token is expiring soon (within 7 days) and refresh it
-            if ((response.data as any).tokenExpiresAt) {
-              const expiryDate = new Date((response.data as any).tokenExpiresAt);
-              const daysUntilExpiry = (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24);
-              
-              // Refresh token if it expires within 7 days
-              if (daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
-                authApi.refreshToken().then((refreshResponse) => {
-                  if (refreshResponse.success && refreshResponse.data) {
-                    storage.setItem("authToken", refreshResponse.data.token);
-                    if (refreshResponse.data.expiresAt) {
-                      storage.setItem("tokenExpiry", refreshResponse.data.expiresAt);
-                    }
-                  }
-                }).catch((error) => {
-                  console.warn("Token refresh failed:", error);
-                  // Don't logout on refresh failure, token might still be valid
-                });
+        setLoading(false);
+
+        // Verify token in the background; only log out on a definitive auth failure.
+        authApi
+          .getCurrentUser()
+          .then((response) => {
+            if (response.success && response.data) {
+              const updatedUser = mapAuthUserFromApi(response.data);
+              setUser(updatedUser);
+              storage.setItem("userData", JSON.stringify(updatedUser));
+              fetchFinanceRoutingConfig(true).catch(() => undefined);
+
+              if ((response.data as any).tokenExpiresAt) {
+                storage.setItem(
+                  "tokenExpiry",
+                  (response.data as any).tokenExpiresAt,
+                );
+
+                const expiryDate = new Date(
+                  (response.data as any).tokenExpiresAt,
+                );
+                const daysUntilExpiry =
+                  (expiryDate.getTime() - new Date().getTime()) /
+                  (1000 * 60 * 60 * 24);
+
+                if (daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
+                  authApi
+                    .refreshToken()
+                    .then((refreshResponse) => {
+                      if (refreshResponse.success && refreshResponse.data) {
+                        storage.setItem(
+                          "authToken",
+                          refreshResponse.data.token,
+                        );
+                        if (refreshResponse.data.expiresAt) {
+                          storage.setItem(
+                            "tokenExpiry",
+                            refreshResponse.data.expiresAt,
+                          );
+                        }
+                      }
+                    })
+                    .catch(() => {
+                      /* token may still be valid */
+                    });
+                }
               }
+              return;
             }
-          } else {
-            // Token invalid, clear session
-            logout();
-          }
-          setLoading(false);
-        }).catch(() => {
-          logout();
-          setLoading(false);
-        });
-      } catch (error) {
+
+            const err = (response.error || "").toLowerCase();
+            const isAuthFailure =
+              response.status === 401 ||
+              err.includes("unauthenticated") ||
+              err.includes("unauthorized") ||
+              err.includes("authentication") ||
+              err.includes("log in again") ||
+              err.includes("expired");
+
+            // Network / cold-start / 5xx: keep the cached session so the UI
+            // stays usable while the backend wakes up.
+            if (isAuthFailure) {
+              logout();
+            }
+          })
+          .catch(() => {
+            /* keep cached session on transient errors */
+          });
+      } catch {
         localStorage.removeItem("authToken");
         localStorage.removeItem("userData");
         localStorage.removeItem("tokenExpiry");

@@ -177,11 +177,28 @@ async function fetchWithColdStartRetry(
   throw lastErr;
 }
 
-/** Kick the backend awake early so it warms up while the user is on /auth. */
+/**
+ * Kick the backend awake early so Render cold starts overlap with first paint
+ * instead of blocking the auth spinner. Fire-and-forget; never awaited.
+ */
 export function warmupBackend(): void {
   if (typeof window === 'undefined') return;
   try {
-    void fetch(`${API_BASE_URL}/health`, { method: 'GET', mode: 'cors' }).catch(() => undefined);
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId =
+      ctrl && typeof window !== 'undefined'
+        ? window.setTimeout(() => ctrl.abort(), 15_000)
+        : null;
+    void fetch(`${API_BASE_URL}/health`, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-store',
+      signal: ctrl?.signal,
+    })
+      .catch(() => undefined)
+      .finally(() => {
+        if (timeoutId != null) window.clearTimeout(timeoutId);
+      });
   } catch {
     /* ignore */
   }
@@ -4048,34 +4065,42 @@ export const signatureApi = {
   /**
    * Download the user's saved signature image via the stable API route.
    * Prefer this over presigned signature_url values that expire.
-   * Backend: GET /api/users/{id}/signature
+   * Backend: GET /api/users/{id}/signature-file (alias: /signature)
    */
   downloadImage: async (userId: string): Promise<string | null> => {
     const { token, expired } = getAuthToken();
     if (expired || !token) return null;
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/users/${encodeURIComponent(userId)}/signature`,
-        {
+    const headers = { Authorization: `Bearer ${token}` };
+    const paths = [
+      `/users/${encodeURIComponent(userId)}/signature-file`,
+      `/users/${encodeURIComponent(userId)}/signature`,
+    ];
+    for (const path of paths) {
+      try {
+        const res = await fetch(`${API_BASE_URL}${path}`, {
           method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      if (!res.ok) return null;
-      const blob = await res.blob();
-      if (!blob.size) return null;
-      return await new Promise<string | null>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const out = String(reader.result || '');
-          resolve(out.startsWith('data:image/') ? out : null);
-        };
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
-      });
-    } catch {
-      return null;
+          headers,
+        });
+        if (!res.ok) continue;
+        const contentType = (res.headers.get('content-type') || '').toLowerCase();
+        if (contentType.includes('application/json')) continue;
+        const blob = await res.blob();
+        if (!blob.size) continue;
+        const dataUrl = await new Promise<string | null>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const out = String(reader.result || '');
+            resolve(out.startsWith('data:image/') ? out : null);
+          };
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(blob);
+        });
+        if (dataUrl) return dataUrl;
+      } catch {
+        /* try next path */
+      }
     }
+    return null;
   },
 };
 

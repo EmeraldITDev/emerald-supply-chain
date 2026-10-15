@@ -43,7 +43,9 @@ export default defineConfig(({ mode }) => ({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
-        navigationPreload: true,
+        // Off: Chrome logs "navigation preload request was cancelled" and it
+        // can delay first paint when the preload race loses to the real nav.
+        navigationPreload: false,
         runtimeCaching: [
           {
             // HTML navigations: always try the network first so deploys and
@@ -53,7 +55,8 @@ export default defineConfig(({ mode }) => ({
             handler: "NetworkFirst",
             options: {
               cacheName: "html-navigations",
-              networkTimeoutSeconds: 10,
+              // Fall back to cache quickly on slow links instead of waiting 10s.
+              networkTimeoutSeconds: 3,
               expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 },
             },
           },
