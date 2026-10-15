@@ -350,14 +350,18 @@ export const procurementApi = {
       const raw = await response.json().catch(() => ({}));
       if (response.ok) dispatchRefresh();
       const payload = (raw?.data ?? raw) as Partial<UploadProcurementDocumentsResponse> & {
+        // Backend returns successful uploads under `documents`.
+        documents?: ProcurementDocument[];
         // Legacy single-doc shape fallback.
         id?: number | string;
       };
       const uploaded: ProcurementDocument[] = Array.isArray(payload?.uploaded)
         ? (payload.uploaded as ProcurementDocument[])
-        : payload && (payload as ProcurementDocument).id
-          ? [payload as ProcurementDocument]
-          : [];
+        : Array.isArray(payload?.documents)
+          ? payload.documents
+          : payload && (payload as ProcurementDocument).id
+            ? [payload as ProcurementDocument]
+            : [];
       const failed: UploadProcurementDocumentsFailure[] = Array.isArray(payload?.failed)
         ? (payload.failed as UploadProcurementDocumentsFailure[])
         : [];

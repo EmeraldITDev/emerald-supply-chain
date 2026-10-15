@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/accordion";
 import {
   ExternalLink,
+  Eye,
+  EyeOff,
   FileText,
   Loader2,
   RefreshCw,
@@ -44,6 +46,7 @@ import type {
   ProcurementDocumentsResponse,
 } from "@/types/procurement-documents";
 import { LM_UPLOADABLE_DOC_TYPES } from "@/utils/stripReadOnlyActions";
+import DocumentThumbnail from "./DocumentThumbnail";
 
 interface ProcurementDocumentsPanelProps {
   mrfId: string;
@@ -64,6 +67,11 @@ interface ProcurementDocumentsPanelProps {
   readOnly?: boolean;
   /** Seed from parent MRF hydrate (`include_documents=1`) to skip the first empty load. */
   initialData?: ProcurementDocumentsResponse | null;
+  /**
+   * When true, active document cards show an inline thumbnail (PDF / image)
+   * and each row in All Versions gets a preview toggle.
+   */
+  showPreviews?: boolean;
   className?: string;
 }
 
@@ -117,6 +125,7 @@ export default function ProcurementDocumentsPanel({
   title = "Procurement Documents",
   readOnly = false,
   initialData = null,
+  showPreviews = false,
   className,
 }: ProcurementDocumentsPanelProps) {
   const { toast } = useToast();
@@ -127,6 +136,7 @@ export default function ProcurementDocumentsPanel({
   const [uploading, setUploading] = useState(false);
   const [deletingDocId, setDeletingDocId] = useState<number | string | null>(null);
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<ProcurementDocument | null>(null);
+  const [previewDocIds, setPreviewDocIds] = useState<Set<number | string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchDocs = useCallback(async () => {
@@ -293,6 +303,14 @@ export default function ProcurementDocumentsPanel({
   const removePending = (key: string) =>
     setPending((prev) => prev.filter((p) => p.key !== key));
 
+  const togglePreview = (id: number | string) =>
+    setPreviewDocIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   const handleUpload = async () => {
     if (!pending.length) {
       toast({ title: "Add at least one file", variant: "destructive" });
@@ -399,50 +417,60 @@ export default function ProcurementDocumentsPanel({
               {visibleActiveEntries.map(([type, doc]) => (
                 <div
                   key={`active-${type}`}
-                  className="flex items-start justify-between rounded-md border p-3"
+                  className="overflow-hidden rounded-md border"
                 >
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">
-                        {TYPE_LABELS[type] ?? type}
-                      </span>
-                      <Badge variant="secondary">v{doc.version}</Badge>
+                  {showPreviews && (
+                    <DocumentThumbnail
+                      key={doc.id}
+                      fileName={doc.fileName}
+                      fileUrl={doc.fileUrl}
+                      className="border-b"
+                    />
+                  )}
+                  <div className="flex items-start justify-between p-3">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">
+                          {TYPE_LABELS[type] ?? type}
+                        </span>
+                        <Badge variant="secondary">v{doc.version}</Badge>
+                      </div>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {doc.fileName}
+                      </p>
                     </div>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {doc.fileName}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="ml-3 shrink-0"
-                    disabled={openingDocId === doc.id}
-                    onClick={() => void openDocument(doc)}
-                  >
-                    {openingDocId === doc.id ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <ExternalLink className="h-3 w-3 mr-1" />
-                    )}{" "}
-                    Download
-                  </Button>
-                  {!readOnly && (
                     <Button
                       size="sm"
-                      variant="ghost"
-                      className="ml-1 shrink-0 text-destructive hover:text-destructive"
-                      disabled={deletingDocId === doc.id}
-                      onClick={() => setConfirmDeleteDoc(doc)}
-                      aria-label={`Delete ${doc.fileName}`}
+                      variant="outline"
+                      className="ml-3 shrink-0"
+                      disabled={openingDocId === doc.id}
+                      onClick={() => void openDocument(doc)}
                     >
-                      {deletingDocId === doc.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
+                      {openingDocId === doc.id ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                       ) : (
-                        <Trash2 className="h-3 w-3" />
-                      )}
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                      )}{" "}
+                      Download
                     </Button>
-                  )}
+                    {!readOnly && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="ml-1 shrink-0 text-destructive hover:text-destructive"
+                        disabled={deletingDocId === doc.id}
+                        onClick={() => setConfirmDeleteDoc(doc)}
+                        aria-label={`Delete ${doc.fileName}`}
+                      >
+                        {deletingDocId === doc.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -469,53 +497,77 @@ export default function ProcurementDocumentsPanel({
                       {list.map((doc) => (
                         <li
                           key={doc.id}
-                          className="flex items-center justify-between rounded border p-2 text-xs"
+                          className="overflow-hidden rounded border text-xs"
                         >
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="truncate font-medium">
-                                {doc.fileName}
-                              </span>
-                              <Badge variant="secondary">v{doc.version}</Badge>
-                              {doc.isActive && (
-                                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                                  Active
-                                </Badge>
-                              )}
+                          <div className="flex items-center justify-between p-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="truncate font-medium">
+                                  {doc.fileName}
+                                </span>
+                                <Badge variant="secondary">v{doc.version}</Badge>
+                                {doc.isActive && (
+                                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                                    Active
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-muted-foreground">
+                                Uploaded by {doc.uploadedBy?.name ?? "—"} ·{" "}
+                                {formatDate(doc.uploadedAt)}
+                              </p>
                             </div>
-                            <p className="text-muted-foreground">
-                              Uploaded by {doc.uploadedBy?.name ?? "—"} ·{" "}
-                              {formatDate(doc.uploadedAt)}
-                            </p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            disabled={openingDocId === doc.id}
-                            onClick={() => void openDocument(doc)}
-                            aria-label={`Download ${doc.fileName}`}
-                          >
-                            {openingDocId === doc.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <ExternalLink className="h-3 w-3" />
+                            {showPreviews && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => togglePreview(doc.id)}
+                                aria-label={`Preview ${doc.fileName}`}
+                                aria-pressed={previewDocIds.has(doc.id)}
+                              >
+                                {previewDocIds.has(doc.id) ? (
+                                  <EyeOff className="h-3 w-3" />
+                                ) : (
+                                  <Eye className="h-3 w-3" />
+                                )}
+                              </Button>
                             )}
-                          </Button>
-                          {!readOnly && (
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-destructive hover:text-destructive"
-                              disabled={deletingDocId === doc.id}
-                              onClick={() => setConfirmDeleteDoc(doc)}
-                              aria-label={`Delete ${doc.fileName}`}
+                              disabled={openingDocId === doc.id}
+                              onClick={() => void openDocument(doc)}
+                              aria-label={`Download ${doc.fileName}`}
                             >
-                              {deletingDocId === doc.id ? (
+                              {openingDocId === doc.id ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
                               ) : (
-                                <Trash2 className="h-3 w-3" />
+                                <ExternalLink className="h-3 w-3" />
                               )}
                             </Button>
+                            {!readOnly && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                disabled={deletingDocId === doc.id}
+                                onClick={() => setConfirmDeleteDoc(doc)}
+                                aria-label={`Delete ${doc.fileName}`}
+                              >
+                                {deletingDocId === doc.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3 w-3" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                          {showPreviews && previewDocIds.has(doc.id) && (
+                            <DocumentThumbnail
+                              fileName={doc.fileName}
+                              fileUrl={doc.fileUrl}
+                              className="border-t"
+                            />
                           )}
                         </li>
                       ))}

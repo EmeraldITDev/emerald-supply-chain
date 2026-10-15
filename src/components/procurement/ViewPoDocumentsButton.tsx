@@ -49,7 +49,7 @@ export function ViewPoDocumentsButton({
         {label}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               PO Documents{poNumber ? ` · ${poNumber}` : ""}
@@ -63,6 +63,7 @@ export function ViewPoDocumentsButton({
           <ProcurementDocumentsPanel
             mrfId={String(mrfId)}
             readOnly={readOnly}
+            showPreviews
           />
         </DialogContent>
       </Dialog>
