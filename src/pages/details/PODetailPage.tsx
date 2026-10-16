@@ -4,7 +4,7 @@ import { mrfApi, poApi } from "@/services/api";
 import type { MRF } from "@/types";
 import { EntityDetailShell, DetailFields } from "./EntityDetailShell";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, Pencil, CheckCircle2 } from "lucide-react";
+import { Download, Loader2, Pencil, CheckCircle2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDashboardPath, getScmRole } from "@/utils/scmRole";
@@ -38,6 +38,8 @@ const CONFIRM_DELIVERY_ROLES = [
   "admin",
 ];
 
+const FORWARD_PO_ROLES = ["supply_chain_director", "supply_chain", "admin"];
+
 /**
  * PO detail view. The PO is a derivative of its MRF, so we hydrate via mrfApi.
  * The `:id` param accepts either the MRF id or the PO number — the backend
@@ -58,6 +60,8 @@ export default function PODetailPage() {
   const [confirmDeliveryOpen, setConfirmDeliveryOpen] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState("");
   const [confirmingDelivery, setConfirmingDelivery] = useState(false);
+  const [forwardOpen, setForwardOpen] = useState(false);
+  const [forwarding, setForwarding] = useState(false);
 
   const reload = async () => {
     const res = await mrfApi.getById(id);
@@ -101,6 +105,9 @@ export default function PODetailPage() {
   const canConfirmDelivery =
     workflowState === "delivery_confirmation_pending" &&
     CONFIRM_DELIVERY_ROLES.includes(scmRole ?? "");
+  const canForwardToVendor = isSigned && FORWARD_PO_ROLES.includes(scmRole ?? "");
+  const forwardedAt = m?.po_forwarded_to_vendor_at || m?.poForwardedToVendorAt;
+  const vendorLabel = m?.vendor_name || m?.vendorName || "the selected vendor";
 
   const handleDownloadPdf = async () => {
     if (!mrf) return;
@@ -134,6 +141,24 @@ export default function PODetailPage() {
       setEditOpen(true);
     } finally {
       setUnlocking(false);
+    }
+  };
+
+  const handleForwardToVendor = async () => {
+    setForwarding(true);
+    try {
+      const res = await poApi.forwardToVendor(apiId);
+      if (!res.success) {
+        toast.error(res.error || "Could not forward this PO to the vendor.");
+        return;
+      }
+      toast.success(
+        "Signed purchase order sent to the vendor. Procurement was copied.",
+      );
+      setForwardOpen(false);
+      await reload();
+    } finally {
+      setForwarding(false);
     }
   };
 
@@ -215,6 +240,16 @@ export default function PODetailPage() {
               mrf={mrf}
               onSynced={(patch) => setMrf((current) => (current ? { ...current, ...patch } : current))}
             />
+            {canForwardToVendor && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setForwardOpen(true)}
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {forwardedAt ? "Forward PO to vendor again" : "Forward PO to vendor"}
+              </Button>
+            )}
             {canConfirmDelivery && (
               <Button
                 size="sm"
@@ -226,6 +261,11 @@ export default function PODetailPage() {
               </Button>
             )}
           </div>
+          {canForwardToVendor && !forwardedAt && (
+            <p className="text-sm text-muted-foreground">
+              This signed purchase order has not been sent to the vendor yet.
+            </p>
+          )}
         </div>
       )}
 
@@ -257,6 +297,30 @@ export default function PODetailPage() {
               />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={forwardOpen} onOpenChange={setForwardOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Forward signed PO to vendor</DialogTitle>
+            <DialogDescription>
+              Send this signed purchase order to {vendorLabel}? Procurement
+              (procurement@emeraldcfze.com) will be copied.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setForwardOpen(false)}
+              disabled={forwarding}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleForwardToVendor} disabled={forwarding}>
+              {forwarding ? "Sending..." : "Forward to vendor"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { AuditTrail } from "@/components/AuditTrail";
 import { NotificationPreferences } from "@/components/NotificationPreferences";
+import { LazarusNotificationSettings } from "@/components/LazarusNotificationSettings";
 import UserManagement from "@/pages/UserManagement";
 import { Settings as SettingsIcon, User, Bell, Shield, Database, Loader2, Trash2, Plug } from "lucide-react";
 import { QuickBooksIntegrations } from "@/components/quickbooks/QuickBooksIntegrations";
@@ -106,6 +107,7 @@ export default function Settings() {
   const canViewProfile = !isRegularEmployee;
   const canViewAuditTrail = ['chairman', 'executive', 'supply_chain_director', 'procurement', 'finance', 'logistics'].includes(getScmRole(user) || '');
   const canManageUsers = ['procurement', 'procurement_manager', 'executive', 'supply_chain_director', 'supply_chain'].includes(getScmRole(user) || '');
+  const canManageLazarusNotifications = ['supply_chain_director', 'supply_chain', 'procurement_manager', 'procurement', 'admin'].includes(getScmRole(user) || '');
   const normalizedRole = (getScmRole(user) || '').toLowerCase();
   const canViewIntegrations = canAccessQuickBooks(getScmRole(user));
   const [searchParams, setSearchParams] = useSearchParams();
@@ -429,6 +431,7 @@ export default function Settings() {
           )}
 
           <TabsContent value="notifications" className="space-y-6">
+            {canManageLazarusNotifications && <LazarusNotificationSettings />}
             <NotificationPreferences />
           </TabsContent>
 

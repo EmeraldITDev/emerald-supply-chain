@@ -4115,6 +4115,13 @@ export const poApi = {
     });
   },
 
+  /** SCD forwards the signed PO to the vendor. POST /api/purchase-orders/{id}/forward-to-vendor */
+  forwardToVendor: async (poId: string): Promise<ApiResponse<MRF>> => {
+    return apiRequest<MRF>(`/purchase-orders/${encodeURIComponent(poId)}/forward-to-vendor`, {
+      method: 'POST',
+    });
+  },
+
   /** Procurement Manager resubmits a returned PO for SCD approval. */
   resubmit: async (poId: string): Promise<ApiResponse<MRF>> => {
     return apiRequest<MRF>(`/purchase-orders/${encodeURIComponent(poId)}/resubmit`, {
