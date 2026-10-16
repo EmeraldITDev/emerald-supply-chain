@@ -33,9 +33,12 @@ import {
 export function QuickBooksSyncControl({
   mrf,
   onSynced,
+  compact = false,
 }: {
   mrf: MRF;
   onSynced?: (patch: Partial<MRF>) => void;
+  /** List-row layout: badge + sync button only (details in tooltip). */
+  compact?: boolean;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -106,13 +109,36 @@ export function QuickBooksSyncControl({
           ? button.reason
           : null;
 
+  const detailTooltip = [
+    `Status: ${label}`,
+    `Synced: ${relative}`,
+    `QuickBooks PO ID: ${dash(mrf.quickbooks_po_id)}`,
+    reason,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Badge variant={label === "Failed" ? "destructive" : "outline"}>
-        QuickBooks: {label}
-      </Badge>
-      <span className="text-xs text-muted-foreground">Synced {relative}</span>
-      <span className="text-xs text-muted-foreground">QuickBooks PO ID {dash(mrf.quickbooks_po_id)}</span>
+    <div className={`flex flex-wrap items-center gap-2 ${compact ? "min-w-0" : ""}`}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant={label === "Failed" ? "destructive" : "outline"}
+            className={compact ? "max-w-[11rem] truncate" : undefined}
+          >
+            {compact ? `QB: ${label}` : `QuickBooks: ${label}`}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs">{detailTooltip}</TooltipContent>
+      </Tooltip>
+      {!compact && (
+        <>
+          <span className="text-xs text-muted-foreground">Synced {relative}</span>
+          <span className="text-xs text-muted-foreground">
+            QuickBooks PO ID {dash(mrf.quickbooks_po_id)}
+          </span>
+        </>
+      )}
       {button.visible && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -129,11 +155,13 @@ export function QuickBooksSyncControl({
                 }}
               >
                 {sync.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Sync to QuickBooks
+                {compact ? "Sync QB" : "Sync to QuickBooks"}
               </Button>
             </span>
           </TooltipTrigger>
-          {reason && <TooltipContent>{reason}</TooltipContent>}
+          {(reason || compact) && (
+            <TooltipContent>{reason || detailTooltip}</TooltipContent>
+          )}
         </Tooltip>
       )}
 

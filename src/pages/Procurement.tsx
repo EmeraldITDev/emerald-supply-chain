@@ -4096,44 +4096,81 @@ const Procurement = () => {
                         return (
                           <div
                             key={mrf.id}
-                            className="flex items-center justify-between p-5 border rounded-xl hover:shadow-md transition-smooth bg-card"
+                            className="rounded-xl border bg-card p-4 sm:p-5 hover:shadow-md transition-smooth space-y-4"
                           >
-                            <div className="flex items-center gap-4 flex-1">
-                              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                                <ShoppingCart className="h-6 w-6 text-primary" />
+                            {/* Header: icon + title + status */}
+                            <div className="flex items-start gap-3 sm:gap-4">
+                              <div className="mt-0.5 w-10 h-10 shrink-0 bg-primary/10 rounded-lg flex items-center justify-center">
+                                <ShoppingCart className="h-5 w-5 text-primary" />
                               </div>
-                              <div className="flex-1">
-                                <p className="font-semibold text-lg">
-                                  {mrf.title}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  PO: {poNumber || (isDraft ? "Draft — not generated" : "—")} • MRF: {getDisplayId(mrf)} • Vendor:{" "}
-                                  {vendorName}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  Amount: {formatPoAmount(amount, amountCurrency)}{" "}
-                                  • Status:{" "}
-                                  {isDraft ? "Draft" : getWorkflowStageLabel(workflowState)} • Date:{" "}
-                                  {formatMRFDate(getMRFDate(mrf as MRF))}
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                  <p
+                                    className="font-semibold text-base leading-snug line-clamp-2"
+                                    title={mrf.title}
+                                  >
+                                    {mrf.title}
+                                  </p>
+                                  {isDraft ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="shrink-0 border-amber-500/60 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                    >
+                                      Draft
+                                    </Badge>
+                                  ) : (
+                                    <Badge
+                                      className={`shrink-0 ${getStatusColor(mrf.status)}`}
+                                    >
+                                      {getWorkflowStageLabel(workflowState)}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm font-medium text-foreground">
+                                  {formatPoAmount(amount, amountCurrency)}
+                                  <span className="mx-1.5 text-muted-foreground font-normal">·</span>
+                                  <span className="text-muted-foreground font-normal">
+                                    {formatMRFDate(getMRFDate(mrf as MRF))}
+                                  </span>
                                   {isDraft && draftSavedAt && (
-                                    <> • Last saved {formatMRFDate(draftSavedAt)}</>
+                                    <span className="text-muted-foreground font-normal">
+                                      {" "}
+                                      · Last saved {formatMRFDate(draftSavedAt)}
+                                    </span>
                                   )}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {isDraft ? (
-                                <Badge
-                                  variant="outline"
-                                  className="border-amber-500/60 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+
+                            {/* Meta grid — avoids one cramped bullet line */}
+                            <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 rounded-lg bg-muted/40 px-3 py-2.5 text-sm">
+                              <div className="min-w-0">
+                                <dt className="text-xs text-muted-foreground">PO number</dt>
+                                <dd
+                                  className="truncate font-medium"
+                                  title={poNumber || undefined}
                                 >
-                                  Draft
-                                </Badge>
-                              ) : (
-                                <Badge className={getStatusColor(mrf.status)}>
-                                  {getWorkflowStageLabel(workflowState)}
-                                </Badge>
-                              )}
+                                  {poNumber || (isDraft ? "Draft — not generated" : "—")}
+                                </dd>
+                              </div>
+                              <div className="min-w-0">
+                                <dt className="text-xs text-muted-foreground">MRF</dt>
+                                <dd className="truncate font-medium" title={String(getDisplayId(mrf) || "")}>
+                                  {getDisplayId(mrf) || "—"}
+                                </dd>
+                              </div>
+                              <div className="min-w-0">
+                                <dt className="text-xs text-muted-foreground">Vendor</dt>
+                                <dd className="truncate font-medium" title={vendorName}>
+                                  {vendorName}
+                                </dd>
+                              </div>
+                            </dl>
+
+                            {/* Actions + QuickBooks on their own row */}
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t pt-3">
+                              <QuickBooksSyncControl mrf={mrf as MRF} compact />
+                              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                               {isDraft && (
                                 <Button
                                   variant="default"
@@ -4191,7 +4228,6 @@ const Procurement = () => {
                                 <FileText className="h-4 w-4 mr-2" />
                                 View Details
                               </Button>
-                              <QuickBooksSyncControl mrf={mrf as MRF} />
                               {unsignedPOUrl && (
                                 (() => {
                                   const dlKey = poDownloadKey(mrf as MRF);
@@ -4256,6 +4292,7 @@ const Procurement = () => {
                                 </Button>
                                 )
                               )}
+                              </div>
                             </div>
                           </div>
                         );
