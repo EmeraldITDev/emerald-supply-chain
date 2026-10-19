@@ -3870,6 +3870,12 @@ export const notificationApi = {
       method: 'DELETE',
     });
   },
+
+  deleteAll: async (): Promise<ApiResponse<void>> => {
+    return apiRequest<void>('/notifications', {
+      method: 'DELETE',
+    });
+  },
 };
 
 // ============= GLOBAL SEARCH API =============

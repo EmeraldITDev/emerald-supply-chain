@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { notificationApi } from "@/services/api";
 import { getScmRole } from "@/utils/scmRole";
+import { playNotificationSound } from "@/utils/notificationSound";
 import { 
   NotificationService, 
   type AppNotification, 
@@ -18,7 +19,7 @@ interface NotificationContextType {
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   clearNotification: (id: string) => void;
-  clearAllNotifications: () => void;
+  clearAllNotifications: () => Promise<void>;
   updatePreferences: (preferences: Partial<NotificationPreferences>) => void;
 }
 
@@ -32,8 +33,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const [preferences, setPreferences] = useState<NotificationPreferences>(
     NotificationService.getDefaultPreferences()
   );
+  const preferencesRef = useRef(preferences);
+  const knownIdsRef = useRef<Set<string> | null>(null);
 
-  // Load preferences and notifications on mount
+  useEffect(() => {
+    preferencesRef.current = preferences;
+  }, [preferences]);
+
+  // Load preferences on mount
   useEffect(() => {
     const loadedPreferences = NotificationService.loadPreferences();
     setPreferences(loadedPreferences);
@@ -41,7 +48,10 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
   // Fetch notifications from backend API
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      knownIdsRef.current = null;
+      return;
+    }
 
     const fetchNotifications = async () => {
       try {
@@ -62,6 +72,16 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
               entity_id: n.entity_id,
             },
           }));
+
+          // Play sound for newly arrived notifications after the initial load
+          if (knownIdsRef.current !== null) {
+            const hasNew = transformedNotifications.some((n) => !knownIdsRef.current!.has(n.id));
+            if (hasNew && preferencesRef.current.enableSoundNotifications) {
+              void playNotificationSound();
+            }
+          }
+          knownIdsRef.current = new Set(transformedNotifications.map((n) => n.id));
+
           setNotifications(transformedNotifications);
           setServerUnreadCount(Number(response.data.unread_count ?? 0));
         }
@@ -104,15 +124,18 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       event,
       getScmRole(user) as import("./AuthContext").UserRole,
       data,
-      preferences
+      preferencesRef.current
     );
 
     if (newNotifications.length > 0) {
       setNotifications((prev) => [...newNotifications, ...prev]);
+      knownIdsRef.current = new Set([
+        ...(knownIdsRef.current ?? []),
+        ...newNotifications.map((n) => n.id),
+      ]);
 
-      // Play sound if enabled
-      if (preferences.enableSoundNotifications) {
-        playNotificationSound();
+      if (preferencesRef.current.enableSoundNotifications) {
+        void playNotificationSound();
       }
     }
   };
@@ -147,6 +170,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
   const clearNotification = async (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    knownIdsRef.current?.delete(id);
     try {
       await notificationApi.delete(id);
     } catch (error) {
@@ -155,46 +179,30 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const clearAllNotifications = async () => {
-    const currentIds = notifications.map(n => n.id);
     setNotifications([]);
+    setServerUnreadCount(0);
+    knownIdsRef.current = new Set();
+    localStorage.setItem("app_notifications", "[]");
     try {
-      await Promise.all(currentIds.map(id => notificationApi.delete(id)));
+      const response = await notificationApi.deleteAll();
+      if (!response.success) {
+        throw new Error(response.error || "Failed to clear notifications");
+      }
     } catch (error) {
       console.error("Failed to delete all notifications", error);
+      throw error;
     }
   };
 
   const updatePreferences = (newPreferences: Partial<NotificationPreferences>) => {
-    const updated = { ...preferences, ...newPreferences };
+    const updated = { ...preferencesRef.current, ...newPreferences };
+    preferencesRef.current = updated;
     setPreferences(updated);
     NotificationService.savePreferences(updated);
   };
 
   const localUnread = notifications.filter((n) => !n.read).length;
   const unreadCount = serverUnreadCount != null ? serverUnreadCount : localUnread;
-
-  const playNotificationSound = () => {
-    // Simple notification sound using Web Audio API
-    try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.frequency.value = 800;
-      oscillator.type = "sine";
-
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.5);
-    } catch (e) {
-      console.warn("Could not play notification sound", e);
-    }
-  };
 
   return (
     <NotificationContext.Provider

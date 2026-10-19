@@ -316,7 +316,7 @@ export class NotificationService {
     const stored = localStorage.getItem("notification_preferences");
     if (stored) {
       try {
-        return JSON.parse(stored);
+        return { ...this.getDefaultPreferences(), ...JSON.parse(stored) };
       } catch (e) {
         console.error("Failed to parse notification preferences", e);
       }

@@ -1,25 +1,60 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Bell, Volume2, Mail, Settings } from "lucide-react";
+import { Bell, Volume2, Mail, Settings, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { previewNotificationSound } from "@/utils/notificationSound";
 
 export function NotificationPreferences() {
   const { preferences, updatePreferences, clearAllNotifications } = useNotifications();
   const [localPreferences, setLocalPreferences] = useState(preferences);
+  const [saving, setSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
-  const handleSave = () => {
-    updatePreferences(localPreferences);
-    toast.success("Notification preferences saved");
+  useEffect(() => {
+    setLocalPreferences(preferences);
+  }, [preferences]);
+
+  const handleSoundToggle = async (checked: boolean) => {
+    setLocalPreferences((prev) => ({ ...prev, enableSoundNotifications: checked }));
+    if (checked) {
+      const played = await previewNotificationSound();
+      if (!played) {
+        toast.message("Sound enabled", {
+          description: "Click anywhere on the page if you don't hear the preview chime.",
+        });
+      }
+    }
   };
 
-  const handleClearAll = () => {
-    if (confirm("Are you sure you want to clear all notifications?")) {
-      clearAllNotifications();
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      updatePreferences(localPreferences);
+      if (localPreferences.enableSoundNotifications) {
+        await previewNotificationSound();
+      }
+      toast.success("Notification preferences saved");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!confirm("Are you sure you want to clear all notifications?")) {
+      return;
+    }
+    setClearing(true);
+    try {
+      await clearAllNotifications();
       toast.success("All notifications cleared");
+    } catch {
+      toast.error("Could not clear notifications. Please try again.");
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -81,20 +116,39 @@ export function NotificationPreferences() {
             <Switch
               id="sound"
               checked={localPreferences.enableSoundNotifications}
-              onCheckedChange={(checked) =>
-                setLocalPreferences({ ...localPreferences, enableSoundNotifications: checked })
-              }
+              onCheckedChange={(checked) => {
+                void handleSoundToggle(checked);
+              }}
             />
           </div>
         </div>
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
-          <Button onClick={handleSave} className="flex-1">
-            Save Preferences
+          <Button onClick={() => void handleSave()} className="flex-1" disabled={saving || clearing}>
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Preferences"
+            )}
           </Button>
-          <Button variant="outline" onClick={handleClearAll} className="flex-1">
-            Clear All Notifications
+          <Button
+            variant="outline"
+            onClick={() => void handleClearAll()}
+            className="flex-1"
+            disabled={saving || clearing}
+          >
+            {clearing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Clearing...
+              </>
+            ) : (
+              "Clear All Notifications"
+            )}
           </Button>
         </div>
 
