@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { mrfApi } from "@/services/api";
 import type { MRF } from "@/types";
 import { EntityDetailShell, DetailFields } from "./EntityDetailShell";
 import { AttachmentList } from "@/components/attachments/AttachmentList";
+import { toast } from "sonner";
 
 function formatDetailDate(value?: string | null): string {
   if (!value) return "—";
@@ -20,9 +21,20 @@ function formatDetailDate(value?: string | null): string {
 
 export default function MRFDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const [mrf, setMrf] = useState<MRF | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Deep-link intent from email CTA (?tab=po&action=sign)
+  const tabIntent = searchParams.get("tab");
+  const actionIntent = searchParams.get("action");
+
+  useEffect(() => {
+    if (mrf && tabIntent === "po" && actionIntent === "sign") {
+      toast.info("Please review the Purchase Order below and sign it.");
+    }
+  }, [mrf, tabIntent, actionIntent]);
 
   useEffect(() => {
     let cancelled = false;

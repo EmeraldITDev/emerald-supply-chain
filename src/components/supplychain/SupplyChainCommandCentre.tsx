@@ -92,6 +92,7 @@ import {
   MrfSelectCheckbox,
 } from "@/components/procurement/MrfBulkActionsBar";
 import { mrfApi, srfApi, vendorApi, tripRequestApi } from "@/services/api";
+import { useScmKpis } from "@/hooks/useScmKpis";
 import { queryKeys } from "@/lib/queryKeys";
 import { WORKFLOW_QUERY_OPTIONS } from "@/lib/queryOptions";
 import { formatMRFDate } from "@/utils/dateUtils";
@@ -150,6 +151,13 @@ export const SupplyChainCommandCentre = ({
 
   const [period, setPeriod] = useState<PeriodKey>("30d");
   const [queueFilter, setQueueFilter] = useState<"all" | ApprovalKind>("all");
+
+  /* ---------------- Backend KPIs (authoritative, no 200-record cap) ------- */
+  const kpiRange = useMemo(() => periodRange(period), [period]);
+  const { kpis: backendKpis, baselineLabel } = useScmKpis({
+    from: kpiRange.from.toISOString(),
+    to: kpiRange.to.toISOString(),
+  });
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [remarks, setRemarks] = useState<Record<string, string>>({});
@@ -770,25 +778,44 @@ export const SupplyChainCommandCentre = ({
         title="Supply chain health"
         description="A simple read on approvals, sourcing, deliveries, vendors and workload."
       >
+        {baselineLabel && (
+          <p className="text-xs text-muted-foreground mb-3">
+            Measuring performance from: <span className="font-medium">{baselineLabel}</span>.{" "}
+            Historical records remain visible in all queues.
+          </p>
+        )}
         <HealthOverview items={health} />
       </Section>
 
       {/* Key metrics */}
-      <Section title="Key numbers" description="Compared with the previous period.">
+      <Section
+        title="Key numbers"
+        description={
+          baselineLabel
+            ? `Compared with the previous period · baseline from ${baselineLabel}`
+            : "Compared with the previous period."
+        }
+      >
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
             label="Requests raised"
-            value={periodMrfs.length}
+            value={
+              backendKpis?.requests_raised
+                ? backendKpis.requests_raised.count
+                : periodMrfs.length
+            }
             delta={pct(periodMrfs.length, prevMrfs.length)}
             context="Material requests created in this period"
             onClick={() => openDrill("open")}
           />
           <KpiCard
-            label="Awaiting approval"
+            label="Waiting on you"
             value={queue.length}
-            context="Everything currently waiting on you"
+            context="Items across all types currently awaiting your action"
             tone={queue.length ? "warning" : "default"}
-            onClick={() => openDrill("pending_approval")}
+            onClick={() => {
+              document.getElementById("scd-approvals")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
           />
           <KpiCard
             label="Purchase commitments"
@@ -799,26 +826,65 @@ export const SupplyChainCommandCentre = ({
           />
           <KpiCard
             label="Deliveries on time"
-            value={delivery.onTimePct == null ? "-" : `${delivery.onTimePct}%`}
-            delta={
-              delivery.onTimePct != null && delivery.prevOnTimePct != null
-                ? delivery.onTimePct - delivery.prevOnTimePct
-                : null
+            value={
+              backendKpis?.delivery_performance?.insufficient_data
+                ? "—"
+                : backendKpis?.delivery_performance?.on_time_pct != null
+                  ? `${backendKpis.delivery_performance.on_time_pct}%`
+                  : delivery.onTimePct == null
+                    ? "-"
+                    : `${delivery.onTimePct}%`
             }
+            delta={null}
             context={
-              delivery.onTimePct == null
-                ? "No delivery dates recorded yet"
-                : `${delivery.onTime} on time, ${delivery.late} late`
+              backendKpis?.delivery_performance?.insufficient_data
+                ? "Insufficient data — no verified delivery records yet"
+                : backendKpis?.delivery_performance
+                  ? `${backendKpis.delivery_performance.on_time} on time, ${backendKpis.delivery_performance.late} late`
+                  : delivery.onTimePct == null
+                    ? "No delivery dates recorded yet"
+                    : `${delivery.onTime} on time, ${delivery.late} late`
             }
             onClick={() => openDrill("awaiting_delivery")}
           />
         </div>
+        {backendKpis?.open_workload?.legacy_count != null &&
+          backendKpis.open_workload.legacy_count > 0 && (
+            <p className="text-xs text-amber-600 mt-2">
+              ⚠ {backendKpis.open_workload.legacy_count} legacy carry-over item(s) included in
+              workload — pre-baseline records still outstanding.
+            </p>
+          )}
       </Section>
 
       {/* Workflow + activity */}
       <div className="grid gap-4 xl:grid-cols-2">
-        <Section title="Where work is sitting" description="Requests by workflow stage.">
-          <PipelineBoard stages={pipeline} onSelect={() => openDrill("open")} />
+        <Section
+          title="Where work is sitting"
+          description={
+            backendKpis?.mrfs_awaiting_approval_org
+              ? `Requests by workflow stage · ${backendKpis.mrfs_awaiting_approval_org.count} MRFs awaiting approval org-wide`
+              : "Requests by workflow stage."
+          }
+        >
+          <PipelineBoard
+            stages={pipeline}
+            onSelect={(stageKey) => {
+              // Map pipeline stage key to the closest ProcBucket, then drill
+              const stageToBucket: Record<string, ProcBucket> = {
+                awaiting_approval: "pending_approval",
+                approved: "open",
+                sourcing: "open",
+                po: "po_active",
+                awaiting_delivery: "awaiting_delivery",
+                delivered: "po_completed",
+                created: "open",
+                under_review: "open",
+              };
+              const bucket = (stageToBucket[stageKey] ?? "open") as ProcBucket;
+              openDrill(bucket);
+            }}
+          />
         </Section>
         <Section title="Activity over time" description="Requests and approvals per period.">
           <ActivityTrendChart
@@ -830,10 +896,26 @@ export const SupplyChainCommandCentre = ({
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Section title="Delivery performance" description="How purchase orders are landing.">
-          <DeliveryBreakdown stats={delivery} onSelect={() => openDrill("overdue_delivery")} />
+          {backendKpis?.delivery_performance?.insufficient_data ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              <p className="font-medium">Insufficient data</p>
+              <p className="mt-1 text-xs">
+                No MRFs with both an expected delivery date and a verified delivery record in this
+                period. Delivery performance will appear here once records are complete.
+              </p>
+            </div>
+          ) : (
+            <DeliveryBreakdown
+              stats={delivery}
+              onSelect={(bucket) => openDrill((bucket ?? "overdue_delivery") as ProcBucket)}
+            />
+          )}
         </Section>
         <Section title="Vendor performance" description="Based on recorded deliveries.">
-          <VendorPerformanceTable rows={vendorPerf.slice(0, 8)} />
+          <VendorPerformanceTable
+            rows={vendorPerf.slice(0, 8)}
+            onSelect={(name) => navigate(`/vendors?name=${encodeURIComponent(name)}`)}
+          />
         </Section>
       </div>
 

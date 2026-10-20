@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -16,17 +16,19 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true); // Default to true for persistent login
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { login, isAuthenticated, loading } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect to dashboard if already logged in
+  // Redirect to dashboard (or returnTo destination from email deep link) if already logged in
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      navigate("/dashboard", { replace: true });
+      const returnTo = searchParams.get("returnTo");
+      navigate(returnTo ? decodeURIComponent(returnTo) : "/dashboard", { replace: true });
     }
-  }, [isAuthenticated, loading, navigate]);
+  }, [isAuthenticated, loading, navigate, searchParams]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +42,8 @@ const Auth = () => {
         description: "Successfully signed in to SCM system",
       });
       
-      navigate("/dashboard");
+      const returnTo = searchParams.get("returnTo");
+      navigate(returnTo ? decodeURIComponent(returnTo) : "/dashboard");
     } else {
       toast({
         title: "Login Failed",

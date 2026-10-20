@@ -62,12 +62,19 @@ import {
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, loading } = useAuth();
+  const location = window.location;
 
   if (loading) {
     return <PageLoader />;
   }
 
-  return isAuthenticated ? <>{children}</> : <Navigate to="/auth" replace />;
+  if (!isAuthenticated) {
+    // Preserve the full path + query so the email deep link returns here after login
+    const returnTo = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/auth?returnTo=${returnTo}`} replace />;
+  }
+
+  return <>{children}</>;
 };
 
 const ProcurementRoute = ({ children }: { children: React.ReactNode }) => {

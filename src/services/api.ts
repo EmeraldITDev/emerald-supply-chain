@@ -490,6 +490,10 @@ export async function apiRequest<T>(
           code: data.code,
           status: response.status,
           raw: data,
+          // Populate fieldErrors so callers can highlight individual form fields
+          fieldErrors: !Array.isArray(data.errors)
+            ? (data.errors as Record<string, string | string[]>)
+            : undefined,
         };
       }
       
@@ -4295,6 +4299,107 @@ export const dashboardKpiApi = {
   // Get dashboard KPIs
   getKpis: async (): Promise<ApiResponse<{ kpis: import('@/types').DashboardKPIs }>> => {
     return apiRequest(`/dashboard/kpis`);
+  },
+};
+
+// ==========================================
+// ANALYTICS BASELINE + KPI API
+// ==========================================
+
+export interface ScmKpiSlaConstants {
+  approval_sla_days: number;
+  delivery_sla_days: number;
+  stall_days: number;
+  high_value_ngn: number;
+  exec_approval_days: number;
+}
+
+export interface ScmKpiPeriod {
+  from: string;
+  to: string;
+}
+
+export interface ScmKpiBaseline {
+  established: boolean;
+  effective_at: string | null;
+  timezone: string | null;
+  version_ref: string | null;
+  established_by: string | null;
+  established_at: string | null;
+}
+
+export interface ScmDeliveryPerformance {
+  on_time_pct: number | null;
+  on_time: number;
+  late: number;
+  in_progress: number;
+  overdue: number;
+  insufficient_data: boolean;
+}
+
+export interface ScmOpenWorkload {
+  count: number;
+  legacy_count: number;
+  status: "healthy" | "attention" | "critical";
+}
+
+export interface ScmKpiPayload {
+  baseline: ScmKpiBaseline;
+  period: ScmKpiPeriod;
+  sla_constants: ScmKpiSlaConstants;
+  requests_raised: { count: number; insufficient_data: boolean };
+  mrfs_awaiting_approval_org: { count: number; insufficient_data: boolean };
+  approval_performance: { avg_days: number | null; status: string; insufficient_data: boolean };
+  delivery_performance: ScmDeliveryPerformance;
+  open_workload: ScmOpenWorkload;
+}
+
+export interface LegacyMrf {
+  id: number;
+  mrf_id: string;
+  formatted_id: string | null;
+  title: string;
+  workflow_state: string;
+  analytics_class: string | null;
+  reconciliation_status: string | null;
+  created_at: string;
+  original_business_date: string | null;
+  handled_offline: boolean | null;
+  reconciled_at: string | null;
+  reconciliation_notes: string | null;
+}
+
+export const analyticsApi = {
+  getBaseline: async (): Promise<ApiResponse<{ baseline: ScmKpiBaseline }>> => {
+    return apiRequest("/analytics/baseline");
+  },
+
+  getKpis: async (params?: { from?: string; to?: string }): Promise<ApiResponse<{ data: ScmKpiPayload }>> => {
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    const q = qs.toString();
+    return apiRequest(`/analytics/kpis${q ? `?${q}` : ""}`);
+  },
+
+  getLegacyList: async (params?: { page?: number; per_page?: number }): Promise<ApiResponse<{ data: LegacyMrf[]; pagination: unknown }>> => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.per_page) qs.set("per_page", String(params.per_page));
+    const q = qs.toString();
+    return apiRequest(`/analytics/legacy${q ? `?${q}` : ""}`);
+  },
+
+  classifyMrf: async (mrfId: string, payload: {
+    analytics_class: "new_period" | "verified_historical" | "unreconciled_legacy";
+    original_business_date?: string;
+    handled_offline?: boolean;
+    reconciliation_notes?: string;
+  }): Promise<ApiResponse<{ data: { mrf_id: string; analytics_class: string; reconciled_at: string } }>> => {
+    return apiRequest(`/analytics/legacy/${mrfId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
 };
 

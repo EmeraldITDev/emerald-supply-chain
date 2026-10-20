@@ -1324,9 +1324,13 @@ export function CreatePOForm({
         if (updateRes.fieldErrors) {
           setServerFieldErrors(flattenFieldErrors(updateRes.fieldErrors));
         }
-        toast.error('Could not save PO changes', {
-          description: describeBackendError(updateRes.raw, updateRes.error || 'Please try again.'),
-        });
+        // Prefer the specific first-field error message over the generic code-mapped message
+        // so the user can see exactly which field is invalid.
+        const errDetail =
+          updateRes.error && updateRes.error !== 'Validation failed'
+            ? updateRes.error
+            : describeBackendError(updateRes.raw, updateRes.error || 'Please try again.');
+        toast.error('Could not save PO changes', { description: errDetail });
         return;
       }
 
