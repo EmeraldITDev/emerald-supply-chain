@@ -5,11 +5,11 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -61,8 +61,8 @@ const Auth = () => {
       </div>
       <div className="w-full max-w-md">
         <div className="text-center mb-8 animate-fade-in">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-xl mb-4 animate-scale-in">
-            <Package className="h-8 w-8 text-primary-foreground" />
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 animate-scale-in">
+            <BrandLogo width={64} height={64} className="h-16 w-16" />
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">SCM Platform</h1>
           <p className="text-muted-foreground">Supply Chain Management System</p>

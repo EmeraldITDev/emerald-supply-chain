@@ -40,7 +40,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import logo from "@/assets/emerald-logo.png";
+import { BrandLogo } from "@/components/BrandLogo";
 import {
   getScmRole,
   formatScmRoleLabel,
@@ -346,11 +346,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2 px-2 py-3">
-          <img
-            src={logo}
-            alt="Emerald Industrial"
-            className="h-8 w-8 object-contain"
-          />
+          <BrandLogo width={32} height={32} className="h-8 w-8" />
           {open && (
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-sidebar-foreground">

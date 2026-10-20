@@ -5,10 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SCM Platform - Supply Chain Management System</title>
 
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <!--
+      Tab favicons follow the BROWSER colour scheme (prefers-color-scheme),
+      not the in-app theme toggle. Safari ignores media on <link rel="icon">
+      and falls back to favicon.ico. ?v=2 busts stale cached icons.
+    -->
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/icons/favicon-32.png?v=2"
+      media="(prefers-color-scheme: light)"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/icons/favicon-dark-32.png?v=2"
+      media="(prefers-color-scheme: dark)"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/icons/apple-touch-icon.png?v=2"
+    />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="theme-color" content="#10b981" />
+    <meta name="theme-color" content="#0E5070" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />

@@ -11,7 +11,7 @@ import { FileText, Upload, Package, LogOut, CheckCircle, Bell, Clock, TrendingUp
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import logo from "@/assets/emerald-logo.png";
+import { BrandLogo } from "@/components/BrandLogo";
 import { useToast } from "@/hooks/use-toast";
 import { useApp } from "@/contexts/AppContext";
 import { vendorApi, vendorAuthApi, vendorPortalApi, quotationApi } from "@/services/api";
@@ -1205,7 +1205,7 @@ const VendorPortal = () => {
         <Card className="w-full max-w-md shadow-xl">
           <CardHeader className="space-y-4">
             <div className="flex justify-center">
-              <img src={logo} alt="Emerald Industrial" className="h-16 object-contain" />
+              <BrandLogo width={64} height={64} className="h-16 w-16" />
             </div>
             <div className="space-y-2 text-center">
               <CardTitle className="text-3xl">Vendor Portal</CardTitle>
@@ -1298,7 +1298,7 @@ const VendorPortal = () => {
       <header className="border-b bg-card sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-4">
-            <img src={logo} alt="Emerald Industrial" className="h-10 object-contain" />
+            <BrandLogo width={40} height={40} className="h-10 w-10" />
             <div className="border-l pl-4">
               <h1 className="font-semibold">Vendor Portal</h1>
               <p className="text-xs text-muted-foreground">{currentVendor?.name || currentVendor?.companyName || 'Vendor'}</p>
