@@ -125,6 +125,8 @@ const AppRoutes = () => {
           <Route path="/warehouse" element={<ProtectedRoute><Warehouse /></ProtectedRoute>} />
           <Route path="/vendors" element={<ProtectedRoute><Vendors /></ProtectedRoute>} />
           <Route path="/vendors/registration/:id" element={<ProtectedRoute><VendorRegistrationReview /></ProtectedRoute>} />
+          {/* Alias for email/notification links that used plural "registrations" */}
+          <Route path="/vendors/registrations/:id" element={<ProtectedRoute><VendorRegistrationReview /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/reports/procurement" element={<ProtectedRoute><ProcurementReports /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

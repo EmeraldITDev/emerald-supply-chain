@@ -3303,7 +3303,8 @@ export const vendorApi = {
   },
 
   getRegistrations: async (): Promise<ApiResponse<VendorRegistration[]>> => {
-    const response = await apiRequest<any[]>('/vendors/registrations');
+    // Pending queue: request status filter + high page size (API defaults to 25).
+    const response = await apiRequest<any[]>('/vendors/registrations?status=Pending&per_page=100');
     if (response.success && response.data) {
       // Map snake_case backend fields to camelCase frontend interface
       response.data = response.data.map((reg: any) => ({
