@@ -764,7 +764,8 @@ const Vendors = () => {
     
     // Option 2: Use API download endpoint with vendorId and documentId
     if (vendorId && documentId) {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://supply-chain-backend-hwh6.onrender.com';
+      // VITE_API_BASE_URL ends in /api; strip it so the path below is not /api/api/...
+      const apiBase = (import.meta.env.VITE_API_BASE_URL || 'https://scm-api.emeraldcfze.com').replace(/\/api\/?$/, '');
       const downloadEndpoint = `${apiBase}/api/vendors/${vendorId}/documents/${documentId}/download`;
       window.open(downloadEndpoint, '_blank');
       toast({

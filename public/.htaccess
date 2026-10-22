@@ -1,0 +1,23 @@
+# Apache / cPanel hosting for the built app (copied into dist/ by Vite).
+# Vercel uses vercel.json instead and ignores this file.
+
+Options -MultiViews -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Single-page app: any path that is not a real file or folder loads index.html,
+    # so refreshing /mrfs or opening a link from an email works.
+    RewriteRule ^index\.html$ - [L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Always re-check these after a deploy; the hashed files in /assets can be cached.
+    <FilesMatch "^(index\.html|version\.json|sw\.js|manifest\.webmanifest)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+</IfModule>

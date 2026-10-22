@@ -36,3 +36,17 @@ export function formatPoAmount(
 export function currencySymbol(currency: string = 'NGN'): string {
   return normalizeCurrencyCode(currency) === 'USD' ? '$' : '₦';
 }
+
+/** An MRF's currency. MRFs saved before the currency field existed are Naira. */
+export function mrfCurrency(mrf?: { currency?: string | null } | null): PoCurrencyCode {
+  return normalizeCurrencyCode(mrf?.currency);
+}
+
+/** Whole-amount style used on MRF lists and cards, e.g. "₦1,500,000" or "$7,380". */
+export function formatMrfAmount(
+  value: number | string | null | undefined,
+  currency: string = 'NGN',
+): string {
+  const num = typeof value === 'string' ? parseFloat(value) : Number(value ?? 0);
+  return `${currencySymbol(currency)}${(Number.isNaN(num) ? 0 : num).toLocaleString()}`;
+}

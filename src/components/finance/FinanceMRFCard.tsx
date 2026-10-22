@@ -9,6 +9,7 @@ import type { FinanceMRFRow } from "@/types";
 import type { MRF } from "@/types";
 import { getMrfFromFinanceRow } from "@/types/finance-dashboard";
 import { FinanceInternalPaymentButtons } from "./FinanceInternalPaymentButtons";
+import { formatMrfAmount, mrfCurrency } from "@/utils/currency";
 
 const prettyWorkflow = (s?: string | null) =>
   s ? s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—";
@@ -103,7 +104,7 @@ export const FinanceMRFCard = ({ row, onRefresh }: FinanceMRFCardProps) => {
           </div>
           <div>
             <p className="text-muted-foreground text-xs mb-1">Estimated Cost</p>
-            <p className="font-medium">₦{estimatedCost.toLocaleString()}</p>
+            <p className="font-medium">{formatMrfAmount(estimatedCost, mrfCurrency(mrf))}</p>
           </div>
           <div>
             <p className="text-muted-foreground text-xs mb-1">Date</p>

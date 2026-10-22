@@ -83,11 +83,11 @@ const getApiBaseUrl = () => {
   
   // Always use deployed backend for Lovable previews and production
   if (isLovablePreview || isProduction) {
-    return 'https://supply-chain-backend-hwh6.onrender.com/api';
+    return 'https://scm-api.emeraldcfze.com/api';
   }
   
   // Default fallback to deployed backend (safer than localhost)
-  return 'https://supply-chain-backend-hwh6.onrender.com/api';
+  return 'https://scm-api.emeraldcfze.com/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();

@@ -35,3 +35,8 @@ dist-ssr
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Local build copies and upload zips for cPanel
+dist.previous/
+dist-*/
+*.zip

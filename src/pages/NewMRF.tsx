@@ -17,6 +17,7 @@ import { mrfApi } from "@/services/api";
 import type { LineItem } from "@/types";
 import { getScmRole, formatScmRoleLabel, hasAdminAccess } from "@/utils/scmRole";
 import { MultiFileDropzone } from "@/components/attachments/MultiFileDropzone";
+import { PO_CURRENCY_OPTIONS, currencySymbol, mrfCurrency } from "@/utils/currency";
 
 const NewMRF = () => {
   const navigate = useNavigate();
@@ -75,6 +76,7 @@ const NewMRF = () => {
     description: "",
     quantity: "",
     estimatedCost: "",
+    currency: "NGN",
     urgency: "",
     justification: "",
     contractType: "",
@@ -113,6 +115,7 @@ const NewMRF = () => {
         description: rejectedMRF.description,
         quantity: rejectedMRF.quantity,
         estimatedCost: rejectedMRF.estimatedCost,
+        currency: mrfCurrency(rejectedMRF),
         urgency: rejectedMRF.urgency,
         justification: rejectedMRF.justification,
         contractType: (rejectedMRF as any).contractType || "",
@@ -180,6 +183,7 @@ const NewMRF = () => {
           contractType: contractTypeValue,
           contract_type: contractTypeValue,
           department: formData.department || user?.department || "",
+          currency: formData.currency,
           items: itemsForBackend,
           line_items: itemsForBackend,
         };
@@ -254,6 +258,7 @@ const NewMRF = () => {
           contractType: contractTypeValue,
           contract_type: contractTypeValue,
           department: formData.department || user?.department || "",
+          currency: formData.currency,
           items: itemsForBackend,
           line_items: itemsForBackend,
         };
@@ -573,7 +578,7 @@ const NewMRF = () => {
                 />
               </div>
 
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="quantity">Quantity *</Label>
                   <Input
@@ -587,7 +592,23 @@ const NewMRF = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="estimatedCost">Estimated Cost (₦) <span className="text-muted-foreground text-xs font-normal">(Optional)</span></Label>
+                  <Label htmlFor="currency">Currency *</Label>
+                  <Select value={formData.currency} onValueChange={(value) => handleChange("currency", value)}>
+                    <SelectTrigger id="currency">
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PO_CURRENCY_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="estimatedCost">Estimated Cost ({currencySymbol(formData.currency)}) <span className="text-muted-foreground text-xs font-normal">(Optional)</span></Label>
                   <Input
                     id="estimatedCost"
                     type="number"
@@ -626,7 +647,7 @@ const NewMRF = () => {
                           <TableHead>Item Name</TableHead>
                           <TableHead className="text-right">Quantity</TableHead>
                           <TableHead>Unit</TableHead>
-                          <TableHead className="text-right">Budget Amount (₦)</TableHead>
+                          <TableHead className="text-right">Budget Amount ({currencySymbol(formData.currency)})</TableHead>
                           <TableHead className="text-center">Action</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -636,7 +657,7 @@ const NewMRF = () => {
                             <TableCell className="font-medium">{item.itemName}</TableCell>
                             <TableCell className="text-right">{item.quantity}</TableCell>
                             <TableCell>{item.unit}</TableCell>
-                            <TableCell className="text-right">₦{item.budgetAmount.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">{currencySymbol(formData.currency)}{item.budgetAmount.toLocaleString()}</TableCell>
                             <TableCell className="text-center">
                               <Button
                                 type="button"
@@ -688,7 +709,7 @@ const NewMRF = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label htmlFor="budgetAmount" className="text-xs">Budget Amount (₦)</Label>
+                      <Label htmlFor="budgetAmount" className="text-xs">Budget Amount ({currencySymbol(formData.currency)})</Label>
                       <Input
                         id="budgetAmount"
                         type="number"

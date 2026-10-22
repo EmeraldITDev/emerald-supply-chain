@@ -6,6 +6,7 @@ import { getDisplayId } from "@/utils/displayId";
 import { getWorkflowStageLabel } from "@/utils/workflowStageLabels";
 import type { MRF } from "@/types";
 import { daysSince, mrfCost, mrfDate, mrfState } from "@/utils/executiveIntelligence";
+import { formatMrfAmount, mrfCurrency } from "@/utils/currency";
 
 interface Props {
   open: boolean;
@@ -46,7 +47,7 @@ export const ExecDrilldownSheet = ({ open, onOpenChange, title, description, rec
                       <p className="truncate text-sm font-semibold">{mrf.title}</p>
                       <p className="truncate text-xs text-muted-foreground">
                         {getDisplayId(mrf)} • {mrf.department || "—"} •{" "}
-                        {cost > 0 ? `₦${cost.toLocaleString()}` : "-"}
+                        {cost > 0 ? formatMrfAmount(cost, mrfCurrency(mrf)) : "-"}
                       </p>
                       <p className="mt-1 text-[11px] text-muted-foreground">
                         {daysSince(mrfDate(mrf))} day(s) in current state

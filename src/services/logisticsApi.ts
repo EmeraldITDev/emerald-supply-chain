@@ -68,10 +68,10 @@ const getApiBaseUrl = () => {
   const isProduction = typeof window !== 'undefined' && !window.location.origin.includes('localhost');
   
   if (isLovablePreview || isProduction) {
-    return 'https://supply-chain-backend-hwh6.onrender.com/api';
+    return 'https://scm-api.emeraldcfze.com/api';
   }
   
-  return 'https://supply-chain-backend-hwh6.onrender.com/api';
+  return 'https://scm-api.emeraldcfze.com/api';
 };
 
 import { API_BASE_URL, apiRequestFull } from './api';

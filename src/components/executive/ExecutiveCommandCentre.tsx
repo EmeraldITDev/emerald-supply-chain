@@ -350,6 +350,8 @@ const ExecutiveCommandCentre = () => {
           await approvalQ.refetch();
         } else {
           toast.error(res.error || "Failed to approve request");
+          // e.g. the Supply Chain Director approved it first: drop the stale row.
+          await approvalQ.refetch();
         }
       } catch {
         toast.error("Failed to connect to server");

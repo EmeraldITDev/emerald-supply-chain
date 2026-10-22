@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { getDisplayId } from "@/utils/displayId";
 import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
+import { currencySymbol, formatMrfAmount, mrfCurrency } from "@/utils/currency";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { useApp } from "@/contexts/AppContext";
@@ -608,7 +609,7 @@ const DepartmentDashboard = () => {
                                     );
                                     return cost > 0 ? (
                                       <span className="text-xs font-medium">
-                                        ₦{cost.toLocaleString()}
+                                        {formatMrfAmount(cost, mrfCurrency(mrf))}
                                       </span>
                                     ) : (
                                       <span className="text-xs text-muted-foreground">
@@ -982,16 +983,9 @@ const DepartmentDashboard = () => {
                         </p>
                         <p className="text-sm font-semibold">
                           {(() => {
-                            const currency =
-                              (selectedMRFForDetails as any).currency || "NGN";
-                            const symbol =
-                              currency === "USD"
-                                ? "$"
-                                : currency === "GBP"
-                                  ? "£"
-                                  : currency === "EUR"
-                                    ? "€"
-                                    : "₦";
+                            const symbol = currencySymbol(
+                              mrfCurrency(selectedMRFForDetails),
+                            );
                             const amount = parseFloat(
                               String(
                                 selectedMRFForDetails.estimatedCost ||
@@ -1153,7 +1147,9 @@ const DepartmentDashboard = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="resubmit-cost">Estimated Cost (₦)</Label>
+                  <Label htmlFor="resubmit-cost">
+                    Estimated Cost ({currencySymbol(mrfCurrency(selectedMRFForResubmit))})
+                  </Label>
                   <Input
                     id="resubmit-cost"
                     type="number"
