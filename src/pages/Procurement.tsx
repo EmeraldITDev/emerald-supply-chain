@@ -769,7 +769,7 @@ const Procurement = () => {
       } else {
         const baseUrl =
           import.meta.env.VITE_API_BASE_URL ||
-          "https://supply-chain-backend-hwh6.onrender.com/api";
+          "https://scm-api.emeraldcfze.com/api";
         window.open(`${baseUrl.replace("/api", "")}/${pfiUrl}`, "_blank");
       }
     } else {

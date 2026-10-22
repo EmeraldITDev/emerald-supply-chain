@@ -41,7 +41,7 @@ export async function fetchUrlAsDataUrl(url: string): Promise<string | null> {
     if (!/^https?:\/\//i.test(url) && !url.startsWith('data:') && !url.startsWith('blob:')) {
       const apiBase =
         (import.meta.env?.VITE_API_BASE_URL as string | undefined) ||
-        'https://supply-chain-backend-hwh6.onrender.com/api';
+        'https://scm-api.emeraldcfze.com/api';
       const origin = apiBase.replace(/\/api\/?$/, '');
       target = url.startsWith('/') ? `${origin}${url}` : `${origin}/${url}`;
     }
