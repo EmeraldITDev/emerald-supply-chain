@@ -1,14 +1,13 @@
 import type { MRF } from "@/types";
-import { PENDING_FOR_ROLE_FLAG } from "@/utils/fetchDashboardMrfs";
+import { PENDING_FOR_ROLE_FLAG } from "@/utils/pendingForRoleFlag";
 
 export type MrfDashboardBucket = "pending" | "approved" | "rejected" | "completed";
 
 /**
- * Backend-authoritative "pending for this role" signal. Set by
- * {@link fetchDashboardMrfs}. When present it wins over stage/workflow_state
- * heuristics — this is what keeps SCD/Executive dashboards from re-showing
- * an MRF the current role already approved (e.g. `parallel_first_approval`
- * stays as the workflow_state until BOTH parallel approvers sign off).
+ * Set by the dashboard loader when the backend included this MRF in
+ * `pending_for_role`. It can hide a parallel row this role already signed.
+ * It must not override `workflow_state`: once that field has left the
+ * approval gate, the MRF is no longer waiting, even if this flag is true.
  */
 function pendingForRoleFlag(mrf: MRF): boolean | undefined {
   const v = (mrf as unknown as Record<string, unknown>)[PENDING_FOR_ROLE_FLAG];
@@ -66,14 +65,48 @@ export function isMrfCompleted(mrf: MRF): boolean {
   );
 }
 
+/**
+ * States the executive approve endpoint will still accept.
+ * `executive_approved` and `supply_chain_director_approved` contain the word
+ * "approval" but the decision is already recorded — they must not match.
+ */
+const EXECUTIVE_AWAITING_STATES = new Set([
+  "parallel_first_approval",
+  "executive_review",
+]);
+
+function executiveAlreadySignedParallel(mrf: MRF): boolean {
+  if (getFirstApprovalRole(mrf) === "executive") return true;
+  const r = mrf as unknown as Record<string, unknown>;
+  return Boolean(r.executive_approved || r.executiveApproved);
+}
+
 /** Executive or parallel first approval awaiting executive action */
 export function isExecutivePendingApproval(mrf: MRF): boolean {
-  const flag = pendingForRoleFlag(mrf);
-  if (flag === false) return false;
-  if (flag === true) return true;
   const status = String(mrf.status || "").toLowerCase().trim();
   const currentStage = getCurrentStage(mrf);
   const workflowState = getWorkflowState(mrf);
+
+  // workflow_state is what the approve endpoint checks. A stale current_stage
+  // or a pending-for-role flag must not put an already-approved MRF back in
+  // the queue (that is what produced "already been approved").
+  if (workflowState && !EXECUTIVE_AWAITING_STATES.has(workflowState)) {
+    return false;
+  }
+
+  if (
+    (workflowState || currentStage) === "parallel_first_approval" &&
+    executiveAlreadySignedParallel(mrf)
+  ) {
+    return false;
+  }
+
+  const flag = pendingForRoleFlag(mrf);
+  if (flag === false) return false;
+  if (flag === true) {
+    if (!workflowState) return true;
+    return EXECUTIVE_AWAITING_STATES.has(workflowState);
+  }
 
   return (
     workflowState === "parallel_first_approval" ||
@@ -126,30 +159,75 @@ export function getExecutiveApprovalDate(mrf: MRF): string | null {
   );
 }
 
+/**
+ * States the Supply Chain Director first-approval endpoint will still accept.
+ * Later states such as `supply_chain_director_approved` and `procurement_review`
+ * must not be treated as waiting — their names contain "approval" / "review".
+ */
+const SCD_AWAITING_FIRST_APPROVAL = new Set([
+  "parallel_first_approval",
+  "supply_chain_director_review",
+  "director_review",
+]);
+
+function scdAlreadySignedParallel(mrf: MRF): boolean {
+  const role = getFirstApprovalRole(mrf);
+  if (
+    role === "supply_chain_director" ||
+    role === "supply_chain" ||
+    role === "director" ||
+    role === "scd"
+  ) {
+    return true;
+  }
+  const r = mrf as unknown as Record<string, unknown>;
+  return Boolean(
+    r.scd_approved_at ||
+      r.director_approved_at ||
+      r.scdApprovedAt ||
+      r.directorApprovedAt,
+  );
+}
+
 /** SCD first approval (parallel or legacy) */
 export function isScdPendingFirstApproval(mrf: MRF): boolean {
+  const stage = getCurrentStage(mrf);
+  const workflowState = getWorkflowState(mrf);
+
+  // The approve API rejects anything that has left these states. Trust
+  // workflow_state over a stale current_stage and over the pending-for-role
+  // flag, otherwise approved MRFs stay in the Approval workspace.
+  if (workflowState && !SCD_AWAITING_FIRST_APPROVAL.has(workflowState)) {
+    return false;
+  }
+
+  const effective = workflowState || stage;
+  if (
+    effective === "parallel_first_approval" &&
+    scdAlreadySignedParallel(mrf)
+  ) {
+    return false;
+  }
+
   const flag = pendingForRoleFlag(mrf);
   // Flag=false is only authoritative for the first-approval stage — SCD may
   // still be expected to act later (vendor selection, PO signing, final
   // approval) even when the parallel first-approval gate is done.
-  if (flag === false) {
-    const stage = getCurrentStage(mrf);
-    const ws = getWorkflowState(mrf);
-    if (
-      stage === "parallel_first_approval" ||
-      ws === "parallel_first_approval"
-    ) {
-      return false;
-    }
+  if (
+    flag === false &&
+    (stage === "parallel_first_approval" || workflowState === "parallel_first_approval")
+  ) {
+    return false;
   }
-  const stage = getCurrentStage(mrf);
-  const workflowState = getWorkflowState(mrf);
+
   return (
-    stage === "parallel_first_approval" ||
     workflowState === "parallel_first_approval" ||
-    stage === "director_review" ||
-    stage === "supply_chain_director_review" ||
-    workflowState === "supply_chain_director_review"
+    workflowState === "supply_chain_director_review" ||
+    workflowState === "director_review" ||
+    (!workflowState &&
+      (stage === "parallel_first_approval" ||
+        stage === "director_review" ||
+        stage === "supply_chain_director_review"))
   );
 }
 

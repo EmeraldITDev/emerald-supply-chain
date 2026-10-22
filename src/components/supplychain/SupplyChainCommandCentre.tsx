@@ -77,10 +77,10 @@ import {
   isRejected,
   mrfCost,
   mrfCreated,
-  isPendingApproval,
   daysSince,
   mrfDate,
 } from "@/utils/executiveIntelligence";
+import { isScdPendingFirstApproval } from "@/utils/mrfDashboardBuckets";
 import {
   buildGlance,
   buildScdApprovalQueue,
@@ -273,7 +273,7 @@ export const SupplyChainCommandCentre = ({
   const queue = useMemo(
     () =>
       buildScdApprovalQueue({
-        mrfs: pendingMrfs.filter(isPendingApproval),
+        mrfs: pendingMrfs.filter(isScdPendingFirstApproval),
         srfs: pendingSrfs,
         trips: pendingTrips,
         registrations: vendorRegistrations,
@@ -693,7 +693,14 @@ export const SupplyChainCommandCentre = ({
                                 </p>
                               </div>
 
-                              {item.kind === "mrf" && (
+                              {item.kind === "mrf" &&
+                                String(
+                                  item.mrf?.workflow_state ||
+                                    item.mrf?.workflowState ||
+                                    item.mrf?.current_stage ||
+                                    item.mrf?.currentStage ||
+                                    "",
+                                ).toLowerCase() === "parallel_first_approval" && (
                                 <p className="rounded-md bg-muted/60 p-2 text-xs text-muted-foreground">
                                   Parallel with Executive — first approval wins; then Procurement
                                   review.

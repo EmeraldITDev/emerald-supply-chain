@@ -103,7 +103,7 @@ import { SupplyChainVendorApprovalButtons } from "@/components/SupplyChainVendor
 import { MRFProgressTracker } from "@/components/MRFProgressTracker";
 import { MRFApprovalDialog } from "@/components/MRFApprovalDialog";
 import { SRFDirectorApprovalDialog } from "@/components/SRFDirectorApprovalDialog";
-import { bucketScdMrfs } from "@/utils/mrfDashboardBuckets";
+import { bucketScdMrfs, isScdPendingFirstApproval } from "@/utils/mrfDashboardBuckets";
 import { DashboardSummaryStats } from "@/components/dashboard/DashboardSummaryStats";
 import { DashboardMrfHistoryList } from "@/components/dashboard/DashboardMrfHistoryList";
 import { SupplyChainCommandCentre } from "@/components/supplychain/SupplyChainCommandCentre";
@@ -415,20 +415,13 @@ const SupplyChainDashboard = () => {
     return (mrf.current_stage || mrf.currentStage || "").toLowerCase();
   };
 
-  // Parallel first approval + legacy Supply Chain Director first approval
-  const pendingFirstApprovals = useMemo(() => {
-    return mrfRequests.filter((mrf) => {
-      const stage = getCurrentStage(mrf);
-      const workflowState = getWorkflowState(mrf);
-      return (
-        stage === "parallel_first_approval" ||
-        workflowState === "parallel_first_approval" ||
-        stage === "director_review" ||
-        stage === "supply_chain_director_review" ||
-        workflowState === "supply_chain_director_review"
-      );
-    });
-  }, [mrfRequests]);
+  // Parallel first approval + legacy Supply Chain Director first approval.
+  // Same rule as the Approval workspace, so a request that has already moved
+  // to procurement (or was approved by Executive first) cannot be counted here.
+  const pendingFirstApprovals = useMemo(
+    () => mrfRequests.filter(isScdPendingFirstApproval),
+    [mrfRequests],
+  );
 
   // Final approval: SCD approves vendor selection/quotes before PO generation
   const pendingFinalApprovals = useMemo(() => {

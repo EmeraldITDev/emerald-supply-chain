@@ -1,19 +1,12 @@
 import type { MRF } from '@/types';
 import { mrfApi } from '@/services/api';
+import { PENDING_FOR_ROLE_FLAG } from '@/utils/pendingForRoleFlag';
 
 export type DashboardApprovalRole = 'executive' | 'scd' | 'chairman';
 
-const DASHBOARD_PER_PAGE = 50;
+export { PENDING_FOR_ROLE_FLAG };
 
-/**
- * Marker set by {@link fetchDashboardMrfs} on MRFs the backend returned in the
- * `pending_for_role=<role>` slice for the current dashboard. This is the
- * authoritative signal for "is THIS role still expected to act on this MRF" —
- * the bucket classifiers prefer it over guessing from `workflow_state`, which
- * can stay on `parallel_first_approval` after one of the two parallel
- * approvers has already signed off.
- */
-export const PENDING_FOR_ROLE_FLAG = '__pendingForRole' as const;
+const DASHBOARD_PER_PAGE = 50;
 
 function mrfKey(mrf: MRF): string {
   return String(mrf.id ?? (mrf as { mrf_id?: string }).mrf_id ?? '');
