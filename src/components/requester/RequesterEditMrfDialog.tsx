@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { mrfApi } from "@/services/api";
 import type { MRF } from "@/types";
 import { getDisplayId } from "@/utils/displayId";
+import { currencySymbol, mrfCurrency } from "@/utils/currency";
 import {
   formatRequesterEditTimeRemaining,
   resolveRequesterEditAccess,
@@ -115,7 +116,7 @@ export function RequesterEditMrfDialog({
                 />
               </div>
               <div>
-                <Label htmlFor="edit-mrf-cost">Estimated cost (₦)</Label>
+                <Label htmlFor="edit-mrf-cost">Estimated cost ({currencySymbol(mrfCurrency(mrf))})</Label>
                 <Input
                   id="edit-mrf-cost"
                   type="number"

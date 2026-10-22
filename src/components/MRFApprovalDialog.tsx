@@ -16,6 +16,7 @@ import { CheckCircle2, XCircle, Clock, User, Calendar } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { formatApprovalDate } from "@/utils/dateUtils";
 import type { MRF } from "@/types";
+import { formatMrfAmount, mrfCurrency } from "@/utils/currency";
 
 interface MRFApprovalDialogProps {
   mrf: (MRFRequest | MRF) | null;
@@ -229,7 +230,7 @@ export function MRFApprovalDialog({
               </div>
               <div>
                 <Label className="text-muted-foreground">Estimated Cost</Label>
-                <p className="font-medium">₦{Number(mrf.estimatedCost).toLocaleString()}</p>
+                <p className="font-medium">{formatMrfAmount(Number(mrf.estimatedCost), mrfCurrency(mrf))}</p>
               </div>
             </div>
 

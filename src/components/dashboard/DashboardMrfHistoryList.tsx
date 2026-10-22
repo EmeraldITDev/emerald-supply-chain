@@ -12,6 +12,7 @@ import {
   getScdApprovalDate,
   getMrfStatusLabel,
 } from "@/utils/mrfDashboardBuckets";
+import { formatMrfAmount, mrfCurrency } from "@/utils/currency";
 
 type Props = {
   mrfs: MRF[];
@@ -68,7 +69,7 @@ export function DashboardMrfHistoryList({
                     <span>Submitted {submitted}</span>
                     {estimatedCost > 0 && (
                       <span className="font-medium text-foreground">
-                        ₦{estimatedCost.toLocaleString()}
+                        {formatMrfAmount(estimatedCost, mrfCurrency(mrf))}
                       </span>
                     )}
                     {variant === "approved" && approvalDate && (

@@ -388,6 +388,8 @@ export const SupplyChainCommandCentre = ({
 
       if (!ok) {
         toast.error(error || `Could not ${mode} this request`);
+        // e.g. the Executive approved it first: drop the stale row.
+        await invalidate();
         return;
       }
       toast.success(

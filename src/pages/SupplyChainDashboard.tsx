@@ -107,6 +107,7 @@ import { bucketScdMrfs } from "@/utils/mrfDashboardBuckets";
 import { DashboardSummaryStats } from "@/components/dashboard/DashboardSummaryStats";
 import { DashboardMrfHistoryList } from "@/components/dashboard/DashboardMrfHistoryList";
 import { SupplyChainCommandCentre } from "@/components/supplychain/SupplyChainCommandCentre";
+import { formatMrfAmount, mrfCurrency } from "@/utils/currency";
 
 function readStoredUserSignatureUrl(): string | null {
   try {
@@ -1031,8 +1032,8 @@ const SupplyChainDashboard = () => {
                       )}
                     </p>
                     <p>
-                      <span className="text-muted-foreground">Value: </span>₦
-                      {getEstimatedCost(mrf).toLocaleString()}
+                      <span className="text-muted-foreground">Value: </span>
+                      {formatMrfAmount(getEstimatedCost(mrf), mrfCurrency(mrf))}
                     </p>
                     <p>
                       <span className="text-muted-foreground">Category: </span>

@@ -48,6 +48,7 @@ import {
   pctChange,
   type DrillBucket,
 } from "@/utils/executiveIntelligence";
+import { formatMrfAmount, mrfCurrency } from "@/utils/currency";
 
 const ChairmanDashboard = () => {
   const navigate = useNavigate();
@@ -312,7 +313,7 @@ const ChairmanDashboard = () => {
                               {getDisplayId(mrf)} • {mrf.requester_name || mrf.requester || "Unknown"}
                             </p>
                             <p className="truncate text-xs text-muted-foreground">
-                              {mrf.category || "—"} • {cost > 0 ? `₦${cost.toLocaleString()}` : "-"}
+                              {mrf.category || "—"} • {cost > 0 ? formatMrfAmount(cost, mrfCurrency(mrf)) : "-"}
                             </p>
                           </div>
                         </div>

@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useApp } from "@/contexts/AppContext";
 import { useNavigate } from "react-router-dom";
 import type { DashboardAlert, AlertType, AlertPriority } from "@/types/dashboard-alerts";
+import { formatMrfAmount, mrfCurrency } from "@/utils/currency";
 
 interface DashboardAlertsProps {
   userRole: string;
@@ -59,7 +60,7 @@ export const DashboardAlerts = ({ userRole, maxAlerts = 10, compact = false }: D
             id: `mrf-pending-${mrf.id}`,
             type: 'new_mrf',
             title: 'MRF Pending Approval',
-            message: `${mrf.title} requires executive approval (₦${parseInt(mrf.estimatedCost).toLocaleString()})`,
+            message: `${mrf.title} requires executive approval (${formatMrfAmount(parseInt(mrf.estimatedCost), mrfCurrency(mrf))})`,
             priority: parseFloat(mrf.estimatedCost) > 1000000 ? 'high' : 'medium',
             timestamp: mrf.date,
             read: false,

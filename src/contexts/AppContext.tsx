@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useCa
 import { mrfApi, srfApi, rfqApi } from "@/services/api";
 import { normalizeQuotation } from "@/utils/normalizeQuotation";
 import { getSrfRequesterDisplayName } from "@/utils/srfRequester";
+import { mrfCurrency } from "@/utils/currency";
 import type { MRF, SRF, RFQ as RFQType } from "@/types";
 
 // Types
@@ -20,6 +21,8 @@ export interface MRFRequest {
   description: string;
   quantity: string;
   estimatedCost: string;
+  /** NGN | USD; older MRFs without one are Naira. */
+  currency?: string;
   urgency: string;
   justification: string;
   status: string;
@@ -359,6 +362,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           description: mrf.description,
           quantity: String(mrf.quantity),
           estimatedCost: String(mrf.estimated_cost || mrf.estimatedCost || 0),
+          currency: mrfCurrency(mrf),
           urgency: String(mrf.urgency).toLowerCase(),
           justification: mrf.justification,
           status: mrf.status,

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MRFRequest } from "@/contexts/AppContext";
+import { formatMrfAmount, mrfCurrency } from "@/utils/currency";
 
 interface ProcurementProgressTrackerProps {
   mrfRequests: MRFRequest[];
@@ -286,7 +287,7 @@ export const ProcurementProgressTracker = ({ mrfRequests, showTitle = true }: Pr
                   </div>
                   <h4 className="font-medium truncate">{mrf.title}</h4>
                   <p className="text-xs text-muted-foreground">
-                    {mrf.requester} • {mrf.department} • ₦{parseFloat(mrf.estimatedCost).toLocaleString()}
+                    {mrf.requester} • {mrf.department} • {formatMrfAmount(parseFloat(mrf.estimatedCost), mrfCurrency(mrf))}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

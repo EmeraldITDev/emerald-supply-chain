@@ -160,7 +160,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
 import { resolveProcurementOverviewMode } from "@/utils/procurementAccess";
-import { formatPoAmount } from "@/utils/currency";
+import { formatMrfAmount, formatPoAmount, mrfCurrency } from "@/utils/currency";
 import {
   canViewProcurementDocuments,
   isProcurementDocumentsReadOnly,
@@ -2736,10 +2736,10 @@ const Procurement = () => {
                                         <p>
                                           Amount:{" "}
                                           <span className="font-semibold">
-                                            ₦
-                                            {parseInt(
-                                              mrf.estimatedCost,
-                                            ).toLocaleString()}
+                                            {formatMrfAmount(
+                                              parseInt(mrf.estimatedCost),
+                                              mrfCurrency(mrf),
+                                            )}
                                           </span>
                                         </p>
                                       </div>
@@ -3057,7 +3057,7 @@ const Procurement = () => {
                                       <span className="font-semibold text-foreground ml-1">
                                         {parseFloat(request.estimatedCost || "0") >
                                           0
-                                          ? `₦${parseInt(request.estimatedCost).toLocaleString()}`
+                                          ? formatMrfAmount(parseInt(request.estimatedCost), mrfCurrency(request))
                                           : "-"}
                                       </span>
                                     </div>
@@ -3745,7 +3745,7 @@ const Procurement = () => {
                                     </span>
                                     <span className="text-xs font-medium">
                                       {cost > 0
-                                        ? `₦${cost.toLocaleString()}`
+                                        ? formatMrfAmount(cost, mrfCurrency(mrf))
                                         : "-"}
                                     </span>
                                     <span className="text-xs text-muted-foreground">
@@ -4831,10 +4831,10 @@ const Procurement = () => {
                       <div>
                         <p className="text-muted-foreground text-xs">Amount</p>
                         <p className="font-bold text-lg">
-                          ₦
-                          {parseFloat(
+                          {formatMrfAmount(
                             getMRFEstimatedCost(mrf),
-                          ).toLocaleString()}
+                            mrfCurrency(mrf),
+                          )}
                         </p>
                       </div>
                       <div>
@@ -5104,10 +5104,10 @@ const Procurement = () => {
                       Estimated Cost
                     </Label>
                     <p className="font-medium text-lg">
-                      ₦
-                      {parseInt(
-                        selectedMRFForDetails.estimatedCost || "0",
-                      ).toLocaleString()}
+                      {formatMrfAmount(
+                        parseInt(selectedMRFForDetails.estimatedCost || "0"),
+                        mrfCurrency(selectedMRFForDetails),
+                      )}
                     </p>
                   </div>
                   <div>
