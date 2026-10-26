@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -14,11 +13,17 @@ interface PoRegisterTableProps {
 
 export function PoRegisterTable({ rows, loading, onExport, exporting }: PoRegisterTableProps) {
   const hasRows = rows.length > 0;
-
-  const currencyValue = useMemo(
-    () => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 2 }),
-    [],
-  );
+  const formatMoney = (value: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat("en-NG", {
+        style: "currency",
+        currency: currency || "NGN",
+        maximumFractionDigits: 2,
+      }).format(value);
+    } catch {
+      return `${currency || "NGN"} ${value.toLocaleString()}`;
+    }
+  };
 
   if (loading) {
     return <Card><CardContent className="py-10 text-sm text-muted-foreground text-center">Loading PO register…</CardContent></Card>;
@@ -51,16 +56,23 @@ export function PoRegisterTable({ rows, loading, onExport, exporting }: PoRegist
           <TableHeader>
             <TableRow>
               <TableHead>PO Number</TableHead>
+              <TableHead>Version</TableHead>
               <TableHead>MRF</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Vendor</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Currency</TableHead>
+              <TableHead>Procurement Manager</TableHead>
+              <TableHead>PO Generated</TableHead>
+              <TableHead>Signed Date</TableHead>
               <TableHead>PO Value</TableHead>
+              <TableHead>Tax</TableHead>
+              <TableHead>Approval</TableHead>
               <TableHead>Signing</TableHead>
               <TableHead>Payment</TableHead>
               <TableHead>GRN</TableHead>
+              <TableHead>Expected Delivery</TableHead>
               <TableHead>Docs</TableHead>
             </TableRow>
           </TableHeader>
@@ -68,16 +80,23 @@ export function PoRegisterTable({ rows, loading, onExport, exporting }: PoRegist
             {rows.map((row) => (
               <TableRow key={row.id}>
                 <TableCell className="font-mono text-xs">{row.poNumber ?? "Not Available"}</TableCell>
+                <TableCell>{row.poVersion ?? "—"}</TableCell>
                 <TableCell className="font-mono text-xs">{row.mrfNumber ?? "Not Available"}</TableCell>
                 <TableCell className="max-w-[180px] truncate">{row.title}</TableCell>
                 <TableCell>{row.vendorName ?? "Not Available"}</TableCell>
                 <TableCell>{row.department ?? "Not Available"}</TableCell>
                 <TableCell>{row.contractType ?? "Not Available"}</TableCell>
                 <TableCell>{row.currency ?? "NGN"}</TableCell>
-                <TableCell>{currencyValue.format(row.poValue ?? 0)}</TableCell>
+                <TableCell>{row.procurementManager ?? "Not Assigned"}</TableCell>
+                <TableCell>{row.poGenerationDate ?? "—"}</TableCell>
+                <TableCell>{row.poSigningDate ?? "—"}</TableCell>
+                <TableCell>{formatMoney(row.poValue ?? 0, row.currency ?? "NGN")}</TableCell>
+                <TableCell>{formatMoney(row.taxAmount ?? 0, row.currency ?? "NGN")}</TableCell>
+                <TableCell>{row.approvalStatus ?? "Not Recorded"}</TableCell>
                 <TableCell>{row.signingStatus ?? "Not Recorded"}</TableCell>
                 <TableCell>{row.paymentStatus ?? "Not Recorded"}</TableCell>
                 <TableCell>{row.grnStatus ?? "Not Recorded"}</TableCell>
+                <TableCell>{row.expectedDeliveryDate ?? "—"}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     {row.signedPoUrl ? (
@@ -87,7 +106,7 @@ export function PoRegisterTable({ rows, loading, onExport, exporting }: PoRegist
                     ) : null}
                     {row.unsignedPoUrl ? (
                       <a href={row.unsignedPoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
-                        <ExternalLink className="h-3.5 w-3.5" /> Draft
+                        <ExternalLink className="h-3.5 w-3.5" /> Unsigned
                       </a>
                     ) : null}
                   </div>

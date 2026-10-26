@@ -70,7 +70,7 @@ export interface PaginatedReportRecords {
 export interface PoRegisterRow {
   id: number;
   poNumber: string | null;
-  poVersion: string | null;
+  poVersion: string | number | null;
   mrfNumber: string | null;
   title: string;
   vendorName: string | null;
@@ -80,7 +80,6 @@ export interface PoRegisterRow {
   currency: string;
   poValue: number;
   taxAmount: number;
-  totalAmount: number;
   poGenerationDate: string | null;
   poSigningDate: string | null;
   approvalStatus?: string | null;
@@ -96,15 +95,29 @@ export interface PoRegisterRow {
 export interface PoRegisterSummary {
   totalGeneratedPos: number;
   totalPoValue: number | null;
-  totalPoValueByCurrency: Array<{ currency: string; count: number; totalValue: number }>;
+  totalPoValueCurrency: string | null;
+  totalPoValueByCurrency: Array<{
+    currency: string;
+    count: number;
+    totalValue: number;
+    totalTaxAmount: number;
+    averagePoValue: number;
+  }>;
   signedPos: number;
   unsignedPos: number;
   awaitingGrn: number;
   completedGrn: number;
-  averagePoValue: number;
-  totalTaxAmount: number;
-  monthlyTrend: Array<{ month: string; count: number; value: number }>;
-  topVendors: Array<{ name: string; poCount: number; totalPoValue: number }>;
+  averagePoValue: number | null;
+  totalTaxAmount: number | null;
+  monthlyTrend: Array<{
+    month: string;
+    count: number;
+    valueByCurrency: Array<{ currency: string; totalValue: number }>;
+  }>;
+  topVendorsByCurrency: Array<{
+    currency: string;
+    vendors: Array<{ name: string; poCount: number; totalPoValue: number }>;
+  }>;
 }
 
 export interface PaginatedPoRegister {

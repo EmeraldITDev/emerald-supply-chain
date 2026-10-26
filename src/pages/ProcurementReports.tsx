@@ -41,7 +41,7 @@ const formatMoney = (value: number | null, currency = "NGN") => {
       maximumFractionDigits: 2,
     }).format(value ?? 0);
   } catch {
-    return `₦${(value ?? 0).toLocaleString()}`;
+    return `${safeCurrency} ${(value ?? 0).toLocaleString()}`;
   }
 };
 
@@ -105,6 +105,7 @@ const PoRegisterSection = () => {
     data,
     isLoading,
     isError,
+    error,
     refetch,
   } = useQuery({
     queryKey: queryKeys.reports.poRegister(params),
@@ -121,7 +122,7 @@ const PoRegisterSection = () => {
   const summary = data?.summary;
   const pagination = data?.pagination;
   const monthlyTrend = summary?.monthlyTrend ?? [];
-  const vendorTrend = summary?.topVendors ?? [];
+  const vendorGroups = summary?.topVendorsByCurrency ?? [];
   const currencyBreakdown = summary?.totalPoValueByCurrency ?? [];
 
   const resetFilters = () => {
@@ -257,9 +258,8 @@ const PoRegisterSection = () => {
               <Label htmlFor="po-payment-status">Payment status</Label>
               <select id="po-payment-status" value={paymentStatus} onChange={(e) => { setPaymentStatus(e.target.value); setPage(1); }} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                 <option value="">All</option>
-                <option value="Pending">Pending</option>
-                <option value="Partially Paid">Partially Paid</option>
-                <option value="Paid">Paid</option>
+                <option value="processing">Processing</option>
+                <option value="approved">Approved</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -321,7 +321,7 @@ const PoRegisterSection = () => {
       {isError && (
         <Card>
           <CardContent className="py-10 text-center text-sm text-destructive">
-            Unable to load the PO register. Please try again.
+            {error instanceof Error ? error.message : "Unable to load the PO register. Please try again."}
           </CardContent>
         </Card>
       )}
@@ -345,7 +345,11 @@ const PoRegisterSection = () => {
               <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total PO value</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">
-                  {summary.totalPoValue != null ? formatMoney(summary.totalPoValue, currency || (currencyBreakdown[0]?.currency ?? "NGN")) : "Multi-currency"}
+                  {summary.totalPoValue != null
+                    ? formatMoney(summary.totalPoValue, summary.totalPoValueCurrency ?? currency ?? "NGN")
+                    : currencyBreakdown.length === 0
+                      ? "—"
+                      : "Multi-currency"}
                 </p>
               </CardContent>
             </Card>
@@ -378,16 +382,25 @@ const PoRegisterSection = () => {
                 <CardTitle className="text-base">Top vendors by value</CardTitle>
               </CardHeader>
               <CardContent className="h-64">
-                {vendorTrend.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={vendorTrend} layout="vertical" margin={{ top: 10, right: 10, left: 20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis type="category" dataKey="name" width={100} />
-                      <Tooltip formatter={(value: number) => [formatMoney(value), "PO value"]} />
-                      <Bar dataKey="totalPoValue" fill="#0f766e" radius={[0, 6, 6, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                {vendorGroups.length > 0 ? (
+                  <div className="h-full space-y-5 overflow-y-auto">
+                    {vendorGroups.map((group) => (
+                      <div key={group.currency}>
+                        <p className="mb-2 text-sm font-semibold">{group.currency}</p>
+                        <div className="h-48">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={group.vendors} layout="vertical" margin={{ top: 4, right: 10, left: 20, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis type="number" />
+                              <YAxis type="category" dataKey="name" width={100} />
+                              <Tooltip formatter={(value: number) => [formatMoney(value, group.currency), "PO value"]} />
+                              <Bar dataKey="totalPoValue" fill="#0f766e" radius={[0, 6, 6, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <p className="text-sm text-muted-foreground flex h-full items-center justify-center">No vendor data available.</p>
                 )}
@@ -403,12 +416,19 @@ const PoRegisterSection = () => {
               {currencyBreakdown.length > 0 ? (
                 <div className="space-y-3">
                   {currencyBreakdown.map((entry) => (
-                    <div key={entry.currency} className="flex items-center justify-between gap-3 rounded-md border p-3">
+                    <div key={entry.currency} className="grid gap-2 rounded-md border p-3 sm:grid-cols-3">
                       <div>
                         <p className="font-medium">{entry.currency}</p>
                         <p className="text-sm text-muted-foreground">{entry.count} purchase orders</p>
                       </div>
-                      <p className="font-semibold">{formatMoney(entry.totalValue, entry.currency)}</p>
+                      <div>
+                        <p className="text-xs text-muted-foreground">PO value</p>
+                        <p className="font-semibold">{formatMoney(entry.totalValue, entry.currency)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Tax / average PO</p>
+                        <p className="font-semibold">{formatMoney(entry.totalTaxAmount, entry.currency)} / {formatMoney(entry.averagePoValue, entry.currency)}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -428,7 +448,7 @@ const PoRegisterSection = () => {
 
       {data && (
         <>
-          <PoRegisterTable rows={data.items ?? []} loading={false} onExport={handleExport} exporting={exporting} />
+          <PoRegisterTable rows={data.items ?? []} loading={false} onExport={handleExport} exporting={!!exporting} />
           {pagination && pagination.totalPages > 1 ? (
             <Card>
               <CardContent className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
@@ -620,14 +640,14 @@ const ProcurementReports = () => {
               </Card>
               <Card>
                 <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">POs signed</p>
-                  <p className="text-xl font-bold">{totals.posSigned}</p>
+                  <p className="text-sm text-muted-foreground">SRFs approved</p>
+                  <p className="text-xl font-bold">{totals.srfsApproved}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">Approvals pending</p>
-                  <p className="text-xl font-bold">{totals.approvalsPending}</p>
+                  <p className="text-sm text-muted-foreground">Price comparison MRFs</p>
+                  <p className="text-xl font-bold">{totals.priceComparisonMrfs}</p>
                 </CardContent>
               </Card>
             </div>

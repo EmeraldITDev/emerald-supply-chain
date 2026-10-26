@@ -76,6 +76,7 @@ const Reports = () => {
 
   const reportCategories = [
     { name: "Procurement Analytics", description: "MRF/SRF, PO, and vendor performance", href: "/reports/procurement", icon: FileText },
+    { name: "Purchase Order Register", description: "Generated SCM purchase orders, status, value, and exports", href: "/reports/procurement#po-register", icon: FileText },
     { name: "Logistics Reports", description: "Trip efficiency and compliance reporting", href: "/logistics", icon: TrendingUp },
     { name: "Finance AP Reports", description: "Post-cutover Finance AP cohort metrics", href: "/reports/procurement#finance-ap", icon: BarChart3 },
   ];
