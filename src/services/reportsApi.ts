@@ -124,8 +124,22 @@ export interface PaginatedPoRegister {
 export interface ProcurementRecordsQuery {
   from?: string;
   to?: string;
+  date_basis?: string;
   department?: string;
+  vendor?: string;
   vendor_id?: number;
+  contract_type?: string;
+  currency?: string;
+  procurement_manager?: string;
+  procurement_manager_id?: number;
+  payment_status?: string;
+  signing_status?: string;
+  po_status?: string;
+  grn_status?: string;
+  po_value_min?: number;
+  po_value_max?: number;
+  po_number?: string;
+  mrf_number?: string;
   status?: string;
   search?: string;
   page?: number;
