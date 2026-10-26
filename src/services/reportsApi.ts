@@ -67,6 +67,60 @@ export interface PaginatedReportRecords {
   };
 }
 
+export interface PoRegisterRow {
+  id: number;
+  poNumber: string | null;
+  poVersion: string | null;
+  mrfNumber: string | null;
+  title: string;
+  vendorName: string | null;
+  vendorCode?: string | null;
+  department?: string | null;
+  contractType?: string | null;
+  currency: string;
+  poValue: number;
+  taxAmount: number;
+  totalAmount: number;
+  poGenerationDate: string | null;
+  poSigningDate: string | null;
+  approvalStatus?: string | null;
+  signingStatus?: string | null;
+  paymentStatus?: string | null;
+  grnStatus?: string | null;
+  expectedDeliveryDate?: string | null;
+  unsignedPoUrl?: string | null;
+  signedPoUrl?: string | null;
+  procurementManager?: string | null;
+}
+
+export interface PoRegisterSummary {
+  totalGeneratedPos: number;
+  totalPoValue: number | null;
+  totalPoValueByCurrency: Array<{ currency: string; count: number; totalValue: number }>;
+  signedPos: number;
+  unsignedPos: number;
+  awaitingGrn: number;
+  completedGrn: number;
+  averagePoValue: number;
+  totalTaxAmount: number;
+  monthlyTrend: Array<{ month: string; count: number; value: number }>;
+  topVendors: Array<{ name: string; poCount: number; totalPoValue: number }>;
+}
+
+export interface PaginatedPoRegister {
+  period: { from: string | null; to: string | null };
+  summary: PoRegisterSummary;
+  items: PoRegisterRow[];
+  pagination: {
+    page: number;
+    perPage: number;
+    total: number;
+    totalPages: number;
+    from: number | null;
+    to: number | null;
+  };
+}
+
 export interface ProcurementRecordsQuery {
   from?: string;
   to?: string;
@@ -108,6 +162,38 @@ export const reportsApi = {
 
   getProcurementRecordDetail: async (id: number): Promise<ApiResponse<{ record: ProcurementReportRecord & { items?: unknown[] } }>> => {
     return apiRequest(`/reports/procurement/records/${id}`);
+  },
+
+  getPORegister: async (
+    params: ProcurementRecordsQuery = {},
+  ): Promise<ApiResponse<PaginatedPoRegister>> => {
+    return apiRequest<PaginatedPoRegister>(
+      `/reports/po-register${buildQuery(params as Record<string, string | number | undefined>)}`,
+    );
+  },
+
+  exportPORegister: async (
+    format: 'xlsx' | 'pdf',
+    params: ProcurementRecordsQuery = {},
+  ): Promise<ApiResponse<Blob>> => {
+    const { token, expired } = getAuthToken();
+    if (expired || !token) {
+      return { success: false, error: 'Authentication token has expired. Please log in again.' };
+    }
+
+    const query = buildQuery({ ...params, format } as Record<string, string | number | undefined>);
+    try {
+      const response = await fetch(`${API_BASE_URL}/reports/po-register/export${query}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        return { success: false, error: `Export failed (status ${response.status})` };
+      }
+      return { success: true, data: await response.blob() };
+    } catch (e: unknown) {
+      return { success: false, error: e instanceof Error ? e.message : 'Export failed' };
+    }
   },
 
   exportProcurementRecords: async (

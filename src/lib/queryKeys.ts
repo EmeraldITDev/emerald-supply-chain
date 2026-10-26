@@ -38,6 +38,8 @@ export const queryKeys = {
     procurement: (from: string, to: string) => ['reports', 'procurement', from, to] as const,
     procurementRecords: (params: Record<string, unknown>) =>
       ['reports', 'procurement-records', params] as const,
+    poRegister: (params: Record<string, unknown>) =>
+      ['reports', 'po-register', params] as const,
     procurementRecordDetail: (id: number) =>
       ['reports', 'procurement-record-detail', id] as const,
     financeAp: {
