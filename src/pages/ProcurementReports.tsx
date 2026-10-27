@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Loader2, TrendingDown, TrendingUp } from "lucide-react";
+import { Download, Loader2, RefreshCw, TrendingDown, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
@@ -20,7 +20,9 @@ import { getScmRole } from "@/utils/scmRole";
 import { canViewScmReports } from "@/utils/reportAccess";
 import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { PoRegisterCharts } from "@/components/reports/PoRegisterCharts";
+import { formatRegisterMoney } from "@/components/reports/poRegisterPresentation";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function defaultReportDateRange(): { from: string; to: string } {
   const to = new Date();
@@ -32,18 +34,7 @@ function defaultReportDateRange(): { from: string; to: string } {
   };
 }
 
-const formatMoney = (value: number | null, currency = "NGN") => {
-  const safeCurrency = currency && currency.trim() !== "" ? currency.toUpperCase() : "NGN";
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: safeCurrency,
-      maximumFractionDigits: 2,
-    }).format(value ?? 0);
-  } catch {
-    return `${safeCurrency} ${(value ?? 0).toLocaleString()}`;
-  }
-};
+const formatMoney = (value: number | null, currency = "NGN") => formatRegisterMoney(value ?? 0, currency);
 
 const PoRegisterSection = () => {
   const { toast } = useToast();
@@ -104,6 +95,7 @@ const PoRegisterSection = () => {
   const {
     data,
     isLoading,
+    isFetching,
     isError,
     error,
     refetch,
@@ -121,8 +113,6 @@ const PoRegisterSection = () => {
 
   const summary = data?.summary;
   const pagination = data?.pagination;
-  const monthlyTrend = summary?.monthlyTrend ?? [];
-  const vendorGroups = summary?.topVendorsByCurrency ?? [];
   const currencyBreakdown = summary?.totalPoValueByCurrency ?? [];
 
   const resetFilters = () => {
@@ -191,15 +181,15 @@ const PoRegisterSection = () => {
   };
 
   return (
-    <section id="po-register" className="space-y-6">
+    <section id="po-register" className="min-w-0 space-y-6" aria-busy={isFetching}>
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-sm font-medium text-emerald-600">Purchase Order Register</p>
-          <h2 className="text-2xl font-bold tracking-tight">Generated PO Register</h2>
+          <p className="text-sm font-medium text-primary">Purchase Order Register</p>
+          <h2 className="text-2xl font-bold">Generated PO Register</h2>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => { void refetch(); }} disabled={isLoading}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => { void refetch(); }} disabled={isFetching}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             Refresh
           </Button>
           <Button variant="outline" size="sm" onClick={() => handleExport("xlsx")} disabled={!!exporting}>
@@ -215,11 +205,13 @@ const PoRegisterSection = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Filters</CardTitle>
-          <CardDescription>Combined server-side filtering across all generated purchase orders.</CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle className="text-base">Filters</CardTitle>
+            <Button variant="secondary" size="sm" onClick={resetFilters}>Reset filters</Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>div]:min-w-0">
             <div className="space-y-1">
               <Label htmlFor="po-from">From</Label>
               <Input id="po-from" type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
@@ -306,40 +298,38 @@ const PoRegisterSection = () => {
               <Label htmlFor="mrf-number">MRF number</Label>
               <Input id="mrf-number" value={mrfNumber} onChange={(e) => { setMrfNumber(e.target.value); setPage(1); }} placeholder="MRF-001" />
             </div>
-            <div className="space-y-1 md:col-span-2 xl:col-span-4">
+            <div className="space-y-1 sm:col-span-2 xl:col-span-4">
               <Label htmlFor="po-search">Search</Label>
               <Input id="po-search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="PO number, MRF, title, vendor" />
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" onClick={resetFilters}>Reset</Button>
-          </div>
         </CardContent>
       </Card>
 
       {isError && (
         <Card>
           <CardContent className="py-10 text-center text-sm text-destructive">
-            {error instanceof Error ? error.message : "Unable to load the PO register. Please try again."}
+            <p role="alert">{error instanceof Error ? error.message : "Unable to load the PO register. Please try again."}</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => { void refetch(); }} disabled={isFetching}>Retry</Button>
           </CardContent>
         </Card>
       )}
 
       {!isError && summary && (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>div]:min-w-0 [&_p]:break-words [&_p]:tabular-nums">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Generated POs</CardTitle></CardHeader>
               <CardContent><p className="text-2xl font-bold">{summary.totalGeneratedPos ?? 0}</p></CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Signed POs</CardTitle></CardHeader>
-              <CardContent><p className="text-2xl font-bold text-emerald-600">{summary.signedPos ?? 0}</p></CardContent>
+              <CardContent><p className="text-2xl font-bold text-success">{summary.signedPos ?? 0}</p></CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Unsigned POs</CardTitle></CardHeader>
-              <CardContent><p className="text-2xl font-bold text-amber-600">{summary.unsignedPos ?? 0}</p></CardContent>
+              <CardContent><p className="text-2xl font-bold text-warning">{summary.unsignedPos ?? 0}</p></CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total PO value</CardTitle></CardHeader>
@@ -355,58 +345,7 @@ const PoRegisterSection = () => {
             </Card>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Monthly PO trend</CardTitle>
-              </CardHeader>
-              <CardContent className="h-64">
-                {monthlyTrend.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={monthlyTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip formatter={(value: number) => [value, "POs"]} />
-                      <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-sm text-muted-foreground flex h-full items-center justify-center">No monthly trend data.</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Top vendors by value</CardTitle>
-              </CardHeader>
-              <CardContent className="h-64">
-                {vendorGroups.length > 0 ? (
-                  <div className="h-full space-y-5 overflow-y-auto">
-                    {vendorGroups.map((group) => (
-                      <div key={group.currency}>
-                        <p className="mb-2 text-sm font-semibold">{group.currency}</p>
-                        <div className="h-48">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={group.vendors} layout="vertical" margin={{ top: 4, right: 10, left: 20, bottom: 0 }}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis type="number" />
-                              <YAxis type="category" dataKey="name" width={100} />
-                              <Tooltip formatter={(value: number) => [formatMoney(value, group.currency), "PO value"]} />
-                              <Bar dataKey="totalPoValue" fill="#0f766e" radius={[0, 6, 6, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground flex h-full items-center justify-center">No vendor data available.</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <PoRegisterCharts summary={summary} />
 
           <Card>
             <CardHeader>
@@ -442,11 +381,14 @@ const PoRegisterSection = () => {
 
       {!isError && isLoading && !data ? (
         <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">Loading PO register…</CardContent>
+          <CardContent className="space-y-4 py-6" role="status" aria-label="Loading PO register">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-24" />)}</div>
+            <Skeleton className="h-64" />
+          </CardContent>
         </Card>
       ) : null}
 
-      {data && (
+      {!isError && data && (
         <>
           <PoRegisterTable rows={data.items ?? []} loading={false} onExport={handleExport} exporting={!!exporting} />
           {pagination && pagination.totalPages > 1 ? (
@@ -456,10 +398,10 @@ const PoRegisterSection = () => {
                   Page {pagination.page} of {pagination.totalPages} · {pagination.total} records
                 </p>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>
+                  <Button variant="outline" size="sm" disabled={isFetching || pagination.page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>
                     Previous
                   </Button>
-                  <Button variant="outline" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage((prev) => prev + 1)}>
+                  <Button variant="outline" size="sm" disabled={isFetching || pagination.page >= pagination.totalPages} onClick={() => setPage((prev) => prev + 1)}>
                     Next
                   </Button>
                 </div>
