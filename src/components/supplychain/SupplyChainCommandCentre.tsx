@@ -286,7 +286,7 @@ export const SupplyChainCommandCentre = ({
     if (!focusPo) return;
     const match = queue.find((item) => {
       if (item.kind !== "po") return false;
-      const rec = item.mrf as Record<string, unknown> | undefined;
+      const rec = item.mrf as unknown as Record<string, unknown> | undefined;
       const ids = [
         item.apiId,
         item.reference,
@@ -884,9 +884,9 @@ export const SupplyChainCommandCentre = ({
                 awaiting_approval: "pending_approval",
                 approved: "open",
                 sourcing: "open",
-                po: "po_active",
+                po: "active_po",
                 awaiting_delivery: "awaiting_delivery",
-                delivered: "po_completed",
+                delivered: "completed",
                 created: "open",
                 under_review: "open",
               };
