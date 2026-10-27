@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const appUrl = "http://127.0.0.1:4181";
+const appUrl = "http://localhost:8080";
 const registerRow = {
   id: 401,
   poNumber: "PO-TEST-401",
