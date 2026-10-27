@@ -141,7 +141,7 @@ export function bannerKind(status: Pick<QuickBooksStatus, "dry_run" | "writes_en
 }
 
 export function bannerShowsWritesDisabled(status: Pick<QuickBooksStatus, "dry_run" | "writes_enabled">): boolean {
-  return status.writes_enabled === false && !(status.dry_run === false && status.writes_enabled === true);
+  return status.writes_enabled === false;
 }
 
 export type SyncButtonState =

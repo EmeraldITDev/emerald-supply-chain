@@ -34,8 +34,8 @@ export function PoRegisterTable({ rows, loading, onExport, exporting }: PoRegist
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4">
+    <Card className="min-w-0 rounded-lg">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle>Purchase Order Register</CardTitle>
           <CardDescription>All generated SCM purchase orders matching the selected filters.</CardDescription>
@@ -51,8 +51,8 @@ export function PoRegisterTable({ rows, loading, onExport, exporting }: PoRegist
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <Table>
+      <CardContent className="min-w-0 px-3 pb-5 sm:px-6">
+        <Table className="min-w-[1600px] [&_th]:whitespace-nowrap [&_th]:bg-muted/50 [&_th]:text-xs [&_td]:py-3">
           <TableHeader>
             <TableRow>
               <TableHead>PO Number</TableHead>
@@ -66,8 +66,8 @@ export function PoRegisterTable({ rows, loading, onExport, exporting }: PoRegist
               <TableHead>Procurement Manager</TableHead>
               <TableHead>PO Generated</TableHead>
               <TableHead>Signed Date</TableHead>
-              <TableHead>PO Value</TableHead>
-              <TableHead>Tax</TableHead>
+              <TableHead className="text-right">PO Value</TableHead>
+              <TableHead className="text-right">Tax</TableHead>
               <TableHead>Approval</TableHead>
               <TableHead>Signing</TableHead>
               <TableHead>Payment</TableHead>
@@ -82,16 +82,16 @@ export function PoRegisterTable({ rows, loading, onExport, exporting }: PoRegist
                 <TableCell className="font-mono text-xs">{row.poNumber ?? "Not Available"}</TableCell>
                 <TableCell>{row.poVersion ?? "—"}</TableCell>
                 <TableCell className="font-mono text-xs">{row.mrfNumber ?? "Not Available"}</TableCell>
-                <TableCell className="max-w-[180px] truncate">{row.title}</TableCell>
-                <TableCell>{row.vendorName ?? "Not Available"}</TableCell>
+                <TableCell className="max-w-[180px] truncate" title={row.title}>{row.title}</TableCell>
+                <TableCell className="min-w-[160px] max-w-[220px] truncate" title={row.vendorName ?? undefined}>{row.vendorName ?? "Not Available"}</TableCell>
                 <TableCell>{row.department ?? "Not Available"}</TableCell>
                 <TableCell>{row.contractType ?? "Not Available"}</TableCell>
                 <TableCell>{row.currency ?? "NGN"}</TableCell>
                 <TableCell>{row.procurementManager ?? "Not Assigned"}</TableCell>
                 <TableCell>{row.poGenerationDate ?? "—"}</TableCell>
                 <TableCell>{row.poSigningDate ?? "—"}</TableCell>
-                <TableCell>{formatMoney(row.poValue ?? 0, row.currency ?? "NGN")}</TableCell>
-                <TableCell>{formatMoney(row.taxAmount ?? 0, row.currency ?? "NGN")}</TableCell>
+                <TableCell className="whitespace-nowrap text-right tabular-nums">{formatMoney(row.poValue ?? 0, row.currency ?? "NGN")}</TableCell>
+                <TableCell className="whitespace-nowrap text-right tabular-nums">{formatMoney(row.taxAmount ?? 0, row.currency ?? "NGN")}</TableCell>
                 <TableCell>{row.approvalStatus ?? "Not Recorded"}</TableCell>
                 <TableCell>{row.signingStatus ?? "Not Recorded"}</TableCell>
                 <TableCell>{row.paymentStatus ?? "Not Recorded"}</TableCell>
@@ -100,12 +100,12 @@ export function PoRegisterTable({ rows, loading, onExport, exporting }: PoRegist
                 <TableCell>
                   <div className="flex items-center gap-2">
                     {row.signedPoUrl ? (
-                      <a href={row.signedPoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                      <a href={row.signedPoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
                         <ExternalLink className="h-3.5 w-3.5" /> Signed
                       </a>
                     ) : null}
                     {row.unsignedPoUrl ? (
-                      <a href={row.unsignedPoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                      <a href={row.unsignedPoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
                         <ExternalLink className="h-3.5 w-3.5" /> Unsigned
                       </a>
                     ) : null}
