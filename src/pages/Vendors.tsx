@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/contexts/AppContext";
+import { API_BASE_URL } from "@/config/api";
 import { vendorApi, dashboardApi } from "@/services/api";
 import { usePaginatedListQuery } from "@/hooks/usePaginatedListQuery";
 import { queryKeys } from "@/lib/queryKeys";
@@ -764,9 +765,7 @@ const Vendors = () => {
     
     // Option 2: Use API download endpoint with vendorId and documentId
     if (vendorId && documentId) {
-      // VITE_API_BASE_URL ends in /api; strip it so the path below is not /api/api/...
-      const apiBase = (import.meta.env.VITE_API_BASE_URL || 'https://scm-api.emeraldcfze.com').replace(/\/api\/?$/, '');
-      const downloadEndpoint = `${apiBase}/api/vendors/${vendorId}/documents/${documentId}/download`;
+      const downloadEndpoint = `${API_BASE_URL}/vendors/${vendorId}/documents/${documentId}/download`;
       window.open(downloadEndpoint, '_blank');
       toast({
         title: "Opening Document",

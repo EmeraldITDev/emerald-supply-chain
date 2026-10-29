@@ -1,4 +1,5 @@
 import type { PaginatedResult } from '@/types/pagination';
+import { API_BASE_URL } from '@/config/api';
 import {
   buildListQueryParams,
   extractPaginatedItems,
@@ -60,47 +61,16 @@ async function safeDynamicImport<T>(loader: () => Promise<T>): Promise<T> {
   }
 }
 
-// Configure your API base URL here
-// For Lovable previews and production, always use the deployed backend
-// Only use localhost if explicitly set in VITE_API_BASE_URL for local development
-const getApiBaseUrl = () => {
-  let baseUrl: string;
-  
-  // If explicitly set, use it (for local development or cPanel)
-  if (import.meta.env.VITE_API_BASE_URL) {
-    baseUrl = import.meta.env.VITE_API_BASE_URL.trim();
-    // Ensure it ends with /api
-    if (!baseUrl.endsWith('/api')) {
-      // Remove trailing slash if present, then add /api
-      baseUrl = baseUrl.replace(/\/$/, '') + '/api';
-    }
-    return baseUrl;
-  }
-  
-  // Detect if running in Lovable preview or production
-  const isLovablePreview = typeof window !== 'undefined' && window.location.origin.includes('lovable.app');
-  const isProduction = typeof window !== 'undefined' && !window.location.origin.includes('localhost');
-  
-  // Always use deployed backend for Lovable previews and production
-  if (isLovablePreview || isProduction) {
-    return 'https://scm-api.emeraldcfze.com/api';
-  }
-  
-  // Default fallback to deployed backend (safer than localhost)
-  return 'https://scm-api.emeraldcfze.com/api';
-};
-
-const API_BASE_URL = getApiBaseUrl();
 export { API_BASE_URL };
 
 /**
- * Retry fetch on cold-start network failures (Render free tier can nap ~30-50s).
+ * Retry fetch on transient network failures.
  * TypeError from fetch = network/DNS/CORS reject. HTTP errors bubble through
  * to the caller for normal handling. GET/HEAD only — never retry mutations.
  */
 /**
- * Hard ceiling for a single fetch attempt. Without this, a stalled Render
- * connection (cold start, DB lock, dropped keep-alive) leaves the fetch promise
+ * Hard ceiling for a single fetch attempt. Without this, a stalled connection
+ * (DB lock, dropped keep-alive) leaves the fetch promise
  * pending forever — which is what made "Save PO as draft" spin for hours. When
  * the ceiling is hit we abort so the caller's promise rejects and the UI can
  * recover instead of hanging indefinitely.
@@ -169,7 +139,7 @@ async function fetchWithColdStartRetry(
       if (!isIdempotent || !retryable || attempt === maxAttempts) {
         throw err;
       }
-      // Backoff: 1s, 3s, 6s (~10s total). Covers most Render cold starts.
+      // Backoff: 1s, 3s, 6s (~10s total) for transient network failures.
       const delay = attempt === 1 ? 1000 : attempt === 2 ? 3000 : 6000;
       await new Promise((r) => setTimeout(r, delay));
     }
@@ -393,7 +363,7 @@ export async function apiRequest<T>(
     // Check if response is HTML (API not configured or unreachable)
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('text/html')) {
-      console.error('API returned HTML instead of JSON. Check VITE_API_BASE_URL configuration.');
+      console.error('API returned HTML instead of JSON. Check src/config/api.ts.');
       return {
         success: false,
         error: 'API server unreachable. Please check your connection and ensure the backend is running.',
@@ -466,7 +436,7 @@ export async function apiRequest<T>(
         if (errorMsg.toLowerCase().includes('route') && errorMsg.toLowerCase().includes('not found')) {
           return {
             success: false,
-            error: `API route not found. Please verify:\n1. Backend is deployed and running\n2. VITE_API_BASE_URL is set correctly (should end with /api)\n3. Routes are cached on backend (php artisan route:cache)\n\nCurrent API URL: ${API_BASE_URL}${endpoint}`,
+            error: `API route not found. Please verify:\n1. Backend is deployed and running\n2. The endpoint in src/config/api.ts is correct\n3. Routes are cached on backend (php artisan route:cache)\n\nCurrent API URL: ${API_BASE_URL}${endpoint}`,
             status: response.status,
             raw: data,
           };
@@ -2447,7 +2417,7 @@ async function vendorApiRequest<T>(
     // Check if response is HTML (API not configured or unreachable)
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('text/html')) {
-      console.error('API returned HTML instead of JSON. Check VITE_API_BASE_URL configuration.');
+      console.error('API returned HTML instead of JSON. Check src/config/api.ts.');
       return {
         success: false,
         error: 'API server unreachable. Please check your connection and ensure the backend is running.',

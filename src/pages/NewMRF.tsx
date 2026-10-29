@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth, isEmployeeRole } from "@/contexts/AuthContext";
 import { type MRFRequest } from "@/contexts/AppContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { API_BASE_URL } from "@/config/api";
 import { mrfApi } from "@/services/api";
 import type { LineItem } from "@/types";
 import { getScmRole, formatScmRoleLabel, hasAdminAccess } from "@/utils/scmRole";
@@ -319,7 +320,7 @@ const NewMRF = () => {
             error: response.error,
             fullResponse: response,
             payload: payload,
-            apiUrl: import.meta.env.VITE_API_BASE_URL
+            apiUrl: API_BASE_URL
           });
           
           // Check for specific error types

@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { getEmeraldPoLogoPublicPath, type EmeraldPoDisplayModel } from '@/utils/emeraldPoDocumentModel';
 import { getAuthToken } from '@/services/api';
+import { API_ORIGIN } from '@/config/api';
 import { currencyLocale, normalizeCurrencyCode } from '@/utils/currency';
 
 const M = 14;
@@ -39,11 +40,7 @@ export async function fetchUrlAsDataUrl(url: string): Promise<string | null> {
     // Resolve absolute URL: prefix API base when relative (e.g. "/files/...").
     let target = url;
     if (!/^https?:\/\//i.test(url) && !url.startsWith('data:') && !url.startsWith('blob:')) {
-      const apiBase =
-        (import.meta.env?.VITE_API_BASE_URL as string | undefined) ||
-        'https://scm-api.emeraldcfze.com/api';
-      const origin = apiBase.replace(/\/api\/?$/, '');
-      target = url.startsWith('/') ? `${origin}${url}` : `${origin}/${url}`;
+      target = url.startsWith('/') ? `${API_ORIGIN}${url}` : `${API_ORIGIN}/${url}`;
     }
     // Attach Bearer when calling our backend; S3 ignores unknown headers,
     // so this is safe for both signed S3 URLs and backend-proxied URLs.

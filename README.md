@@ -14,7 +14,7 @@ Requires Node.js 18+ and a running backend.
 
 ```bash
 npm install
-cp .env.example .env    # set VITE_API_BASE_URL
+cp .env.example .env    # configure optional local settings and test credentials
 npm run dev             # http://localhost:8080
 ```
 
@@ -22,7 +22,6 @@ npm run dev             # http://localhost:8080
 
 | Variable | Description |
 |---|---|
-| `VITE_API_BASE_URL` | Backend API URL, **including `/api`** (e.g. `http://localhost:8000/api`) |
 | `VITE_ENV` | `development` or `production` |
 | `VITE_FINANCE_AP_CUTOVER_DATE` | Optional; must match the backend's `FINANCE_AP_CUTOVER_DATE` |
 | `TEST_*_EMAIL` / `TEST_*_PASSWORD` | Test-account credentials for Playwright |
@@ -61,7 +60,7 @@ tests/          Playwright specs
 
 ## Deployment
 
-Hosted on **Vercel**. `vercel.json` rewrites every route to `index.html` so client-side routing works. Set `VITE_API_BASE_URL` in the Vercel project settings.
+Hosted on **Vercel**. `vercel.json` rewrites every route to `index.html` so client-side routing works. The backend endpoint is defined in [`src/config/api.ts`](src/config/api.ts); changing it requires rebuilding and deploying the frontend.
 
 Every push and pull request to `main` runs the Playwright tests in GitHub Actions (`.github/workflows/playwright.yml`).
 

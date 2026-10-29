@@ -96,6 +96,7 @@ import { MrfBulkActionsBar, MrfSelectCheckbox } from "@/components/procurement/M
 import DeliveryConfirmationPanel from "@/components/procurement/DeliveryConfirmationPanel";
 import MrfFinanceSyncSection from "@/components/procurement/MrfFinanceSyncSection";
 import { getPendingVendorRegistrations } from "@/services/pendingVendorRegistrations";
+import { API_ORIGIN } from "@/config/api";
 
 import type { MRFRequest, SRFRequest } from "@/contexts/AppContext";
 import {
@@ -767,10 +768,7 @@ const Procurement = () => {
       if (pfiUrl.startsWith("http")) {
         window.open(pfiUrl, "_blank");
       } else {
-        const baseUrl =
-          import.meta.env.VITE_API_BASE_URL ||
-          "https://scm-api.emeraldcfze.com/api";
-        window.open(`${baseUrl.replace("/api", "")}/${pfiUrl}`, "_blank");
+        window.open(`${API_ORIGIN}/${pfiUrl.replace(/^\//, '')}`, "_blank");
       }
     } else {
       toast({

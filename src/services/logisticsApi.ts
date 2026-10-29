@@ -52,28 +52,6 @@ import type {
 import type { JourneyFeedback, JourneyFeedbackPayload } from '@/types/logistics';
 import type { ApiResponse } from '@/types';
 
-// Use same API URL logic as main api.ts
-const getApiBaseUrl = () => {
-  let baseUrl: string;
-  
-  if (import.meta.env.VITE_API_BASE_URL) {
-    baseUrl = import.meta.env.VITE_API_BASE_URL.trim();
-    if (!baseUrl.endsWith('/api')) {
-      baseUrl = baseUrl.replace(/\/$/, '') + '/api';
-    }
-    return baseUrl;
-  }
-  
-  const isLovablePreview = typeof window !== 'undefined' && window.location.origin.includes('lovable.app');
-  const isProduction = typeof window !== 'undefined' && !window.location.origin.includes('localhost');
-  
-  if (isLovablePreview || isProduction) {
-    return 'https://scm-api.emeraldcfze.com/api';
-  }
-  
-  return 'https://scm-api.emeraldcfze.com/api';
-};
-
 import { API_BASE_URL, apiRequestFull } from './api';
 import type { PaginatedResult } from '@/types/pagination';
 import { buildListQueryParams, extractPaginatedItems } from '@/utils/paginatedListApi';

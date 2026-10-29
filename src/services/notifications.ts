@@ -1,5 +1,6 @@
 // Email notification templates and service
 // Backend needs to implement actual email sending
+import { API_BASE_URL } from '@/config/api';
 
 export interface EmailNotification {
   to: string | string[];
@@ -272,13 +273,6 @@ SCM System
 export const notificationApi = {
   sendEmail: async (notification: EmailNotification): Promise<{ success: boolean; error?: string }> => {
     // This would call your backend email service
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-    
-    if (!API_BASE_URL) {
-      console.warn('Email notifications not configured - no API URL');
-      return { success: false, error: 'Email service not configured' };
-    }
-
     try {
       const response = await fetch(`${API_BASE_URL}/notifications/email`, {
         method: 'POST',

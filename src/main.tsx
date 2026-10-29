@@ -6,7 +6,7 @@ import "./index.css";
 import { warmupBackend } from "./services/api";
 import { registerServiceWorker } from "./pwa/registerServiceWorker";
 
-// Ping backend early so Render free tier is awake by the time the user logs in.
+// Ping the configured backend early so it is ready by the time the user logs in.
 warmupBackend();
 
 registerServiceWorker();

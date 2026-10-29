@@ -58,6 +58,7 @@ import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
 import VendorRegistrationsList from "@/components/VendorRegistrationsList";
+import { API_ORIGIN } from "@/config/api";
 import {
   mrfApi,
   poApi,
@@ -371,10 +372,7 @@ const SupplyChainDashboard = () => {
       if (pfiUrl.startsWith("http")) {
         window.open(pfiUrl, "_blank");
       } else {
-        const baseUrl =
-          import.meta.env.VITE_API_BASE_URL ||
-          "https://scm-api.emeraldcfze.com/api";
-        window.open(`${baseUrl.replace("/api", "")}/${pfiUrl}`, "_blank");
+        window.open(`${API_ORIGIN}/${pfiUrl.replace(/^\//, '')}`, "_blank");
       }
     }
   };

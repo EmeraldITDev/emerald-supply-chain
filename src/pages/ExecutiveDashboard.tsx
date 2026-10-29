@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { useScmAppRefreshListener } from "@/hooks/useScmAppRefreshListener";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { DashboardAlerts } from "@/components/DashboardAlerts";
+import { API_ORIGIN } from "@/config/api";
 import { mrfApi, dashboardApi } from "@/services/api";
 import { fetchDashboardMrfs } from "@/utils/fetchDashboardMrfs";
 import { queryKeys } from "@/lib/queryKeys";
@@ -181,10 +182,7 @@ const LegacyExecutiveDashboard = () => {
       if (pfiUrl.startsWith("http")) {
         window.open(pfiUrl, "_blank");
       } else {
-        const baseUrl =
-          import.meta.env.VITE_API_BASE_URL ||
-          "https://scm-api.emeraldcfze.com/api";
-        window.open(`${baseUrl.replace("/api", "")}/${pfiUrl}`, "_blank");
+        window.open(`${API_ORIGIN}/${pfiUrl.replace(/^\//, '')}`, "_blank");
       }
     }
   };

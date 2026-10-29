@@ -1,9 +1,7 @@
 import { test, expect, Page, Locator, APIRequestContext } from '@playwright/test';
+import { API_BASE_URL } from '../src/config/api';
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'https://emerald-supply-chain.vercel.app';
-const API_BASE_URL =
-  process.env.PLAYWRIGHT_API_BASE_URL ??
-  'https://supply-chain-backend-hwh6.onrender.com/api';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
