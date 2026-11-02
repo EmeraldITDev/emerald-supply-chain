@@ -1464,8 +1464,9 @@ const Procurement = () => {
     const q = poAwardedQuotation(mrf);
     return (
       q?.vendorName ||
-      (mrf as any).selectedVendorName ||
+      (mrf as any).vendorName ||
       (mrf as any).vendor_name ||
+      (mrf as any).selected_vendor?.name ||
       ""
     );
   };
@@ -4064,8 +4065,9 @@ const Procurement = () => {
                         );
                         const vendorName =
                           quotation?.vendorName ||
-                          (mrf as any).selectedVendorName ||
+                          (mrf as any).vendorName ||
                           (mrf as any).vendor_name ||
+                          (mrf as any).selected_vendor?.name ||
                           "N/A";
                         const amount = quotation
                           ? quotation.total_amount ||
