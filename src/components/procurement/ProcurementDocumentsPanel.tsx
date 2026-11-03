@@ -327,7 +327,9 @@ export default function ProcurementDocumentsPanel({
           remarks: p.remarks || undefined,
         })),
       });
-      if (res.success && res.data) {
+      // When every file is refused the backend answers 422 but still lists why per file
+      // (e.g. the vendor invoice gate), so show those reasons rather than a generic error.
+      if (res.data && (res.success || res.data.failed.length > 0)) {
         const uploaded = res.data.uploaded.length;
         const failed = res.data.failed;
         if (uploaded > 0) {
