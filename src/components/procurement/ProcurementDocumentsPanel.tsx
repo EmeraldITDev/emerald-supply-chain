@@ -79,6 +79,8 @@ const UPLOADABLE_TYPES: { value: ProcurementDocumentType; label: string }[] = [
   { value: "waybill", label: "Waybill" },
   { value: "jcc", label: "JCC" },
   { value: "pfi", label: "PFI" },
+  // Stored as the vendor invoice; the backend only accepts it once the vendor invoice gate is open.
+  { value: "vendor_invoice", label: "Invoice" },
   { value: "delivery_confirmation", label: "Delivery Confirmation" },
   { value: "grn", label: "GRN (file)" },
   { value: "other", label: "Other" },
