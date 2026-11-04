@@ -79,13 +79,15 @@ const UPLOADABLE_TYPES: { value: ProcurementDocumentType; label: string }[] = [
   { value: "waybill", label: "Waybill" },
   { value: "jcc", label: "JCC" },
   { value: "pfi", label: "PFI" },
+  { value: "supporting_vendor_invoice", label: "Supporting Vendor Invoice" },
   { value: "delivery_confirmation", label: "Delivery Confirmation" },
   { value: "grn", label: "GRN (file)" },
   { value: "other", label: "Other" },
 ];
 
 const TYPE_LABELS: Record<ProcurementDocumentType, string> = {
-  vendor_invoice: "Vendor Invoice",
+  vendor_invoice: "Formal Vendor Invoice (submitted)",
+  supporting_vendor_invoice: "Supporting Vendor Invoice (not submitted)",
   grn: "Goods Received Note",
   waybill: "Waybill",
   jcc: "JCC",
@@ -439,6 +441,12 @@ export default function ProcurementDocumentsPanel({
                       <p className="truncate text-xs text-muted-foreground">
                         {doc.fileName}
                       </p>
+                      <p className="text-xs text-muted-foreground">
+                        Uploaded {formatDate(doc.uploadedAt)}
+                      </p>
+                      {doc.remarks && (
+                        <p className="text-xs text-muted-foreground">{doc.remarks}</p>
+                      )}
                     </div>
                     <Button
                       size="sm"
@@ -516,6 +524,9 @@ export default function ProcurementDocumentsPanel({
                                 Uploaded by {doc.uploadedBy?.name ?? "—"} ·{" "}
                                 {formatDate(doc.uploadedAt)}
                               </p>
+                              {doc.remarks && (
+                                <p className="text-muted-foreground">{doc.remarks}</p>
+                              )}
                             </div>
                             {showPreviews && (
                               <Button
@@ -612,6 +623,11 @@ export default function ProcurementDocumentsPanel({
                 {filterTypes?.has("waybill") && availableTypes.length === 1
                   ? "Uploading a new file replaces the active waybill (previous versions stay in history)."
                   : "Your role can upload JCC and Waybill documents only."}
+              </p>
+            )}
+            {pending.some((p) => p.type === "supporting_vendor_invoice") && (
+              <p className="text-xs text-muted-foreground">
+                Supporting Vendor Invoice files are reference documents only; they do not submit or verify an invoice or satisfy Finance AP workflow gates.
               </p>
             )}
             {pending.length === 0 ? (
