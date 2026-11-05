@@ -79,8 +79,6 @@ const UPLOADABLE_TYPES: { value: ProcurementDocumentType; label: string }[] = [
   { value: "waybill", label: "Waybill" },
   { value: "jcc", label: "JCC" },
   { value: "pfi", label: "PFI" },
-  // The backend only accepts this once the vendor invoice gate is open.
-  { value: "vendor_invoice", label: "Formal Vendor Invoice" },
   { value: "supporting_vendor_invoice", label: "Supporting Vendor Invoice" },
   { value: "delivery_confirmation", label: "Delivery Confirmation" },
   { value: "grn", label: "GRN (file)" },
@@ -329,8 +327,8 @@ export default function ProcurementDocumentsPanel({
           remarks: p.remarks || undefined,
         })),
       });
-      // When every file is refused the backend answers 422 but still lists why per file
-      // (e.g. the vendor invoice gate), so show those reasons rather than a generic error.
+      // When every file is refused the backend answers 422 but still lists why per file,
+      // so show those reasons rather than a generic error.
       if (res.data && (res.success || res.data.failed.length > 0)) {
         const uploaded = res.data.uploaded.length;
         const failed = res.data.failed;
@@ -627,11 +625,6 @@ export default function ProcurementDocumentsPanel({
                 {filterTypes?.has("waybill") && availableTypes.length === 1
                   ? "Uploading a new file replaces the active waybill (previous versions stay in history)."
                   : "Your role can upload JCC and Waybill documents only."}
-              </p>
-            )}
-            {pending.some((p) => p.type === "vendor_invoice") && (
-              <p className="text-xs text-muted-foreground">
-                A Formal Vendor Invoice counts as the vendor's submission. It is accepted only once the Vendor Invoice gate is open, and only one can be active at a time.
               </p>
             )}
             {pending.some((p) => p.type === "supporting_vendor_invoice") && (
