@@ -8,6 +8,7 @@
 
 export type ProcurementDocumentType =
   | 'vendor_invoice'
+  | 'supporting_vendor_invoice'
   | 'grn'
   | 'waybill'
   | 'jcc'
@@ -34,6 +35,8 @@ export interface ProcurementDocument {
   uploadedAt: string;
   version: number;
   isActive: boolean;
+  remarks?: string | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface ProcurementDocumentsResponse {
