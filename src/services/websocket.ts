@@ -1,3 +1,4 @@
+import { WS_URL } from '@/config/api';
 // WebSocket service for real-time updates
 // This is a frontend client - your backend needs to implement the WebSocket server
 
@@ -32,7 +33,7 @@ class WebSocketService {
   private url: string;
 
   constructor() {
-    this.url = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws';
+    this.url = WS_URL;
   }
 
   connect() {

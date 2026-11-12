@@ -18,6 +18,10 @@ cp .env.example .env    # configure optional local settings and test credentials
 npm run dev             # http://localhost:8080
 ```
 
+### Backend API URL
+
+The backend URL is set in one place: [`src/config/api.ts`](src/config/api.ts). Edit `API_BASE_URL` there to point the app (and the Playwright API tests) at a different backend. It is not read from `.env`.
+
 ### Environment
 
 | Variable | Description |
