@@ -22,6 +22,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   quickbooksApi,
+  type QuickBooksBulkSupplierRow,
+  type QuickBooksBulkSupplierResult,
   type QuickBooksPoPull,
   type QuickBooksSupplierMappings,
   type QuickBooksSupplierReconciliation,
@@ -226,11 +228,6 @@ export function QuickBooksIntegrations() {
   const decideMapping = useMutation({
     mutationFn: ({ mappingId, status }: { mappingId: number; status: "rejected" | "deferred" }) =>
       quickbooksApi.decideSupplierMapping(mappingId, status),
-    ...reconcileMutationOptions,
-  });
-
-  const importSupplier = useMutation({
-    mutationFn: (row: QuickBooksSupplierRow) => quickbooksApi.importSupplier(row.id!, row.currency!),
     ...reconcileMutationOptions,
   });
 
@@ -443,44 +440,7 @@ export function QuickBooksIntegrations() {
                   onApproveCreation={(requestId) => approveCreation.mutate(requestId)}
                   pending={approveMapping.isPending || decideMapping.isPending || prepareCreation.isPending || approveCreation.isPending}
                 />
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium">Unmatched QuickBooks suppliers</h3>
-                  <p className="text-sm text-muted-foreground">Import creates a pending SCM supplier and mapping for later review; it does not create a QuickBooks vendor.</p>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>QuickBooks supplier</TableHead>
-                        <TableHead>Currency</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {reconciliation.unmatched.length === 0 ? (
-                        <TableRow><TableCell colSpan={5}>No unmatched suppliers.</TableCell></TableRow>
-                      ) : reconciliation.unmatched.map((row) => (
-                        <TableRow key={`${row.id}-${row.currency}`}>
-                          <TableCell>{dash(row.display_name || row.company_name)}</TableCell>
-                          <TableCell><Badge variant="outline">{dash(row.currency)}</Badge></TableCell>
-                          <TableCell>{dash(row.email)}</TableCell>
-                          <TableCell><Badge variant="secondary">Unmatched</Badge></TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => importSupplier.mutate(row)}
-                              disabled={importSupplier.isPending || !row.id || !row.currency}
-                            >
-                              {importSupplier.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-                              Import as pending
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                <BulkUnmatchedSupplierReview onChanged={refreshReconciliation} />
               </>
             )}
           </CardContent>
@@ -653,6 +613,182 @@ function SupplierReconciliationTable({
           })}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+function BulkUnmatchedSupplierReview({ onChanged }: { onChanged: () => Promise<void> }) {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [selected, setSelected] = useState<Record<string, QuickBooksBulkSupplierRow>>({});
+  const [reason, setReason] = useState("Not a current SCM supplier");
+  const [justification, setJustification] = useState("");
+  const [results, setResults] = useState<QuickBooksBulkSupplierResult[]>([]);
+  const [busy, setBusy] = useState(false);
+  const previewQuery = useQuery({
+    queryKey: ["quickbooks", "supplier-bulk-preview", page, search, filter],
+    queryFn: () => quickbooksApi.supplierBulkPreview({ page, per_page: 25, search, filter }),
+    enabled: true,
+    retry: false,
+  });
+  const preview = previewQuery.data?.success ? previewQuery.data.data : undefined;
+  const rows = preview?.items ?? [];
+  const selectedRows = Object.values(selected);
+  const selectedEligible = selectedRows.filter((row) => row.eligible_import || row.classification === "likely_individual");
+  const selectedBlocked = selectedRows.filter((row) => !row.eligible_import && row.classification !== "likely_individual");
+  const keyFor = (row: QuickBooksBulkSupplierRow) => `${row.id}-${row.currency}`;
+
+  const loadPreview = async (nextPage = page) => {
+    if (nextPage !== page) setPage(nextPage);
+    const response = await previewQuery.refetch();
+    if (!response.data?.success) {
+      toast.error(response.data?.error ?? "Could not load bulk supplier preview.");
+      return;
+    }
+    setResults([]);
+  };
+
+  const toggle = (row: QuickBooksBulkSupplierRow, checked: boolean) => {
+    const key = keyFor(row);
+    setSelected((current) => {
+      const next = { ...current };
+      if (checked) next[key] = row;
+      else delete next[key];
+      return next;
+    });
+  };
+
+  const selectCurrentEligible = () => {
+    setSelected((current) => {
+      const next = { ...current };
+      rows.filter((row) => row.eligible_import).forEach((row) => { next[keyFor(row)] = row; });
+      return next;
+    });
+  };
+
+  const selectAllEligible = async () => {
+    setBusy(true);
+    const response = await quickbooksApi.supplierBulkPreview({ per_page: 5000, filter: "business_import_candidate" });
+    setBusy(false);
+    if (!response.success || !response.data) {
+      toast.error(response.error ?? "Could not load eligible suppliers.");
+      return;
+    }
+    setSelected(Object.fromEntries(response.data.items.map((row) => [keyFor(row), row])));
+    toast.success(`${response.data.items.length} eligible suppliers selected.`);
+  };
+
+  const processInChunks = async (
+    records: Array<Record<string, string | boolean>>,
+    action: (chunk: Array<Record<string, string | boolean>>) => Promise<{ success: boolean; data?: { results: QuickBooksBulkSupplierResult[] }; error?: string }>,
+  ) => {
+    setBusy(true);
+    const collected: QuickBooksBulkSupplierResult[] = [];
+    try {
+      for (let index = 0; index < records.length; index += 50) {
+        const response = await action(records.slice(index, index + 50));
+        if (response.data?.results) collected.push(...response.data.results);
+        setResults([...collected]);
+        if (!response.success) toast.error(response.error ?? "A bulk request failed.");
+      }
+      toast.success("Bulk supplier processing completed.");
+      setSelected({});
+      await loadPreview();
+      await onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const bulkImport = async () => {
+    if (selectedRows.length === 0 || !window.confirm(`Review ${selectedRows.length} selected records. ${selectedBlocked.length} are blocked and will be skipped. Continue?`)) return;
+    await processInChunks(selectedRows.map((row) => ({
+      quickbooks_vendor_id: row.id!,
+      currency: row.currency!,
+      manual_override: row.classification === "likely_individual",
+      justification,
+    })), (chunk) => quickbooksApi.bulkImportSuppliers(chunk as Array<{ quickbooks_vendor_id: string; currency: string; manual_override?: boolean; justification?: string }>));
+  };
+
+  const bulkExclude = async () => {
+    if (selectedRows.length === 0 || !window.confirm(`Exclude ${selectedRows.length} selected records?`)) return;
+    await processInChunks(selectedRows.map((row) => ({ quickbooks_vendor_id: row.id!, currency: row.currency!, reason })), (chunk) =>
+      quickbooksApi.bulkExcludeSuppliers(chunk as Array<{ quickbooks_vendor_id: string; currency: string; reason: string }>));
+  };
+
+  const restoreExcluded = async () => {
+    const ids = selectedRows.flatMap((row) => row.exclusion_id ? [row.exclusion_id] : []);
+    if (ids.length === 0 || !window.confirm(`Restore ${ids.length} excluded records?`)) return;
+    await processInChunks(ids.map((exclusion_id) => ({ exclusion_id: String(exclusion_id) })), (chunk) =>
+      quickbooksApi.bulkRestoreSupplierExclusions(chunk.map((item) => Number(item.exclusion_id))));
+  };
+
+  return (
+    <div className="space-y-3 rounded-lg border p-4">
+      <div>
+        <h3 className="text-sm font-medium">Unmatched QuickBooks suppliers</h3>
+        <p className="text-sm text-muted-foreground">Classification is read-only. Imports create pending SCM suppliers only; exclusions never modify QuickBooks.</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" onClick={() => void loadPreview()} disabled={previewQuery.isFetching || busy}>
+          {previewQuery.isFetching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Load bulk review
+        </Button>
+        <input className="h-9 rounded-md border bg-background px-3 text-sm" placeholder="Search name, QB ID or currency" value={search} onChange={(event) => setSearch(event.target.value)} />
+        <select className="h-9 rounded-md border bg-background px-3 text-sm" value={filter} onChange={(event) => setFilter(event.target.value)}>
+          <option value="all">All classifications</option>
+          <option value="business_import_candidate">Business candidates</option>
+          <option value="likely_individual">Individual names</option>
+          <option value="possible_duplicate">Possible duplicates</option>
+          <option value="quickbooks_identity_overlap">QB identity overlap</option>
+          <option value="insufficient_evidence">Needs review</option>
+          <option value="previously_excluded">Excluded</option>
+          <option value="already_linked">Imported / linked</option>
+        </select>
+        <Button variant="ghost" onClick={() => setSelected({})} disabled={busy}>Clear selection</Button>
+      </div>
+      {preview && (
+        <>
+          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <span>{preview.total} records · page {preview.page} of {preview.last_page}</span>
+            <Button size="sm" variant="ghost" onClick={selectCurrentEligible} disabled={busy}>Select eligible on page</Button>
+            <Button size="sm" variant="ghost" onClick={() => void selectAllEligible()} disabled={busy}>Select all eligible</Button>
+            <span>{selectedRows.length} selected · {selectedEligible.length} import candidates · {selectedBlocked.length} blocked</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input className="h-9 rounded-md border bg-background px-3 text-sm" placeholder="Manual override justification" value={justification} onChange={(event) => setJustification(event.target.value)} />
+            <select className="h-9 rounded-md border bg-background px-3 text-sm" value={reason} onChange={(event) => setReason(event.target.value)}>
+              <option>Not a current SCM supplier</option>
+              <option>Duplicate of an external record</option>
+              <option>Insufficient evidence</option>
+              <option>Requires compliance review</option>
+            </select>
+            <Button onClick={() => void bulkImport()} disabled={busy || selectedRows.length === 0}>Bulk import as pending</Button>
+            <Button variant="outline" onClick={() => void bulkExclude()} disabled={busy || selectedRows.length === 0}>Bulk exclude</Button>
+            <Button variant="outline" onClick={() => void restoreExcluded()} disabled={busy || !selectedRows.some((row) => row.exclusion_id)}>Restore excluded</Button>
+          </div>
+          <Table>
+            <TableHeader><TableRow><TableHead><input type="checkbox" aria-label="Select all current page" onChange={(event) => rows.forEach((row) => toggle(row, event.target.checked))} /></TableHead><TableHead>Supplier</TableHead><TableHead>Currency</TableHead><TableHead>Classification</TableHead><TableHead>Explanation</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {rows.length === 0 ? <TableRow><TableCell colSpan={5}>No records match this filter.</TableCell></TableRow> : rows.map((row) => (
+                <TableRow key={keyFor(row)}>
+                  <TableCell><input type="checkbox" aria-label={`Select ${row.display_name || row.company_name || row.id}`} checked={Boolean(selected[keyFor(row)])} onChange={(event) => toggle(row, event.target.checked)} /></TableCell>
+                  <TableCell><div>{dash(row.display_name || row.company_name)}</div><div className="text-xs text-muted-foreground">{row.id} · {dash(row.email)}</div></TableCell>
+                  <TableCell><Badge variant="outline">{dash(row.currency)}</Badge></TableCell>
+                  <TableCell><Badge variant={row.eligible_import ? "default" : row.classification === "previously_excluded" ? "secondary" : "destructive"}>{row.classification_label}</Badge></TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{row.classification_explanation}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" disabled={page <= 1 || busy} onClick={() => setPage(page - 1)}>Previous</Button>
+            <Button size="sm" variant="outline" disabled={page >= preview.last_page || busy} onClick={() => setPage(page + 1)}>Next</Button>
+          </div>
+          {results.length > 0 && <div className="rounded-md bg-muted p-3 text-xs">Last batch: {results.map((result) => `${result.quickbooks_vendor_id} ${result.result}${result.reason ? ` (${result.reason})` : ""}`).join(" · ")}</div>}
+        </>
+      )}
     </div>
   );
 }

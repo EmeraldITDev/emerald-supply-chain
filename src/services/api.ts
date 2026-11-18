@@ -5161,6 +5161,41 @@ export interface QuickBooksSupplierReconciliation {
   unmatched: QuickBooksSupplierRow[];
 }
 
+export interface QuickBooksBulkSupplierRow extends QuickBooksSupplierRow {
+  classification: string;
+  classification_label: string;
+  classification_explanation: string;
+  eligible_import: boolean;
+  exclusion_id?: number | null;
+  exclusion_status?: string | null;
+  exclusion_reason?: string | null;
+}
+
+export interface QuickBooksBulkSupplierPreview {
+  realm_id: string;
+  page: number;
+  per_page: number;
+  total: number;
+  last_page: number;
+  items: QuickBooksBulkSupplierRow[];
+  classifications: string[];
+}
+
+export interface QuickBooksBulkSupplierResult {
+  quickbooks_vendor_id?: string;
+  currency?: string;
+  exclusion_id?: number;
+  vendor_id?: number;
+  mapping_id?: number;
+  result: "imported" | "already_linked" | "excluded" | "restored" | "conflict" | "skipped" | "failed";
+  reason?: string;
+}
+
+export interface QuickBooksBulkSupplierResponse {
+  results: QuickBooksBulkSupplierResult[];
+  processed: number;
+}
+
 export interface QuickBooksSupplierMapping {
   id: number;
   vendor_id: number;
@@ -5259,6 +5294,23 @@ export const quickbooksApi = {
 
   supplierReconciliation: (): Promise<ApiResponse<QuickBooksSupplierReconciliation>> =>
     apiRequest('/quickbooks/suppliers/reconciliation'),
+
+  supplierBulkPreview: (params: { page?: number; per_page?: number; search?: string; filter?: string } = {}): Promise<ApiResponse<QuickBooksBulkSupplierPreview>> => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") query.set(key, String(value));
+    });
+    return apiRequest(`/quickbooks/suppliers/reconciliation/bulk-preview?${query.toString()}`);
+  },
+
+  bulkImportSuppliers: (records: Array<{ quickbooks_vendor_id: string; currency: string; manual_override?: boolean; justification?: string }>): Promise<ApiResponse<QuickBooksBulkSupplierResponse>> =>
+    apiRequest('/quickbooks/suppliers/bulk-import', { method: 'POST', body: JSON.stringify({ records }) }),
+
+  bulkExcludeSuppliers: (records: Array<{ quickbooks_vendor_id: string; currency: string; reason: string }>): Promise<ApiResponse<QuickBooksBulkSupplierResponse>> =>
+    apiRequest('/quickbooks/suppliers/bulk-exclude', { method: 'POST', body: JSON.stringify({ records }) }),
+
+  bulkRestoreSupplierExclusions: (exclusion_ids: number[]): Promise<ApiResponse<QuickBooksBulkSupplierResponse>> =>
+    apiRequest('/quickbooks/suppliers/bulk-restore-exclusions', { method: 'POST', body: JSON.stringify({ exclusion_ids }) }),
 
   approveSupplierMapping: (input: {
     vendor_id: number;
