@@ -5133,6 +5133,63 @@ export interface QuickBooksVendorPull {
   }>;
 }
 
+export interface QuickBooksSupplierRow {
+  id?: string;
+  display_name?: string | null;
+  company_name?: string | null;
+  email?: string | null;
+  currency?: string | null;
+  scm_vendor_id?: number | null;
+  scm_vendor_name?: string | null;
+  quickbooks_vendor_id?: string;
+  quickbooks_name?: string | null;
+  quickbooks_email?: string | null;
+  match_method?: string | null;
+  match_status?: "matched" | "review_required" | null;
+  candidate_scm_vendor_ids?: number[];
+  conflict?: boolean;
+  realm_id?: string;
+  mapping_status?: "approved" | "pending" | "rejected" | "deferred" | null;
+  mapping_id?: number | null;
+}
+
+export interface QuickBooksSupplierReconciliation {
+  realm_id: string;
+  supported_currencies: string[];
+  matched: QuickBooksSupplierRow[];
+  unmatched: QuickBooksSupplierRow[];
+}
+
+export interface QuickBooksSupplierMapping {
+  id: number;
+  vendor_id: number;
+  realm_id: string;
+  currency: string;
+  quickbooks_vendor_id: string;
+  status: "approved" | "pending" | "rejected" | "deferred";
+  match_method?: string | null;
+  approved_by?: number | null;
+  approved_at?: string | null;
+}
+
+export interface QuickBooksSupplierCreationRequest {
+  id: number;
+  vendor_id: number;
+  realm_id: string;
+  currency: string;
+  status: "pending" | "approved" | "rejected";
+  requested_by?: number | null;
+  approved_by?: number | null;
+  approved_at?: string | null;
+  decision_notes?: string | null;
+}
+
+export interface QuickBooksSupplierMappings {
+  realm_id: string;
+  mappings: QuickBooksSupplierMapping[];
+  creation_requests: QuickBooksSupplierCreationRequest[];
+}
+
 export interface QuickBooksPoPull {
   updated: Array<{
     mrf_id: number;
@@ -5198,6 +5255,41 @@ export const quickbooksApi = {
 
   pullVendors: (): Promise<ApiResponse<QuickBooksVendorPull>> =>
     apiRequest('/quickbooks/pull/vendors', { method: 'POST' }),
+
+  supplierReconciliation: (): Promise<ApiResponse<QuickBooksSupplierReconciliation>> =>
+    apiRequest('/quickbooks/suppliers/reconciliation'),
+
+  approveSupplierMapping: (input: {
+    vendor_id: number;
+    quickbooks_vendor_id: string;
+    currency: string;
+    match_method: string;
+  }): Promise<ApiResponse<QuickBooksSupplierMapping>> =>
+    apiRequest('/quickbooks/suppliers/mappings', { method: 'POST', body: JSON.stringify(input) }),
+
+  decideSupplierMapping: (mappingId: number, status: 'rejected' | 'deferred'): Promise<ApiResponse<QuickBooksSupplierMapping>> =>
+    apiRequest(`/quickbooks/suppliers/mappings/${mappingId}/decision`, { method: 'POST', body: JSON.stringify({ status }) }),
+
+  importSupplier: (quickbooksVendorId: string, currency: string): Promise<ApiResponse<{ vendor: Record<string, unknown>; mapping: QuickBooksSupplierMapping }>> =>
+    apiRequest('/quickbooks/suppliers/import', {
+      method: 'POST',
+      body: JSON.stringify({ quickbooks_vendor_id: quickbooksVendorId, currency }),
+    }),
+
+  prepareSupplierCreation: (vendorId: number, currency: string): Promise<ApiResponse<QuickBooksSupplierCreationRequest>> =>
+    apiRequest(`/quickbooks/suppliers/${vendorId}/vendor-creation-requests`, {
+      method: 'POST',
+      body: JSON.stringify({ currency }),
+    }),
+
+  approveSupplierCreation: (requestId: number, decisionNotes?: string): Promise<ApiResponse<QuickBooksSupplierCreationRequest>> =>
+    apiRequest(`/quickbooks/suppliers/vendor-creation-requests/${requestId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ decision_notes: decisionNotes }),
+    }),
+
+  supplierMappings: (vendorId: number): Promise<ApiResponse<QuickBooksSupplierMappings>> =>
+    apiRequest(`/quickbooks/suppliers/${vendorId}/mappings`),
 
   pullPurchaseOrders: (): Promise<ApiResponse<QuickBooksPoPull>> =>
     apiRequest('/quickbooks/pull/purchase-orders', { method: 'POST' }),
