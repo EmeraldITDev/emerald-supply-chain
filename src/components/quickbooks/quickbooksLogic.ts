@@ -15,6 +15,15 @@ export const QUICKBOOKS_SYNC_ROLES = [
   "supply_chain",
 ] as const;
 
+/** Supplier reconciliation — matches backend QuickBooksRoles::SUPPLIER_ROLES. */
+export const QUICKBOOKS_SUPPLIER_ROLES = [
+  "admin",
+  "finance",
+  "finance_officer",
+  "procurement_manager",
+  "supply_chain_director",
+] as const;
+
 export type QuickBooksCallbackError =
   | "invalid_state"
   | "access_denied"
@@ -65,6 +74,10 @@ export function canDisconnect(role?: string | null): boolean {
 
 export function canUseSetupHelper(role?: string | null): boolean {
   return canManageQuickBooksConnection(role);
+}
+
+export function canManageSupplierReconciliation(role?: string | null): boolean {
+  return QUICKBOOKS_SUPPLIER_ROLES.includes((role ?? "") as (typeof QUICKBOOKS_SUPPLIER_ROLES)[number]);
 }
 
 /** @deprecated Prefer canConnect / canDisconnect / canUseSetupHelper */
