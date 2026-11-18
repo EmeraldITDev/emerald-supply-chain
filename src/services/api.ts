@@ -5143,6 +5143,7 @@ export interface QuickBooksSupplierRow {
   scm_vendor_name?: string | null;
   quickbooks_vendor_id?: string;
   quickbooks_name?: string | null;
+  quickbooks_company_name?: string | null;
   quickbooks_email?: string | null;
   match_method?: string | null;
   match_status?: "matched" | "review_required" | null;

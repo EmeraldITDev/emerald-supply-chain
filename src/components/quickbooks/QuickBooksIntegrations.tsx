@@ -56,6 +56,26 @@ function connectionLabel(status: QuickBooksStatus): string {
   return "Not connected";
 }
 
+function supplierConflictMessage(response: {
+  error?: string;
+  raw?: unknown;
+}): string | null {
+  if (!response.raw || typeof response.raw !== "object") return null;
+  const raw = response.raw as {
+    conflict_type?: string;
+    conflict?: { recommended_resolution?: string; [key: string]: unknown };
+  };
+  if (!raw.conflict_type || !raw.conflict) return null;
+
+  const details = Object.entries(raw.conflict)
+    .filter(([key, value]) => key !== "recommended_resolution" && value !== null && value !== undefined && value !== "")
+    .map(([key, value]) => `${key}=${Array.isArray(value) ? value.join(",") : String(value)}`)
+    .join("; ");
+  const guidance = raw.conflict.recommended_resolution ? ` ${raw.conflict.recommended_resolution}` : "";
+
+  return `${response.error ?? "Supplier mapping conflict."} [${raw.conflict_type}]${details ? ` ${details}.` : ""}${guidance}`;
+}
+
 export function QuickBooksIntegrations() {
   const { user } = useAuth();
   const role = getScmRole(user);
@@ -183,7 +203,7 @@ export function QuickBooksIntegrations() {
   const reconcileMutationOptions = {
     onSuccess: async (response: { success: boolean; data?: unknown; error?: string; code?: string; status?: number }) => {
       if (!response.success) {
-        toast.error(response.error ?? quickBooksErrorMessage(response.code, response.status));
+        toast.error(supplierConflictMessage(response) ?? response.error ?? quickBooksErrorMessage(response.code, response.status));
         return;
       }
       toast.success("Supplier reconciliation action completed.");
@@ -565,6 +585,9 @@ function SupplierReconciliationTable({
                 <TableCell>{dash(row.scm_vendor_name ?? (row.candidate_scm_vendor_ids?.length ? `Candidates: ${row.candidate_scm_vendor_ids.join(", ")}` : null))}</TableCell>
                 <TableCell>
                   <div>{dash(row.quickbooks_name)}</div>
+                  {row.quickbooks_company_name && row.quickbooks_company_name !== row.quickbooks_name && (
+                    <div className="text-xs text-muted-foreground">Company: {row.quickbooks_company_name}</div>
+                  )}
                   <div className="text-xs text-muted-foreground">ID: {dash(row.quickbooks_vendor_id)}</div>
                 </TableCell>
                 <TableCell><Badge variant="outline">{dash(row.currency)}</Badge></TableCell>
