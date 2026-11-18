@@ -623,7 +623,6 @@ function BulkUnmatchedSupplierReview({ onChanged }: { onChanged: () => Promise<v
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState<Record<string, QuickBooksBulkSupplierRow>>({});
   const [reason, setReason] = useState("Not a current SCM supplier");
-  const [justification, setJustification] = useState("");
   const [results, setResults] = useState<QuickBooksBulkSupplierResult[]>([]);
   const [busy, setBusy] = useState(false);
   const previewQuery = useQuery({
@@ -635,9 +634,10 @@ function BulkUnmatchedSupplierReview({ onChanged }: { onChanged: () => Promise<v
   const preview = previewQuery.data?.success ? previewQuery.data.data : undefined;
   const rows = preview?.items ?? [];
   const selectedRows = Object.values(selected);
-  const selectedEligible = selectedRows.filter((row) => row.eligible_import || row.classification === "likely_individual");
-  const selectedBlocked = selectedRows.filter((row) => !row.eligible_import && row.classification !== "likely_individual");
+  const selectedEligible = selectedRows.filter((row) => row.eligible_import);
+  const selectedBlocked = selectedRows.filter((row) => !row.eligible_import);
   const keyFor = (row: QuickBooksBulkSupplierRow) => `${row.id}-${row.currency}`;
+  const validEmail = (row: QuickBooksBulkSupplierRow) => typeof row.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email.trim());
 
   const loadPreview = async (nextPage = page) => {
     if (nextPage !== page) setPage(nextPage);
@@ -667,17 +667,20 @@ function BulkUnmatchedSupplierReview({ onChanged }: { onChanged: () => Promise<v
     });
   };
 
-  const selectAllEligible = async () => {
+  const selectMatching = async (predicate: (row: QuickBooksBulkSupplierRow) => boolean, label: string) => {
     setBusy(true);
-    const response = await quickbooksApi.supplierBulkPreview({ per_page: 5000, filter: "business_import_candidate" });
+    const response = await quickbooksApi.supplierBulkPreview({ per_page: 5000, search, filter });
     setBusy(false);
     if (!response.success || !response.data) {
-      toast.error(response.error ?? "Could not load eligible suppliers.");
+      toast.error(response.error ?? `Could not select ${label.toLowerCase()}.`);
       return;
     }
-    setSelected(Object.fromEntries(response.data.items.map((row) => [keyFor(row), row])));
-    toast.success(`${response.data.items.length} eligible suppliers selected.`);
+    const matches = response.data.items.filter(predicate);
+    setSelected(Object.fromEntries(matches.map((row) => [keyFor(row), row])));
+    toast.success(`${matches.length} ${label.toLowerCase()} selected.`);
   };
+
+  const selectAllEligible = () => selectMatching((row) => row.eligible_import, "eligible suppliers");
 
   const processInChunks = async (
     records: Array<Record<string, string | boolean>>,
@@ -706,8 +709,6 @@ function BulkUnmatchedSupplierReview({ onChanged }: { onChanged: () => Promise<v
     await processInChunks(selectedRows.map((row) => ({
       quickbooks_vendor_id: row.id!,
       currency: row.currency!,
-      manual_override: row.classification === "likely_individual",
-      justification,
     })), (chunk) => quickbooksApi.bulkImportSuppliers(chunk as Array<{ quickbooks_vendor_id: string; currency: string; manual_override?: boolean; justification?: string }>));
   };
 
@@ -742,6 +743,7 @@ function BulkUnmatchedSupplierReview({ onChanged }: { onChanged: () => Promise<v
           <option value="likely_individual">Individual names</option>
           <option value="possible_duplicate">Possible duplicates</option>
           <option value="quickbooks_identity_overlap">QB identity overlap</option>
+          <option value="missing_email">No email</option>
           <option value="insufficient_evidence">Needs review</option>
           <option value="previously_excluded">Excluded</option>
           <option value="already_linked">Imported / linked</option>
@@ -753,18 +755,21 @@ function BulkUnmatchedSupplierReview({ onChanged }: { onChanged: () => Promise<v
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             <span>{preview.total} records · page {preview.page} of {preview.last_page}</span>
             <Button size="sm" variant="ghost" onClick={selectCurrentEligible} disabled={busy}>Select eligible on page</Button>
+            <Button size="sm" variant="ghost" onClick={() => void selectMatching((row) => row.eligible_import && validEmail(row), "recommended suppliers")} disabled={busy}>Select recommended</Button>
+            <Button size="sm" variant="ghost" onClick={() => void selectMatching((row) => row.classification === "missing_email" || !validEmail(row), "suppliers without email")} disabled={busy}>Select without email</Button>
+            <Button size="sm" variant="ghost" onClick={() => void selectMatching((row) => row.classification === "likely_individual", "individual suppliers")} disabled={busy}>Select individuals</Button>
+            <Button size="sm" variant="ghost" onClick={() => void selectMatching((row) => row.classification === "possible_duplicate" || row.classification === "quickbooks_identity_overlap", "duplicate suppliers")} disabled={busy}>Select duplicates</Button>
             <Button size="sm" variant="ghost" onClick={() => void selectAllEligible()} disabled={busy}>Select all eligible</Button>
-            <span>{selectedRows.length} selected · {selectedEligible.length} import candidates · {selectedBlocked.length} blocked</span>
+            <span>{selectedRows.length} selected · {selectedEligible.length} eligible · {selectedBlocked.length} blocked</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <input className="h-9 rounded-md border bg-background px-3 text-sm" placeholder="Manual override justification" value={justification} onChange={(event) => setJustification(event.target.value)} />
             <select className="h-9 rounded-md border bg-background px-3 text-sm" value={reason} onChange={(event) => setReason(event.target.value)}>
               <option>Not a current SCM supplier</option>
               <option>Duplicate of an external record</option>
               <option>Insufficient evidence</option>
               <option>Requires compliance review</option>
             </select>
-            <Button onClick={() => void bulkImport()} disabled={busy || selectedRows.length === 0}>Bulk import as pending</Button>
+            <Button onClick={() => void bulkImport()} disabled={busy || selectedEligible.length === 0}>Import selected</Button>
             <Button variant="outline" onClick={() => void bulkExclude()} disabled={busy || selectedRows.length === 0}>Bulk exclude</Button>
             <Button variant="outline" onClick={() => void restoreExcluded()} disabled={busy || !selectedRows.some((row) => row.exclusion_id)}>Restore excluded</Button>
           </div>
