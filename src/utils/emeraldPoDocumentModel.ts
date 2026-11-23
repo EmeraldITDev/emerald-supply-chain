@@ -50,6 +50,8 @@ export interface EmeraldPoDisplayModel {
   companyAddressLines: string[];
   companyEmail: string;
   companyWebsite: string;
+  /** MRF/PO subject title shown under the Purchase Order heading. */
+  subjectTitle: string;
   supplierName: string;
   shipTo: string;
   poNumber: string;
@@ -412,6 +414,7 @@ export function buildEmeraldPoDisplayModel(input: {
     companyAddressLines: [...EMERALD_COMPANY.addressLines],
     companyEmail: EMERALD_COMPANY.email,
     companyWebsite: EMERALD_COMPANY.website,
+    subjectTitle: String(mrf.title || mrf.description || '').trim(),
     supplierName,
     shipTo,
     poNumber: poNum,

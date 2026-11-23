@@ -4132,6 +4132,44 @@ export const poApi = {
     });
   },
 
+  /**
+   * Edit MRF/PO title with draft vs controlled-revision protection.
+   * PATCH /api/pos/{id}/title
+   */
+  updateTitle: async (
+    poId: string,
+    title: string,
+  ): Promise<ApiResponse<MRF> & {
+    previous_title?: string;
+    new_title?: string;
+    revision_required?: boolean;
+    revision_number?: number;
+  }> => {
+    const full = await apiRequestFull(`/pos/${encodeURIComponent(poId)}/title`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title }),
+    });
+    if (!full.success) {
+      const body = (full.body ?? {}) as Record<string, unknown>;
+      return {
+        success: false,
+        error: full.error || (typeof body.error === 'string' ? body.error : 'Could not update title'),
+        status: full.status,
+        raw: full.body,
+      };
+    }
+    const body = (full.body ?? {}) as Record<string, unknown>;
+    return {
+      success: true,
+      data: (body.data as MRF | undefined) ?? (body as unknown as MRF),
+      previous_title: typeof body.previous_title === 'string' ? body.previous_title : undefined,
+      new_title: typeof body.new_title === 'string' ? body.new_title : undefined,
+      revision_required: body.revision_required === true,
+      revision_number: typeof body.revision_number === 'number' ? body.revision_number : undefined,
+      message: typeof body.message === 'string' ? body.message : undefined,
+    };
+  },
+
   /** Regenerate the unsigned PDF and notify SCD. POST /api/pos/{id}/submit-for-resign */
   submitForResign: async (poId: string): Promise<ApiResponse<MRF>> => {
     return apiRequest<MRF>(`/pos/${encodeURIComponent(poId)}/submit-for-resign`, {

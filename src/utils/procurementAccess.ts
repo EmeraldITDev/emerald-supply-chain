@@ -9,6 +9,29 @@ export const PROCUREMENT_FULL_ACCESS_ROLES = [
   "supply_chain",
 ] as const;
 
+/**
+ * Roles that may perform Procurement Manager operational actions
+ * (RFQ, quotations, PO draft/generate, GRN, unlock/force-close, etc.).
+ * Includes Supply Chain Director; director-only approval steps stay separate.
+ */
+export const PROCUREMENT_OPERATOR_ROLES = [
+  "procurement",
+  "procurement_manager",
+  "supply_chain_director",
+  "supply_chain",
+] as const;
+
+export function isProcurementOperator(
+  role?: string | null,
+  user?: { is_admin?: boolean } | null,
+): boolean {
+  if (hasAdminAccess(user)) return true;
+  return (
+    role != null &&
+    (PROCUREMENT_OPERATOR_ROLES as readonly string[]).includes(role)
+  );
+}
+
 /** Logistics Manager — read-only Procurement Overview at /procurement */
 export const PROCUREMENT_OVERVIEW_ROLES = ["logistics_manager", "logistics"] as const;
 

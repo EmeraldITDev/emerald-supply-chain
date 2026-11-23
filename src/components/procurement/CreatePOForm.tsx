@@ -146,6 +146,7 @@ const PO_TYPES: { value: POType; label: string }[] = [
 ];
 
 interface FormState {
+  title: string;
   po_type: POType;
   po_date: Date | undefined;
   delivery_date: Date | undefined;
@@ -163,6 +164,7 @@ interface FormState {
 }
 
 const initialState = (): FormState => ({
+  title: '',
   po_type: 'goods',
   po_date: new Date(),
   delivery_date: undefined,
@@ -516,6 +518,7 @@ export function CreatePOForm({
       justHydratedRef.current = true;
       setForm((prev) => ({
         ...prev,
+        title: String(m.title || prev.title || '').trim(),
         po_type: poType,
         delivery_date: deliveryDate ?? prev.delivery_date,
         ship_to_address: m.ship_to_address ?? prev.ship_to_address,
@@ -798,6 +801,9 @@ export function CreatePOForm({
    */
   const section1Errors = useMemo<string[]>(() => {
     const list: string[] = [];
+    if (!form.title.trim() || form.title.trim().length < 3) {
+      list.push('PO Details: enter a title (at least 3 characters).');
+    }
     if (!form.po_date) list.push('PO Details: pick a PO date.');
     if (!form.delivery_date) list.push('PO Details: pick a delivery / service date.');
     if (!form.ship_to_address.trim()) list.push('PO Details: enter a ship-to address.');
@@ -811,6 +817,7 @@ export function CreatePOForm({
     if (termsModeCustomInvalid) list.push('PO Details: enter custom terms when using "My terms only".');
     return list;
   }, [
+    form.title,
     form.po_date,
     form.delivery_date,
     form.ship_to_address,
@@ -850,6 +857,7 @@ export function CreatePOForm({
   }, [rows, vendors]);
 
   const section1Valid =
+    form.title.trim().length >= 3 &&
     !!form.po_date &&
     !!form.delivery_date &&
     !!form.ship_to_address.trim() &&
@@ -870,6 +878,7 @@ export function CreatePOForm({
     (!finalisedMrf || editingFinalised || isRevision);
 
   const hasAnyInput =
+    form.title.trim() ||
     form.ship_to_address.trim() ||
     form.payment_terms.trim() ||
     form.custom_terms.trim() ||
@@ -905,6 +914,7 @@ export function CreatePOForm({
     if (form.custom_terms.trim()) customPieces.push(form.custom_terms.trim());
 
     const base: POFormPayload = {
+      title: form.title.trim() || undefined,
       po_type: form.po_type,
       currency: form.currency,
       ship_to_address: form.ship_to_address.trim() || undefined,
@@ -947,6 +957,7 @@ export function CreatePOForm({
     const payload = buildPayload();
     const merged = {
       ...mrf,
+      title: form.title.trim() || mrf.title,
       currency: form.currency,
       ship_to_address:
         form.ship_to_address.trim() ||
@@ -1297,6 +1308,7 @@ export function CreatePOForm({
       const lineSource = supplierRows.length > 0 ? supplierRows : rows;
       const payload = buildPayload();
       const updateRes = await poApi.update(mrfId, {
+        title: payload.title,
         estimatedCost:
           lineSource.reduce(
             (sum, r) => sum + (Number(r.unit_price) || 0) * (Number(r.quantity) || 0),
@@ -1518,7 +1530,38 @@ export function CreatePOForm({
           <Badge variant="outline">MRF: {mrf?.formatted_id || mrf?.id || mrfId}</Badge>
         </div>
 
+        {isRevision && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-950">
+            Title and other edits on this revised PO require renewed Supply Chain Director
+            approval and signature before they become effective.
+          </div>
+        )}
+
         <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="po-title">MRF / PO Title *</Label>
+            <Input
+              id="po-title"
+              value={form.title}
+              onChange={(e) => patchForm({ title: e.target.value })}
+              placeholder="e.g. MUS-275KM FORD TRANSIT SERVICING"
+              disabled={isFinalised}
+              aria-invalid={Boolean(serverFieldErrors.title) || (form.title.trim().length > 0 && form.title.trim().length < 3)}
+              className={cn(
+                (serverFieldErrors.title || (form.title.trim().length > 0 && form.title.trim().length < 3)) &&
+                  'border-destructive focus-visible:ring-destructive',
+              )}
+            />
+            {serverFieldErrors.title ? (
+              <p className="text-xs text-destructive">{serverFieldErrors.title}</p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Shown on PO lists, detail views, and the generated PDF. Changing the title after
+                submission creates a controlled revision for re-approval.
+              </p>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label>PO Type *</Label>
             <Select
@@ -1875,6 +1918,8 @@ export function CreatePOForm({
         {reviewOpen && (
           <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-3">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <dt className="text-muted-foreground">Title</dt>
+              <dd className="font-medium">{form.title.trim() || '—'}</dd>
               <dt className="text-muted-foreground">PO Type</dt>
               <dd className="font-medium capitalize">{form.po_type}</dd>
               <dt className="text-muted-foreground">PO Date</dt>

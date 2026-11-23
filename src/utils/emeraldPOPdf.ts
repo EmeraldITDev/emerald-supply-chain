@@ -151,7 +151,16 @@ export async function buildEmeraldPurchaseOrderPdf(model: EmeraldPoDisplayModel)
   doc.setTextColor(titleBlue[0], titleBlue[1], titleBlue[2]);
   doc.text('Purchase Order', COL_L, y);
   doc.setTextColor(0, 0, 0);
-  y += 12;
+  y += 7;
+  if (model.subjectTitle) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    const subjectLines = doc.splitTextToSize(model.subjectTitle, COL_W);
+    doc.text(subjectLines, COL_L, y);
+    y += subjectLines.length * 4.2 + 4;
+  } else {
+    y += 5;
+  }
 
   const col1 = COL_L;
   const col2 = COL_L + 58;

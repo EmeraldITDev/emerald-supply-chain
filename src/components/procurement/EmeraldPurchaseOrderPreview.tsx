@@ -29,6 +29,9 @@ export function EmeraldPurchaseOrderPreview({ model }: { model: EmeraldPoDisplay
       </div>
 
       <h2 className="mt-4 text-2xl font-normal tracking-tight text-[#4696b9]">Purchase Order</h2>
+      {model.subjectTitle ? (
+        <p className="mt-1 text-sm font-semibold text-slate-800">{model.subjectTitle}</p>
+      ) : null}
 
       <div className="mt-4 grid grid-cols-1 gap-4 border-b border-slate-300 pb-4 text-sm md:grid-cols-3">
         <div>

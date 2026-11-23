@@ -32,6 +32,10 @@ const NewMRF = () => {
     (isEmployeeRole(role) ||
       role === "logistics_manager" ||
       role === "logistics_officer" ||
+      role === "procurement_manager" ||
+      role === "procurement" ||
+      role === "supply_chain_director" ||
+      role === "supply_chain" ||
       role === "executive" ||
       role === "admin" ||
       hasAdminAccess(user));

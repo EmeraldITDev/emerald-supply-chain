@@ -67,7 +67,11 @@ export const WorkflowGatesPanel = ({
   const { toast } = useToast();
   const { user } = useAuth();
   const role = getScmRole(user);
-  const canForceCloseRole = role === "admin" || role === "procurement_manager";
+  const canForceCloseRole =
+    role === "admin" ||
+    role === "procurement_manager" ||
+    role === "supply_chain_director" ||
+    role === "supply_chain";
 
   const [gates, setGates] = useState<WorkflowGatesResponse | null>(null);
   const [loading, setLoading] = useState(false);

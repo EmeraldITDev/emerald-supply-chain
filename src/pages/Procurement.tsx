@@ -160,7 +160,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { getScmRole, formatScmRoleLabel } from "@/utils/scmRole";
-import { resolveProcurementOverviewMode } from "@/utils/procurementAccess";
+import { isProcurementOperator, resolveProcurementOverviewMode } from "@/utils/procurementAccess";
 import { formatMrfAmount, formatPoAmount, mrfCurrency } from "@/utils/currency";
 import {
   canViewProcurementDocuments,
@@ -2677,8 +2677,7 @@ const Procurement = () => {
                 <CardContent>
                   {/* Rejected POs - Need Resubmission - Only visible to Procurement Managers */}
                   {rejectedPOs.length > 0 &&
-                    (getScmRole(user) === "procurement" ||
-                      getScmRole(user) === "procurement_manager") && (
+                    isProcurementOperator(getScmRole(user), user) && (
                       <div className="mb-6 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
                         <div className="flex items-center gap-2 mb-4">
                           <XCircle className="h-5 w-5 text-destructive" />
@@ -2744,8 +2743,7 @@ const Procurement = () => {
                                       </div>
                                     </div>
                                     {/* Regenerate PO button - Only for Procurement Managers */}
-                                    {(getScmRole(user) === "procurement" ||
-                                      getScmRole(user) === "procurement_manager") && (
+                                    {isProcurementOperator(getScmRole(user), user) && (
                                         <div className="flex flex-col sm:flex-row gap-2">
                                           <Button
                                             size="sm"
@@ -3387,8 +3385,7 @@ const Procurement = () => {
                                       if (!apiId) return null;
 
                                       const isProcurement =
-                                        getScmRole(user) === "procurement" ||
-                                        getScmRole(user) === "procurement_manager";
+                                        isProcurementOperator(getScmRole(user), user);
                                       if (!isProcurement) return null;
 
                                       const isDraft = Boolean(
@@ -3456,8 +3453,7 @@ const Procurement = () => {
                                     {/* View Details button - Shown for procurement after the FIRST required approval */}
                                     {(() => {
                                       const isProcurement =
-                                        getScmRole(user) === "procurement" ||
-                                        getScmRole(user) === "procurement_manager";
+                                        isProcurementOperator(getScmRole(user), user);
                                       const isOversight =
                                         getScmRole(user) === "supply_chain_director" ||
                                         getScmRole(user) === "supply_chain" ||
@@ -3490,8 +3486,7 @@ const Procurement = () => {
                                         request as MRF,
                                       );
                                       const isProcurement =
-                                        getScmRole(user) === "procurement" ||
-                                        getScmRole(user) === "procurement_manager";
+                                        isProcurementOperator(getScmRole(user), user);
                                       const isPendingPOUpload =
                                         workflowState === "pending_po_upload";
 
@@ -3523,8 +3518,7 @@ const Procurement = () => {
                                         request as MRF,
                                       );
                                       const isProcurement =
-                                        getScmRole(user) === "procurement" ||
-                                        getScmRole(user) === "procurement_manager";
+                                        isProcurementOperator(getScmRole(user), user);
                                       const isPendingPOUpload =
                                         workflowState === "pending_po_upload";
                                       const hasInitialApproval =
@@ -3599,8 +3593,7 @@ const Procurement = () => {
                                           );
                                         })()}
                                         {/* Delete PO button - only for procurement managers */}
-                                        {(getScmRole(user) === "procurement_manager" ||
-                                          getScmRole(user) === "procurement") && (
+                                        {isProcurementOperator(getScmRole(user), user) && (
                                             <Button
                                               size="sm"
                                               variant="ghost"
@@ -3617,8 +3610,7 @@ const Procurement = () => {
                                       </>
                                     )}
                                     {/* PM can delete MRFs at any stage (Batch 2 Item 3) */}
-                                    {(getScmRole(user) === "procurement_manager" ||
-                                      getScmRole(user) === "procurement") && (
+                                    {isProcurementOperator(getScmRole(user), user) && (
                                         <Button
                                           size="sm"
                                           variant="ghost"
@@ -3757,8 +3749,7 @@ const Procurement = () => {
                                   <Badge className={getStatusColor(mrf.status)}>
                                     {getMRFStatusBadgeText(mrf)}
                                   </Badge>
-                                  {(getScmRole(user) === "procurement_manager" ||
-                                    getScmRole(user) === "procurement") && (
+                                  {isProcurementOperator(getScmRole(user), user) && (
                                       <Button
                                         size="sm"
                                         variant="ghost"
@@ -3836,8 +3827,7 @@ const Procurement = () => {
                     {filteredSRFs.map((request) => {
                       const wf = getSrfWorkflowState(request);
                       const isProcurement =
-                        getScmRole(user) === "procurement" ||
-                        getScmRole(user) === "procurement_manager";
+                        isProcurementOperator(getScmRole(user), user);
                       const isPendingPOUpload = wf === "pending_po_upload";
                       const hasScd = isSrfPastSupplyChainDirectorForRfq(request);
                       const canShowRfqButton =

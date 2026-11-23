@@ -86,6 +86,8 @@ export interface PriceComparisonEntry {
 
 /** Payload for POST /api/mrfs/{id}/generate-po (both draft and finalise). */
 export interface POFormPayload {
+  /** MRF/PO display title shown in lists, detail, and PDF subject. */
+  title?: string;
   po_type?: POType;
   custom_terms?: string;
   /** Always `per_line`: VAT is carried on each price-comparison row. */

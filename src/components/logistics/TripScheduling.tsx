@@ -2102,9 +2102,12 @@ export const TripScheduling = ({
                                   .workflowStage;
                               const isProcurement =
                                 getScmRole(user) &&
-                                ["procurement", "procurement_manager"].includes(
-                                  getScmRole(user),
-                                );
+                                [
+                                  "procurement",
+                                  "procurement_manager",
+                                  "supply_chain_director",
+                                  "supply_chain",
+                                ].includes(getScmRole(user));
                               const isScd =
                                 getScmRole(user) &&
                                 [

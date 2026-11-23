@@ -45,7 +45,12 @@ export function LogisticsPoQueue({
 }: LogisticsPoQueueProps) {
   const { user } = useAuth();
   const scmRole = getScmRole(user);
-  const canCreatePo = scmRole === "admin" || scmRole === "procurement_manager";
+  const canCreatePo =
+    scmRole === "admin" ||
+    scmRole === "procurement_manager" ||
+    scmRole === "procurement" ||
+    scmRole === "supply_chain_director" ||
+    scmRole === "supply_chain";
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedTripForDetails, setSelectedTripForDetails] = useState<Trip | null>(null);
 

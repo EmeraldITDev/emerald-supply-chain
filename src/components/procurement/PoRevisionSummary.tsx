@@ -1,5 +1,9 @@
 import { Badge } from "@/components/ui/badge";
-import { getLatestRevisionChanges, getPoRevisionNumber } from "@/utils/poHelpers";
+import {
+  getLatestRevisionChanges,
+  getPoRevisionNumber,
+  isPoAwaitingRenewedApproval,
+} from "@/utils/poHelpers";
 
 function displayValue(value: unknown): string {
   if (value == null || value === "") return "—";
@@ -22,9 +26,10 @@ interface PoRevisionSummaryProps {
 export function PoRevisedBadge({ mrf }: { mrf: unknown }) {
   const revision = getPoRevisionNumber(mrf);
   if (revision <= 0) return null;
+  const awaiting = isPoAwaitingRenewedApproval(mrf);
   return (
     <Badge className="border-amber-500/40 bg-amber-500/15 text-amber-800 hover:bg-amber-500/20">
-      Revised
+      {awaiting ? "Awaiting renewed approval" : "Revised"}
     </Badge>
   );
 }

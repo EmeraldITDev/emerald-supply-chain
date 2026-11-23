@@ -32,7 +32,13 @@ const LOGISTICS_ROLES = new Set([
   "admin",
 ]);
 
-const PROCUREMENT_ROLES = new Set(["procurement", "procurement_manager"]);
+/** PM operational trip actions — SCD included for full PM capability parity. */
+const PROCUREMENT_ROLES = new Set([
+  "procurement",
+  "procurement_manager",
+  "supply_chain_director",
+  "supply_chain",
+]);
 
 const SCD_ROLES = new Set(["supply_chain_director", "supply_chain"]);
 

@@ -69,6 +69,14 @@ export function AppSidebar() {
   };
 
   // Full procurement navigation (shared by Procurement, Executive, Chairman, Supply Chain Director)
+  const procurementCreateRequestsNav = {
+    label: "Requests",
+    items: [
+      { title: "New MRF", url: "/new-mrf", icon: FileText },
+      { title: "New SRF", url: "/new-srf", icon: FileText },
+    ],
+  };
+
   const fullProcurementNav = [
     {
       label: "Main",
@@ -84,7 +92,6 @@ export function AppSidebar() {
           icon: ShoppingCart,
           subItems: [
             { title: "Overview", url: "/procurement" },
-            // MRF/SRF creation removed - only employees can create via Department Dashboard
           ],
         },
         { title: "Vendors", url: "/vendors", icon: Users },
@@ -180,8 +187,8 @@ export function AppSidebar() {
       getScmRole(user) === "procurement" ||
       getScmRole(user) === "procurement_manager"
     ) {
-      // Procurement Manager: Full system, no approvals
-      return fullProcurementNav;
+      // Procurement Manager: Full system + create requisitions
+      return [fullProcurementNav[0], procurementCreateRequestsNav, ...fullProcurementNav.slice(1)];
     } else if (getScmRole(user) === "finance") {
       return [
         {
@@ -254,10 +261,12 @@ export function AppSidebar() {
       getScmRole(user) === "supply_chain_director" ||
       getScmRole(user) === "supply_chain"
     ) {
-      // Supply Chain Director: Full procurement access + PO signing
+      // Supply Chain Director: PM operational capabilities + PO signing
       // Note: Database may use "supply_chain" or "supply_chain_director" for this role
       return [
-        ...fullProcurementNav,
+        fullProcurementNav[0],
+        procurementCreateRequestsNav,
+        ...fullProcurementNav.slice(1),
         {
           label: "PO Management",
           items: [

@@ -132,7 +132,32 @@ export const canUnlockSignedPo = (
 ): boolean => {
   if (user?.is_admin) return true;
   const r = String(role ?? "").toLowerCase();
-  return r === "procurement_manager" || r === "procurement" || r === "admin";
+  return (
+    r === "procurement_manager" ||
+    r === "procurement" ||
+    r === "procurement_officer" ||
+    r === "supply_chain_director" ||
+    r === "supply_chain" ||
+    r === "admin"
+  );
+};
+
+/** Roles authorised to edit the MRF/PO title (mirrors backend operational roles). */
+export const canEditPoTitle = (
+  role?: string | null,
+  user?: { is_admin?: boolean } | null,
+): boolean => canUnlockSignedPo(role, user);
+
+/** True when a revised PO is waiting for SCD re-approval / re-signature. */
+export const isPoAwaitingRenewedApproval = (po: unknown): boolean => {
+  if (!po) return false;
+  const r = po as Record<string, unknown>;
+  if (r.awaiting_renewed_approval === true || r.awaitingRenewedApproval === true) {
+    return true;
+  }
+  const revision = getPoRevisionNumber(po);
+  if (revision <= 0) return false;
+  return isPoPendingRevision(po) || isPOAwaitingSignature(po);
 };
 
 export const getLatestRevisionChanges = (

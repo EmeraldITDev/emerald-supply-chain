@@ -39,10 +39,17 @@ export function canManageWarehouse(user?: UserLike | null): boolean {
   return !!user?.is_admin || WAREHOUSE_MANAGE_ROLES.has(role(user));
 }
 
-/** Procurement can raise MRFs off low-stock alerts. */
+/** Procurement / SCD can raise MRFs off low-stock alerts. */
 export function canRaiseMrfFromWarehouse(user?: UserLike | null): boolean {
   const r = role(user);
-  return !!user?.is_admin || r === 'procurement_manager' || r === 'procurement' || r === 'warehouse_manager';
+  return (
+    !!user?.is_admin ||
+    r === 'procurement_manager' ||
+    r === 'procurement' ||
+    r === 'supply_chain_director' ||
+    r === 'supply_chain' ||
+    r === 'warehouse_manager'
+  );
 }
 
 /** Finance / Executive style read-only access. */

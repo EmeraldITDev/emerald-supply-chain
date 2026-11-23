@@ -9,8 +9,10 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDashboardPath, getScmRole } from "@/utils/scmRole";
 import {
+  canEditPoTitle,
   canUnlockSignedPo,
   getEffectivePoNumber,
+  isPoAwaitingRenewedApproval,
   isPoPendingRevision,
   isPoSignedLocked,
 } from "@/utils/poHelpers";
@@ -25,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getMrfApiId } from "@/utils/displayId";
@@ -62,10 +65,17 @@ export default function PODetailPage() {
   const [confirmingDelivery, setConfirmingDelivery] = useState(false);
   const [forwardOpen, setForwardOpen] = useState(false);
   const [forwarding, setForwarding] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [savingTitle, setSavingTitle] = useState(false);
 
   const reload = async () => {
     const res = await mrfApi.getById(id);
-    if (res.success && res.data) setMrf(res.data as MRF);
+    if (res.success && res.data) {
+      const loaded = res.data as MRF;
+      setMrf(loaded);
+      setTitleDraft(String((loaded as { title?: string }).title || ""));
+    }
     return res;
   };
 
@@ -76,8 +86,11 @@ export default function PODetailPage() {
       .getById(id)
       .then((res) => {
         if (cancelled) return;
-        if (res.success && res.data) setMrf(res.data as MRF);
-        else setError(res.error || "Failed to load PO");
+        if (res.success && res.data) {
+          const loaded = res.data as MRF;
+          setMrf(loaded);
+          setTitleDraft(String((loaded as { title?: string }).title || ""));
+        } else setError(res.error || "Failed to load PO");
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -96,7 +109,42 @@ export default function PODetailPage() {
     (Boolean(signed) || justSigned || poStatus.includes("signed"));
   const canEditSigned = canUnlockSignedPo(getScmRole(user), user);
   const showEditButton = Boolean(mrf) && canEditSigned && (isSigned || pendingRevision);
+  const canEditTitle =
+    Boolean(mrf) && canEditPoTitle(getScmRole(user), user) && !isSigned;
+  const awaitingRenewedApproval = isPoAwaitingRenewedApproval(mrf);
   const apiId = mrf ? getMrfApiId(mrf) || String(mrf.id || id) : id;
+
+  const handleSaveTitle = async () => {
+    const next = titleDraft.trim();
+    if (next.length < 3) {
+      toast.error("Title must be at least 3 characters.");
+      return;
+    }
+    setSavingTitle(true);
+    try {
+      const res = await poApi.updateTitle(apiId, next);
+      if (!res.success) {
+        toast.error(res.error || "Could not update the PO title.");
+        return;
+      }
+      if (res.data) {
+        setMrf(res.data as MRF);
+        setTitleDraft(String((res.data as { title?: string }).title || next));
+      } else {
+        await reload();
+      }
+      setEditingTitle(false);
+      if (res.revision_required) {
+        toast.success("Title revised — awaiting renewed SCD approval", {
+          description: `${res.previous_title || "Previous title"} → ${res.new_title || next}`,
+        });
+      } else {
+        toast.success("PO title updated");
+      }
+    } finally {
+      setSavingTitle(false);
+    }
+  };
 
   const workflowState = String(
     m?.workflow_state || m?.workflowState || "",
@@ -196,13 +244,74 @@ export default function PODetailPage() {
     >
       {mrf && (
         <div className="space-y-4">
-          {isPoPendingRevision(mrf) && (
+          {(isPoPendingRevision(mrf) || awaitingRenewedApproval) && (
             <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
-              This PO is unlocked for revision. Save your edits to notify the
-              Supply Chain Director for a new signature.
+              {isPoPendingRevision(mrf)
+                ? "This PO is unlocked for revision. Save your edits to notify the Supply Chain Director for a new signature."
+                : "This purchase order was edited and is awaiting renewed Supply Chain Director approval before the revised version becomes effective."}
             </div>
           )}
           <PoRevisionSummary mrf={mrf} />
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label htmlFor="po-detail-title" className="text-sm font-medium">
+                MRF / PO Title
+              </Label>
+              {canEditTitle && !editingTitle && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setTitleDraft(String(m?.title || ""));
+                    setEditingTitle(true);
+                  }}
+                >
+                  <Pencil className="mr-2 h-3.5 w-3.5" />
+                  Edit title
+                </Button>
+              )}
+            </div>
+            {editingTitle ? (
+              <div className="space-y-2">
+                <Input
+                  id="po-detail-title"
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  disabled={savingTitle}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => void handleSaveTitle()} disabled={savingTitle}>
+                    {savingTitle ? "Saving…" : "Save title"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={savingTitle}
+                    onClick={() => {
+                      setEditingTitle(false);
+                      setTitleDraft(String(m?.title || ""));
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                {isSigned ? null : (
+                  <p className="text-xs text-muted-foreground">
+                    If this PO is already submitted for approval, saving a new title creates a
+                    controlled revision for renewed SCD approval.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm font-medium">{m?.title || m?.description || "—"}</p>
+            )}
+            {isSigned && canEditSigned && (
+              <p className="text-xs text-muted-foreground">
+                This PO is signed. Unlock it for revision to change the title — the previous signed
+                version is preserved until the revised PO is re-approved and signed.
+              </p>
+            )}
+          </div>
           <DetailFields
             fields={[
               { label: "Vendor", value: m.vendor_name || m.vendorName },
