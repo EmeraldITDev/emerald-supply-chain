@@ -1,0 +1,68 @@
+# Builds the Vite app and uploads dist/ to cPanel over FTP after each push to main.
+# Live site: https://scm.emeraldcfze.com  →  cPanel folder public_html/scm.emeraldcfze.com/
+#
+# Repository (or organization) secrets — the same three values are used by all four portals:
+#   CPANEL_FTP_SERVER     e.g. ftp.emeraldcfze.com (or the cPanel server hostname)
+#   CPANEL_FTP_USERNAME   an FTP account whose directory is public_html, e.g. deploy@emeraldcfze.com
+#   CPANEL_FTP_PASSWORD
+
+name: Deploy to cPanel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # adds a manual "Run workflow" button in the Actions tab
+
+concurrency:
+  group: deploy-cpanel
+  cancel-in-progress: false # never cut an upload off half way
+
+env:
+  # Path on the FTP server, relative to the FTP account's directory (public_html). Must end with "/".
+  # If you log in with the main cPanel account instead, use /public_html/scm.emeraldcfze.com/
+  DEPLOY_DIR: /scm.emeraldcfze.com/
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          # Gives every deploy a distinct build ID (used by apps that emit version.json).
+          VITE_BUILD_ID: ${{ github.sha }}
+
+      - name: Check build output
+        run: |
+          test -f dist/index.html
+          test -f dist/.htaccess
+
+      - name: Upload dist/ to cPanel
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.CPANEL_FTP_SERVER }}
+          username: ${{ secrets.CPANEL_FTP_USERNAME }}
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          server-dir: ${{ env.DEPLOY_DIR }}
+          local-dir: ./dist/
+          # Encrypted FTP. If the job fails with a TLS/certificate error, set
+          # CPANEL_FTP_SERVER to the cPanel server hostname, or change this to "ftp".
+          protocol: ftps
+          # Only changed files are uploaded. Files it uploaded before that are no longer in dist/
+          # are deleted; files it never uploaded are left alone. It records what it sent in
+          # .ftp-deploy-sync-state.json inside DEPLOY_DIR — don't delete that file.
+          exclude: |
+            **/.git*
+            **/.git*/**
